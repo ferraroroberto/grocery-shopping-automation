@@ -1,0 +1,33 @@
+# virtual environment
+.venv/
+
+# environment / secrets
+.env
+
+# python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# logs
+*.log
+
+# user's private inventory file (keep the example xlsx)
+data/list.xlsx
+
+# audio audit runtime artefacts
+audio_audit_logs/
+test_data/smoke_phase2_result.json
+
+# IDE / editor
+.vscode/
+.idea/
+*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code local settings
+.claude/settings.local.json
+.claude/scheduled_tasks.lock

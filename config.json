@@ -1,0 +1,61 @@
+{
+  "app": {
+    "title": "Household Inventory & Shopping Helper",
+    "version": "1.0.0",
+    "description": "Mobile-responsive app for managing household grocery inventory"
+  },
+  "data": {
+    "xlsx_file": "data/list.xlsx",
+    "columns": {
+      "super": "super",
+      "buscador": "buscador",
+      "lugar": "lugar",
+      "comida": "comida",
+      "cantidad": "cantidad",
+      "tenemos": "tenemos",
+      "comprar": "comprar"
+    },
+    "ui_labels": {
+      "target": "cantidad",
+      "current": "tenemos",
+      "buy": "comprar"
+    },
+    "excel_columns": {
+      "target": "G",
+      "current": "H",
+      "buy": "I"
+    }
+  },
+  "ui": {
+    "page_config": {
+      "page_title": "Inventory Helper",
+      "page_icon": "🛒",
+      "layout": "wide",
+      "initial_sidebar_state": "collapsed"
+    },
+    "modes": {
+      "audit": "🔍 Audit Inventory",
+      "audio_audit": "🎙️ Audio Audit",
+      "edit": "✏️ Edit Targets",
+      "edit_item": "🔧 Edit Item",
+      "add_item": "➕ Add Item",
+      "shopping": "🛒 Shopping List",
+      "export": "💾 Save/Export"
+    }
+  },
+  "audio_audit": {
+    "whisper_url": "http://127.0.0.1:8090",
+    "whisper_model": "whisper-large-v3-turbo",
+    "language": "es",
+    "llm_base_url": "http://127.0.0.1:8000",
+    "llm_model": "claude-haiku-4-5",
+    "llm_max_tokens": 4096,
+    "max_count_clamp_above_target": 5,
+    "logs_dir": "audio_audit_logs",
+    "test_fixture_path": "data/list.example.xlsx"
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  }
+}
