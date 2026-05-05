@@ -13,7 +13,7 @@ from typing import Dict, List, Optional
 import pandas as pd
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-CONFIG_PATH = REPO_ROOT / "config.json"
+CONFIG_PATH = Path(__file__).resolve().parent / "config.json"
 
 with open(CONFIG_PATH, "r", encoding="utf-8") as f:
     CONFIG = json.load(f)

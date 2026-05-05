@@ -137,7 +137,7 @@ def trust_on_windows(ca_path: Path) -> None:
 
 
 if __name__ == "__main__":
-    root = Path(__file__).resolve().parent
+    root = Path(__file__).resolve().parent.parent
     ca, cert, key = generate(root / "certificates")
     print(f"[OK] ca.pem   -> {ca}")
     print(f"[OK] cert.pem -> {cert}")
@@ -146,5 +146,5 @@ if __name__ == "__main__":
     if platform.system() == "Windows":
         trust_on_windows(ca)
         print()
-    print("Restart the app (launcher.bat) -- it will now serve HTTPS.")
+    print("Restart the app (launch_app.bat) -- it will now serve HTTPS.")
     print("Mobile: on first visit tap 'Advanced -> Proceed' once per device.")
