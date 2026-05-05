@@ -1,16 +1,4 @@
 #!/usr/bin/env python3
-"""
-Household Inventory & Shopping Helper — entry point.
-
-Mobile-responsive Streamlit app for managing grocery inventory.
-Page config, shared session state, sidebar, and mode routing live here;
-each mode is implemented in its own module (audit, edit_targets, edit_item,
-add_item, shopping, export).
-
-Usage:
-    streamlit run app/app.py
-"""
-
 import os
 import sys
 from pathlib import Path
@@ -35,7 +23,6 @@ from src.data import (
 
 
 def _render_sidebar() -> None:
-    """Render the sidebar: utility actions, mode selector, and live stats."""
     with st.sidebar:
         if st.button(
             "📂 Open spreadsheet",
@@ -44,7 +31,7 @@ def _render_sidebar() -> None:
         ):
             open_inventory_spreadsheet()
 
-        local_url = f"http://{get_local_ip()}:8501"
+        local_url = f"https://{get_local_ip()}:8501"
         if st.button(
             "📋 Copy link",
             help=f"Copies {local_url} to clipboard — paste in Telegram to open on mobile.",
@@ -55,23 +42,6 @@ def _render_sidebar() -> None:
 
         if st.button("🔴 Close app", help="Stop the Streamlit server.", width="stretch"):
             os._exit(0)
-
-        st.divider()
-
-        mode_options = list(MODES.keys())
-        mode_labels = list(MODES.values())
-
-        selected_mode = st.radio(
-            "Mode",
-            mode_labels,
-            index=mode_options.index(st.session_state.current_mode),
-            label_visibility="collapsed",
-        )
-
-        current_mode_key = mode_options[mode_labels.index(selected_mode)]
-        if current_mode_key != st.session_state.current_mode:
-            st.session_state.current_mode = current_mode_key
-            st.rerun()
 
         if st.session_state.inventory_data is not None:
             df_stats = st.session_state.inventory_data
@@ -121,7 +91,6 @@ def _render_sidebar() -> None:
 
 
 def _init_session_state() -> None:
-    """Initialise session-state keys used across modes."""
     if "inventory_data" not in st.session_state:
         try:
             df = load_inventory_data()
@@ -142,9 +111,6 @@ def _init_session_state() -> None:
             st.stop()
         st.session_state.inventory_data = df
 
-    if "current_mode" not in st.session_state:
-        st.session_state.current_mode = "audit"
-
     if "bought_items" not in st.session_state:
         st.session_state.bought_items = set()
 
@@ -159,7 +125,6 @@ def _init_session_state() -> None:
 
 
 def main() -> None:
-    """Application entry point."""
     st.set_page_config(**CONFIG["ui"]["page_config"])
     st.markdown(CSS, unsafe_allow_html=True)
     st.markdown("### 🛒 Inventory & Shopping Helper")
@@ -168,22 +133,24 @@ def main() -> None:
     _render_sidebar()
 
     df = st.session_state.inventory_data
-    mode = st.session_state.current_mode
+    tabs = st.tabs(list(MODES.values()))
 
-    if mode == "audit":
-        st.session_state.inventory_data = audit.main(df)
-    elif mode == "audio_audit":
-        st.session_state.inventory_data = audio_audit.main(df)
-    elif mode == "edit":
-        st.session_state.inventory_data = edit_targets.main(df)
-    elif mode == "edit_item":
-        st.session_state.inventory_data = edit_item.main(df)
-    elif mode == "add_item":
-        st.session_state.inventory_data = add_item.main(df)
-    elif mode == "shopping":
-        shopping.main(df)
-    elif mode == "export":
-        export.main(df)
+    for key, tab in zip(MODES.keys(), tabs):
+        with tab:
+            if key == "audit":
+                st.session_state.inventory_data = audit.main(df)
+            elif key == "audio_audit":
+                st.session_state.inventory_data = audio_audit.main(df)
+            elif key == "edit":
+                st.session_state.inventory_data = edit_targets.main(df)
+            elif key == "edit_item":
+                st.session_state.inventory_data = edit_item.main(df)
+            elif key == "add_item":
+                st.session_state.inventory_data = add_item.main(df)
+            elif key == "shopping":
+                shopping.main(df)
+            elif key == "export":
+                export.main(df)
 
 
 if __name__ == "__main__":

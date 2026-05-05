@@ -32,7 +32,7 @@ if errorlevel 1 (
 
 echo [INFO] Running app.py with Streamlit...
 echo [INFO] The dashboard should open in your default browser.
-python -m streamlit run app.py --browser.gatherUsageStats false --server.headless false --server.address 0.0.0.0
+python -m streamlit run app/app.py --browser.gatherUsageStats false --server.headless false --server.address 0.0.0.0
 
 if errorlevel 1 (
     echo [ERROR] Dashboard failed with error code %errorlevel%

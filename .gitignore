@@ -17,7 +17,7 @@ data/list.xlsx
 
 # audio audit runtime artefacts
 audio_audit_logs/
-test_data/smoke_phase2_result.json
+tests/smoke_phase2_result.json
 
 # generated SSL certificates (run gen_ssl_cert.py to recreate)
 certificates/
