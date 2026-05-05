@@ -4,8 +4,13 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
+_repo_str = str(REPO_ROOT)
+# Always put REPO_ROOT first — Streamlit adds the script dir (app/) to sys.path before
+# the script runs, so a plain insert-if-absent leaves app/ ahead and Python resolves
+# `from app import …` to app.py itself, causing a circular import.
+if _repo_str in sys.path:
+    sys.path.remove(_repo_str)
+sys.path.insert(0, _repo_str)
 
 import streamlit as st
 
