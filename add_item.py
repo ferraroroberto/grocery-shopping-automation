@@ -1,0 +1,52 @@
+"""Add Item mode — form-based creation of new inventory items."""
+
+import pandas as pd
+import streamlit as st
+
+from data import (
+    COLUMNS,
+    get_unique_supermarkets,
+    get_unique_zones,
+    save_inventory_data,
+)
+
+
+def main(df: pd.DataFrame) -> pd.DataFrame:
+    """Render the add-item interface for creating new inventory items."""
+    existing_supermarkets = get_unique_supermarkets(df)
+    existing_zones = get_unique_zones(df)
+
+    with st.form(key="add_item_form"):
+        col1, col2 = st.columns(2)
+
+        with col1:
+            new_super = st.selectbox("🏪 Supermarket", options=existing_supermarkets)
+            new_lugar = st.selectbox("🏠 Zone", options=existing_zones)
+            new_comida = st.text_input("🥘 Item Name")
+
+        with col2:
+            new_cantidad = st.number_input("🎯 Target", value=0, min_value=0, step=1)
+            new_tenemos = st.number_input("📦 Current", value=0, min_value=0, step=1)
+            new_buscador = st.text_input("🔗 URL")
+
+        if st.form_submit_button("➕ Add Item", type="primary", width="stretch"):
+            if not new_comida.strip():
+                st.error("❌ Item name is required!")
+            else:
+                new_row = {
+                    COLUMNS["super"]: new_super,
+                    COLUMNS["lugar"]: new_lugar,
+                    COLUMNS["comida"]: new_comida,
+                    COLUMNS["cantidad"]: new_cantidad,
+                    COLUMNS["tenemos"]: new_tenemos,
+                    COLUMNS["buscador"]: new_buscador,
+                    COLUMNS["comprar"]: max(0, new_cantidad - new_tenemos),
+                }
+                df_extended = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+
+                if save_inventory_data(df_extended):
+                    st.session_state.inventory_data = df_extended
+                    st.success(f"✅ Added '{new_comida}'")
+                    st.rerun()
+
+    return df

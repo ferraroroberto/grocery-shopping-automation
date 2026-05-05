@@ -1,8 +1,8 @@
 """Phase 2 smoke test: hits the running claude-local-calls hub + whisper-server.
 
 Pre-conditions:
-    - LLM hub running on :8000  (claude-local-calls)
-    - whisper-server running on :8090
+    - claude-local-calls hub running on :8000  (run_hub.bat)
+    - whisper-server running on :8090         (launchers/run_whisper.bat)
 """
 
 import json
@@ -12,13 +12,13 @@ from pathlib import Path
 
 import pandas as pd
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO_ROOT))
-os.chdir(str(REPO_ROOT))
+GROCERY_DIR = Path(r"E:\automation\automation\system\grocery")
+sys.path.insert(0, str(GROCERY_DIR))
+os.chdir(str(GROCERY_DIR))
 
-from src import data  # noqa: E402
-from src.inventory_extract import ExtractionError, extract  # noqa: E402,F401
-from src.transcribe_client import health_check as whisper_health  # noqa: E402
+import data  # noqa: E402
+from inventory_extract import extract, ExtractionError  # noqa: E402
+from transcribe_client import health_check as whisper_health  # noqa: E402
 
 cfg = data.CONFIG["audio_audit"]
 
@@ -28,8 +28,8 @@ print(f"[INFO] whisper={cfg['whisper_url']}, model={cfg['whisper_model']}")
 assert whisper_health(cfg["whisper_url"], timeout=3), "whisper :8090 not reachable"
 print("[OK] whisper-server :8090 reachable")
 
-# Use the example fixture (read-only)
-fixture = REPO_ROOT / cfg["test_fixture_path"]
+# Use the fixture (read-only)
+fixture = GROCERY_DIR / cfg["test_fixture_path"]
 df = pd.read_excel(fixture, engine="openpyxl")
 df["cantidad"] = df["cantidad"].astype(int)
 df["tenemos"] = df["tenemos"].astype(int)
@@ -37,13 +37,17 @@ df["comprar"] = (df["cantidad"] - df["tenemos"]).clip(lower=0)
 candidates = df.copy()  # send all rows so items with cantidad=0 are still matchable
 print(f"[OK] loaded {len(candidates)} candidate items from fixture")
 
-# Hand-crafted Spanish narration referring to items expected in the example
-# fixture (generic Spanish food names).
+# Hand-crafted Spanish narration that hits items we know exist in the list:
+#   - 'pollo' (ametller, congelador)
+#   - 'salmon' (ametller, congelador)
+#   - 'colacao' (mercadona, despensa)
+#   - 'canela' (mercadona, despensa)
+#   - 'amoniaco' (mercadona, bajo escalera)
 transcript = (
     "Vale, ahora estoy en el congelador. Tengo dos pollos enteros, "
-    "tres salmones grandes, y ningún guisante. "
-    "Ahora paso a la despensa. Tengo un arroz y dos pastas. "
-    "Por último, en bajo escalera, tengo cero detergentes."
+    "tres salmones grandes, y ningún pulpo. "
+    "Ahora paso a la despensa. Tengo un colacao y dos canelas. "
+    "Por último, en bajo escalera, tengo cero amoniacos."
 )
 print(f"[INFO] simulated transcript: {transcript[:80]}…")
 
@@ -60,17 +64,22 @@ print(f"     unmatched: {len(result.unmatched_mentions)}")
 for item in result.items:
     name = candidates.at[item["idx"], "comida"]
     lugar = candidates.at[item["idx"], "lugar"]
-    print(
-        f"     idx={item['idx']:3d}  count={item['count']}  zone={item['zone']:14s}  "
-        f"comida={name}  (lugar={lugar})  evidence={item['evidence'][:40]!r}"
-    )
+    print(f"     idx={item['idx']:3d}  count={item['count']}  zone={item['zone']:14s}  "
+          f"comida={name}  (lugar={lugar})  evidence={item['evidence'][:40]!r}")
 
-# Sanity: at least one fridge/freezer item should match.
-assert result.items, "expected at least one matched item from transcript"
+# Sanity: at least one of each should match (relax the match by name-substring)
+def find(name_part):
+    return [it for it in result.items
+            if name_part in str(candidates.at[it["idx"], "comida"]).lower()]
+
+assert find("pollo"), "expected pollo to be matched"
+assert find("salmon") or find("salmón"), "expected salmon to be matched"
+assert find("colacao"), "expected colacao to be matched"
 
 print("\nPHASE 2 SMOKE TEST: PASS")
 
-out = REPO_ROOT / "test_data" / "smoke_phase2_result.json"
+# Optional: dump full result for inspection
+out = Path(r"E:\automation\automation\system\grocery\test_data\smoke_phase2_result.json")
 out.write_text(
     json.dumps(
         {

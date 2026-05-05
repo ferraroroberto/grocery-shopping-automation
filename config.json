@@ -5,7 +5,7 @@
     "description": "Mobile-responsive app for managing household grocery inventory"
   },
   "data": {
-    "xlsx_file": "data/list.xlsx",
+    "xlsx_file": "E:\\OneDrive\\Documentos\\Roberto\\areas\\groceries\\list.xlsx",
     "columns": {
       "super": "super",
       "buscador": "buscador",
@@ -48,11 +48,11 @@
     "whisper_model": "whisper-large-v3-turbo",
     "language": "es",
     "llm_base_url": "http://127.0.0.1:8000",
-    "llm_model": "claude-haiku-4-5",
+    "llm_model": "claude-sonnet-4-6",
     "llm_max_tokens": 4096,
     "max_count_clamp_above_target": 5,
     "logs_dir": "audio_audit_logs",
-    "test_fixture_path": "data/list.example.xlsx"
+    "test_fixture_path": "test_data/list_test_fixture.xlsx"
   },
   "logging": {
     "level": "INFO",

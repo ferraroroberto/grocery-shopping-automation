@@ -1,3 +1,7 @@
+[server]
+sslCertFile = "certificates/cert.pem"
+sslKeyFile = "certificates/key.pem"
+
 [theme]
 primaryColor = "#1E88E5"
 backgroundColor = "#0E1117"

@@ -19,6 +19,12 @@ data/list.xlsx
 audio_audit_logs/
 test_data/smoke_phase2_result.json
 
+# generated SSL certificates (run gen_ssl_cert.py to recreate)
+certificates/
+
+# browser automation session cookies (never commit)
+automation/cookies/
+
 # IDE / editor
 .vscode/
 .idea/

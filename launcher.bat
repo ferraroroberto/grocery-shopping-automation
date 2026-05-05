@@ -2,37 +2,37 @@
 REM ============================================================================
 REM HOUSEHOLD INVENTORY ^& SHOPPING HELPER DASHBOARD
 REM ============================================================================
-REM Description: Runs the Streamlit dashboard for managing household grocery
-REM              inventory and shopping lists.
+REM Description: This batch file runs the Streamlit dashboard for managing
+REM household grocery inventory and shopping lists.
 REM
-REM Usage: Double-click this bat file from the repo root.
+REM Usage: Simply double-click this bat file.
 REM ============================================================================
-
-setlocal
-set "SCRIPT_DIR=%~dp0"
-set "VENV_DIR=%SCRIPT_DIR%.venv"
 
 echo [INFO] Starting Household Inventory ^& Shopping Helper...
 
-if not exist "%VENV_DIR%\Scripts\activate.bat" (
-    echo [ERROR] Virtual environment not found at "%VENV_DIR%".
-    echo [INFO] Create it first:  python -m venv .venv ^&^& .\.venv\Scripts\pip install -r requirements.txt
-    exit /b 1
-)
+REM Set the path to the virtual environment
+set "VENV_DIR=E:\automation\grocery-shopping-automation\.venv"
+
+REM Set the path to the grocery scripts
+set "SCRIPT_DIR=E:\automation\grocery-shopping-automation"
 
 echo [INFO] Activating virtual environment...
 call "%VENV_DIR%\Scripts\activate.bat"
+if errorlevel 1 (
+    echo [ERROR] Failed to activate virtual environment. Make sure it exists at %VENV_DIR%
+    echo [INFO] Attempting to continue without virtual environment activation...
+)
 
-echo [INFO] Changing to repo directory: "%SCRIPT_DIR%"
+echo [INFO] Changing to script directory: "%SCRIPT_DIR%"
 cd /d "%SCRIPT_DIR%"
 if errorlevel 1 (
     echo [ERROR] Failed to change directory.
     exit /b 1
 )
 
-echo [INFO] Running app/app.py with Streamlit...
+echo [INFO] Running app.py with Streamlit...
 echo [INFO] The dashboard should open in your default browser.
-python -m streamlit run app/app.py --browser.gatherUsageStats false --server.headless false --server.address 0.0.0.0
+python -m streamlit run app.py --browser.gatherUsageStats false --server.headless false --server.address 0.0.0.0
 
 if errorlevel 1 (
     echo [ERROR] Dashboard failed with error code %errorlevel%
@@ -42,4 +42,3 @@ if errorlevel 1 (
 )
 
 echo [INFO] Dashboard closed.
-endlocal

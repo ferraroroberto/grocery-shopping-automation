@@ -1,189 +1,154 @@
-# Grocery Shopping Automation
+# Household Inventory & Shopping Helper
 
-Mobile-responsive Streamlit application for managing a household grocery
-inventory and shopping list. Excel-backed, room-by-room auditing, real-time
-purchase tracking, and an optional voice-narrated audit mode powered by a
-local whisper-server + LLM hub.
+Mobile-responsive Streamlit application for managing household grocery inventory with intelligent shopping list generation and real-time purchase tracking.
 
-## ✨ Features
+## 📋 Project Summary
 
-- **Mobile-first UI** — open the app on your phone over local Wi-Fi and
-  walk the house updating stock with ±1 buttons.
-- **Six modes**: Audit Inventory, Audio Audit (voice), Edit Targets, Edit
-  Item, Add Item, Shopping List, Save / Export.
-- **Per-supermarket shopping list** with progress bars, cart-offset
-  counters, and an inline quick-add form.
-- **Auto-save** to Excel after every change, with rollback if the file is
-  open in Excel or locked by OneDrive.
-- **Audio Audit (optional)** — record a 2–3 minute Spanish narration of
-  the inventory walk; whisper transcribes it locally and a local LLM hub
-  matches the phrases to the candidate list before you accept the proposed
-  changes.
+Comprehensive household inventory management across multiple operational modes. Audit current stock room-by-room, edit target quantities, track shopping in real time, and add on-the-fly items directly to the shopping list.
 
-## 🚀 Quick start
+**Key Features:**
+- Mobile access over local Wi-Fi — use the **Copy link** button in the sidebar to get the URL and open it on your phone
+- Room-by-room inventory auditing with auto-save (best done from mobile)
+- Shopping list grouped by supermarket with per-store progress bars (best done from desktop)
+- Cart offset counters to account for items already in the cart
+- Quick-add items (name + quantity) to any supermarket's shopping list
+- Excel-based data storage with automatic calculations
+- Cross-platform compatibility (works on any device with a browser)
 
-### 1. Clone and create a virtual environment
+## 🏗️ Project Structure
 
-```powershell
-git clone https://github.com/ferraroroberto/grocery-shopping-automation
-cd grocery-shopping-automation
-python -m venv .venv
-.\.venv\Scripts\pip install -r requirements.txt
-```
+- **app.py** — Entry point: page config, session state, sidebar, mode routing
+- **data.py** — Config, XLSX load/save, supermarket stats, quantity mutators
+- **ui_helpers.py** — CSS, inline HTML formatters, sidebar utility actions
+- **audit.py / edit_targets.py / edit_item.py / add_item.py / shopping.py / export.py** — One file per mode, each exposing `main(df)`
+- **config.json** — Application configuration and UI settings
+- **launcher.bat** — Windows batch file for easy app launching
+- **.streamlit/config.toml** — Streamlit theme customization
 
-POSIX equivalent:
+## 🚀 Quick Start
 
+### Prerequisites
+- Python 3.8+
+- Required Python packages: `streamlit`, `pandas`, `openpyxl`
+
+### Method 1: Using the Batch File (Recommended)
+Double-click `launcher.bat` in the grocery folder.
+
+### Method 2: Manual Launch
 ```bash
-python -m venv .venv
-./.venv/bin/pip install -r requirements.txt
+pip install streamlit pandas openpyxl
+cd E:\automation\automation\system\grocery
+streamlit run app.py
 ```
 
-### 2. Bring your own inventory file
+### Mobile Access (same Wi-Fi network)
+The app binds to all network interfaces automatically. To open it on your phone:
+1. Launch `launcher.bat` on the PC as usual
+2. Click **📋 Copy link** in the sidebar — this copies `https://<local-ip>:8501` to the clipboard
+3. Paste the URL into Telegram (or any messaging app) and open it on your phone
 
-A small synthetic example is shipped at `data/list.example.xlsx`. Copy it
-to `data/list.xlsx` and edit it to match your household:
-
-```powershell
-Copy-Item data\list.example.xlsx data\list.xlsx
-```
-
-The path is configurable in `config.json` (`data.xlsx_file`) — set it to
-an absolute path if you'd rather keep the file outside the repo (e.g. on
-OneDrive).
-
-### 3. Run
-
-Double-click `launcher.bat` (Windows), or:
-
-```powershell
-.\.venv\Scripts\python -m streamlit run app/app.py
-```
-
-The dashboard opens at `http://localhost:8501`. The sidebar's **📋 Copy
-link** button gives you a `http://<lan-ip>:8501` URL you can paste into
-Telegram (or any messaging app) to open on your phone over the same Wi-Fi.
-
-> **Firewall:** if the phone can't connect on first use, run this once in
-> PowerShell (admin):
+> **Firewall:** if the phone cannot connect on first use, run this once in PowerShell (admin):
 > ```powershell
 > New-NetFirewallRule -DisplayName "Streamlit Grocery" -Direction Inbound -Protocol TCP -LocalPort 8501 -Action Allow
 > ```
 
-## 📊 Data format
+> **Audit mode on mobile:** rotate your phone to **landscape** for the best layout — the row-per-item grid fits without horizontal scrolling.
 
-The Excel file must have these columns (Spanish names — the rest of the
-app is in English, but the data layer is column-name-agnostic via
-`config.json` if you want to rename them):
+### HTTPS setup (required for microphone access on mobile)
 
-| Column     | Meaning                                                   | Notes    |
-|------------|-----------------------------------------------------------|----------|
-| `super`    | Supermarket name (e.g. `mercadona`, `ametller`)           | Required |
-| `buscador` | Buy-link URL (search page or product page)                | Optional |
-| `lugar`    | Zone in the house (e.g. `nevera`, `despensa`, `garaje`)   | Required |
-| `comida`   | Item name                                                 | Required |
-| `cantidad` | Target quantity to maintain                               | Required |
-| `tenemos`  | Current quantity on hand                                  | Required |
-| `comprar`  | Auto-calculated: `max(0, cantidad − tenemos)`             | Auto     |
+Mobile browsers block microphone access on plain HTTP. The app is configured to serve over HTTPS using a self-signed certificate stored in `certificates/` (gitignored).
 
-The example fixture at `data/list.example.xlsx` covers all six default
-zones (`nevera`, `congelador`, `despensa`, `estante`, `garaje`,
-`bajo escalera`) and two supermarkets (`mercadona`, `ametller`). Add /
-remove zones and supermarkets freely — the UI reads them dynamically from
-the file.
+**First-time setup** (run once from the grocery folder):
+```powershell
+& e:\automation\automation\.venv\Scripts\python.exe gen_ssl_cert.py
+```
+
+This detects all local IP addresses (LAN + Tailscale) and writes three files to `certificates/` (valid 10 years):
+- `ca.pem` — local CA certificate, installed into Windows `CurrentUser\Root` (no admin required)
+- `cert.pem` — server certificate signed by that CA (used by Streamlit)
+- `key.pem` — server private key (used by Streamlit)
+
+Chrome and Edge on this PC will show no security warning because the CA is trusted.
+
+**Accepting the cert on mobile (one-time per device):**  
+Open `https://<local-ip>:8501` — the browser will warn "Not secure". Tap **Advanced → Proceed to … (unsafe)**. You won't be asked again on that device.
+
+**If your PC's IP changes**, regenerate and reinstall with the same command above, then restart the app.
+
+## ⚙️ Configuration
+
+Edit `config.json` to customize:
+- **Data Paths** — Excel file location and column mappings
+- **UI Settings** — Page config, mode labels, layout
+- **Logging** — Log level and format
+
+## 📊 Data Format
+
+Excel file columns:
+
+| Column | Description | Notes |
+|--------|-------------|-------|
+| `super` | Supermarket name (e.g., `mercadona`, `ametller`) | Required |
+| `buscador` | Product URL for online shopping | Optional |
+| `lugar` | Zone in the house (e.g., `fridge`, `pantry`) | Required |
+| `comida` | Item name | Required |
+| `cantidad` | Target quantity to maintain | Required |
+| `tenemos` | Current quantity on hand | Required |
+| `comprar` | Auto-calculated: `max(0, cantidad − tenemos)` | Auto |
 
 ## 📱 Modes
 
 ### 🔍 Audit Inventory
-Walk through each zone, update current stock with ±1 buttons. Auto-saves
-every change. Best from mobile in landscape.
+Walk through each zone of the house, update current stock levels with ±1 buttons. Auto-saves every change to Excel.
+Best done from mobile — rotate to **landscape** for optimal layout.
 
-### 🎙️ Audio Audit *(optional, requires `claude-local-calls`)*
-Walk the house dictating the inventory in Spanish (*"ahora en la nevera,
-dos yogures, un litro de leche…"*). Audio is transcribed by a local
-whisper-server (`:8090`) and matched against the list by a local LLM hub
-(`:8000`). See [`audio_audit.md`](audio_audit.md).
+### 🎙️ Audio Audit
+Walk the house dictating the inventory in Spanish (*"ahora en la nevera, dos yogures, un litro de leche…"*). The audio is transcribed by the local whisper-server and matched against the inventory by the local LLM hub — same `claude-local-calls` services that power the rest of this monorepo. See [`audio_audit.md`](audio_audit.md) for recording technique, configuration, and troubleshooting.
 
-> Both services are provided by
-> [`claude-local-calls`](https://github.com/ferraroroberto/claude-local-calls).
-> Without them, the rest of the app still works — Audio Audit just shows a
-> clear "service unreachable" banner.
+> **Pre-requisites:** the hub on `:8000` and whisper-server on `:8090` must be running. Start them via `E:\automation\claude-local-calls\run_hub.bat` and `launchers\run_whisper.bat`, or its tray launcher.
 
 ### ✏️ Edit Targets
-Adjust target quantities per item. Auto-saves.
+Set or adjust target quantities per item. Auto-saves every change.
 
 ### 🔧 Edit Item
-Search for any item and edit all its fields, or delete it.
+Search for any item and edit all its fields (name, supermarket, zone, URL, quantities) or delete it.
 
 ### ➕ Add Item
-Form-based creation of new items.
+Add new items to the inventory via a form.
 
 ### 🛒 Shopping List
-Items to buy, grouped by supermarket, with per-store progress bars,
-cart-offset counters (for items already in the cart before opening the
-app), and an inline quick-add form.
+View items that need to be purchased, grouped by supermarket.
+
+**Cart offset counters (sidebar):**
+Each supermarket shows an editable `＋items` and `＋units` counter below its progress bar. Use these when items were already placed in the physical cart before opening the app — the bar and totals update immediately to reflect the combined count.
+
+**Quick-add items:**
+At the bottom of each supermarket's expander, a small inline form lets you add ad-hoc items (name + quantity). These are session-only and support the full `✅ Got it` / `↩️ Undo` / `🗑️ Remove` workflow. Works for both Ametller and Mercadona (and any other supermarket in the list).
 
 ### 💾 Save / Export
-Manual save to Excel, CSV download, summary metrics.
+Manual save to Excel or download as CSV, plus summary statistics.
 
-## 🏗️ Project layout
+## 🖥️ Typical Workflow
 
-```
-.
-├── app/                        Streamlit UI (one file per mode)
-│   ├── app.py                  Entry point: page config, sidebar, routing
-│   ├── audit.py
-│   ├── audio_audit.py
-│   ├── edit_targets.py
-│   ├── edit_item.py
-│   ├── add_item.py
-│   ├── shopping.py
-│   ├── export.py
-│   └── ui_helpers.py           CSS, formatters, save-error renderer
-├── src/                        Non-UI logic (no streamlit imports)
-│   ├── data.py                 Config, XLSX I/O, shared mutators
-│   ├── transcribe_client.py    Whisper client
-│   └── inventory_extract.py    LLM matching client (anthropic SDK → hub)
-├── test_data/
-│   ├── smoke_phase1.py         Fixture round-trip
-│   ├── smoke_phase2.py         End-to-end LLM smoke (needs hub running)
-│   └── smoke_lock_contention.py
-├── data/
-│   └── list.example.xlsx       Synthetic example inventory
-├── .streamlit/config.toml      Theme
-├── audio_audit.md              Per-mode docs for the voice flow
-├── config.json                 App / data / UI / audio-audit settings
-├── launcher.bat                Windows double-click launcher
-├── requirements.txt
-├── CLAUDE.md / AGENTS.md       Instructions for AI coding agents
-└── LICENSE                     MIT
-```
+1. **Edit Targets** — set desired quantities for tracked items
+2. **Audit Inventory** — walk through zones and update current stock
+3. **Shopping List** — check what to buy, mark as bought while shopping
+4. Use **cart offset counters** if items were already in the cart
+5. Use **quick-add** for anything not in the system
 
-## ⚙️ Configuration
+## 🐛 Troubleshooting
 
-Edit `config.json`:
+| Issue | Fix |
+|-------|-----|
+| Excel file not found | Verify the path in `config.json` |
+| Permission error on save | Close Excel before running the app |
+| Interface appears broken | Clear browser cache |
+| Config errors | Validate `config.json` is well-formed JSON |
+| Microphone shows "An error has occurred" on mobile | App must be opened over **HTTPS** — see HTTPS setup section above |
+| Browser says "Your connection is not private" on desktop | Re-run `python gen_ssl_cert.py` — it installs the cert into Windows trust store |
+| Browser says "Your connection is not private" on mobile | Self-signed cert warning — tap **Advanced → Proceed** once per device |
+| HTTPS cert missing / app won't start | Run `python gen_ssl_cert.py` from the grocery folder, then restart |
 
-- `data.xlsx_file` — path to your inventory file (relative to repo root, or
-  absolute).
-- `data.columns` — rename the Excel columns if you want non-Spanish names.
-- `ui.modes` — relabel the modes shown in the sidebar.
-- `audio_audit.*` — whisper / LLM endpoints, model id, count clamp.
+---
 
-## 🧪 Verification
-
-```powershell
-# Compile check
-.\.venv\Scripts\python -m py_compile app\app.py app\audio_audit.py src\data.py
-
-# Phase-1 smoke (no external services)
-.\.venv\Scripts\python test_data\smoke_phase1.py
-
-# Save-failure rollback test
-.\.venv\Scripts\python test_data\smoke_lock_contention.py
-
-# End-to-end audio-audit smoke (requires claude-local-calls running)
-.\.venv\Scripts\python test_data\smoke_phase2.py
-```
-
-## 📝 License
-
-MIT — see [`LICENSE`](LICENSE).
+*Built for efficient household inventory management and grocery shopping.*

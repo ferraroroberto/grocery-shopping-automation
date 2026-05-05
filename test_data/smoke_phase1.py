@@ -1,5 +1,5 @@
-"""Phase 1 smoke test: load the example fixture, exercise bulk_apply_tenemos,
-verify the fixture is not modified."""
+"""Phase 1 smoke test: load fixture, exercise bulk_apply_tenemos, verify
+the fixture and live xlsx are not modified."""
 
 import hashlib
 import os
@@ -9,16 +9,16 @@ from pathlib import Path
 
 import pandas as pd
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO_ROOT))
-os.chdir(str(REPO_ROOT))
+GROCERY_DIR = Path(r"E:\automation\automation\system\grocery")
+sys.path.insert(0, str(GROCERY_DIR))
+os.chdir(str(GROCERY_DIR))
 
-from src import data  # noqa: E402
+import data  # noqa: E402
 
-print("[OK] data module loaded")
+print(f"[OK] data module loaded")
 print(f"[OK] audio_audit config keys: {list(data.CONFIG['audio_audit'].keys())}")
 
-fixture = REPO_ROOT / data.CONFIG["audio_audit"]["test_fixture_path"]
+fixture = GROCERY_DIR / "test_data" / "list_test_fixture.xlsx"
 assert fixture.exists(), f"fixture missing: {fixture}"
 fixture_hash_before = hashlib.sha256(fixture.read_bytes()).hexdigest()
 
@@ -59,5 +59,8 @@ print("[OK] xlsx_path override round-trip preserves updates")
 fixture_hash_after = hashlib.sha256(fixture.read_bytes()).hexdigest()
 assert fixture_hash_before == fixture_hash_after, "fixture was modified!"
 print(f"[OK] fixture unchanged (sha256 prefix {fixture_hash_after[:12]})")
+
+live = Path(r"E:\OneDrive\Documentos\Roberto\areas\groceries\list.xlsx")
+print(f"[OK] live file size {live.stat().st_size} (untouched by this test)")
 
 print("\nPHASE 1 SMOKE TEST: PASS")

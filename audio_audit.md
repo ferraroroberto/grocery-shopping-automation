@@ -2,7 +2,7 @@
 
 A Streamlit mode that lets you walk the house, dictate the inventory in
 Spanish, and have the household list updated automatically. Replaces nothing
-— it sits alongside the manual `🔍 Audit Inventory` (±1 buttons) mode.
+— it sits alongside the existing `🔍 Audit Inventory` (manual ±1) mode.
 
 ## How it works
 
@@ -10,14 +10,14 @@ Spanish, and have the household list updated automatically. Replaces nothing
 st.audio_input  →  whisper-server (:8090)  →  Spanish transcript
                                                     │
                                                     ▼
-                          local LLM hub (:8000)  →  matched JSON
+                          claude-local-calls hub (:8000)  →  matched JSON
                           model=claude-haiku-4-5 (default)
                                                     │
                                                     ▼
                           Review screen (accept / reject / "set 0")
                                                     │
                                                     ▼
-                          bulk_apply_tenemos  →  data/list.xlsx
+                          bulk_apply_tenemos  →  list.xlsx
 ```
 
 Compute is local except the Claude leg, which uses your Claude Code
@@ -27,14 +27,16 @@ by setting `audio_audit.llm_model` in `config.json` to a local backend like
 
 ## Pre-requisites
 
-The two services from
-[`claude-local-calls`](https://github.com/ferraroroberto/claude-local-calls)
-must be running:
+The two services in `E:\automation\claude-local-calls` must be running:
 
-- the LLM hub on `:8000`
-- the whisper-server on `:8090`
+```bat
+:: from E:\automation\claude-local-calls
+run_hub.bat                       :: hub on :8000
+launchers\run_whisper.bat         :: whisper-server on :8090
+```
 
-The mode shows a clear error banner when either port is unreachable.
+Or use its `tray.bat` to keep both up automatically. The mode shows a clear
+error banner when either port is unreachable.
 
 ## Recording technique
 
@@ -75,11 +77,11 @@ Each run writes to `audio_audit_logs/YYYY-MM-DD_HHMMSS.json`:
 
 ```json
 {
-  "timestamp": "2026-05-04T20:45:00",
+  "timestamp": "2026-05-03T20:45:00",
   "audio_sha256": "…",
   "transcript": "…",
   "model": "claude-haiku-4-5",
-  "result": { "items": [], "zones_mentioned": [], "unmatched_mentions": [] },
+  "result": { "items": […], "zones_mentioned": […], "unmatched_mentions": […] },
   "accepted_updates": [
     {"idx": 12, "comida": "pollo", "lugar": "congelador", "old_tenemos": 3, "new_tenemos": 2}
   ]
@@ -91,7 +93,7 @@ wrong after a run.
 
 ## Config
 
-Block in `config.json`:
+Block in `system/grocery/config.json`:
 
 ```json
 "audio_audit": {
@@ -103,16 +105,16 @@ Block in `config.json`:
   "llm_max_tokens": 4096,
   "max_count_clamp_above_target": 5,
   "logs_dir": "audio_audit_logs",
-  "test_fixture_path": "data/list.example.xlsx"
+  "test_fixture_path": "test_data/list_test_fixture.xlsx"
 }
 ```
 
 ## Files
 
-- `app/audio_audit.py` — Streamlit UI mode
-- `src/transcribe_client.py` — multipart POST to whisper at `:8090`
-- `src/inventory_extract.py` — `anthropic` SDK call to the hub at `:8000`
-- `src/data.py::bulk_apply_tenemos` — single-write batched update
+- `audio_audit.py` — Streamlit UI mode
+- `transcribe_client.py` — multipart POST to whisper at `:8090`
+- `inventory_extract.py` — `anthropic` SDK call to hub at `:8000`
+- `data.py::bulk_apply_tenemos` — single-write batched update
 - `test_data/smoke_phase1.py` — fixture round-trip without touching live xlsx
 - `test_data/smoke_phase2.py` — end-to-end LLM smoke test against the running hub
 
@@ -120,8 +122,8 @@ Block in `config.json`:
 
 | Issue | Fix |
 |---|---|
-| Banner says "LLM hub unreachable" | Start the hub (`:8000`) from `claude-local-calls`. Wait until `:8000/v1/models` responds. |
-| Banner says "Whisper server unreachable" | Start whisper-server (`:8090`). The model loads ~1.6 GB on first start; give it ~30 s. |
+| Banner says "LLM hub unreachable" | Run `run_hub.bat` in `claude-local-calls/` (or the tray launcher). Wait until `:8000/v1/models` responds. |
+| Banner says "Whisper server unreachable" | Run `launchers\run_whisper.bat`. The model loads ~1.6 GB on first start; give it ~30 s. |
 | Transcript is empty / nonsense | Speak louder, hold the phone closer, or upload a pre-recorded clip via the file uploader fallback. |
 | Item missing from "Detected items" | It's likely in **❓ Unmatched mentions** — check the phrase and add the canonical name to the list, or rephrase in the next take. |
 | `comprar` looks stale after Apply | The save also recomputes `comprar = max(0, cantidad - tenemos)`. Refresh the page to pick up the new dataframe in other modes. |
