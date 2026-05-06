@@ -12,10 +12,13 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 import socket
+import threading
+import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 import pandas as pd
@@ -35,6 +38,85 @@ from src.transcribe_client import TranscriptionError, transcribe
 logger = logging.getLogger(__name__)
 
 ZONE_KEYWORDS = ["nevera", "congelador", "despensa", "estante", "garaje", "bajo escalera"]
+
+# Vocabulary hint for whisper-server. Reduces transcription drift on long audio.
+WHISPER_PROMPT_ES = (
+    "Inventario doméstico en español. "
+    "Zonas: nevera, congelador, despensa, estante, garaje, bajo escalera. "
+    "Cantidades: cero, uno, una, dos, tres, cuatro, cinco, seis, siete, ocho, nueve, diez. "
+    "Frases típicas: tengo dos, no hay, ninguno, hay tres, paso a la nevera."
+)
+
+
+def _format_elapsed(seconds: int) -> str:
+    if seconds < 60:
+        return f"{seconds}s"
+    return f"{seconds // 60}m {seconds % 60:02d}s"
+
+
+def _run_with_progress(
+    placeholder,
+    work: Callable[[], Any],
+    progress_msg: Callable[[int], str],
+    poll_seconds: float = 1.0,
+) -> Tuple[Optional[Any], Optional[BaseException]]:
+    """Run `work()` in a worker thread, updating `placeholder` once per
+    `poll_seconds` with `progress_msg(elapsed_seconds)`. Returns
+    (result, error) — exactly one is non-None."""
+    box: Dict[str, Any] = {}
+
+    def runner() -> None:
+        try:
+            box["result"] = work()
+        except BaseException as exc:  # noqa: BLE001 — propagate to caller
+            box["error"] = exc
+
+    thread = threading.Thread(target=runner, daemon=True)
+    start = time.monotonic()
+    thread.start()
+    while thread.is_alive():
+        elapsed = int(time.monotonic() - start)
+        placeholder.info(progress_msg(elapsed))
+        thread.join(timeout=poll_seconds)
+    return box.get("result"), box.get("error")
+
+
+def _transcribe_progress(elapsed: int) -> str:
+    t = _format_elapsed(elapsed)
+    if elapsed < 5:
+        return f"📡 Uploading audio to whisper-server… ({t})"
+    if elapsed < 30:
+        return f"🎙️ Whisper transcribing… ({t})"
+    if elapsed < 120:
+        return f"⏳ Whisper still working… ({t}) — long clips can take 1–3 min"
+    return f"⏳ Whisper still working… ({t}) — large-v3-turbo on long audio can take up to 10 min"
+
+
+def _extract_progress(elapsed: int) -> str:
+    t = _format_elapsed(elapsed)
+    if elapsed < 5:
+        return f"📡 Sending request to LLM hub… ({t})"
+    if elapsed < 20:
+        return f"🧠 Hub routing to model, LLM analysing transcript… ({t})"
+    if elapsed < 60:
+        return f"🧠 LLM matching mentions to candidates… ({t}) — typical 30s–2min"
+    if elapsed < 180:
+        return f"⏳ Still working… ({t}) — long noisy transcripts take 2–4 min"
+    return f"⏳ Still working… ({t}) — patience, can take up to 5 min on the longest walks"
+
+
+def _clean_transcript(t: str) -> str:
+    """Light pre-clean before sending to the LLM: collapse whitespace and dedupe
+    immediately-repeated sentences (a common Whisper hallucination pattern).
+    Idempotent and conservative — does not touch content the user actually said."""
+    if not t:
+        return t
+    t = re.sub(r"[ \t]+", " ", t)
+    t = re.sub(r"\n[ \t]*\n+", "\n", t)
+    t = t.strip()
+    # "Y con esto es todo. Y con esto es todo." → single occurrence
+    t = re.sub(r"(\b[^.!?\n]{4,}[.!?])(?:\s+\1)+", r"\1", t)
+    return t
 
 
 def _audio_cfg() -> Dict:
@@ -76,10 +158,12 @@ def _reset_state() -> None:
         "audio_audit_stage",
         "audio_audit_result",
         "audio_audit_transcript",
+        "audio_audit_transcript_input",
         "audio_audit_audio_bytes",
         "audio_audit_audio_mime",
         "audio_audit_audio_filename",
         "audio_audit_log_path",
+        "audio_audit_paste_input",
     ):
         st.session_state.pop(k, None)
     st.session_state.audio_audit_stage = "record"
@@ -96,48 +180,95 @@ def _run_transcribe(cfg: Dict) -> None:
     mime = st.session_state.get("audio_audit_audio_mime", "audio/wav")
     filename = st.session_state.get("audio_audit_audio_filename", "audio.wav")
 
+    size_mb = len(audio_bytes) / (1024 * 1024)
     logger.info(f"🎙️ transcribe — {filename} · {mime} · {len(audio_bytes)} bytes")
 
-    with st.spinner("🎙️ Transcribing audio… (usually < 5 s)"):
-        try:
-            transcript = transcribe(
-                audio_bytes,
-                whisper_url=cfg["whisper_url"],
-                model=cfg["whisper_model"],
-                language=cfg.get("language", "es"),
-                filename=filename,
-                mime=mime,
-                timeout=60,
-            )
-        except Exception as exc:
-            logger.exception("❌ transcription failed")
-            st.error(f"Transcription failed: {exc}")
-            return
+    info_panel = st.container()
+    with info_panel:
+        st.markdown("**🎙️ Transcribing audio**")
+        st.caption(
+            f"📡 `{cfg['whisper_url']}` · model `{cfg['whisper_model']}` · "
+            f"lang `{cfg.get('language', 'es')}` · "
+            f"audio {size_mb:.2f} MB ({mime}, `{filename}`)"
+        )
+    progress = st.empty()
+
+    def work() -> str:
+        return transcribe(
+            audio_bytes,
+            whisper_url=cfg["whisper_url"],
+            model=cfg["whisper_model"],
+            language=cfg.get("language", "es"),
+            filename=filename,
+            mime=mime,
+            timeout=600,
+            temperature=0.0,
+            prompt=WHISPER_PROMPT_ES,
+        )
+
+    transcript, error = _run_with_progress(progress, work, _transcribe_progress)
+    progress.empty()
+
+    if error is not None:
+        logger.exception("❌ transcription failed", exc_info=error)
+        st.error(f"Transcription failed: {error}")
+        return
 
     logger.info(f"✅ transcript ({len(transcript)} chars)")
     st.session_state.audio_audit_transcript = transcript
+    # Pre-populate the editable text_area on the next stage. Safe to write here
+    # because that widget has not been instantiated yet this run.
+    st.session_state.audio_audit_transcript_input = transcript
     st.session_state.audio_audit_stage = "transcribed"
 
 
 def _run_extract(df: pd.DataFrame, cfg: Dict) -> None:
     """Step 2: match transcript against inventory → advance to 'review' stage."""
-    transcript: str = st.session_state.audio_audit_transcript
-    logger.info(f"🔍 extract — model={cfg['llm_model']}")
+    # The visible text_area on the transcribed stage is bound to
+    # `audio_audit_transcript_input`; canonical post-match storage is
+    # `audio_audit_transcript`. We copy from input → canonical here so the
+    # later stages (review, log) read a stable value that survives the widget
+    # being unmounted.
+    raw_transcript: str = st.session_state.get(
+        "audio_audit_transcript_input",
+        st.session_state.get("audio_audit_transcript", ""),
+    )
+    cleaned = _clean_transcript(raw_transcript)
+    st.session_state.audio_audit_transcript = raw_transcript
+    cleaned_note = ""
+    if cleaned != raw_transcript:
+        cleaned_note = f" · cleaned {len(raw_transcript)}→{len(cleaned)}"
+        logger.info(
+            f"🧹 transcript cleaned for matching — {len(raw_transcript)} → {len(cleaned)} chars"
+        )
+    logger.info(f"🔍 extract — model={cfg['llm_model']} · transcript_chars={len(cleaned)}")
 
-    with st.spinner("🔍 Matching against inventory… (may take 15–30 s, please keep screen on)"):
-        try:
-            result = extract(
-                transcript,
-                df,
-                base_url=cfg["llm_base_url"],
-                model=cfg["llm_model"],
-                max_tokens=cfg.get("llm_max_tokens", 4096),
-                timeout=90,
-            )
-        except Exception as exc:
-            logger.exception("❌ extraction failed")
-            st.error(f"Inventory matching failed: {exc}")
-            return
+    info_panel = st.container()
+    with info_panel:
+        st.markdown("**🔍 Matching transcript against inventory**")
+        st.caption(
+            f"📡 `{cfg['llm_base_url']}` · model `{cfg['llm_model']}` · "
+            f"transcript {len(cleaned)} chars{cleaned_note} · candidates {len(df)}"
+        )
+    progress = st.empty()
+
+    def work():
+        return extract(
+            cleaned,
+            df,
+            base_url=cfg["llm_base_url"],
+            model=cfg["llm_model"],
+            max_tokens=cfg.get("llm_max_tokens", 4096),
+            timeout=300,
+        )
+
+    result, error = _run_with_progress(progress, work, _extract_progress)
+    progress.empty()
+
+    if error is not None:
+        logger.exception("❌ extraction failed", exc_info=error)
+        st.error(f"Inventory matching failed: {error}")
+        return
 
     logger.info(f"✅ extract done — {len(result.items)} items, zones: {result.zones_mentioned}")
     st.session_state.audio_audit_result = result
@@ -226,6 +357,36 @@ def _render_record(df: pd.DataFrame, cfg: Dict) -> None:
         type=["wav", "webm", "m4a", "mp3", "ogg", "mp4"],
         key="audio_audit_uploader",
     )
+
+    with st.expander("📝 Or paste / type a transcript instead", expanded=False):
+        st.caption(
+            "Skip recording — paste a transcript from elsewhere (e.g. WhatsApp voice "
+            "message transcription) or type your audit notes directly."
+        )
+        pasted = st.text_area(
+            "Paste transcript",
+            key="audio_audit_paste_input",
+            height=200,
+            placeholder="ahora en la nevera, dos yogures, un litro de leche…",
+            label_visibility="collapsed",
+        )
+        if st.button(
+            "✅ Use this transcript",
+            key="audio_audit_use_paste_btn",
+            disabled=not pasted.strip(),
+            width="stretch",
+        ):
+            text = pasted.strip()
+            st.session_state.audio_audit_transcript = text
+            st.session_state.audio_audit_transcript_input = text
+            for k in (
+                "audio_audit_audio_bytes",
+                "audio_audit_audio_mime",
+                "audio_audit_audio_filename",
+            ):
+                st.session_state.pop(k, None)
+            st.session_state.audio_audit_stage = "transcribed"
+            st.rerun()
 
     audio_bytes: Optional[bytes] = None
     mime = "audio/wav"
@@ -426,15 +587,28 @@ def _render_done() -> None:
 
 def _render_transcribed(df: pd.DataFrame, cfg: Dict) -> None:
     """Show transcript and offer the Match button as a separate step."""
-    transcript: str = st.session_state.audio_audit_transcript
-    st.success("✅ Transcription done!")
-    st.text_area("Transcript", value=transcript, height=140, label_visibility="collapsed")
-    st.caption("Check the text above, then tap Match to run the inventory matching (~15–30 s).")
+    st.success("✅ Transcript ready!")
+    st.text_area(
+        "Transcript",
+        key="audio_audit_transcript_input",
+        height=200,
+        label_visibility="collapsed",
+    )
+    st.caption(
+        "Edit if Whisper added repetitions or noise, then tap Match. "
+        "Long noisy transcripts can take a few minutes to match."
+    )
     c1, c2 = st.columns(2)
-    if c1.button("🔍 Match inventory", type="primary", width="stretch"):
+    if c1.button(
+        "🔍 Match inventory",
+        type="primary",
+        width="stretch",
+        key="audio_audit_match_btn",
+        disabled=not st.session_state.get("audio_audit_transcript_input", "").strip(),
+    ):
         _run_extract(df, cfg)
         st.rerun()
-    if c2.button("🔄 Re-record", width="stretch"):
+    if c2.button("🔄 Reset", width="stretch", key="audio_audit_reset_btn"):
         _reset_state()
         st.rerun()
 

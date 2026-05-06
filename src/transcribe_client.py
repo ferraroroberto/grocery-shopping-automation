@@ -25,6 +25,8 @@ def transcribe(
     filename: str = "audio.wav",
     mime: str = "audio/wav",
     timeout: int = 300,
+    temperature: float = 0.0,
+    prompt: Optional[str] = None,
 ) -> str:
     """Transcribe audio via the local whisper-server.
 
@@ -32,12 +34,19 @@ def transcribe(
     """
     endpoint = whisper_url.rstrip("/") + "/v1/audio/transcriptions"
     files = {"file": (filename, audio_bytes, mime)}
-    data = {"model": model, "response_format": "json"}
+    data = {
+        "model": model,
+        "response_format": "json",
+        "temperature": str(temperature),
+    }
     if language:
         data["language"] = language
+    if prompt:
+        data["prompt"] = prompt
 
     logger.info(
-        f"📡 POST {endpoint} (bytes={len(audio_bytes)}, model={model}, lang={language})"
+        f"📡 POST {endpoint} (bytes={len(audio_bytes)}, model={model}, "
+        f"lang={language}, temp={temperature}, prompt={'yes' if prompt else 'no'})"
     )
     try:
         resp = requests.post(endpoint, files=files, data=data, timeout=timeout)
