@@ -215,29 +215,17 @@ def _render_record(df: pd.DataFrame, cfg: Dict) -> None:
             "- A 2–3 minute clip is enough for the whole house."
         )
 
-    # ── Mobile notice ────────────────────────────────────────────────────────
-    st.info(
-        "📱 **On mobile?** The in-browser recorder gets stuck uploading over the "
-        "network. Instead: **record with your phone's Voice Memo / Recorder app**, "
-        "then use the Upload button below.",
-        icon=None,
+    audio_input = st.audio_input(
+        "🎙️ Record walk",
+        key="audio_audit_recorder",
+        help="Works on mobile and desktop. Tap the mic, speak, tap Stop.",
     )
 
-    # ── Primary path: file upload (reliable on all devices) ──────────────────
     uploaded = st.file_uploader(
-        "📂 Upload audio file",
+        "…or upload an audio file",
         type=["wav", "webm", "m4a", "mp3", "ogg", "mp4"],
         key="audio_audit_uploader",
-        help="Record with your phone's native recorder app, then upload here.",
     )
-
-    # ── Secondary path: in-browser recorder (works on desktop / localhost) ───
-    with st.expander("🎙️ Or record in-browser (desktop only)", expanded=False):
-        st.caption("⚠️ May freeze on mobile over a network connection.")
-        audio_input = st.audio_input(
-            "Record walk",
-            key="audio_audit_recorder",
-        )
 
     audio_bytes: Optional[bytes] = None
     mime = "audio/wav"

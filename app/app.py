@@ -129,6 +129,21 @@ def _init_session_state() -> None:
         st.session_state.extra_item_counter = 0
 
 
+@st.fragment
+def _audio_audit_fragment() -> None:
+    """Audio audit runs as a fragment so only this tab reruns on recorder events.
+
+    Without this, pressing Stop on the audio widget triggers a full app rerun
+    (all 7 tabs, 500+ widget operations) which is slow enough on mobile to drop
+    the WebSocket and lose the recorded audio. As a fragment, only this function
+    reruns, matching the speed of a standalone minimal page.
+    """
+    df = st.session_state.inventory_data
+    result = audio_audit.main(df)
+    if result is not None:
+        st.session_state.inventory_data = result
+
+
 def main() -> None:
     st.set_page_config(**CONFIG["ui"]["page_config"])
     st.markdown(CSS, unsafe_allow_html=True)
@@ -145,7 +160,7 @@ def main() -> None:
             if key == "audit":
                 st.session_state.inventory_data = audit.main(df)
             elif key == "audio_audit":
-                st.session_state.inventory_data = audio_audit.main(df)
+                _audio_audit_fragment()
             elif key == "edit":
                 st.session_state.inventory_data = edit_targets.main(df)
             elif key == "edit_item":
