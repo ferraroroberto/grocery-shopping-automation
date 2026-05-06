@@ -224,25 +224,40 @@ def _render_record(df: pd.DataFrame, cfg: Dict) -> None:
     audio_bytes: Optional[bytes] = None
     mime = "audio/wav"
     filename = "audio.wav"
+    source = None
     if audio_input is not None:
         audio_bytes = audio_input.getvalue()
         mime = audio_input.type or "audio/wav"
         filename = audio_input.name or "audio.wav"
+        source = "mic"
     elif uploaded is not None:
         audio_bytes = uploaded.getvalue()
         mime = uploaded.type or "audio/octet-stream"
         filename = uploaded.name
+        source = "upload"
 
-    if audio_input is not None or uploaded is not None:
-        source = "mic" if audio_input is not None else "upload"
-        size_kb = len(audio_bytes) / 1024 if audio_bytes else 0
-        st.caption(f"📦 {source} · {size_kb:.0f} KB · {mime} · {filename}")
-        if not audio_bytes:
-            st.warning("⚠️ Audio captured but 0 bytes received — try again or use the file uploader.")
+    # Persist fresh audio immediately so reruns don't lose it
     if audio_bytes:
         st.session_state.audio_audit_audio_bytes = audio_bytes
         st.session_state.audio_audit_audio_mime = mime
         st.session_state.audio_audit_audio_filename = filename
+
+    # On mobile a rerun can fire before the button is clicked, resetting the
+    # widget to None — fall back to whatever is already stored in session_state
+    if not audio_bytes:
+        cached = st.session_state.get("audio_audit_audio_bytes")
+        if cached:
+            audio_bytes = cached
+            mime = st.session_state.get("audio_audit_audio_mime", "audio/wav")
+            filename = st.session_state.get("audio_audit_audio_filename", "audio.wav")
+            source = "cached"
+
+    if source:
+        size_kb = len(audio_bytes) / 1024 if audio_bytes else 0
+        if audio_bytes:
+            st.caption(f"📦 {source} · {size_kb:.0f} KB · {mime} · {filename}")
+        else:
+            st.warning("⚠️ Audio captured but 0 bytes received — try again or use the file uploader.")
 
     run_disabled = not bool(audio_bytes)
     if st.button(
@@ -251,7 +266,7 @@ def _render_record(df: pd.DataFrame, cfg: Dict) -> None:
         width="stretch",
         disabled=run_disabled,
     ):
-        _debug_log(f"Button clicked — audio in session: {len(st.session_state.get('audio_audit_audio_bytes', b''))} bytes")
+        _debug_log(f"Button clicked — audio in session: {len(st.session_state.get('audio_audit_audio_bytes', b''))} bytes, source: {source}")
         _pipeline_run(df, cfg)
         st.rerun()
 
