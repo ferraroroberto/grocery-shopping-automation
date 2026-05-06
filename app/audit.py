@@ -53,7 +53,7 @@ def main(df: pd.DataFrame) -> pd.DataFrame:
         with col1:
             st.markdown(f"**{item_name}**")
         with col2:
-            if st.button("➖", key=f"minus_{idx}", help="Decrease stock"):
+            if st.button("➖", key=f"audit_minus_{idx}", help="Decrease stock"):
                 try:
                     df = update_item_quantity(df, idx, -1)
                 except (SpreadsheetLockedError, InventoryFileError) as e:
@@ -61,7 +61,7 @@ def main(df: pd.DataFrame) -> pd.DataFrame:
                 else:
                     st.rerun()
         with col3:
-            if st.button("➕", key=f"plus_{idx}", help="Increase stock"):
+            if st.button("➕", key=f"audit_plus_{idx}", help="Increase stock"):
                 try:
                     df = update_item_quantity(df, idx, 1)
                 except (SpreadsheetLockedError, InventoryFileError) as e:
@@ -71,7 +71,7 @@ def main(df: pd.DataFrame) -> pd.DataFrame:
         with col4:
             st.markdown(qty_html(current_qty, target_qty), unsafe_allow_html=True)
         with col5:
-            if st.button("⊖", key=f"target_minus_{idx}", help="Decrease target"):
+            if st.button("⊖", key=f"audit_target_minus_{idx}", help="Decrease target"):
                 try:
                     df = update_target_quantity(df, idx, -1)
                 except (SpreadsheetLockedError, InventoryFileError) as e:
@@ -79,7 +79,7 @@ def main(df: pd.DataFrame) -> pd.DataFrame:
                 else:
                     st.rerun()
         with col6:
-            if st.button("⊕", key=f"target_plus_{idx}", help="Increase target"):
+            if st.button("⊕", key=f"audit_target_plus_{idx}", help="Increase target"):
                 try:
                     df = update_target_quantity(df, idx, 1)
                 except (SpreadsheetLockedError, InventoryFileError) as e:
