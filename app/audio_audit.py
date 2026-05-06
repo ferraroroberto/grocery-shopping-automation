@@ -80,7 +80,6 @@ def _reset_state() -> None:
         "audio_audit_audio_mime",
         "audio_audit_audio_filename",
         "audio_audit_log_path",
-        "audio_audit_debug_log",
     ):
         st.session_state.pop(k, None)
     st.session_state.audio_audit_stage = "record"
@@ -91,24 +90,13 @@ def _ensure_state() -> None:
         _reset_state()
 
 
-def _debug_log(msg: str) -> None:
-    """Append a timestamped line to the session-state debug log."""
-    ts = datetime.now().strftime("%H:%M:%S")
-    entry = f"[{ts}] {msg}"
-    logger.info(entry)
-    if "audio_audit_debug_log" not in st.session_state:
-        st.session_state.audio_audit_debug_log = []
-    st.session_state.audio_audit_debug_log.append(entry)
-
-
 def _run_transcribe(cfg: Dict) -> None:
     """Step 1: transcribe audio → store transcript, advance to 'transcribed' stage."""
     audio_bytes: bytes = st.session_state.audio_audit_audio_bytes
     mime = st.session_state.get("audio_audit_audio_mime", "audio/wav")
     filename = st.session_state.get("audio_audit_audio_filename", "audio.wav")
 
-    _debug_log(f"Transcribe started — file: {filename}, mime: {mime}, size: {len(audio_bytes)} bytes")
-    _debug_log(f"Whisper URL: {cfg['whisper_url']}")
+    logger.info(f"🎙️ transcribe — {filename} · {mime} · {len(audio_bytes)} bytes")
 
     with st.spinner("🎙️ Transcribing audio… (usually < 5 s)"):
         try:
@@ -122,11 +110,11 @@ def _run_transcribe(cfg: Dict) -> None:
                 timeout=60,
             )
         except Exception as exc:
-            _debug_log(f"❌ Transcription failed: {exc}")
+            logger.exception("❌ transcription failed")
             st.error(f"Transcription failed: {exc}")
             return
 
-    _debug_log(f"✅ Transcript ({len(transcript)} chars): {transcript[:200]!r}")
+    logger.info(f"✅ transcript ({len(transcript)} chars)")
     st.session_state.audio_audit_transcript = transcript
     st.session_state.audio_audit_stage = "transcribed"
 
@@ -134,7 +122,7 @@ def _run_transcribe(cfg: Dict) -> None:
 def _run_extract(df: pd.DataFrame, cfg: Dict) -> None:
     """Step 2: match transcript against inventory → advance to 'review' stage."""
     transcript: str = st.session_state.audio_audit_transcript
-    _debug_log(f"Extraction started — LLM URL: {cfg['llm_base_url']}, model: {cfg['llm_model']}")
+    logger.info(f"🔍 extract — model={cfg['llm_model']}")
 
     with st.spinner("🔍 Matching against inventory… (may take 15–30 s, please keep screen on)"):
         try:
@@ -147,11 +135,11 @@ def _run_extract(df: pd.DataFrame, cfg: Dict) -> None:
                 timeout=90,
             )
         except Exception as exc:
-            _debug_log(f"❌ Extraction failed: {exc}")
+            logger.exception("❌ extraction failed")
             st.error(f"Inventory matching failed: {exc}")
             return
 
-    _debug_log(f"✅ Extraction done — {len(result.items)} items, zones: {result.zones_mentioned}")
+    logger.info(f"✅ extract done — {len(result.items)} items, zones: {result.zones_mentioned}")
     st.session_state.audio_audit_result = result
     st.session_state.audio_audit_stage = "review"
 
@@ -215,6 +203,18 @@ def _render_record(df: pd.DataFrame, cfg: Dict) -> None:
             "- A 2–3 minute clip is enough for the whole house."
         )
 
+    tracked = df[df[COLUMNS["cantidad"]] > 0]
+    zones_in_df = sorted(tracked[COLUMNS["lugar"]].dropna().astype(str).unique(), key=str.lower)
+    if zones_in_df:
+        st.markdown("**📋 Items per zone** — tap to open while recording")
+        for zone in zones_in_df:
+            items = sorted(
+                tracked[tracked[COLUMNS["lugar"]] == zone][COLUMNS["comida"]].astype(str).tolist(),
+                key=str.lower,
+            )
+            with st.expander(f"{zone.title()} ({len(items)})", expanded=False):
+                st.markdown("\n".join(f"- {it}" for it in items))
+
     audio_input = st.audio_input(
         "🎙️ Record walk",
         key="audio_audit_recorder",
@@ -272,9 +272,8 @@ def _render_record(df: pd.DataFrame, cfg: Dict) -> None:
         width="stretch",
         disabled=run_disabled,
     ):
-        _debug_log(f"Transcribe clicked — audio in session: {len(st.session_state.get('audio_audit_audio_bytes', b''))} bytes, source: {source}")
         _run_transcribe(cfg)
-        st.rerun(scope="fragment")
+        st.rerun()
 
 
 def _render_review(df: pd.DataFrame, cfg: Dict) -> pd.DataFrame:
@@ -392,7 +391,7 @@ def _render_review(df: pd.DataFrame, cfg: Dict) -> pd.DataFrame:
                 st.rerun()  # full rerun — inventory changed, sidebar must update
     if bcol2.button("🔄 Cancel and start over", width="stretch"):
         _reset_state()
-        st.rerun(scope="fragment")
+        st.rerun()
 
     return df
 
@@ -422,7 +421,7 @@ def _render_done() -> None:
         st.caption(f"📝 Log: `{log_path}`")
     if st.button("🆕 New audit", type="primary"):
         _reset_state()
-        st.rerun(scope="fragment")
+        st.rerun()
 
 
 def _render_transcribed(df: pd.DataFrame, cfg: Dict) -> None:
@@ -434,10 +433,10 @@ def _render_transcribed(df: pd.DataFrame, cfg: Dict) -> None:
     c1, c2 = st.columns(2)
     if c1.button("🔍 Match inventory", type="primary", width="stretch"):
         _run_extract(df, cfg)
-        st.rerun(scope="fragment")
+        st.rerun()
     if c2.button("🔄 Re-record", width="stretch"):
         _reset_state()
-        st.rerun(scope="fragment")
+        st.rerun()
 
 
 def main(df: pd.DataFrame) -> pd.DataFrame:
@@ -457,14 +456,5 @@ def main(df: pd.DataFrame) -> pd.DataFrame:
         df = _render_review(df, cfg)
     elif stage == "done":
         _render_done()
-
-    debug_lines = st.session_state.get("audio_audit_debug_log", [])
-    if debug_lines:
-        with st.expander("🐛 Debug log", expanded=True):
-            st.caption(f"Stage: **{st.session_state.audio_audit_stage}**")
-            st.text("\n".join(debug_lines))
-            if st.button("🗑️ Clear log", key="audio_audit_clear_log"):
-                st.session_state.audio_audit_debug_log = []
-                st.rerun(scope="fragment")
 
     return df

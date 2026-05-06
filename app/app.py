@@ -27,8 +27,18 @@ from src.data import (
 )
 
 
-def _render_sidebar() -> None:
+def _render_sidebar() -> str:
+    """Render sidebar (mode picker + actions + stats). Returns the selected mode key."""
     with st.sidebar:
+        mode_key = st.radio(
+            "Mode",
+            options=list(MODES.keys()),
+            format_func=lambda k: MODES[k],
+            key="mode_selector",
+            label_visibility="collapsed",
+        )
+        st.divider()
+
         if st.button(
             "📂 Open spreadsheet",
             help="Opens the Excel file in the default app (e.g. Excel). Useful when OneDrive has not refreshed yet.",
@@ -94,6 +104,8 @@ def _render_sidebar() -> None:
                             key=f"cart_offset_units_{sm}",
                         )
 
+    return mode_key
+
 
 def _init_session_state() -> None:
     if "inventory_data" not in st.session_state:
@@ -129,48 +141,32 @@ def _init_session_state() -> None:
         st.session_state.extra_item_counter = 0
 
 
-@st.fragment
-def _audio_audit_fragment() -> None:
-    """Audio audit runs as a fragment so only this tab reruns on recorder events.
-
-    Without this, pressing Stop on the audio widget triggers a full app rerun
-    (all 7 tabs, 500+ widget operations) which is slow enough on mobile to drop
-    the WebSocket and lose the recorded audio. As a fragment, only this function
-    reruns, matching the speed of a standalone minimal page.
-    """
-    df = st.session_state.inventory_data
-    result = audio_audit.main(df)
-    if result is not None:
-        st.session_state.inventory_data = result
-
-
 def main() -> None:
     st.set_page_config(**CONFIG["ui"]["page_config"])
     st.markdown(CSS, unsafe_allow_html=True)
     st.markdown("### 🛒 Inventory & Shopping Helper")
 
     _init_session_state()
-    _render_sidebar()
+    mode_key = _render_sidebar()
 
     df = st.session_state.inventory_data
-    tabs = st.tabs(list(MODES.values()))
 
-    for key, tab in zip(MODES.keys(), tabs):
-        with tab:
-            if key == "audit":
-                st.session_state.inventory_data = audit.main(df)
-            elif key == "audio_audit":
-                _audio_audit_fragment()
-            elif key == "edit":
-                st.session_state.inventory_data = edit_targets.main(df)
-            elif key == "edit_item":
-                st.session_state.inventory_data = edit_item.main(df)
-            elif key == "add_item":
-                st.session_state.inventory_data = add_item.main(df)
-            elif key == "shopping":
-                shopping.main(df)
-            elif key == "export":
-                export.main(df)
+    if mode_key == "audit":
+        st.session_state.inventory_data = audit.main(df)
+    elif mode_key == "audio_audit":
+        result = audio_audit.main(df)
+        if result is not None:
+            st.session_state.inventory_data = result
+    elif mode_key == "edit":
+        st.session_state.inventory_data = edit_targets.main(df)
+    elif mode_key == "edit_item":
+        st.session_state.inventory_data = edit_item.main(df)
+    elif mode_key == "add_item":
+        st.session_state.inventory_data = add_item.main(df)
+    elif mode_key == "shopping":
+        shopping.main(df)
+    elif mode_key == "export":
+        export.main(df)
 
 
 if __name__ == "__main__":
