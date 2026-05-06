@@ -90,6 +90,16 @@ def _ensure_state() -> None:
         _reset_state()
 
 
+def _debug_log(msg: str) -> None:
+    """Append a timestamped line to the session-state debug log."""
+    ts = datetime.now().strftime("%H:%M:%S")
+    entry = f"[{ts}] {msg}"
+    logger.info(entry)
+    if "audio_audit_debug_log" not in st.session_state:
+        st.session_state.audio_audit_debug_log = []
+    st.session_state.audio_audit_debug_log.append(entry)
+
+
 def _pipeline_run(df: pd.DataFrame, cfg: Dict) -> None:
     """Transcribe + extract. Stores results in session_state.
 
@@ -99,6 +109,9 @@ def _pipeline_run(df: pd.DataFrame, cfg: Dict) -> None:
     audio_bytes: bytes = st.session_state.audio_audit_audio_bytes
     mime = st.session_state.get("audio_audit_audio_mime", "audio/wav")
     filename = st.session_state.get("audio_audit_audio_filename", "audio.wav")
+
+    _debug_log(f"Pipeline started — file: {filename}, mime: {mime}, size: {len(audio_bytes)} bytes")
+    _debug_log(f"Whisper URL: {cfg['whisper_url']} | LLM URL: {cfg['llm_base_url']}")
 
     with st.spinner("Transcribing audio…"):
         try:
@@ -111,9 +124,11 @@ def _pipeline_run(df: pd.DataFrame, cfg: Dict) -> None:
                 mime=mime,
             )
         except TranscriptionError as exc:
+            _debug_log(f"❌ Transcription failed: {exc}")
             st.error(f"Transcription failed: {exc}")
             return
 
+    _debug_log(f"✅ Transcript ({len(transcript)} chars): {transcript[:200]!r}")
     st.session_state.audio_audit_transcript = transcript
 
     with st.spinner("Matching against inventory…"):
@@ -126,9 +141,11 @@ def _pipeline_run(df: pd.DataFrame, cfg: Dict) -> None:
                 max_tokens=cfg.get("llm_max_tokens", 4096),
             )
         except ExtractionError as exc:
+            _debug_log(f"❌ Extraction failed: {exc}")
             st.error(f"Inventory extraction failed: {exc}")
             return
 
+    _debug_log(f"✅ Extraction done — {len(result.items)} items, zones: {result.zones_mentioned}, unmatched: {result.unmatched_mentions}")
     st.session_state.audio_audit_result = result
     st.session_state.audio_audit_stage = "review"
 
@@ -216,19 +233,25 @@ def _render_record(df: pd.DataFrame, cfg: Dict) -> None:
         mime = uploaded.type or "audio/octet-stream"
         filename = uploaded.name
 
+    if audio_input is not None or uploaded is not None:
+        source = "mic" if audio_input is not None else "upload"
+        size_kb = len(audio_bytes) / 1024 if audio_bytes else 0
+        st.caption(f"📦 {source} · {size_kb:.0f} KB · {mime} · {filename}")
+        if not audio_bytes:
+            st.warning("⚠️ Audio captured but 0 bytes received — try again or use the file uploader.")
     if audio_bytes:
         st.session_state.audio_audit_audio_bytes = audio_bytes
         st.session_state.audio_audit_audio_mime = mime
         st.session_state.audio_audit_audio_filename = filename
-        st.caption(f"📦 audio ready · {len(audio_bytes) / 1024:.0f} KB · {mime}")
 
-    run_disabled = audio_bytes is None
+    run_disabled = not bool(audio_bytes)
     if st.button(
         "🚀 Transcribe and match",
         type="primary",
         width="stretch",
         disabled=run_disabled,
     ):
+        _debug_log(f"Button clicked — audio in session: {len(st.session_state.get('audio_audit_audio_bytes', b''))} bytes")
         _pipeline_run(df, cfg)
         st.rerun()
 
@@ -396,4 +419,14 @@ def main(df: pd.DataFrame) -> pd.DataFrame:
         df = _render_review(df, cfg)
     elif stage == "done":
         _render_done()
+
+    debug_lines = st.session_state.get("audio_audit_debug_log", [])
+    if debug_lines:
+        with st.expander("🐛 Debug log", expanded=True):
+            st.caption(f"Stage: **{st.session_state.audio_audit_stage}**")
+            st.text("\n".join(debug_lines))
+            if st.button("🗑️ Clear log", key="audio_audit_clear_log"):
+                st.session_state.audio_audit_debug_log = []
+                st.rerun()
+
     return df
