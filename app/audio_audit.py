@@ -274,7 +274,7 @@ def _render_record(df: pd.DataFrame, cfg: Dict) -> None:
     ):
         _debug_log(f"Transcribe clicked — audio in session: {len(st.session_state.get('audio_audit_audio_bytes', b''))} bytes, source: {source}")
         _run_transcribe(cfg)
-        st.rerun()
+        st.rerun(scope="fragment")
 
 
 def _render_review(df: pd.DataFrame, cfg: Dict) -> pd.DataFrame:
@@ -389,10 +389,10 @@ def _render_review(df: pd.DataFrame, cfg: Dict) -> pd.DataFrame:
                 st.session_state.inventory_data = new_df
                 st.session_state.audio_audit_log_path = str(log_path)
                 st.session_state.audio_audit_stage = "done"
-                st.rerun()
+                st.rerun()  # full rerun — inventory changed, sidebar must update
     if bcol2.button("🔄 Cancel and start over", width="stretch"):
         _reset_state()
-        st.rerun()
+        st.rerun(scope="fragment")
 
     return df
 
@@ -422,7 +422,7 @@ def _render_done() -> None:
         st.caption(f"📝 Log: `{log_path}`")
     if st.button("🆕 New audit", type="primary"):
         _reset_state()
-        st.rerun()
+        st.rerun(scope="fragment")
 
 
 def _render_transcribed(df: pd.DataFrame, cfg: Dict) -> None:
@@ -434,10 +434,10 @@ def _render_transcribed(df: pd.DataFrame, cfg: Dict) -> None:
     c1, c2 = st.columns(2)
     if c1.button("🔍 Match inventory", type="primary", width="stretch"):
         _run_extract(df, cfg)
-        st.rerun()
+        st.rerun(scope="fragment")
     if c2.button("🔄 Re-record", width="stretch"):
         _reset_state()
-        st.rerun()
+        st.rerun(scope="fragment")
 
 
 def main(df: pd.DataFrame) -> pd.DataFrame:
@@ -465,6 +465,6 @@ def main(df: pd.DataFrame) -> pd.DataFrame:
             st.text("\n".join(debug_lines))
             if st.button("🗑️ Clear log", key="audio_audit_clear_log"):
                 st.session_state.audio_audit_debug_log = []
-                st.rerun()
+                st.rerun(scope="fragment")
 
     return df
