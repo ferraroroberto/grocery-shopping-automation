@@ -80,6 +80,7 @@ def _reset_state() -> None:
         "audio_audit_audio_mime",
         "audio_audit_audio_filename",
         "audio_audit_log_path",
+        "audio_audit_debug_log",
     ):
         st.session_state.pop(k, None)
     st.session_state.audio_audit_stage = "record"
@@ -100,20 +101,16 @@ def _debug_log(msg: str) -> None:
     st.session_state.audio_audit_debug_log.append(entry)
 
 
-def _pipeline_run(df: pd.DataFrame, cfg: Dict) -> None:
-    """Transcribe + extract. Stores results in session_state.
-
-    Sends ALL rows as candidates (not just cantidad>0) so items with target=0
-    can still be updated when the user mentions them by name.
-    """
+def _run_transcribe(cfg: Dict) -> None:
+    """Step 1: transcribe audio → store transcript, advance to 'transcribed' stage."""
     audio_bytes: bytes = st.session_state.audio_audit_audio_bytes
     mime = st.session_state.get("audio_audit_audio_mime", "audio/wav")
     filename = st.session_state.get("audio_audit_audio_filename", "audio.wav")
 
-    _debug_log(f"Pipeline started — file: {filename}, mime: {mime}, size: {len(audio_bytes)} bytes")
-    _debug_log(f"Whisper URL: {cfg['whisper_url']} | LLM URL: {cfg['llm_base_url']}")
+    _debug_log(f"Transcribe started — file: {filename}, mime: {mime}, size: {len(audio_bytes)} bytes")
+    _debug_log(f"Whisper URL: {cfg['whisper_url']}")
 
-    with st.spinner("Transcribing audio…"):
+    with st.spinner("🎙️ Transcribing audio… (usually < 5 s)"):
         try:
             transcript = transcribe(
                 audio_bytes,
@@ -122,16 +119,24 @@ def _pipeline_run(df: pd.DataFrame, cfg: Dict) -> None:
                 language=cfg.get("language", "es"),
                 filename=filename,
                 mime=mime,
+                timeout=60,
             )
-        except TranscriptionError as exc:
+        except Exception as exc:
             _debug_log(f"❌ Transcription failed: {exc}")
             st.error(f"Transcription failed: {exc}")
             return
 
     _debug_log(f"✅ Transcript ({len(transcript)} chars): {transcript[:200]!r}")
     st.session_state.audio_audit_transcript = transcript
+    st.session_state.audio_audit_stage = "transcribed"
 
-    with st.spinner("Matching against inventory…"):
+
+def _run_extract(df: pd.DataFrame, cfg: Dict) -> None:
+    """Step 2: match transcript against inventory → advance to 'review' stage."""
+    transcript: str = st.session_state.audio_audit_transcript
+    _debug_log(f"Extraction started — LLM URL: {cfg['llm_base_url']}, model: {cfg['llm_model']}")
+
+    with st.spinner("🔍 Matching against inventory… (may take 15–30 s, please keep screen on)"):
         try:
             result = extract(
                 transcript,
@@ -139,13 +144,14 @@ def _pipeline_run(df: pd.DataFrame, cfg: Dict) -> None:
                 base_url=cfg["llm_base_url"],
                 model=cfg["llm_model"],
                 max_tokens=cfg.get("llm_max_tokens", 4096),
+                timeout=90,
             )
-        except ExtractionError as exc:
+        except Exception as exc:
             _debug_log(f"❌ Extraction failed: {exc}")
-            st.error(f"Inventory extraction failed: {exc}")
+            st.error(f"Inventory matching failed: {exc}")
             return
 
-    _debug_log(f"✅ Extraction done — {len(result.items)} items, zones: {result.zones_mentioned}, unmatched: {result.unmatched_mentions}")
+    _debug_log(f"✅ Extraction done — {len(result.items)} items, zones: {result.zones_mentioned}")
     st.session_state.audio_audit_result = result
     st.session_state.audio_audit_stage = "review"
 
@@ -261,13 +267,13 @@ def _render_record(df: pd.DataFrame, cfg: Dict) -> None:
 
     run_disabled = not bool(audio_bytes)
     if st.button(
-        "🚀 Transcribe and match",
+        "🎙️ Transcribe",
         type="primary",
         width="stretch",
         disabled=run_disabled,
     ):
-        _debug_log(f"Button clicked — audio in session: {len(st.session_state.get('audio_audit_audio_bytes', b''))} bytes, source: {source}")
-        _pipeline_run(df, cfg)
+        _debug_log(f"Transcribe clicked — audio in session: {len(st.session_state.get('audio_audit_audio_bytes', b''))} bytes, source: {source}")
+        _run_transcribe(cfg)
         st.rerun()
 
 
@@ -419,6 +425,21 @@ def _render_done() -> None:
         st.rerun()
 
 
+def _render_transcribed(df: pd.DataFrame, cfg: Dict) -> None:
+    """Show transcript and offer the Match button as a separate step."""
+    transcript: str = st.session_state.audio_audit_transcript
+    st.success("✅ Transcription done!")
+    st.text_area("Transcript", value=transcript, height=140, label_visibility="collapsed")
+    st.caption("Check the text above, then tap Match to run the inventory matching (~15–30 s).")
+    c1, c2 = st.columns(2)
+    if c1.button("🔍 Match inventory", type="primary", width="stretch"):
+        _run_extract(df, cfg)
+        st.rerun()
+    if c2.button("🔄 Re-record", width="stretch"):
+        _reset_state()
+        st.rerun()
+
+
 def main(df: pd.DataFrame) -> pd.DataFrame:
     """Entry point for the Audio Audit Streamlit mode."""
     cfg = _audio_cfg()
@@ -430,6 +451,8 @@ def main(df: pd.DataFrame) -> pd.DataFrame:
     stage = st.session_state.audio_audit_stage
     if stage == "record":
         _render_record(df, cfg)
+    elif stage == "transcribed":
+        _render_transcribed(df, cfg)
     elif stage == "review":
         df = _render_review(df, cfg)
     elif stage == "done":

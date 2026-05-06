@@ -114,12 +114,13 @@ def extract(
     base_url: str,
     model: str,
     max_tokens: int = 4096,
+    timeout: float = 90,
 ) -> ExtractionResult:
     """Send transcript + candidates to the hub LLM, return structured matches."""
     if not transcript.strip():
         raise ExtractionError("transcript is empty")
 
-    client = Anthropic(api_key="local-dummy", base_url=base_url)
+    client = Anthropic(api_key="local-dummy", base_url=base_url, timeout=timeout)
     candidates = _candidates_payload(candidates_df)
 
     user_text = (
