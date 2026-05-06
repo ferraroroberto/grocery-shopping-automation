@@ -23,8 +23,8 @@ def main(df: pd.DataFrame) -> pd.DataFrame:
         col1, col2 = st.columns(2)
 
         with col1:
-            new_super = st.selectbox("🏪 Supermarket", options=existing_supermarkets)
-            new_lugar = st.selectbox("🏠 Zone", options=existing_zones)
+            new_super = st.selectbox("🏪 Supermarket", options=existing_supermarkets, key="add_item_supermarket")
+            new_lugar = st.selectbox("🏠 Zone", options=existing_zones, key="add_item_zone")
             new_comida = st.text_input("🥘 Item Name")
 
         with col2:

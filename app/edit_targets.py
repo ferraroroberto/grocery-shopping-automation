@@ -16,7 +16,7 @@ from src.data import (
 def main(df: pd.DataFrame) -> pd.DataFrame:
     """Render the edit-targets interface."""
     zones = get_unique_zones(df)
-    selected_zone = st.selectbox("Zone", zones, label_visibility="collapsed")
+    selected_zone = st.selectbox("Zone", zones, label_visibility="collapsed", key="edit_targets_zone")
 
     zone_data = (
         df[df[COLUMNS["lugar"]] == selected_zone]

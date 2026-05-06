@@ -21,7 +21,7 @@ def main(df: pd.DataFrame) -> pd.DataFrame:
         unsafe_allow_html=True,
     )
     zones = get_unique_zones(df)
-    selected_zone = st.selectbox("Zone", zones, label_visibility="collapsed")
+    selected_zone = st.selectbox("Zone", zones, label_visibility="collapsed", key="audit_zone")
 
     zone_data = df[
         (df[COLUMNS["lugar"]] == selected_zone) & (df[COLUMNS["cantidad"]] > 0)
