@@ -7,6 +7,7 @@ appropriate messages.
 
 import json
 import logging
+import shutil
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -14,6 +15,12 @@ import pandas as pd
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CONFIG_PATH = Path(__file__).resolve().parent / "config.json"
+CONFIG_EXAMPLE_PATH = Path(__file__).resolve().parent / "config.example.json"
+
+# `config.json` is gitignored — seed it from `config.example.json` (committed)
+# the first time the app runs in a fresh checkout.
+if not CONFIG_PATH.exists() and CONFIG_EXAMPLE_PATH.exists():
+    shutil.copyfile(CONFIG_EXAMPLE_PATH, CONFIG_PATH)
 
 with open(CONFIG_PATH, "r", encoding="utf-8") as f:
     CONFIG = json.load(f)

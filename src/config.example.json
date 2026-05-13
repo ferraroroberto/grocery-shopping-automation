@@ -48,7 +48,17 @@
     "whisper_model": "whisper-large-v3-turbo",
     "language": "es",
     "llm_base_url": "http://127.0.0.1:8000",
-    "llm_model": "claude-sonnet-4-6",
+    "llm_model": "gemini_pro",
+    "llm_models_available": [
+      "agentic_light",
+      "agentic_heavy",
+      "gemini_lite",
+      "gemini_flash",
+      "gemini_pro",
+      "claude_haiku",
+      "claude_sonnet",
+      "claude_opus"
+    ],
     "llm_max_tokens": 4096,
     "max_count_clamp_above_target": 5,
     "logs_dir": "audio_audit_logs",

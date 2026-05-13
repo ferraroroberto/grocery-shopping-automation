@@ -153,6 +153,15 @@ def _service_status_banner(cfg: Dict) -> bool:
     return False
 
 
+def _model_label(model_id: str) -> str:
+    """Render `gemini_pro` as `Gemini Pro` — mirrors voice-transcriber's
+    polishModelLabel rule so the two apps speak the same vocabulary."""
+    if not model_id:
+        return ""
+    parts = [p for p in model_id.replace("__", "_").split("_") if p]
+    return " ".join(p[:1].upper() + p[1:] for p in parts)
+
+
 def _reset_state() -> None:
     for k in (
         "audio_audit_stage",
@@ -241,13 +250,14 @@ def _run_extract(df: pd.DataFrame, cfg: Dict) -> None:
         logger.info(
             f"🧹 transcript cleaned for matching — {len(raw_transcript)} → {len(cleaned)} chars"
         )
-    logger.info(f"🔍 extract — model={cfg['llm_model']} · transcript_chars={len(cleaned)}")
+    model = st.session_state.get("audio_audit_llm_model", cfg["llm_model"])
+    logger.info(f"🔍 extract — model={model} · transcript_chars={len(cleaned)}")
 
     info_panel = st.container()
     with info_panel:
         st.markdown("**🔍 Matching transcript against inventory**")
         st.caption(
-            f"📡 `{cfg['llm_base_url']}` · model `{cfg['llm_model']}` · "
+            f"📡 `{cfg['llm_base_url']}` · model `{model}` · "
             f"transcript {len(cleaned)} chars{cleaned_note} · candidates {len(df)}"
         )
     progress = st.empty()
@@ -257,7 +267,7 @@ def _run_extract(df: pd.DataFrame, cfg: Dict) -> None:
             cleaned,
             df,
             base_url=cfg["llm_base_url"],
-            model=cfg["llm_model"],
+            model=model,
             max_tokens=cfg.get("llm_max_tokens", 4096),
             timeout=300,
         )
@@ -294,7 +304,7 @@ def _write_audit_log(
         "audio_sha256": audio_sha,
         "audio_bytes": len(audio_bytes),
         "transcript": st.session_state.get("audio_audit_transcript", ""),
-        "model": cfg["llm_model"],
+        "model": st.session_state.get("audio_audit_llm_model", cfg["llm_model"]),
         "whisper_model": cfg["whisper_model"],
         "result": {
             "items": result.items,
@@ -595,16 +605,43 @@ def _render_transcribed(df: pd.DataFrame, cfg: Dict) -> None:
         label_visibility="collapsed",
     )
     st.caption(
-        "Edit if Whisper added repetitions or noise, then tap Match. "
-        "Long noisy transcripts can take a few minutes to match."
+        "Edit if Whisper added repetitions or noise, then pick the matching "
+        "model and tap Match. Long noisy transcripts can take a few minutes."
     )
+
+    models = list(cfg.get("llm_models_available") or [cfg["llm_model"]])
+    default_model = cfg["llm_model"]
+    if default_model not in models:
+        models = [default_model, *models]
+    selected = st.session_state.get("audio_audit_llm_model", default_model)
+    if selected not in models:
+        selected = default_model
+    st.selectbox(
+        "🧠 Matching model",
+        options=models,
+        index=models.index(selected),
+        format_func=_model_label,
+        key="audio_audit_llm_model",
+        help="Routed through the local LLM hub. Defaults to Gemini Pro.",
+    )
+
+    hub_ok = _is_port_open(cfg["llm_base_url"])
+    if not hub_ok:
+        st.error(
+            f"❌ LLM hub unreachable at `{cfg['llm_base_url']}`. Start the hub "
+            "before matching."
+        )
+
     c1, c2 = st.columns(2)
     if c1.button(
         "🔍 Match inventory",
         type="primary",
         width="stretch",
         key="audio_audit_match_btn",
-        disabled=not st.session_state.get("audio_audit_transcript_input", "").strip(),
+        disabled=(
+            not st.session_state.get("audio_audit_transcript_input", "").strip()
+            or not hub_ok
+        ),
     ):
         _run_extract(df, cfg)
         st.rerun()

@@ -4,6 +4,9 @@
 # environment / secrets
 .env
 
+# local runtime config (seeded from src/config.example.json on first run)
+src/config.json
+
 # python cache
 __pycache__/
 *.py[cod]
