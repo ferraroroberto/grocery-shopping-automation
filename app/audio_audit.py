@@ -347,7 +347,10 @@ def _render_record(df: pd.DataFrame, cfg: Dict) -> None:
     tracked = df[df[COLUMNS["cantidad"]] > 0]
     zones_in_df = sorted(tracked[COLUMNS["lugar"]].dropna().astype(str).unique(), key=str.lower)
     if zones_in_df:
-        st.markdown("**📋 Items per zone** — tap to open while recording")
+        st.markdown(
+            "**📋 Items per zone** — tap to open while recording "
+            "(only items with target ≥ 1)"
+        )
         for zone in zones_in_df:
             items = sorted(
                 tracked[tracked[COLUMNS["lugar"]] == zone][COLUMNS["comida"]].astype(str).tolist(),
@@ -508,6 +511,7 @@ def _render_review(df: pd.DataFrame, cfg: Dict) -> pd.DataFrame:
         for idx in df.index
         if idx not in detected_idxs
         and str(df.at[idx, COLUMNS["lugar"]]).lower() in detected_zones
+        and int(df.at[idx, COLUMNS["cantidad"]]) > 0
         and int(df.at[idx, COLUMNS["tenemos"]]) > 0
     ]
 
