@@ -1,9 +1,118 @@
 """Shopping List mode — items to buy, grouped by supermarket, with quick-add."""
 
+import time
+from datetime import datetime
+
 import pandas as pd
 import streamlit as st
 
+from app import automation_runner
 from src.data import COLUMNS, get_supermarket_stats, get_unique_supermarkets
+
+
+# Session-state keys for the 🤖 Run Automation section (issue #4). Documented
+# here so the contract is in one place:
+#   automation_store_select   — store selectbox value ("all" or a store key)
+#   automation_dry_run        — dry-run checkbox value
+#   automation_run_btn        — Run button widget key
+#   automation_process        — subprocess.Popen handle while a run is live
+#   automation_output_lines   — deque[str], max 500 lines, drained by a thread
+#   automation_reader_thread  — the stdout reader Thread
+#   automation_started_at     — datetime the current run started
+
+
+def _render_automation_controls(df: pd.DataFrame) -> None:
+    """Idle state: store picker, dry-run toggle, command preview, Run button."""
+    pending = df[df[COLUMNS["comprar"]] > 0]
+    stores = sorted(pending[COLUMNS["super"]].astype(str).str.lower().unique())
+    options = ["all"] + stores if stores else ["all"]
+
+    c1, c2 = st.columns([3, 2])
+    with c1:
+        store = st.selectbox(
+            "Store",
+            options,
+            format_func=lambda s: "All stores" if s == "all" else s.title(),
+            key="automation_store_select",
+        )
+    with c2:
+        dry_run = st.checkbox(
+            "Dry run (don't actually add to cart)",
+            value=True,
+            key="automation_dry_run",
+        )
+
+    st.code(" ".join(automation_runner.build_command(store, dry_run)), language="text")
+
+    if st.button("▶ Run Automation", width="stretch", key="automation_run_btn"):
+        process, output_lines, reader_thread = automation_runner.start_run(store, dry_run)
+        st.session_state.automation_process = process
+        st.session_state.automation_output_lines = output_lines
+        st.session_state.automation_reader_thread = reader_thread
+        st.session_state.automation_started_at = datetime.now()
+        st.rerun()
+
+
+def _render_automation_live(process) -> None:
+    """Running state: stream output, offer Stop, then rerun to poll again.
+
+    Each Streamlit pass renders one frame of output and reruns after a short
+    sleep — so the Stop button stays clickable instead of being trapped behind
+    a blocking loop.
+    """
+    lines = st.session_state.get("automation_output_lines")
+    started = st.session_state.get("automation_started_at")
+    elapsed = int((datetime.now() - started).total_seconds()) if started else 0
+
+    st.info(f"⏳ Automation running… ({elapsed}s elapsed)")
+    st.code("\n".join(lines) if lines else "(waiting for output…)", language="text")
+
+    if st.button("🛑 Stop", width="stretch", key="automation_stop_btn"):
+        automation_runner.stop_run(process)
+        st.rerun()
+
+    time.sleep(1.0)
+    st.rerun()
+
+
+def _render_automation_finished(process) -> None:
+    """Finished state: show the final output, the exit status, and a Dismiss button."""
+    lines = st.session_state.get("automation_output_lines")
+    st.code("\n".join(lines) if lines else "(no output)", language="text")
+
+    if process.returncode == 0:
+        st.success("✅ Automation finished — exit 0. Review and pay in the browser.")
+    else:
+        st.error(f"❌ Automation exited with code {process.returncode}. See the log above.")
+
+    if st.button("Dismiss", width="stretch", key="automation_dismiss_btn"):
+        for key in (
+            "automation_process",
+            "automation_output_lines",
+            "automation_reader_thread",
+            "automation_started_at",
+        ):
+            st.session_state.pop(key, None)
+        st.rerun()
+
+
+def _render_automation_section(df: pd.DataFrame) -> None:
+    """🤖 Run Automation — spawn the cart-filling subprocess and stream its output."""
+    process = st.session_state.get("automation_process")
+
+    with st.container(border=True):
+        st.markdown("#### 🤖 Run Automation")
+        st.caption(
+            "Fills the store carts from this list via a Chrome automation. "
+            "You still confirm and pay in the browser."
+        )
+
+        if automation_runner.is_running(process):
+            _render_automation_live(process)
+        elif process is not None:
+            _render_automation_finished(process)
+        else:
+            _render_automation_controls(df)
 
 
 def main(df: pd.DataFrame) -> None:
@@ -66,6 +175,8 @@ def main(df: pd.DataFrame) -> None:
         st.warning(f"⚠️ {len(missing_url_items)} item(s) are missing a buy link and have the Buy button disabled.")
         with st.expander("Show items missing links"):
             st.markdown("\n".join(f"- {item}" for item in missing_url_items))
+
+    _render_automation_section(df)
 
     supermarket_stats = get_supermarket_stats(shopping_items, st.session_state.bought_items) if not shopping_items.empty else {}
 

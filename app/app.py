@@ -107,6 +107,27 @@ def _render_sidebar() -> str:
     return mode_key
 
 
+def _warn_if_automation_running(mode_key: str) -> None:
+    """Warn if a cart-automation run is still live while not in Shopping mode.
+
+    The subprocess keeps running and draining output on its own thread even
+    when the operator navigates away — this just surfaces it and offers a stop,
+    so a run is never silently orphaned.
+    """
+    from app import automation_runner
+
+    process = st.session_state.get("automation_process")
+    if mode_key == "shopping" or not automation_runner.is_running(process):
+        return
+    st.warning(
+        "⚠️ A cart automation run is still in progress (started in the "
+        "Shopping List mode). It will keep running in the background."
+    )
+    if st.button("🛑 Stop automation run", key="automation_stop_global"):
+        automation_runner.stop_run(process)
+        st.rerun()
+
+
 def _init_session_state() -> None:
     if "inventory_data" not in st.session_state:
         try:
@@ -148,6 +169,8 @@ def main() -> None:
 
     _init_session_state()
     mode_key = _render_sidebar()
+
+    _warn_if_automation_running(mode_key)
 
     df = st.session_state.inventory_data
 
