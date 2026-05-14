@@ -30,3 +30,20 @@ class AddToCartFailed(RuntimeError):
         super().__init__(f"failed to add '{item.comida}': {reason}")
         self.item = item
         self.reason = reason
+
+
+class ProductUnavailableError(RuntimeError):
+    """Raised when a product page renders no product at all.
+
+    Distinct from :class:`OutOfStockError` (the page renders fine but the item
+    is sold out) and :class:`AddToCartFailed` (the add itself failed): here the
+    ``/p`` URL serves an empty shell with no title, no add control and no
+    stepper — almost always a stale or discontinued URL in the inventory sheet.
+    The runner records these as an end-of-run *alert* to fix on the data side,
+    not as a hard error, so a stale URL never fails the whole run.
+    """
+
+    def __init__(self, item: CartItem, reason: str) -> None:
+        super().__init__(f"'{item.comida}' unavailable: {reason}")
+        self.item = item
+        self.reason = reason

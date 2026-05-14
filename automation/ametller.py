@@ -7,7 +7,7 @@ product still shows as "1"), so the only reliable quantity check is to open the
 minicart drawer and read the product's line — which is exactly what this
 handler does for verification.
 
-Three VTEX modals can interrupt the flow; all are handled:
+Two VTEX modals can interrupt the flow; both are handled:
 
 * **Cart-restore modal** ("Ya tienes una cesta en curso") — appears at session
   start. We always click "MANTENER CESTA ANTERIOR" to keep the existing cart.
@@ -17,9 +17,27 @@ Three VTEX modals can interrupt the flow; all are handled:
   from ``config.json`` (``automation.ametller_postal_code``), let the delivery
   options render, and click "GUARDAR OPCIÓN DE ENTREGA" (Standard delivery is
   pre-selected). Once saved it persists in the Chrome profile.
-* The handler is **idempotent**: it reads the current minicart quantity first
-  and only adds the missing units, so a re-run does not double-add. It never
-  reduces a line that already has more than the shopping list asks for.
+
+The handler is **idempotent**: it reads the current minicart quantity first and
+only adds the missing units, so a re-run does not double-add. It never reduces
+a line that already has more than the shopping list asks for.
+
+**Resilience (issue #8).** The handler hardens the add path several ways:
+
+* It closes any stray minicart drawer / modal overlay before acting
+  (:func:`_dismiss_overlays`) and verifies the drawer actually opened/closed —
+  an overlay left open silently swallows the next "Añadir" click.
+* It fires "Añadir" up to :data:`_MAX_ADD_ATTEMPTS` times, reloading the
+  product page between attempts and re-reading the minicart — so a transient
+  miss is retried and an add that *did* land despite a missing UI signal is
+  still recognised (the delta is recomputed from the live cart each attempt,
+  so a re-fire never double-adds).
+* Two failure shapes are reported as :class:`ProductUnavailableError` — an
+  end-of-run *alert* to fix on the data side, not a hard error — because no
+  click path can recover them: a page that renders an **empty shell** (no
+  title/button/stepper), and a page **frozen on the "AGREGADO" label** where
+  the button, the stepper and a reload all no-op while the cart stays empty.
+  Both mean a stale or discontinued buy URL in the inventory sheet.
 
 All selectors live in :data:`SELECTORS`. Verified live on 2026-05-14.
 """
@@ -41,7 +59,11 @@ if str(_REPO_ROOT) not in sys.path:
 from src.data import CONFIG  # noqa: E402
 
 from automation.browser import goto_with_login_check, human_delay  # noqa: E402
-from automation.errors import AddToCartFailed, OutOfStockError  # noqa: E402
+from automation.errors import (  # noqa: E402
+    AddToCartFailed,
+    OutOfStockError,
+    ProductUnavailableError,
+)
 from automation.models import CartItem  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -64,6 +86,9 @@ SELECTORS = {
     # carousel buttons (.x-result-add-to-cart) and the minicart checkout button
     # are not matched.
     "add_button": "button:has(.ametllerorigen-add-to-cart-button-1-x-buttonText)",
+    # The text node inside the add button — "AGREGAR" when addable, "AGREGADO"
+    # when the page considers the item added (see _ADDED_BUTTON_TEXTS).
+    "add_button_text": ".ametllerorigen-add-to-cart-button-1-x-buttonText",
     # Delivery postal-code modal.
     "zip_input": "input#zipcode",
     "zip_save": ".vtex-modal__modal button:has-text('GUARDAR')",
@@ -72,11 +97,26 @@ SELECTORS = {
     "minicart_close": ".ametllerorigen-minicart-2-x-closeIconButton",
     "minicart_drawer": ".ametllerorigen-minicart-2-x-drawer",
     "minicart_badge": ".ametllerorigen-minicart-2-x-minicartQuantityBadge",
+    # Any VTEX modal overlay — left open it silently intercepts every click.
+    "modal_overlay": ".vtex-modal__overlay",
 }
 
 # VTEX hydrates slowly — these waits are deliberately generous.
 _NAV_SETW = (3.0, 4.0)
 _ACTION_SETW = (2.5, 3.5)
+
+# How many times to fire "Añadir" before giving up. Between attempts the
+# product page is reloaded — the operator's manual workaround: a stuck overlay
+# or open drawer (which silently swallows the click) is cleared by a fresh
+# load, and the reloaded page often shows the item actually did land.
+_MAX_ADD_ATTEMPTS = 3
+
+# Add-button label (normalised) when the page considers the item already added.
+# Issue #8: some discontinued SKUs render a product page frozen on this label —
+# the button, the stepper and a reload all no-op and the item never reaches the
+# cart. That stuck state is reported as ProductUnavailableError (an alert), not
+# AddToCartFailed, because no click path can recover it; the buy URL is stale.
+_ADDED_BUTTON_TEXTS = {"agregado", "añadido", "anadido", "afegit"}
 
 # JS that pairs each minicart line's product name with its quantity-input value.
 _MINICART_LINES_JS = """() => {
@@ -159,27 +199,77 @@ def _handle_zip_modal(page: Page, item: CartItem) -> None:
     human_delay(*_NAV_SETW)
 
 
-def _open_minicart(page: Page) -> None:
-    """Open the minicart drawer (no-op if already open)."""
+def _drawer_open(page: Page) -> bool:
+    """True when the minicart drawer is currently open."""
     drawer = page.locator(SELECTORS["minicart_drawer"])
     try:
         cls = drawer.first.get_attribute("class") if drawer.count() else ""
     except Exception:  # noqa: BLE001
         cls = ""
-    if cls and "opened" in cls:
-        return
-    page.locator(SELECTORS["minicart_open"]).first.click()
-    human_delay(*_ACTION_SETW)
+    return bool(cls) and "opened" in cls
+
+
+def _open_minicart(page: Page) -> None:
+    """Open the minicart drawer (no-op if already open), verifying it opened."""
+    for _ in range(3):
+        if _drawer_open(page):
+            return
+        try:
+            page.locator(SELECTORS["minicart_open"]).first.click()
+        except Exception:  # noqa: BLE001
+            pass
+        human_delay(*_ACTION_SETW)
+    logger.warning("⚠️ [ametller] minicart drawer would not open")
 
 
 def _close_minicart(page: Page) -> None:
-    """Close the minicart drawer if it is open."""
+    """Close the minicart drawer if open, verifying it actually closed.
+
+    A drawer left open silently intercepts every later click — issue #8's root
+    cause. So this does not just fire-and-forget: it confirms the drawer is
+    closed and escalates to the Escape key if the close button does not take.
+    """
+    for _ in range(3):
+        if not _drawer_open(page):
+            return
+        try:
+            close = page.locator(SELECTORS["minicart_close"])
+            if close.count() > 0 and close.first.is_visible():
+                close.first.click()
+            else:
+                page.keyboard.press("Escape")
+        except Exception:  # noqa: BLE001
+            try:
+                page.keyboard.press("Escape")
+            except Exception:  # noqa: BLE001
+                pass
+        human_delay(1.5, 2.5)
+    logger.warning("⚠️ [ametller] minicart drawer would not close")
+
+
+def _dismiss_overlays(page: Page) -> None:
+    """Clear a stray-open drawer / modal overlay before driving the page.
+
+    Defensive cleanup: a minicart drawer or VTEX modal overlay left over from a
+    previous item sits on top of the page and swallows clicks meant for
+    "Añadir". Closing it up front is what stops one stuck item from poisoning
+    every item after it. Best-effort and a safe no-op when nothing is open. The
+    delivery postal-code modal is deliberately left alone — it must be *filled*,
+    not dismissed.
+    """
+    _close_minicart(page)
     try:
-        close = page.locator(SELECTORS["minicart_close"])
-        if close.count() > 0 and close.first.is_visible():
-            close.first.click()
-            human_delay(1.5, 2.5)
-    except Exception:  # noqa: BLE001
+        overlay = page.locator(SELECTORS["modal_overlay"])
+        zip_input = page.locator(SELECTORS["zip_input"])
+        if (
+            overlay.count() > 0
+            and overlay.first.is_visible()
+            and zip_input.count() == 0
+        ):
+            logger.info("ℹ️ [ametller] dismissing a stray modal overlay")
+            page.keyboard.press("Escape")
+            human_delay(0.6, 1.0)
+    except Exception:  # noqa: BLE001 — overlay cleanup is strictly best-effort
         pass
 
 
@@ -205,6 +295,17 @@ def _read_product_name(page: Page) -> str:
     if loc.count() == 0:
         return ""
     return loc.first.inner_text().strip()
+
+
+def _add_button_label(page: Page) -> str:
+    """Return the add-button's text (e.g. ``"AGREGAR"`` / ``"AGREGADO"``)."""
+    loc = page.locator(SELECTORS["add_button_text"])
+    if loc.count() == 0:
+        return ""
+    try:
+        return loc.first.inner_text().strip()
+    except Exception:  # noqa: BLE001
+        return ""
 
 
 def _set_stepper(page: Page, value: int, item: CartItem) -> None:
@@ -242,59 +343,112 @@ def add_to_cart(page: Page, item: CartItem) -> None:
     Idempotent: reads the current minicart quantity and only adds the missing
     units. Never reduces a line that already holds more than ``item.comprar``.
 
+    The "Añadir" click is fired up to :data:`_MAX_ADD_ATTEMPTS` times; between
+    attempts the product page is reloaded. A reload clears any stuck overlay or
+    open drawer that was silently swallowing the click (issue #8's root cause),
+    and re-reading the minicart afterwards both recovers items that *did* land
+    despite a missing UI signal and keeps the add idempotent (the delta is
+    recomputed from the live cart each attempt, so a re-fire never double-adds).
+
     Raises:
         SessionExpiredError: navigation was redirected to the login page.
-        OutOfStockError: the product page shows no add control.
+        ProductUnavailableError: the page rendered no product at all, or it
+            rendered but is frozen on an "added" label while the cart stays
+            empty — both are stale/discontinued URLs. Surfaced as an end-of-run
+            alert to fix on the data side, not as a hard error.
+        OutOfStockError: the product page renders but shows no add control.
         AddToCartFailed: a postal code was needed but not configured, an
-            expected control was missing, or the minicart line did not reach
-            the wanted quantity.
+            expected control was missing, or the minicart line never reached
+            the wanted quantity after every attempt.
     """
     logger.info("🛒 [ametller] %s ×%d", item.comida, item.comprar)
     goto_with_login_check(page, "ametller", item.buscador)
     human_delay(*_NAV_SETW)
     _handle_cart_restore_modal(page)
+    # Clear anything a previous item left on top of the page before we look at it.
+    _dismiss_overlays(page)
 
     name = _read_product_name(page)
+    has_add = page.locator(SELECTORS["add_button"]).count() > 0
+    has_stepper = page.locator(SELECTORS["stepper_input"]).count() > 0
+    if not name and not has_add and not has_stepper:
+        # Mode A: the /p URL served an empty shell — nothing to act on.
+        raise ProductUnavailableError(
+            item,
+            "product page rendered no title, add button or stepper — "
+            "the buy URL is likely stale or the product discontinued",
+        )
     if not name:
         raise AddToCartFailed(item, "product title not found — page layout unexpected")
-    if page.locator(SELECTORS["add_button"]).count() == 0:
+    if not has_add:
         raise OutOfStockError(item)
 
-    qty_before = _minicart_qty(page, name)
     target = item.comprar
-    if qty_before >= target:
+    qty = _minicart_qty(page, name)
+    if qty >= target:
         logger.info(
             "✅ [ametller] %s — already %d in cart (≥ %d wanted), leaving as is",
-            item.comida, qty_before, target,
+            item.comida, qty, target,
         )
         return
 
-    delta = target - qty_before
-    _set_stepper(page, delta, item)
-    page.locator(SELECTORS["add_button"]).first.click()
-    human_delay(*_NAV_SETW)
-    _handle_zip_modal(page, item)
-    human_delay(*_ACTION_SETW)
-
-    qty_now = _minicart_qty(page, name)
-    if qty_now == qty_before:
-        # The first click was likely consumed by the postal-code modal — retry.
-        logger.warning("⚠️ [ametller] %s — add did not register, retrying", item.comida)
+    for attempt in range(1, _MAX_ADD_ATTEMPTS + 1):
+        delta = target - qty
+        _dismiss_overlays(page)
         _set_stepper(page, delta, item)
         page.locator(SELECTORS["add_button"]).first.click()
         human_delay(*_NAV_SETW)
         _handle_zip_modal(page, item)
         human_delay(*_ACTION_SETW)
-        qty_now = _minicart_qty(page, name)
 
-    if qty_now != target:
-        raise AddToCartFailed(
+        qty = _minicart_qty(page, name)
+        if qty >= target:
+            logger.info(
+                "✅ [ametller] %s — %d in cart (attempt %d/%d)",
+                item.comida, qty, attempt, _MAX_ADD_ATTEMPTS,
+            )
+            return
+
+        if attempt < _MAX_ADD_ATTEMPTS:
+            # The add did not register. Reload the product page: this clears a
+            # stuck overlay/drawer and the reloaded minicart often shows the
+            # item actually landed (the operator's manual workaround).
+            logger.warning(
+                "⚠️ [ametller] %s — add did not register (attempt %d/%d), "
+                "reloading to clear state and recheck",
+                item.comida, attempt, _MAX_ADD_ATTEMPTS,
+            )
+            try:
+                page.reload(wait_until="domcontentloaded")
+            except Exception:  # noqa: BLE001 — reload timing is best-effort
+                pass
+            human_delay(*_NAV_SETW)
+            _handle_cart_restore_modal(page)
+            _dismiss_overlays(page)
+            qty = _minicart_qty(page, name)
+            if qty >= target:
+                logger.info(
+                    "✅ [ametller] %s — %d in cart after reload (add had landed)",
+                    item.comida, qty,
+                )
+                return
+
+    # Every attempt (click, reload, recheck) failed. If the add button is frozen
+    # on its "added" label while the cart stays empty, this is the issue-#8 stuck
+    # state — a discontinued SKU no click path can recover. Report it as an
+    # alert (ProductUnavailableError), not a hard error, so a stale URL on the
+    # data side never fails the run; the operator just refreshes the buy URL.
+    label = _add_button_label(page)
+    if _norm(label) in _ADDED_BUTTON_TEXTS:
+        raise ProductUnavailableError(
             item,
-            f"minicart line shows {qty_now}, expected {target} "
-            f"(was {qty_before}, tried to add {delta})",
+            f"product page is frozen on '{label}' but the item never reaches "
+            f"the cart after {_MAX_ADD_ATTEMPTS} attempts (click, stepper and "
+            f"reload all no-op) — the product is likely discontinued; "
+            f"refresh the buy URL",
         )
-
-    logger.info(
-        "✅ [ametller] %s — %d in cart (was %d, added %d)",
-        item.comida, target, qty_before, delta,
+    raise AddToCartFailed(
+        item,
+        f"minicart line shows {qty}, expected {target} after "
+        f"{_MAX_ADD_ATTEMPTS} attempts (overlay/drawer may be stuck)",
     )
