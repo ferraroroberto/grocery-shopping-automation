@@ -25,8 +25,8 @@ tests/smoke_phase2_result.json
 # generated SSL certificates (run gen_ssl_cert.py to recreate)
 certificates/
 
-# browser automation session cookies (never commit)
-automation/cookies/
+# browser automation Chrome profile — session data, never commit
+automation/chrome_user_data/
 
 # IDE / editor
 .vscode/
