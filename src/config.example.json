@@ -64,6 +64,9 @@
     "logs_dir": "audio_audit_logs",
     "test_fixture_path": "test_data/list_test_fixture.xlsx"
   },
+  "automation": {
+    "ametller_postal_code": ""
+  },
   "logging": {
     "level": "INFO",
     "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
