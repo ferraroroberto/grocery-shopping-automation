@@ -128,6 +128,28 @@ At the bottom of each supermarket's expander, a small inline form lets you add a
 ### 💾 Save / Export
 Manual save to Excel or download as CSV, plus summary statistics.
 
+## 🤖 Browser Automation
+
+The `automation/` package fills the online carts of the supermarkets in the
+shopping list using Playwright + real Chrome. It uses a dedicated, gitignored
+Chrome profile (`automation/chrome_user_data/`) that is kept separate from your
+normal browser profile — you log in once via plain Chrome, and Playwright
+reuses that session for cart work.
+
+**One-time setup:**
+```powershell
+& .\.venv\Scripts\pip.exe install -r requirements.txt
+```
+No `playwright install` step is required — it uses your installed Chrome.
+
+**Log in to the stores (run once, and again whenever a session expires):**
+```powershell
+& .\.venv\Scripts\python.exe -m automation.bootstrap_session
+```
+A plain Chrome window opens with a tab per store — log into each, close the
+window, then press Enter in the terminal. See
+[`automation/README.md`](automation/README.md) for details.
+
 ## 🖥️ Typical Workflow
 
 1. **Edit Targets** — set desired quantities for tracked items
