@@ -150,6 +150,16 @@ A plain Chrome window opens with a tab per store — log into each, close the
 window, then press Enter in the terminal. See
 [`automation/README.md`](automation/README.md) for details.
 
+**Run it from the app:** the **🛒 Shopping List** mode has a **🤖 Run
+Automation** section — pick a store (or "All stores"), optionally tick *Dry
+run*, and click **▶ Run Automation**. Output streams live into the page and a
+**🛑 Stop** button cancels an in-progress run. From a terminal you can also run
+`& .\.venv\Scripts\python.exe -m automation.run_automation --keep-open`, which
+fills the cart and then waits so you can review and pay before it closes.
+
+A walk-through of how this automation was built, store quirk by store quirk,
+is in [`docs/2026-05-14-browser-automation-build.md`](docs/2026-05-14-browser-automation-build.md).
+
 ## 🖥️ Typical Workflow
 
 1. **Edit Targets** — set desired quantities for tracked items
