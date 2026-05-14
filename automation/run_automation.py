@@ -25,7 +25,7 @@ from automation.browser import (
     human_delay,
     launch_context,
 )
-from automation.errors import AddToCartFailed, OutOfStockError
+from automation.errors import AddToCartFailed, OutOfStockError, ProductUnavailableError
 from automation.grocery_reader import read_cart_items
 from automation.report import RunReport
 
@@ -118,6 +118,11 @@ def _process_store_live(
             except OutOfStockError:
                 logger.warning("⚠️  [%s] %s — out of stock", store, item.comida)
                 report.errors.append((item, "out of stock"))
+            except ProductUnavailableError as err:
+                logger.warning(
+                    "🔗 [%s] %s — %s", store, item.comida, getattr(err, "reason", err)
+                )
+                report.unavailable.append((item, getattr(err, "reason", str(err))))
             except (AddToCartFailed, SessionExpiredError) as err:
                 logger.error("❌ [%s] %s — %s", store, item.comida, err)
                 report.errors.append((item, str(err)))
