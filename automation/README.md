@@ -94,7 +94,12 @@ and `app/automation_runner.py`.
   handler opens the minicart drawer and reads the product's line to verify the
   real quantity. It handles the cart-restore modal (keeps the previous cart)
   and the delivery postal-code modal (needs `automation.ametller_postal_code`
-  in `src/config.json` the first time; it then persists in the profile).
+  in `src/config.json` the first time; it then persists in the profile). A
+  stray-open drawer/overlay silently eats the next "Añadir" click, so the
+  handler clears one before acting, verifies the drawer state, and retries the
+  add (reloading the page between attempts) up to three times. A product page
+  that renders an empty shell — a stale/discontinued buy URL — is reported as
+  an end-of-run **🔗 Unavailable (check URL)** alert, not a hard failure.
 
 ## Modules
 
