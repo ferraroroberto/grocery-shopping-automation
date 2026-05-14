@@ -1,8 +1,7 @@
 # `automation/` — browser cart automation
 
-Playwright-driven plumbing that fills the online carts of the grocery stores in
-the inventory spreadsheet. This package is the foundation (issue #1);
-store-specific add-to-cart logic lands in follow-up issues.
+Playwright-driven automation that fills the online carts of the grocery stores
+in the inventory spreadsheet — one handler per store, plus a CLI runner.
 
 ## How sessions work
 
@@ -49,12 +48,49 @@ non-standard.)
 `SessionExpiredError` from `launch_context` / `goto_with_login_check` means a
 store bounced you to its login page — just re-run the bootstrap.
 
+## Running the automation
+
+```powershell
+# See what would be added, no browser:
+& .\.venv\Scripts\python.exe -m automation.run_automation --store mercadona --dry-run
+
+# Live run — opens Chrome and fills the cart:
+& .\.venv\Scripts\python.exe -m automation.run_automation --store mercadona
+& .\.venv\Scripts\python.exe -m automation.run_automation --store ametller
+
+# Both stores, capped at N items, headless:
+& .\.venv\Scripts\python.exe -m automation.run_automation --limit 10 --headless
+```
+
+Each handler is **idempotent** — it reads the current cart quantity and only
+adds what is missing, so a re-run after a partial failure is safe. Existing
+cart contents are never wiped.
+
+### Store-specific notes
+
+- **Mercadona** counts *units* — 3 of the same product shows as `3` on the
+  header badge. Every add is verified against both the product's on-page count
+  and the header badge (picker clicks sometimes silently no-op, so they are
+  retried until the count moves).
+- **Ametller Origen** (VTEX) counts *distinct products* on the badge, so the
+  handler opens the minicart drawer and reads the product's line to verify the
+  real quantity. It handles the cart-restore modal (keeps the previous cart)
+  and the delivery postal-code modal (needs `automation.ametller_postal_code`
+  in `src/config.json` the first time; it then persists in the profile).
+
 ## Modules
 
 | File | Responsibility |
 |------|----------------|
 | `models.py` | `CartItem` dataclass — shared shape for one item to buy. |
+| `errors.py` | `OutOfStockError`, `AddToCartFailed` — shared handler exceptions. |
 | `grocery_reader.py` | `read_cart_items(store=None)` — inventory XLSX → `list[CartItem]`. |
 | `browser.py` | `launch_context()`, `goto_with_login_check()`, `human_delay()`. |
 | `bootstrap_session.py` | One-time interactive login (run via `-m`). |
+| `mercadona.py` | Mercadona `add_to_cart(page, item)` handler. |
+| `ametller.py` | Ametller Origen `add_to_cart(page, item)` handler. |
+| `run_automation.py` | CLI runner — reads the list, dispatches to handlers, prints a summary. |
 | `report.py` | `RunReport` — per-run summary with `print_summary()`. |
+
+Smoke tests live in `tests/automation_smoke_*.py` — run them manually (they are
+live, not CI tests; see each file's docstring).
