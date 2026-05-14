@@ -60,11 +60,29 @@ store bounced you to its login page — just re-run the bootstrap.
 
 # Both stores, capped at N items, headless:
 & .\.venv\Scripts\python.exe -m automation.run_automation --limit 10 --headless
+
+# Fill the cart, then leave the browser open so you can review and pay:
+& .\.venv\Scripts\python.exe -m automation.run_automation --keep-open
 ```
 
 Each handler is **idempotent** — it reads the current cart quantity and only
 adds what is missing, so a re-run after a partial failure is safe. Existing
 cart contents are never wiped.
+
+`--keep-open` pauses after each store's cart is filled and waits for **Enter**
+in the terminal — so you can open the cart, review it, and pay before the
+window closes and the next store starts. It blocks on stdin, so it is for
+interactive terminal use only (the Streamlit integration never passes it). The
+shared profile means one store window is open at a time, not both at once; the
+filled cart itself persists in your store account regardless.
+
+### From the Streamlit app
+
+The Shopping List mode has a **🤖 Run Automation** section: pick a store (or
+"All stores"), optionally tick *Dry run*, and click **▶ Run Automation**. The
+app spawns this same CLI as a subprocess and streams its output live into the
+page; a **🛑 Stop** button terminates an in-progress run. See `app/shopping.py`
+and `app/automation_runner.py`.
 
 ### Store-specific notes
 
@@ -91,6 +109,9 @@ cart contents are never wiped.
 | `ametller.py` | Ametller Origen `add_to_cart(page, item)` handler. |
 | `run_automation.py` | CLI runner — reads the list, dispatches to handlers, prints a summary. |
 | `report.py` | `RunReport` — per-run summary with `print_summary()`. |
+
+The Streamlit-side glue lives under `app/`, not here: `app/automation_runner.py`
+(subprocess plumbing) and the **🤖 Run Automation** section in `app/shopping.py`.
 
 Smoke tests live in `tests/automation_smoke_*.py` — run them manually (they are
 live, not CI tests; see each file's docstring).

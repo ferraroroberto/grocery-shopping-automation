@@ -2,7 +2,7 @@
 
 Usage:
     python -m automation.run_automation [--store STORE] [--dry-run]
-                                        [--limit N] [--headless]
+                                        [--limit N] [--headless] [--keep-open]
 
 Reads the inventory via :func:`automation.grocery_reader.read_cart_items`,
 groups the items by store, and dispatches each one to its store handler over a
@@ -63,6 +63,15 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         action="store_true",
         help="Run Chrome headless (default: headed).",
     )
+    parser.add_argument(
+        "--keep-open",
+        action="store_true",
+        help=(
+            "After a store's cart is filled, leave the browser open and wait "
+            "for Enter before closing it / moving on — so you can review and "
+            "pay. Not for unattended runs (it blocks on stdin)."
+        ),
+    )
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     return parser.parse_args(argv)
 
@@ -79,9 +88,19 @@ def _process_store_dry_run(store: str, items: list, report: RunReport) -> None:
 
 
 def _process_store_live(
-    store: str, items: list, report: RunReport, *, headless: bool
+    store: str,
+    items: list,
+    report: RunReport,
+    *,
+    headless: bool,
+    keep_open: bool = False,
 ) -> None:
-    """Open a Chrome context for `store` and run its handler over `items`."""
+    """Open a Chrome context for `store` and run its handler over `items`.
+
+    When `keep_open` is set, the browser is left on screen after the last item
+    and the run blocks on Enter — so the operator can review the cart and pay
+    before the context closes and the next store starts.
+    """
     handler = HANDLERS[store]
     try:
         playwright, context, page = launch_context(headless=headless)
@@ -106,6 +125,16 @@ def _process_store_live(
                 logger.exception("❌ [%s] %s — unexpected error", store, item.comida)
                 report.errors.append((item, f"{type(err).__name__}: {err}"))
             human_delay()
+        if keep_open:
+            logger.info(
+                "🟢 [%s] cart filled — browser left open. Click the cart icon "
+                "to review and pay, then press Enter here to close it.", store,
+            )
+            try:
+                input(f"  ↳ press Enter to close the {store} browser… ")
+            except EOFError:
+                # No interactive stdin (e.g. spawned from the app) — don't block.
+                logger.warning("⚠️  --keep-open: no interactive stdin, closing immediately")
     finally:
         context.close()
         playwright.stop()
@@ -146,7 +175,10 @@ def main(argv: Optional[list[str]] = None) -> int:
             _process_store_dry_run(store, group, report)
         else:
             try:
-                _process_store_live(store, group, report, headless=args.headless)
+                _process_store_live(
+                    store, group, report,
+                    headless=args.headless, keep_open=args.keep_open,
+                )
             except ProfileNotInitializedError as err:
                 logger.error("❌ %s", err)
                 return 2
