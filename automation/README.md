@@ -90,16 +90,16 @@ and `app/automation_runner.py`.
   header badge. Every add is verified against both the product's on-page count
   and the header badge (picker clicks sometimes silently no-op, so they are
   retried until the count moves).
-- **Ametller Origen** (VTEX) counts *distinct products* on the badge, so the
-  handler opens the minicart drawer and reads the product's line to verify the
-  real quantity. It handles the cart-restore modal (keeps the previous cart)
-  and the delivery postal-code modal (needs `automation.ametller_postal_code`
-  in `src/config.json` the first time; it then persists in the profile). A
-  stray-open drawer/overlay silently eats the next "Añadir" click, so the
-  handler clears one before acting, verifies the drawer state, and retries the
-  add (reloading the page between attempts) up to three times. A product page
-  that renders an empty shell — a stale/discontinued buy URL — is reported as
-  an end-of-run **🔗 Unavailable (check URL)** alert, not a hard failure.
+- **Ametller Origen** (VTEX) verifies quantities against VTEX's
+  `/api/checkout/pub/orderForm` JSON endpoint — the storefront's own source of
+  truth. The minicart drawer DOM was tried first and turned out to silently
+  omit lines, which caused inflated add attempts in early runs (issue #10).
+  Both modals are handled: cart-restore (keeps the previous cart) and the
+  delivery postal-code modal (needs `automation.ametller_postal_code` in
+  `src/config.json` the first time; it then persists in the profile). A
+  product page that renders an empty shell — a stale/discontinued buy URL —
+  is reported as an end-of-run **🔗 Unavailable (check URL)** alert, not a
+  hard failure.
 
 ## Modules
 
