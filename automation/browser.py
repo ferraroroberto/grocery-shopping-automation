@@ -35,6 +35,13 @@ USER_DATA_DIR = Path(__file__).resolve().parent / "chrome_user_data"
 _LAUNCH_ARGS = ["--disable-blink-features=AutomationControlled"]
 _VIEWPORT = {"width": 1280, "height": 900}
 
+# Playwright adds `--enable-automation` by default — that switch is what makes
+# Chrome show the "automated test software is controlling Chrome" infobar and
+# is a trivial bot tell. Dropping it makes the window present as a normal
+# browser; `--disable-blink-features=AutomationControlled` above already clears
+# the `navigator.webdriver` flag.
+_IGNORE_DEFAULT_ARGS = ["--enable-automation"]
+
 # URL substrings that mark a "logged out / please sign in" redirect, per store.
 # Checked case-insensitively against the URL after navigation settles.
 _LOGIN_URL_MARKERS: dict[str, tuple[str, ...]] = {
@@ -78,6 +85,7 @@ def _open_context(
         channel="chrome",
         headless=headless,
         args=_LAUNCH_ARGS,
+        ignore_default_args=_IGNORE_DEFAULT_ARGS,
         viewport=_VIEWPORT,
     )
     # launch_persistent_context already opens one default page.

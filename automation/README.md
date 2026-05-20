@@ -90,16 +90,18 @@ and `app/automation_runner.py`.
   header badge. Every add is verified against both the product's on-page count
   and the header badge (picker clicks sometimes silently no-op, so they are
   retried until the count moves).
-- **Ametller Origen** (VTEX) verifies quantities against VTEX's
-  `/api/checkout/pub/orderForm` JSON endpoint — the storefront's own source of
-  truth. The minicart drawer DOM was tried first and turned out to silently
-  omit lines, which caused inflated add attempts in early runs (issue #10).
-  Both modals are handled: cart-restore (keeps the previous cart) and the
-  delivery postal-code modal (needs `automation.ametller_postal_code` in
-  `src/config.json` the first time; it then persists in the profile). A
-  product page that renders an empty shell — a stale/discontinued buy URL —
-  is reported as an end-of-run **🔗 Unavailable (check URL)** alert, not a
-  hard failure.
+- **Ametller Origen** runs on **Salesforce Commerce Cloud** (the Chakra-UI
+  "Composable Storefront" — it migrated off VTEX in May 2026, issue #12).
+  Quantities are verified against the **SCAPI Shopper Baskets** API — the
+  storefront's own source of truth — using the SLAS shopper token the site
+  stores in `localStorage`. Lines are matched by numeric `productId`, read from
+  the redirected product URL (`…/{productId}.html`); the legacy `/p` buy URLs
+  still 301-redirect there, so no inventory change was needed. The same
+  `localStorage` also reveals whether the session is still a *registered*
+  shopper — if it has lapsed to a guest, a `SessionExpiredError` is raised. A
+  product page that renders an empty shell — a stale/discontinued buy URL — is
+  reported as an end-of-run **🔗 Unavailable (check URL)** alert, not a hard
+  failure.
 
 ## Modules
 
