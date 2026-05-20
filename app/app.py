@@ -162,10 +162,39 @@ def _init_session_state() -> None:
         st.session_state.extra_item_counter = 0
 
 
+def _render_top_bar() -> None:
+    """App title plus a Refresh button that resets to a clean, freshly-loaded state.
+
+    Refresh stops any live automation run, clears all session state (the
+    automation run, bought/extra marks, every widget value) and reruns — the
+    next pass reloads the inventory fresh from the Excel file. The Excel file
+    itself is never written or cleared.
+    """
+    from app import automation_runner
+
+    title_col, refresh_col = st.columns([5, 1])
+    with title_col:
+        st.markdown("### 🛒 Inventory & Shopping Helper")
+    with refresh_col:
+        if st.button(
+            "🔄 Refresh",
+            width="stretch",
+            key="app_refresh_btn",
+            help=(
+                "Reload the app from a clean state — stops any automation run "
+                "and clears all in-app state, then reloads the inventory from "
+                "the Excel file. The Excel file is not modified."
+            ),
+        ):
+            automation_runner.stop_run(st.session_state.get("automation_process"))
+            st.session_state.clear()
+            st.rerun()
+
+
 def main() -> None:
     st.set_page_config(**CONFIG["ui"]["page_config"])
     st.markdown(CSS, unsafe_allow_html=True)
-    st.markdown("### 🛒 Inventory & Shopping Helper")
+    _render_top_bar()
 
     _init_session_state()
     mode_key = _render_sidebar()
