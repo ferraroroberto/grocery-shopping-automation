@@ -3,7 +3,7 @@
 **Date:** 2026-05-14
 **Issue:** #8 (Ametller handler: 7/17 adds fail in a full run)
 **PR:** #9
-**Follow-up to:** `docs/2026-05-14-browser-automation-build.md` §5
+**Follow-up to:** `docs/browser-automation-build.md` §5
 
 Issue #4's full-circle validation added 45/52 items — Mercadona 35/35, Ametller
 10/17. This is the retrospective for chasing down those 7 Ametller failures.

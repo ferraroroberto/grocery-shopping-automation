@@ -3,7 +3,7 @@
 **Date:** 2026-05-15
 **Issue:** #10 (minicart drawer is an unreliable verification source)
 **PR:** #11
-**Follow-up to:** `docs/2026-05-14-browser-automation-build.md` §5 and `docs/2026-05-14-ametller-robustness.md`
+**Follow-up to:** `docs/browser-automation-build.md` §5 and `docs/ametller-robustness.md`
 
 Issue #8 confidently misdiagnosed the Ametller failures as discontinued SKUs.
 Issue #10 fixed the *real* defect — but only after two more wrong turns. This

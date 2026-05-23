@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-20
 **Issue:** #12 (Ametller migrated VTEX → Salesforce Commerce Cloud)
-**Follow-up to:** `docs/2026-05-15-ametller-orderform-verify.md`
+**Follow-up to:** `docs/ametller-orderform-verify.md`
 
 Five days after the orderForm verification was declared "15/17 clean", a live
 run reported **0/17** Ametller items added — every one a `🔗 Unavailable
