@@ -158,7 +158,7 @@ run*, and click **▶ Run Automation**. Output streams live into the page and a
 fills the cart and then waits so you can review and pay before it closes.
 
 A walk-through of how this automation was built, store quirk by store quirk,
-is in [`docs/2026-05-14-browser-automation-build.md`](docs/2026-05-14-browser-automation-build.md).
+is in [`docs/browser-automation-build.md`](docs/browser-automation-build.md).
 
 ## 🖥️ Typical Workflow
 
