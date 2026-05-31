@@ -2,23 +2,22 @@
 the fixture and live xlsx are not modified."""
 
 import hashlib
-import os
 import sys
 import tempfile
 from pathlib import Path
 
 import pandas as pd
 
-GROCERY_DIR = Path(r"E:\automation\automation\system\grocery")
-sys.path.insert(0, str(GROCERY_DIR))
-os.chdir(str(GROCERY_DIR))
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
-import data  # noqa: E402
+import src.data as data  # noqa: E402
 
 print(f"[OK] data module loaded")
 print(f"[OK] audio_audit config keys: {list(data.CONFIG['audio_audit'].keys())}")
 
-fixture = GROCERY_DIR / "test_data" / "list_test_fixture.xlsx"
+fixture = _REPO_ROOT / "tests" / "list_test_fixture.xlsx"
 assert fixture.exists(), f"fixture missing: {fixture}"
 fixture_hash_before = hashlib.sha256(fixture.read_bytes()).hexdigest()
 
