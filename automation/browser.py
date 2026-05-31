@@ -32,7 +32,12 @@ logger = logging.getLogger(__name__)
 USER_DATA_DIR = Path(__file__).resolve().parent / "chrome_user_data"
 
 # Chrome launch config — disable the flag that automation-aware sites sniff.
-_LAUNCH_ARGS = ["--disable-blink-features=AutomationControlled"]
+_LAUNCH_ARGS = [
+    "--disable-blink-features=AutomationControlled",
+    "--disable-features=Translate",
+    "--no-default-browser-check",
+    "--no-first-run",
+]
 _VIEWPORT = {"width": 1280, "height": 900}
 
 # Playwright adds `--enable-automation` by default — that switch is what makes
@@ -40,7 +45,7 @@ _VIEWPORT = {"width": 1280, "height": 900}
 # is a trivial bot tell. Dropping it makes the window present as a normal
 # browser; `--disable-blink-features=AutomationControlled` above already clears
 # the `navigator.webdriver` flag.
-_IGNORE_DEFAULT_ARGS = ["--enable-automation"]
+_IGNORE_DEFAULT_ARGS = ["--enable-automation", "--enable-blink-features=IdleDetection"]
 
 # URL substrings that mark a "logged out / please sign in" redirect, per store.
 # Checked case-insensitively against the URL after navigation settles.
@@ -87,6 +92,9 @@ def _open_context(
         args=_LAUNCH_ARGS,
         ignore_default_args=_IGNORE_DEFAULT_ARGS,
         viewport=_VIEWPORT,
+    )
+    context.add_init_script(
+        "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
     )
     # launch_persistent_context already opens one default page.
     page = context.pages[0] if context.pages else context.new_page()
