@@ -6,19 +6,18 @@ Pre-conditions:
 """
 
 import json
-import os
 import sys
 from pathlib import Path
 
 import pandas as pd
 
-GROCERY_DIR = Path(r"E:\automation\automation\system\grocery")
-sys.path.insert(0, str(GROCERY_DIR))
-os.chdir(str(GROCERY_DIR))
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
-import data  # noqa: E402
-from inventory_extract import extract, ExtractionError  # noqa: E402
-from transcribe_client import health_check as whisper_health  # noqa: E402
+import src.data as data  # noqa: E402
+from src.inventory_extract import extract, ExtractionError  # noqa: E402
+from src.transcribe_client import health_check as whisper_health  # noqa: E402
 
 cfg = data.CONFIG["audio_audit"]
 
@@ -29,7 +28,7 @@ assert whisper_health(cfg["whisper_url"], timeout=3), "whisper :8090 not reachab
 print("[OK] whisper-server :8090 reachable")
 
 # Use the fixture (read-only)
-fixture = GROCERY_DIR / cfg["test_fixture_path"]
+fixture = _REPO_ROOT / cfg["test_fixture_path"]
 df = pd.read_excel(fixture, engine="openpyxl")
 df["cantidad"] = df["cantidad"].astype(int)
 df["tenemos"] = df["tenemos"].astype(int)
@@ -79,7 +78,7 @@ assert find("colacao"), "expected colacao to be matched"
 print("\nPHASE 2 SMOKE TEST: PASS")
 
 # Optional: dump full result for inspection
-out = Path(r"E:\automation\automation\system\grocery\test_data\smoke_phase2_result.json")
+out = _REPO_ROOT / "tests" / "smoke_phase2_result.json"
 out.write_text(
     json.dumps(
         {
