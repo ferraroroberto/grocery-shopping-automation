@@ -5,16 +5,15 @@ versions, so we trigger the same code path by writing to a path inside a
 directory that doesn't exist — the FileNotFoundError follows the same
 exception → snapshot-restore branch."""
 
-import os
 import sys
 import tempfile
 from pathlib import Path
 
 import pandas as pd
 
-GROCERY_DIR = Path(r"E:\automation\automation\system\grocery")
-sys.path.insert(0, str(GROCERY_DIR))
-os.chdir(str(GROCERY_DIR))
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 import streamlit as st  # noqa: E402  — bulk_apply_tenemos calls st.error/st.warning
 
@@ -23,9 +22,9 @@ import streamlit as st  # noqa: E402  — bulk_apply_tenemos calls st.error/st.w
 st.error = lambda *a, **k: None  # type: ignore[assignment]
 st.warning = lambda *a, **k: None  # type: ignore[assignment]
 
-import data  # noqa: E402
+import src.data as data  # noqa: E402
 
-fixture = GROCERY_DIR / "test_data" / "list_test_fixture.xlsx"
+fixture = _REPO_ROOT / "tests" / "list_test_fixture.xlsx"
 df = pd.read_excel(fixture, engine="openpyxl")
 df["cantidad"] = df["cantidad"].astype(int)
 df["tenemos"] = df["tenemos"].astype(int)
