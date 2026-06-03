@@ -98,6 +98,10 @@ _SCAPI_BASE = "https://www.ametllerorigen.com/mobify/proxy/api"
 _SCAPI_ORG = "f_ecom_blzv_prd"
 _SCAPI_SITE = "ametller"
 
+# Storefront home — a stable page that hydrates the SLAS shopper session into
+# localStorage, used to read auth before a run-level cart snapshot / clear.
+HOME_URL = "https://www.ametllerorigen.com/"
+
 # After AÑADIR, SCAPI needs a moment to refresh the basket. Poll up to this
 # many times with this gap, returning as soon as the target qty appears.
 _CART_POLL_COUNT = 6
@@ -149,13 +153,16 @@ def _read_auth(page: Page) -> dict:
     }
 
 
-def _basket_lines(page: Page, auth: dict) -> list[dict]:
+def _basket_items(page: Page, auth: dict) -> list[dict]:
     """Fetch every basket line via SCAPI ``shopper-customers/.../baskets``.
 
     Uses ``page.request`` with the SLAS bearer token so the call rides the live
-    session. Returns a list of ``{"productId", "qty"}`` dicts, empty on any
-    network/JSON error (a transient miss should not crash the run; the caller's
-    quantity check then finds 0 and triggers the add).
+    session. Returns a list of ``{"basketId", "itemId", "productId", "qty"}``
+    dicts, empty on any network/JSON error (a transient miss should not crash
+    the run; the caller's quantity check then finds 0 and triggers the add).
+
+    ``basketId`` / ``itemId`` are the handles the Shopper Baskets *delete*
+    endpoint needs to remove a line (clean mode, issue #19).
     """
     token = auth.get("token") or ""
     customer_id = auth.get("customer_id") or ""
@@ -178,12 +185,27 @@ def _basket_lines(page: Page, auth: dict) -> list[dict]:
         return []
     out: list[dict] = []
     for basket in data.get("baskets", []) or []:
+        basket_id = str(basket.get("basketId") or "")
         for it in basket.get("productItems", []) or []:
             out.append({
+                "basketId": basket_id,
+                "itemId": str(it.get("itemId") or ""),
                 "productId": str(it.get("productId") or ""),
                 "qty": _int(it.get("quantity")),
             })
     return out
+
+
+def _basket_lines(page: Page, auth: dict) -> list[dict]:
+    """Return every basket line projected to ``{"productId", "qty"}``.
+
+    Thin projection over :func:`_basket_items` for the quantity checks that do
+    not care about the basket/line handles.
+    """
+    return [
+        {"productId": it["productId"], "qty": it["qty"]}
+        for it in _basket_items(page, auth)
+    ]
 
 
 def _cart_qty_by_id(page: Page, auth: dict, product_id: str) -> int:
@@ -371,3 +393,97 @@ def add_to_cart(page: Page, item: CartItem) -> None:
         item,
         f"cart line shows {qty}, expected {target} after {_MAX_ADD_ATTEMPTS} attempts",
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Whole-cart helpers (run-level before/after snapshot + clean mode, issue #19).
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _require_registered_auth(page: Page) -> dict:
+    """Navigate to the storefront home and return a registered-shopper auth.
+
+    Raises:
+        SessionExpiredError: the saved profile session has lapsed to a guest.
+    """
+    goto_with_login_check(page, "ametller", HOME_URL)
+    human_delay(*_NAV_SETW)
+    auth = _read_auth(page)
+    if auth["customer_type"] != "registered":
+        raise SessionExpiredError("ametller")
+    return auth
+
+
+def read_cart_total(page: Page) -> int:
+    """Return the total units across the whole Ametller cart (all lines summed).
+
+    Reads the authoritative SCAPI basket. Used for the run-level before/after
+    snapshot.
+
+    Raises:
+        SessionExpiredError: the saved profile session has lapsed to a guest.
+    """
+    auth = _require_registered_auth(page)
+    return sum(line["qty"] for line in _basket_lines(page, auth))
+
+
+def _delete_basket_item(
+    page: Page, auth: dict, basket_id: str, item_id: str
+) -> bool:
+    """Remove one basket line via SCAPI Shopper Baskets ``DELETE …/items/…``.
+
+    Returns True when the delete succeeded. Best-effort: a failed call logs and
+    returns False so clearing continues with the remaining lines.
+    """
+    token = auth.get("token") or ""
+    if not token or not basket_id or not item_id:
+        return False
+    url = (
+        f"{_SCAPI_BASE}/checkout/shopper-baskets/v1/organizations/{_SCAPI_ORG}"
+        f"/baskets/{basket_id}/items/{item_id}?siteId={_SCAPI_SITE}"
+    )
+    try:
+        resp = page.request.delete(
+            url, headers={"Authorization": f"Bearer {token}"}, timeout=15000
+        )
+        if not resp.ok:
+            logger.warning(
+                "⚠️ [ametller] basket DELETE %d for item %s", resp.status, item_id
+            )
+            return False
+        return True
+    except Exception as err:  # noqa: BLE001 — keep clearing the other lines
+        logger.warning("⚠️ [ametller] basket DELETE raised %s for item %s", err, item_id)
+        return False
+
+
+def clear_cart(page: Page) -> int:
+    """Empty the Ametller cart completely, returning the unit count removed.
+
+    Enumerates every basket line via SCAPI and deletes each. Idempotent: a
+    no-op (returns 0) on an already empty cart.
+
+    Raises:
+        SessionExpiredError: the saved profile session has lapsed to a guest.
+        AddToCartFailed: the basket still held lines after deleting every one.
+    """
+    auth = _require_registered_auth(page)
+    items = _basket_items(page, auth)
+    if not items:
+        logger.info("🛒 [ametller] cart already empty — nothing to clear")
+        return 0
+
+    removed = 0
+    for it in items:
+        if _delete_basket_item(page, auth, it["basketId"], it["itemId"]):
+            removed += it["qty"]
+    human_delay(*_NAV_SETW)
+
+    remaining = sum(line["qty"] for line in _basket_lines(page, auth))
+    if remaining > 0:
+        raise AddToCartFailed(
+            CartItem("ametller", "(clear cart)", 0, ""),
+            f"cart still holds {remaining} unit(s) after clearing",
+        )
+    logger.info("✅ [ametller] cart cleared (%d unit(s) removed)", removed)
+    return removed

@@ -151,11 +151,26 @@ window, then press Enter in the terminal. See
 [`automation/README.md`](automation/README.md) for details.
 
 **Run it from the app:** the **🛒 Shopping List** mode has a **🤖 Run
-Automation** section — pick a store (or "All stores"), optionally tick *Dry
-run*, and click **▶ Run Automation**. Output streams live into the page and a
-**🛑 Stop** button cancels an in-progress run. From a terminal you can also run
+Automation** section — pick a store (or "All stores"), choose a **cart mode**,
+optionally tick *Dry run*, and click **▶ Run Automation**. Output streams live
+into the page and a **🛑 Stop** button cancels an in-progress run. From a
+terminal you can also run
 `& .\.venv\Scripts\python.exe -m automation.run_automation --keep-open`, which
 fills the cart and then waits so you can review and pay before it closes.
+
+**Cart mode (`--cart-mode {keep,clean}`, default `keep`):**
+
+- **Keep** (default) — leaves whatever is already in the store cart and adds the
+  managed shopping list on top. Use this so one-off products dropped into the
+  cart by hand survive the run.
+- **Clean** — empties the store cart completely first, then adds the managed
+  list from zero. The manual extras are intentionally wiped. In the app this
+  mode is gated behind a confirmation checkbox because it is destructive.
+
+In both modes the run summary reports each store's whole-cart total **before**
+and **after**, plus the units the automation added — e.g.
+`🛒 mercadona: cart 7 → 12 (automation +5)` — so you can confirm end-to-end that
+the cart changed by the expected amount.
 
 A walk-through of how this automation was built, store quirk by store quirk,
 is in [`docs/browser-automation-build.md`](docs/browser-automation-build.md).
