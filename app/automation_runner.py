@@ -30,12 +30,15 @@ MAX_OUTPUT_LINES = 500
 _STOP_GRACE_S = 5.0
 
 
-def build_command(store: str, dry_run: bool) -> list[str]:
+def build_command(store: str, dry_run: bool, cart_mode: str = "keep") -> list[str]:
     """Return the argv for an automation run.
 
     Args:
         store: Store key (e.g. ``"mercadona"``) or ``"all"`` for every store.
         dry_run: When true, append ``--dry-run`` (no browser is opened).
+        cart_mode: ``"keep"`` (add on top of the existing cart) or ``"clean"``
+            (empty the cart first). Always passed through as ``--cart-mode`` so
+            the chosen mode is explicit in the command preview.
 
     The child Python runs with ``-u`` so its stdout is unbuffered and the
     reader thread sees each line as it is printed.
@@ -45,11 +48,12 @@ def build_command(store: str, dry_run: bool) -> list[str]:
         cmd += ["--store", store]
     if dry_run:
         cmd.append("--dry-run")
+    cmd += ["--cart-mode", cart_mode]
     return cmd
 
 
 def start_run(
-    store: str, dry_run: bool
+    store: str, dry_run: bool, cart_mode: str = "keep"
 ) -> tuple[subprocess.Popen, "deque[str]", threading.Thread]:
     """Spawn the automation subprocess and a thread draining its output.
 
@@ -58,7 +62,7 @@ def start_run(
     it line by line and exits when the process closes its stdout.
     """
     process = subprocess.Popen(
-        build_command(store, dry_run),
+        build_command(store, dry_run, cart_mode),
         cwd=str(_REPO_ROOT),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,

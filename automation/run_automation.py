@@ -2,12 +2,15 @@
 
 Usage:
     python -m automation.run_automation [--store STORE] [--dry-run]
+                                        [--cart-mode {keep,clean}]
                                         [--limit N] [--headless] [--keep-open]
 
 Reads the inventory via :func:`automation.grocery_reader.read_cart_items`,
 groups the items by store, and dispatches each one to its store handler over a
-single shared Chrome context per store. Prints a ✅/⚠️/❌ summary and exits
-non-zero if anything failed.
+single shared Chrome context per store. ``--cart-mode keep`` (default) adds the
+list on top of the existing cart; ``clean`` empties the cart first. Snapshots
+each store's whole-cart total before and after for a run-level delta. Prints a
+✅/⚠️/❌ summary and exits non-zero if anything failed.
 """
 
 from __future__ import annotations
@@ -27,6 +30,7 @@ from automation.browser import (
 )
 from automation.errors import AddToCartFailed, OutOfStockError, ProductUnavailableError
 from automation.grocery_reader import read_cart_items
+from automation.models import CartItem
 from automation.report import RunReport
 
 logger = logging.getLogger("automation.run_automation")
@@ -53,6 +57,16 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         help="List what would be added without opening a browser.",
     )
     parser.add_argument(
+        "--cart-mode",
+        choices=("keep", "clean"),
+        default="keep",
+        help=(
+            "keep (default): add the list on top of whatever is already in the "
+            "cart. clean: empty the store cart first, then add the list from "
+            "zero (this wipes any manually-added extras)."
+        ),
+    )
+    parser.add_argument(
         "--limit",
         type=int,
         default=None,
@@ -76,8 +90,14 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def _process_store_dry_run(store: str, items: list, report: RunReport) -> None:
+def _process_store_dry_run(
+    store: str, items: list, report: RunReport, *, cart_mode: str = "keep"
+) -> None:
     """Record what would happen for `store` without launching a browser."""
+    if cart_mode == "clean":
+        logger.info(
+            "🧹 [%s] DRY RUN would empty the cart first (clean mode)", store
+        )
     for item in items:
         if not item.buscador:
             report.skipped_no_url.append(item)
@@ -87,6 +107,19 @@ def _process_store_dry_run(store: str, items: list, report: RunReport) -> None:
         logger.info("🔎 [%s] DRY RUN would add %s ×%d", store, item.comida, item.comprar)
 
 
+def _read_cart_total_safe(handler: ModuleType, page, store: str) -> Optional[int]:
+    """Read a store's whole-cart total, returning None (logged) on any failure.
+
+    The before/after snapshot is informational — a failed read must never abort
+    the run, so this swallows and logs rather than raising.
+    """
+    try:
+        return handler.read_cart_total(page)
+    except Exception as err:  # noqa: BLE001 — snapshot is best-effort
+        logger.warning("⚠️  [%s] could not read cart total: %s", store, err)
+        return None
+
+
 def _process_store_live(
     store: str,
     items: list,
@@ -94,8 +127,13 @@ def _process_store_live(
     *,
     headless: bool,
     keep_open: bool = False,
+    cart_mode: str = "keep",
 ) -> None:
     """Open a Chrome context for `store` and run its handler over `items`.
+
+    Snapshots the whole-cart total before and after processing so the summary
+    can report the run-level delta. In ``clean`` mode the cart is emptied after
+    the before-snapshot and before any item is added.
 
     When `keep_open` is set, the browser is left on screen after the last item
     and the run blocks on Enter — so the operator can review the cart and pay
@@ -107,6 +145,20 @@ def _process_store_live(
     except ProfileNotInitializedError:
         raise
     try:
+        before = _read_cart_total_safe(handler, page, store)
+        if before is not None:
+            report.cart_before[store] = before
+
+        if cart_mode == "clean":
+            try:
+                removed = handler.clear_cart(page)
+                logger.info("🧹 [%s] cleared %d unit(s) from the cart", store, removed)
+            except Exception as err:  # noqa: BLE001 — surface, but keep the run going
+                logger.exception("❌ [%s] failed to clear the cart", store)
+                report.errors.append(
+                    (CartItem(store, "(clear cart)", 0, ""), f"clear cart failed: {err}")
+                )
+
         for item in items:
             if not item.buscador:
                 report.skipped_no_url.append(item)
@@ -130,6 +182,11 @@ def _process_store_live(
                 logger.exception("❌ [%s] %s — unexpected error", store, item.comida)
                 report.errors.append((item, f"{type(err).__name__}: {err}"))
             human_delay()
+
+        after = _read_cart_total_safe(handler, page, store)
+        if after is not None:
+            report.cart_after[store] = after
+
         if keep_open:
             logger.info(
                 "🟢 [%s] cart filled — browser left open. Click the cart icon "
@@ -165,7 +222,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     for item in items:
         groups.setdefault(item.super_name.lower(), []).append(item)
 
-    report = RunReport()
+    report = RunReport(mode=args.cart_mode, dry_run=args.dry_run)
     for store, group in groups.items():
         if store not in HANDLERS:
             logger.warning(
@@ -177,12 +234,13 @@ def main(argv: Optional[list[str]] = None) -> int:
 
         logger.info("── %s: %d item(s) ──", store, len(group))
         if args.dry_run:
-            _process_store_dry_run(store, group, report)
+            _process_store_dry_run(store, group, report, cart_mode=args.cart_mode)
         else:
             try:
                 _process_store_live(
                     store, group, report,
                     headless=args.headless, keep_open=args.keep_open,
+                    cart_mode=args.cart_mode,
                 )
             except ProfileNotInitializedError as err:
                 logger.error("❌ %s", err)

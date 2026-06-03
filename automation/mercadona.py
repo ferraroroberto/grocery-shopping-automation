@@ -63,7 +63,24 @@ SELECTORS = {
     # "Tienes cambios sin guardar en tu pedido" modal — "Más tarde" dismisses
     # it without touching the cart (keeps the existing order intact).
     "unsaved_modal_dismiss": ".ui-modal button:has-text('Más tarde')",
+    # ── Cart-panel selectors (clean mode, issue #19) ─────────────────────────
+    # The cart contents are not enumerable from a product page, so emptying the
+    # cart means opening the side cart and driving each line down to zero.
+    # `cart_button` opens the side cart drawer. The decrease control MUST be
+    # scoped to `cart-product-cell`: the home page also renders ~50 hidden
+    # carousel/product-detail pickers reusing `button-picker-decrease`, and an
+    # unscoped `.first` resolves to one of those (display:none → click never
+    # becomes actionable). Verified live 2026-06-03 (issue #19).
+    "cart_button": "button[data-testid='cart-button']",
+    "cart_line_decrease": (
+        "[data-testid='cart-product-cell'] "
+        "button[data-testid='button-picker-decrease']"
+    ),
 }
+
+# Mercadona storefront home — a stable page that always renders the header cart
+# badge, used to snapshot the whole-cart total before/after a run.
+HOME_URL = "https://tienda.mercadona.es/"
 
 # How long to wait for a click to visibly take effect before retrying it.
 _CLICK_EFFECT_TIMEOUT_S = 4.0
@@ -222,3 +239,73 @@ def add_to_cart(page: Page, item: CartItem) -> None:
         "✅ [mercadona] %s — %d ud. in cart (badge %d → %d)",
         item.comida, target, cart_before, cart_after,
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Whole-cart helpers (run-level before/after snapshot + clean mode, issue #19).
+# ─────────────────────────────────────────────────────────────────────────────
+
+# How many decrement clicks to attempt before giving up on emptying the cart —
+# a safety net so a stuck line can never spin forever. Sized well above any
+# realistic cart total.
+_CLEAR_MAX_CLICKS = 200
+
+
+def read_cart_total(page: Page) -> int:
+    """Return the total units across the whole Mercadona cart.
+
+    Navigates to the storefront home (where the header badge always renders)
+    and reads the badge. Used for the run-level before/after snapshot.
+
+    Raises:
+        SessionExpiredError: navigation was redirected to the login page.
+    """
+    goto_with_login_check(page, "mercadona", HOME_URL)
+    human_delay(1.5, 2.5)
+    _dismiss_unsaved_modal(page)
+    return _read_cart_badge(page)
+
+
+def clear_cart(page: Page) -> int:
+    """Empty the Mercadona cart completely, returning the unit count removed.
+
+    Opens the side cart and drives every line's +/- picker down until the
+    header badge reaches zero. Idempotent: a no-op (returns 0) on an already
+    empty cart.
+
+    Raises:
+        SessionExpiredError: navigation was redirected to the login page.
+        AddToCartFailed: the badge never reached zero within the click budget.
+    """
+    goto_with_login_check(page, "mercadona", HOME_URL)
+    human_delay(1.5, 2.5)
+    _dismiss_unsaved_modal(page)
+
+    before = _read_cart_badge(page)
+    if before == 0:
+        logger.info("🛒 [mercadona] cart already empty — nothing to clear")
+        return 0
+
+    logger.info("🧹 [mercadona] clearing cart — %d unit(s) to remove", before)
+    page.locator(SELECTORS["cart_button"]).first.click()
+    human_delay(1.0, 1.8)
+
+    clicks = 0
+    while _read_cart_badge(page) > 0:
+        decrease = page.locator(SELECTORS["cart_line_decrease"]).first
+        if decrease.count() == 0:
+            raise AddToCartFailed(
+                CartItem("mercadona", "(clear cart)", 0, ""),
+                "no cart-line decrease control found while clearing the cart",
+            )
+        decrease.click()
+        human_delay(0.4, 0.8)
+        clicks += 1
+        if clicks > _CLEAR_MAX_CLICKS:
+            raise AddToCartFailed(
+                CartItem("mercadona", "(clear cart)", 0, ""),
+                f"cart still not empty after {_CLEAR_MAX_CLICKS} decrement clicks",
+            )
+
+    logger.info("✅ [mercadona] cart cleared (%d unit(s) removed)", before)
+    return before
