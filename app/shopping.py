@@ -14,6 +14,8 @@ from src.data import COLUMNS, get_supermarket_stats, get_unique_supermarkets
 # here so the contract is in one place:
 #   automation_store_select   — store selectbox value ("all" or a store key)
 #   automation_dry_run        — dry-run checkbox value
+#   automation_cart_mode      — cart-mode radio value ("keep" or "clean")
+#   automation_clean_confirm  — destructive-confirm checkbox for clean mode
 #   automation_run_btn        — Run button widget key
 #   automation_process        — subprocess.Popen handle while a run is live
 #   automation_output_lines   — deque[str], max 500 lines, drained by a thread
@@ -42,10 +44,48 @@ def _render_automation_controls(df: pd.DataFrame) -> None:
             key="automation_dry_run",
         )
 
-    st.code(" ".join(automation_runner.build_command(store, dry_run)), language="text")
+    cart_mode = st.radio(
+        "Cart mode",
+        options=["keep", "clean"],
+        format_func=lambda m: (
+            "🧺 Keep cart (add on top of what's there)"
+            if m == "keep"
+            else "🧹 Clean cart (empty it first, then add)"
+        ),
+        horizontal=True,
+        key="automation_cart_mode",
+    )
 
-    if st.button("▶ Run Automation", width="stretch", key="automation_run_btn"):
-        process, output_lines, reader_thread = automation_runner.start_run(store, dry_run)
+    # Clean mode is destructive — it wipes manually-added extras. Gate a real
+    # (non-dry) clean run behind an explicit confirmation checkbox.
+    clean_confirmed = True
+    if cart_mode == "clean":
+        st.warning(
+            "⚠️ Clean mode empties the store cart completely before adding the "
+            "list — anything added to the cart by hand (not in the inventory) "
+            "will be removed."
+        )
+        if not dry_run:
+            clean_confirmed = st.checkbox(
+                "Yes, empty the cart first",
+                value=False,
+                key="automation_clean_confirm",
+            )
+
+    st.code(
+        " ".join(automation_runner.build_command(store, dry_run, cart_mode)),
+        language="text",
+    )
+
+    if st.button(
+        "▶ Run Automation",
+        width="stretch",
+        key="automation_run_btn",
+        disabled=not clean_confirmed,
+    ):
+        process, output_lines, reader_thread = automation_runner.start_run(
+            store, dry_run, cart_mode
+        )
         st.session_state.automation_process = process
         st.session_state.automation_output_lines = output_lines
         st.session_state.automation_reader_thread = reader_thread

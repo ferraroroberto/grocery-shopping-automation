@@ -91,6 +91,11 @@ def _open_context(
         headless=headless,
         args=_LAUNCH_ARGS,
         ignore_default_args=_IGNORE_DEFAULT_ARGS,
+        # Playwright defaults chromium_sandbox to False, which injects
+        # `--no-sandbox` and makes Chrome show a "this flag is not supported,
+        # it affects stability and security" infobar — a bot tell. Enable the
+        # sandbox so the window presents as a normal, sandboxed Chrome session.
+        chromium_sandbox=True,
         viewport=_VIEWPORT,
     )
     context.add_init_script(
