@@ -41,15 +41,60 @@ cd E:\automation\automation\system\grocery
 streamlit run app.py
 ```
 
+### FastAPI/PWA preview
+
+Issue #20 is rebuilding the UI as a FastAPI + vanilla-JS PWA in phases. The Streamlit app remains available on `:8501`, while the new FastAPI surface on `:8502` now covers the inventory dashboard, audit, target editing, item editing, item creation, shopping mode, automation controls, and audio-audit workflow against the same Excel-backed `src/data.py` layer.
+
+Run the preview:
+
+```powershell
+& .\.venv\Scripts\pip.exe install -r requirements.txt
+webapp.bat
+```
+
+Open `http://127.0.0.1:8502` when no local cert exists, or `https://127.0.0.1:8502` after running `& .\.venv\Scripts\python.exe src\gen_ssl_cert.py`. The launcher binds to `0.0.0.0`, so the same port is reachable over LAN or Tailscale from devices that can reach this PC.
+
+### FastAPI remote access: Tailscale + Cloudflare
+
+The FastAPI preview follows the same access mechanics as `voice-transcriber` and `app-launcher`: local/LAN/Tailscale traffic reaches the app directly on `:8502`, and `webapp_tunnel_named.bat` can start the app plus a named Cloudflare tunnel using `webapp/cloudflared.yml`. The committed `webapp/cloudflared.sample.yml` points Cloudflare at `https://localhost:8502` with `noTLSVerify: true`, matching the sibling apps where Cloudflare terminates public TLS and the local origin uses a self-signed cert.
+
+One-time Cloudflare setup:
+
+```powershell
+winget install Cloudflare.cloudflared
+cloudflared tunnel login
+cloudflared tunnel create grocery
+cloudflared tunnel route dns grocery grocery.<your-domain>
+copy webapp\cloudflared.sample.yml webapp\cloudflared.yml
+notepad webapp\cloudflared.yml
+```
+
+Then run:
+
+```powershell
+webapp_tunnel_named.bat
+```
+
+Optional app-level auth matches the sibling pattern. `auth_token` is off by default; when set, non-loopback API calls need `Authorization: Bearer <token>` or a `?token=...` bootstrap URL. The page stores the token in `localStorage` and removes it from the visible URL. A password can also be set so a fresh phone can unlock by typing the password, then the server hands back the bearer token.
+
+```powershell
+& .\.venv\Scripts\python.exe scripts\gen_token.py
+& .\.venv\Scripts\python.exe scripts\set_password.py 816215
+```
+
+Re-run `scripts\gen_token.py --force` to rotate the token, `scripts\gen_token.py --clear` to disable bearer auth, and `scripts\set_password.py --clear` to remove the password prompt.
+
 ### Mobile Access (same Wi-Fi network)
-The app binds to all network interfaces automatically. To open it on your phone:
+For the FastAPI/PWA rebuild, launch `webapp.bat` and open `http://<local-ip>:8502` or `https://<local-ip>:8502` if local certs are present. The app binds to all network interfaces automatically, so the same URL also works over Tailscale when the device can reach this PC.
+
+For the existing Streamlit app:
 1. Launch `launcher.bat` on the PC as usual
 2. Click **📋 Copy link** in the sidebar — this copies `https://<local-ip>:8501` to the clipboard
 3. Paste the URL into Telegram (or any messaging app) and open it on your phone
 
 > **Firewall:** if the phone cannot connect on first use, run this once in PowerShell (admin):
 > ```powershell
-> New-NetFirewallRule -DisplayName "Streamlit Grocery" -Direction Inbound -Protocol TCP -LocalPort 8501 -Action Allow
+> New-NetFirewallRule -DisplayName "Grocery Web Apps" -Direction Inbound -Protocol TCP -LocalPort 8501,8502 -Action Allow
 > ```
 
 > **Audit mode on mobile:** rotate your phone to **landscape** for the best layout — the row-per-item grid fits without horizontal scrolling.
