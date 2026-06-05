@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0f766e" />
+    <link rel="icon" href="/app-icon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="/manifest.json" />
+    <title>Inventory Helper</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #f6f8fb;
+        color: #17202a;
+      }
+
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; }
+      button, input, select, textarea { font: inherit; }
+      button { cursor: pointer; }
+      button:disabled { cursor: not-allowed; opacity: 0.55; }
+
+      .app-shell { min-height: 100vh; display: grid; grid-template-columns: 260px minmax(0, 1fr); }
+      aside { background: #ffffff; border-right: 1px solid #d7e0e8; padding: 14px; position: sticky; top: 0; height: 100vh; overflow: auto; }
+      .brand { font-weight: 800; margin-bottom: 14px; }
+      .nav { display: grid; gap: 6px; }
+      .nav button, .side-actions button, .primary, .secondary, .danger, .icon-btn { min-height: 38px; border-radius: 6px; border: 1px solid #c7d3dc; background: #ffffff; color: #17202a; }
+      .nav button { text-align: left; padding: 0 10px; }
+      .nav button.active { background: #0f766e; border-color: #0f766e; color: #ffffff; }
+      .side-actions { display: grid; gap: 8px; margin-top: 14px; }
+      .side-stat { border-top: 1px solid #edf1f4; margin-top: 14px; padding-top: 12px; color: #52616f; font-size: 0.9rem; }
+      .store-stat { margin-top: 10px; }
+      .store-stat strong { color: #17202a; }
+      .progress { height: 8px; overflow: hidden; border-radius: 999px; background: #e8eef2; }
+      .progress span { display: block; height: 100%; background: #0f766e; }
+
+      .main { min-width: 0; }
+      header { position: sticky; top: 0; z-index: 2; background: rgba(255,255,255,0.96); border-bottom: 1px solid #d7e0e8; }
+      .topbar, .toolbar, main { width: min(1180px, 100%); margin: 0 auto; padding: 14px 16px; }
+      .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+      h1, h2, h3 { margin: 0; line-height: 1.2; }
+      h1 { font-size: 1.1rem; }
+      h2 { font-size: 1rem; }
+      h3 { font-size: 0.98rem; }
+      .status { min-height: 20px; color: #52616f; font-size: 0.9rem; text-align: right; }
+      .toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+      .search, .field, textarea, select { width: 100%; min-height: 40px; border: 1px solid #b8c7d2; border-radius: 6px; padding: 0 10px; background: #ffffff; color: #17202a; }
+      textarea { min-height: 150px; padding: 10px; resize: vertical; }
+      .primary { background: #0f766e; border-color: #0f766e; color: #ffffff; padding: 0 14px; }
+      .secondary { padding: 0 12px; }
+      .danger { background: #b42318; border-color: #b42318; color: #ffffff; padding: 0 12px; }
+      .icon-btn { width: 38px; }
+
+      main { display: grid; gap: 14px; }
+      .summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+      .card, .metric, .item, .panel { background: #ffffff; border: 1px solid #d7e0e8; border-radius: 8px; }
+      .metric, .card, .panel { padding: 12px; }
+      .metric span, .meta, .empty, .hint { color: #52616f; font-size: 0.86rem; }
+      .metric strong { display: block; margin-top: 4px; font-size: 1.35rem; }
+      .grid { display: grid; gap: 10px; }
+      .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+      .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+      .item { min-height: 68px; padding: 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+      .item-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+      .qty { min-width: 76px; text-align: right; font-weight: 800; }
+      .buy { color: #b42318; }
+      .ok { color: #0f766e; }
+      .empty { padding: 18px; text-align: center; }
+      .tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+      .pill { min-height: 34px; border-radius: 999px; border: 1px solid #c7d3dc; background: #fff; padding: 0 12px; }
+      .pill.active { background: #dff4ee; border-color: #0f766e; color: #0b5f58; }
+      .form { display: grid; gap: 10px; }
+      .log { white-space: pre-wrap; overflow: auto; max-height: 360px; padding: 12px; border-radius: 6px; background: #101828; color: #f8fafc; font-family: Consolas, monospace; font-size: 0.86rem; }
+      .login-overlay { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 18px; background: rgba(15, 23, 42, 0.55); }
+      .login-overlay[hidden] { display: none; }
+      .login-panel { width: min(360px, 100%); padding: 16px; border: 1px solid #d8e1e8; border-radius: 8px; background: #ffffff; }
+      .login-panel form { display: grid; gap: 10px; }
+      .login-error { min-height: 20px; color: #b42318; font-size: 0.88rem; }
+      [hidden] { display: none !important; }
+
+      @media (max-width: 880px) {
+        .app-shell { grid-template-columns: 1fr; }
+        aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid #d7e0e8; }
+        .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .nav button { text-align: center; }
+        .side-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .two, .three { grid-template-columns: 1fr; }
+        .topbar { align-items: flex-start; flex-direction: column; }
+        .status { text-align: left; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside>
+        <div class="brand">Inventory Helper</div>
+        <nav id="nav" class="nav"></nav>
+        <div class="side-actions">
+          <button id="open-sheet" type="button">Open Spreadsheet</button>
+          <button id="copy-link" type="button">Copy Link</button>
+          <button id="export-csv" type="button">Export CSV</button>
+          <button id="close-app" type="button">Close App</button>
+        </div>
+        <div id="side-stats" class="side-stat"></div>
+      </aside>
+      <div class="main">
+        <header>
+          <div class="topbar">
+            <h1 id="view-title">Inventory</h1>
+            <div id="status" class="status" role="status">Loading inventory...</div>
+          </div>
+        </header>
+        <section class="toolbar" aria-label="Inventory controls">
+          <input id="search" class="search" type="search" placeholder="Search item, zone, or supermarket" autocomplete="off" />
+          <button id="refresh" class="primary" type="button" title="Reload inventory">Refresh</button>
+        </section>
+        <main id="main"></main>
+      </div>
+      <section id="login-overlay" class="login-overlay" hidden>
+        <div class="login-panel">
+          <h2>Unlock Grocery</h2>
+          <form id="login-form">
+            <input id="login-password" class="field" type="password" autocomplete="current-password" placeholder="Password" />
+            <button class="primary" type="submit">Unlock</button>
+            <div id="login-error" class="login-error"></div>
+          </form>
+        </div>
+      </section>
+    </div>
+    <script src="/static/app.js?v=20260605-issue20-pwa" defer></script>
+  </body>
+</html>

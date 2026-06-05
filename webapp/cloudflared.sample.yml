@@ -1,0 +1,21 @@
+# Named Cloudflare tunnel config.
+#
+# Copy this file to webapp/cloudflared.yml and fill in your values.
+# webapp/cloudflared.yml is gitignored so your tunnel UUID + hostname
+# stay out of version control.
+#
+# One-time setup:
+#   cloudflared tunnel login
+#   cloudflared tunnel create grocery
+#   cloudflared tunnel route dns grocery grocery.<your-domain>
+#   copy webapp\cloudflared.sample.yml webapp\cloudflared.yml
+#   notepad webapp\cloudflared.yml
+
+tunnel: 00000000-0000-0000-0000-000000000000
+
+ingress:
+  - hostname: grocery.<your-domain>
+    service: https://localhost:8502
+    originRequest:
+      noTLSVerify: true
+  - service: http_status:404

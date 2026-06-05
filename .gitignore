@@ -25,6 +25,13 @@ tests/smoke_phase2_result.json
 # generated SSL certificates (run gen_ssl_cert.py to recreate)
 certificates/
 
+# FastAPI webapp runtime state / secrets
+config/webapp_config.json
+webapp/cloudflared.yml
+webapp/last_tunnel_url.txt
+webapp/auth.log
+webapp/certificates/
+
 # browser automation Chrome profile — session data, never commit
 automation/chrome_user_data/
 
