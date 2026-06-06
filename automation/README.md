@@ -72,17 +72,19 @@ cart contents are never wiped.
 `--keep-open` pauses after each store's cart is filled and waits for **Enter**
 in the terminal — so you can open the cart, review it, and pay before the
 window closes and the next store starts. It blocks on stdin, so it is for
-interactive terminal use only (the Streamlit integration never passes it). The
+interactive terminal use only (the in-app integration never passes it). The
 shared profile means one store window is open at a time, not both at once; the
 filled cart itself persists in your store account regardless.
 
-### From the Streamlit app
+### From the web app
 
-The Shopping List mode has a **🤖 Run Automation** section: pick a store (or
-"All stores"), optionally tick *Dry run*, and click **▶ Run Automation**. The
-app spawns this same CLI as a subprocess and streams its output live into the
-page; a **🛑 Stop** button terminates an in-progress run. See `app/shopping.py`
-and `app/automation_runner.py`.
+The FastAPI/PWA app drives automation from the **🛒 Shopping** view: pick a store
+(or "All stores"), choose a cart mode, optionally tick *Dry run*, and start the
+run. The automation endpoints in `app/api.py` spawn this same CLI as a
+subprocess and stream its output live to the page (`app/static/app.js`); a
+**🛑 Stop** control terminates an in-progress run. The legacy Streamlit app
+offers the same controls in its Shopping List mode (`app/shopping.py`). Both
+surfaces share the subprocess plumbing in `app/automation_runner.py`.
 
 ### Store-specific notes
 
@@ -117,8 +119,10 @@ and `app/automation_runner.py`.
 | `run_automation.py` | CLI runner — reads the list, dispatches to handlers, prints a summary. |
 | `report.py` | `RunReport` — per-run summary with `print_summary()`. |
 
-The Streamlit-side glue lives under `app/`, not here: `app/automation_runner.py`
-(subprocess plumbing) and the **🤖 Run Automation** section in `app/shopping.py`.
+The app-side glue lives under `app/`, not here: `app/automation_runner.py`
+(shared subprocess plumbing), the automation endpoints in `app/api.py` wired to
+`app/static/app.js` (FastAPI/PWA), and the **🤖 Run Automation** section in
+`app/shopping.py` (legacy Streamlit).
 
 Smoke tests live in `tests/automation_smoke_*.py` — run them manually (they are
 live, not CI tests; see each file's docstring).
