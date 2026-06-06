@@ -1,6 +1,6 @@
 # Household Inventory & Shopping Helper
 
-Mobile-responsive Streamlit application for managing household grocery inventory with intelligent shopping list generation and real-time purchase tracking.
+Mobile-responsive web app for managing household grocery inventory with intelligent shopping list generation and real-time purchase tracking. The primary surface is a **FastAPI + vanilla-JS PWA** served on `:8502`; a legacy **Streamlit** app on `:8501` remains available and drives the same modes against the same Excel-backed `src/data.py` layer.
 
 ## 📋 Project Summary
 
@@ -17,42 +17,53 @@ Comprehensive household inventory management across multiple operational modes. 
 
 ## 🏗️ Project Structure
 
-- **app.py** — Entry point: page config, session state, sidebar, mode routing
-- **data.py** — Config, XLSX load/save, supermarket stats, quantity mutators
-- **ui_helpers.py** — CSS, inline HTML formatters, sidebar utility actions
-- **audit.py / edit_targets.py / edit_item.py / add_item.py / shopping.py / export.py** — One file per mode, each exposing `main(df)`
-- **config.json** — Application configuration and UI settings
-- **launcher.bat** — Windows batch file for easy app launching
-- **.streamlit/config.toml** — Streamlit theme customization
+- **`app/`** — UI layers.
+  - `api.py` — FastAPI entrypoint (the primary app): inventory, audit, edit/add, shopping, automation, and audio-audit endpoints.
+  - `middleware.py` — bearer-token auth for non-loopback (remote) requests.
+  - `static/` — the PWA front end (`index.html`, `app.js`).
+  - `automation_runner.py` — shared subprocess plumbing that streams the cart-automation CLI into the app.
+  - `app.py` — legacy Streamlit entrypoint (page config, session state, sidebar, mode routing).
+  - `audit.py` / `audio_audit.py` / `edit_targets.py` / `edit_item.py` / `add_item.py` / `shopping.py` / `export.py` / `ui_helpers.py` — Streamlit per-mode modules, each exposing `main(df)`.
+- **`src/`** — UI-free data/business layer.
+  - `data.py` — config loading, XLSX load/save, supermarket stats, quantity mutators.
+  - `gen_ssl_cert.py` — generate a local CA + server cert for HTTPS.
+  - `inventory_extract.py` / `transcribe_client.py` — audio-audit transcription + LLM extraction (via the `claude-local-calls` hub).
+  - `webapp_config.py` — remote-access (token/password) config loader.
+  - `config.example.json` — committed template; copied to `src/config.json` (gitignored) on first run.
+- **`automation/`** — Playwright + real-Chrome browser cart automation (see `automation/README.md`).
+- **`scripts/`** — `gen_token.py`, `set_password.py` (remote auth), `run_named_tunnel.py` (Cloudflare).
+- **`webapp/`** — `cloudflared.sample.yml` and the gitignored `certificates/`.
+- **`config/`** — `webapp_config.sample.json` template.
+- **`data/`** — `list.example.xlsx` sample inventory.
+- **`docs/`** — design records and the browser-automation build walk-through.
+- **`tests/`** — manual smoke tests (`smoke_*.py`, `automation_smoke_*.py`).
+- **Launchers** — `webapp.bat` (FastAPI/PWA on `:8502`), `launch_app.bat` (legacy Streamlit on `:8501`), `webapp_tunnel_named.bat` (FastAPI + Cloudflare tunnel).
+- **`.streamlit/config.toml`** — Streamlit theme customization (legacy app).
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Python 3.8+
-- Required Python packages: `streamlit`, `pandas`, `openpyxl`
+- Python 3.10+ with the project `.venv`
+- Install dependencies: `& .\.venv\Scripts\pip.exe install -r requirements.txt`
 
-### Method 1: Using the Batch File (Recommended)
-Double-click `launcher.bat` in the grocery folder.
+### Launch the app (FastAPI/PWA — recommended)
 
-### Method 2: Manual Launch
-```bash
-pip install streamlit pandas openpyxl
-cd E:\automation\automation\system\grocery
-streamlit run app.py
-```
-
-### FastAPI/PWA preview
-
-Issue #20 is rebuilding the UI as a FastAPI + vanilla-JS PWA in phases. The Streamlit app remains available on `:8501`, while the new FastAPI surface on `:8502` now covers the inventory dashboard, audit, target editing, item editing, item creation, shopping mode, automation controls, and audio-audit workflow against the same Excel-backed `src/data.py` layer.
-
-Run the preview:
+Double-click `webapp.bat`, or from the repo root:
 
 ```powershell
 & .\.venv\Scripts\pip.exe install -r requirements.txt
 webapp.bat
 ```
 
-Open `http://127.0.0.1:8502` when no local cert exists, or `https://127.0.0.1:8502` after running `& .\.venv\Scripts\python.exe src\gen_ssl_cert.py`. The launcher binds to `0.0.0.0`, so the same port is reachable over LAN or Tailscale from devices that can reach this PC.
+The FastAPI app on `:8502` covers the inventory dashboard, audit, target editing, item editing, item creation, shopping mode, automation controls, and the audio-audit workflow against the Excel-backed `src/data.py` layer. Open `http://127.0.0.1:8502` when no local cert exists, or `https://127.0.0.1:8502` after running `& .\.venv\Scripts\python.exe src\gen_ssl_cert.py`. The launcher binds to `0.0.0.0`, so the same port is reachable over LAN or Tailscale from devices that can reach this PC.
+
+### Legacy Streamlit app
+
+The original Streamlit UI is still available on `:8501` and drives the same modes. Double-click `launch_app.bat`, or from the repo root:
+
+```powershell
+& .\.venv\Scripts\python.exe -m streamlit run app/app.py
+```
 
 ### FastAPI remote access: Tailscale + Cloudflare
 
@@ -87,8 +98,8 @@ Re-run `scripts\gen_token.py --force` to rotate the token, `scripts\gen_token.py
 ### Mobile Access (same Wi-Fi network)
 For the FastAPI/PWA rebuild, launch `webapp.bat` and open `http://<local-ip>:8502` or `https://<local-ip>:8502` if local certs are present. The app binds to all network interfaces automatically, so the same URL also works over Tailscale when the device can reach this PC.
 
-For the existing Streamlit app:
-1. Launch `launcher.bat` on the PC as usual
+For the legacy Streamlit app:
+1. Launch `launch_app.bat` on the PC as usual
 2. Click **📋 Copy link** in the sidebar — this copies `https://<local-ip>:8501` to the clipboard
 3. Paste the URL into Telegram (or any messaging app) and open it on your phone
 
@@ -101,22 +112,22 @@ For the existing Streamlit app:
 
 ### HTTPS setup (required for microphone access on mobile)
 
-Mobile browsers block microphone access on plain HTTP. The app is configured to serve over HTTPS using a self-signed certificate stored in `certificates/` (gitignored).
+Mobile browsers block microphone access on plain HTTP. The app serves over HTTPS using a self-signed certificate stored in `certificates/` (gitignored). `webapp.bat` picks the cert up automatically and starts uvicorn with TLS on `:8502`.
 
-**First-time setup** (run once from the grocery folder):
+**First-time setup** (run once from the repo root):
 ```powershell
-& e:\automation\automation\.venv\Scripts\python.exe gen_ssl_cert.py
+& .\.venv\Scripts\python.exe src\gen_ssl_cert.py
 ```
 
 This detects all local IP addresses (LAN + Tailscale) and writes three files to `certificates/` (valid 10 years):
 - `ca.pem` — local CA certificate, installed into Windows `CurrentUser\Root` (no admin required)
-- `cert.pem` — server certificate signed by that CA (used by Streamlit)
-- `key.pem` — server private key (used by Streamlit)
+- `cert.pem` — server certificate signed by that CA (passed to uvicorn as `--ssl-certfile`)
+- `key.pem` — server private key (passed to uvicorn as `--ssl-keyfile`)
 
 Chrome and Edge on this PC will show no security warning because the CA is trusted.
 
 **Accepting the cert on mobile (one-time per device):**  
-Open `https://<local-ip>:8501` — the browser will warn "Not secure". Tap **Advanced → Proceed to … (unsafe)**. You won't be asked again on that device.
+Open `https://<local-ip>:8502` — the browser will warn "Not secure". Tap **Advanced → Proceed to … (unsafe)**. You won't be asked again on that device.
 
 **If your PC's IP changes**, regenerate and reinstall with the same command above, then restart the app.
 
@@ -148,7 +159,7 @@ Walk through each zone of the house, update current stock levels with ±1 button
 Best done from mobile — rotate to **landscape** for optimal layout.
 
 ### 🎙️ Audio Audit
-Walk the house dictating the inventory in Spanish (*"ahora en la nevera, dos yogures, un litro de leche…"*). The audio is transcribed by the local whisper-server and matched against the inventory by the local LLM hub — same `claude-local-calls` services that power the rest of this monorepo. The record view shows a per-zone, alphabetical checklist of tracked items so nothing gets missed while dictating. See [`audio_audit.md`](audio_audit.md) for recording technique, configuration, and troubleshooting.
+Walk the house dictating the inventory in Spanish (*"ahora en la nevera, dos yogures, un litro de leche…"*). The audio is transcribed by the local whisper-server and matched against the inventory by the local LLM hub — same `claude-local-calls` services that power the rest of this monorepo. The record view shows a per-zone, alphabetical checklist of tracked items so nothing gets missed while dictating.
 
 > **Pre-requisites:** the hub on `:8000` and whisper-server on `:8090` must be running. Start them via `E:\automation\claude-local-calls\run_hub.bat` and `launchers\run_whisper.bat`, or its tray launcher.
 
@@ -237,9 +248,9 @@ is in [`docs/browser-automation-build.md`](docs/browser-automation-build.md).
 | Interface appears broken | Clear browser cache |
 | Config errors | Validate `config.json` is well-formed JSON |
 | Microphone shows "An error has occurred" on mobile | App must be opened over **HTTPS** — see HTTPS setup section above |
-| Browser says "Your connection is not private" on desktop | Re-run `python gen_ssl_cert.py` — it installs the cert into Windows trust store |
+| Browser says "Your connection is not private" on desktop | Re-run `& .\.venv\Scripts\python.exe src\gen_ssl_cert.py` — it installs the cert into Windows trust store |
 | Browser says "Your connection is not private" on mobile | Self-signed cert warning — tap **Advanced → Proceed** once per device |
-| HTTPS cert missing / app won't start | Run `python gen_ssl_cert.py` from the grocery folder, then restart |
+| HTTPS cert missing / app won't start | Run `& .\.venv\Scripts\python.exe src\gen_ssl_cert.py` from the repo root, then restart |
 
 ---
 
