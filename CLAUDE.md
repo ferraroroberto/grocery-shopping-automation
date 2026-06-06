@@ -123,5 +123,5 @@ Before finishing, ask: "What would a senior, perfectionist dev reject in review?
 ---
 
 ## This repository
-Mobile-responsive Streamlit app for managing a household grocery inventory and shopping list, backed by an Excel file. Includes a voice-narrated audit mode that uses a local whisper-server and LLM hub from the `claude-local-calls` sibling project. Windows + PowerShell.
+Mobile-responsive web app for managing a household grocery inventory and shopping list, backed by an Excel file. The primary surface is a FastAPI + vanilla-JS PWA on `:8502` (`app/api.py`); a legacy Streamlit app on `:8501` (`app/app.py`) remains and drives the same modes. Includes a voice-narrated audit mode that uses a local whisper-server and LLM hub from the `claude-local-calls` sibling project. Windows + PowerShell.
 See `README.md` for setup, layout, and usage.
