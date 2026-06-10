@@ -3,91 +3,166 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#0f766e" />
+    <meta name="theme-color" content="#1E88E5" />
     <link rel="icon" href="/app-icon.svg" type="image/svg+xml" />
     <link rel="manifest" href="/manifest.json" />
     <title>Inventory Helper</title>
+    <script>
+      // Apply the saved (or system) theme before first paint to avoid a flash.
+      (function () {
+        var theme = localStorage.getItem("grocery.theme");
+        if (theme !== "light" && theme !== "dark") {
+          theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        document.documentElement.setAttribute("data-theme", theme);
+      })();
+    </script>
     <style>
       :root {
-        color-scheme: light;
+        --accent: #1E88E5;
+        --accent-strong: #1669bb;
+        --accent-soft: #e3f0fb;
+        --accent-on: #ffffff;
+        --bg: #f6f8fb;
+        --surface: #ffffff;
+        --text: #17202a;
+        --text-muted: #52616f;
+        --border: #d7e0e8;
+        --border-strong: #c7d3dc;
+        --input-border: #b8c7d2;
+        --divider: #edf1f4;
+        --progress-track: #e8eef2;
+        --danger: #b42318;
+        --ok: #2e7d32;
+        --warn: #c77700;
+        --log-bg: #101828;
+        --log-text: #f8fafc;
+        --overlay: rgba(15, 23, 42, 0.55);
+      }
+      :root[data-theme="light"] { color-scheme: light; }
+      :root[data-theme="dark"] {
+        color-scheme: dark;
+        --accent: #2f97f0;
+        --accent-strong: #1E88E5;
+        --accent-soft: #16314a;
+        --bg: #0f1620;
+        --surface: #18222e;
+        --text: #e6edf3;
+        --text-muted: #9bacbc;
+        --border: #2a3744;
+        --border-strong: #34424f;
+        --input-border: #3a4955;
+        --divider: #243140;
+        --progress-track: #243140;
+        --ok: #57b65b;
+        --warn: #e0a33a;
+        --log-bg: #0a0f16;
+        --overlay: rgba(2, 6, 12, 0.66);
+      }
+
+      :root {
         font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: #f6f8fb;
-        color: #17202a;
+        background: var(--bg);
+        color: var(--text);
       }
 
       * { box-sizing: border-box; }
-      body { margin: 0; min-height: 100vh; }
+      body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); }
       button, input, select, textarea { font: inherit; }
       button { cursor: pointer; }
       button:disabled { cursor: not-allowed; opacity: 0.55; }
 
       .app-shell { min-height: 100vh; display: grid; grid-template-columns: 260px minmax(0, 1fr); }
-      aside { background: #ffffff; border-right: 1px solid #d7e0e8; padding: 14px; position: sticky; top: 0; height: 100vh; overflow: auto; }
-      .brand { font-weight: 800; margin-bottom: 14px; }
+      aside { background: var(--surface); border-right: 1px solid var(--border); padding: 14px; position: sticky; top: 0; height: 100vh; overflow: auto; display: flex; flex-direction: column; gap: 14px; }
+      .brand-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+      .brand { font-weight: 800; }
       .nav { display: grid; gap: 6px; }
-      .nav button, .side-actions button, .primary, .secondary, .danger, .icon-btn { min-height: 38px; border-radius: 6px; border: 1px solid #c7d3dc; background: #ffffff; color: #17202a; }
+      .nav button, .side-actions button, .primary, .secondary, .danger, .icon-btn {
+        min-height: 38px; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
+      }
       .nav button { text-align: left; padding: 0 10px; }
-      .nav button.active { background: #0f766e; border-color: #0f766e; color: #ffffff; }
-      .side-actions { display: grid; gap: 8px; margin-top: 14px; }
-      .side-stat { border-top: 1px solid #edf1f4; margin-top: 14px; padding-top: 12px; color: #52616f; font-size: 0.9rem; }
+      .nav button.active { background: var(--accent); border-color: var(--accent); color: var(--accent-on); }
+      .side-actions { display: grid; gap: 8px; }
+      .side-stat { border-top: 1px solid var(--divider); padding-top: 12px; color: var(--text-muted); font-size: 0.9rem; }
       .store-stat { margin-top: 10px; }
-      .store-stat strong { color: #17202a; }
-      .progress { height: 8px; overflow: hidden; border-radius: 999px; background: #e8eef2; }
-      .progress span { display: block; height: 100%; background: #0f766e; }
+      .store-stat strong { color: var(--text); }
+      .progress { height: 8px; overflow: hidden; border-radius: 999px; background: var(--progress-track); }
+      .progress span { display: block; height: 100%; background: var(--accent); }
 
       .main { min-width: 0; }
-      header { position: sticky; top: 0; z-index: 2; background: rgba(255,255,255,0.96); border-bottom: 1px solid #d7e0e8; }
+      header { position: sticky; top: 0; z-index: 2; background: var(--surface); border-bottom: 1px solid var(--border); }
       .topbar, .toolbar, main { width: min(1180px, 100%); margin: 0 auto; padding: 14px 16px; }
       .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
       h1, h2, h3 { margin: 0; line-height: 1.2; }
       h1 { font-size: 1.1rem; }
       h2 { font-size: 1rem; }
       h3 { font-size: 0.98rem; }
-      .status { min-height: 20px; color: #52616f; font-size: 0.9rem; text-align: right; }
+      .status { min-height: 20px; color: var(--text-muted); font-size: 0.9rem; text-align: right; }
       .toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; }
-      .search, .field, textarea, select { width: 100%; min-height: 40px; border: 1px solid #b8c7d2; border-radius: 6px; padding: 0 10px; background: #ffffff; color: #17202a; }
+      .search, .field, textarea, select { width: 100%; min-height: 40px; border: 1px solid var(--input-border); border-radius: 6px; padding: 0 10px; background: var(--surface); color: var(--text); }
       textarea { min-height: 150px; padding: 10px; resize: vertical; }
-      .primary { background: #0f766e; border-color: #0f766e; color: #ffffff; padding: 0 14px; }
+      .primary { background: var(--accent); border-color: var(--accent); color: var(--accent-on); padding: 0 14px; }
       .secondary { padding: 0 12px; }
-      .danger { background: #b42318; border-color: #b42318; color: #ffffff; padding: 0 12px; }
-      .icon-btn { width: 38px; }
+      .danger { background: var(--danger); border-color: var(--danger); color: #ffffff; padding: 0 12px; }
+      .icon-btn { width: 38px; display: inline-flex; align-items: center; justify-content: center; }
 
       main { display: grid; gap: 14px; }
-      .summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-      .card, .metric, .item, .panel { background: #ffffff; border: 1px solid #d7e0e8; border-radius: 8px; }
+      .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+      .card, .metric, .item, .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
       .metric, .card, .panel { padding: 12px; }
-      .metric span, .meta, .empty, .hint { color: #52616f; font-size: 0.86rem; }
+      .panel > * + * { margin-top: 12px; }
+      .metric span, .meta, .empty, .hint { color: var(--text-muted); font-size: 0.86rem; }
       .metric strong { display: block; margin-top: 4px; font-size: 1.35rem; }
       .grid { display: grid; gap: 10px; }
       .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
       .three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+      .three-link { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr); gap: 10px; }
       .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+      .actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+      .field-label { display: grid; gap: 4px; color: var(--text-muted); font-size: 0.86rem; }
       .item { min-height: 68px; padding: 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; }
       .item-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
       .qty { min-width: 76px; text-align: right; font-weight: 800; }
-      .buy { color: #b42318; }
-      .ok { color: #0f766e; }
+      .buy { color: var(--danger); }
+      .ok { color: var(--ok); }
+      .qty-ok { color: var(--ok); font-weight: 700; }
+      .qty-low { color: var(--warn); font-weight: 700; }
+      .qty-zero { color: var(--danger); font-weight: 700; }
       .empty { padding: 18px; text-align: center; }
       .tabs { display: flex; flex-wrap: wrap; gap: 8px; }
-      .pill { min-height: 34px; border-radius: 999px; border: 1px solid #c7d3dc; background: #fff; padding: 0 12px; }
-      .pill.active { background: #dff4ee; border-color: #0f766e; color: #0b5f58; }
+      .pill { min-height: 34px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); padding: 0 12px; }
+      .pill.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-strong); }
       .form { display: grid; gap: 10px; }
-      .log { white-space: pre-wrap; overflow: auto; max-height: 360px; padding: 12px; border-radius: 6px; background: #101828; color: #f8fafc; font-family: Consolas, monospace; font-size: 0.86rem; }
-      .login-overlay { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 18px; background: rgba(15, 23, 42, 0.55); }
+      .zone-list { display: grid; gap: 8px; }
+      details.zone { border: 1px solid var(--border); border-radius: 6px; background: var(--surface); }
+      details.zone > summary { cursor: pointer; padding: 10px 12px; font-weight: 600; list-style: none; }
+      details.zone > summary::-webkit-details-marker { display: none; }
+      details.zone > summary::before { content: "▸"; display: inline-block; margin-right: 8px; color: var(--text-muted); transition: transform 0.15s ease; }
+      details.zone[open] > summary::before { transform: rotate(90deg); }
+      details.zone[open] > summary { border-bottom: 1px solid var(--divider); }
+      details.zone > .zone-items { padding: 10px 12px; display: grid; gap: 8px; }
+      details.zone label { display: flex; align-items: center; gap: 8px; }
+      .match-figures { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+      .panel-status { min-height: 20px; font-size: 0.9rem; color: var(--text-muted); }
+      .panel-status code { background: var(--accent-soft); padding: 0 4px; border-radius: 4px; }
+      .panel-status.error { color: var(--danger); }
+      .panel-status.ok { color: var(--ok); }
+      .log { white-space: pre-wrap; overflow: auto; max-height: 360px; padding: 12px; border-radius: 6px; background: var(--log-bg); color: var(--log-text); font-family: Consolas, monospace; font-size: 0.86rem; }
+      .login-overlay { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 18px; background: var(--overlay); }
       .login-overlay[hidden] { display: none; }
-      .login-panel { width: min(360px, 100%); padding: 16px; border: 1px solid #d8e1e8; border-radius: 8px; background: #ffffff; }
+      .login-panel { width: min(360px, 100%); padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
       .login-panel form { display: grid; gap: 10px; }
-      .login-error { min-height: 20px; color: #b42318; font-size: 0.88rem; }
+      .login-error { min-height: 20px; color: var(--danger); font-size: 0.88rem; }
       [hidden] { display: none !important; }
 
       @media (max-width: 880px) {
         .app-shell { grid-template-columns: 1fr; }
-        aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid #d7e0e8; }
+        aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
         .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .nav button { text-align: center; }
         .side-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .two, .three { grid-template-columns: 1fr; }
+        .two, .three, .three-link { grid-template-columns: 1fr; }
         .topbar { align-items: flex-start; flex-direction: column; }
         .status { text-align: left; }
       }
@@ -96,15 +171,18 @@
   <body>
     <div class="app-shell">
       <aside>
-        <div class="brand">Inventory Helper</div>
-        <nav id="nav" class="nav"></nav>
-        <div class="side-actions">
-          <button id="open-sheet" type="button">Open Spreadsheet</button>
-          <button id="copy-link" type="button">Copy Link</button>
-          <button id="export-csv" type="button">Export CSV</button>
-          <button id="close-app" type="button">Close App</button>
+        <div class="brand-row">
+          <div class="brand">Inventory Helper</div>
+          <button id="theme-toggle" class="icon-btn" type="button" title="Toggle light/dark" aria-label="Toggle light/dark theme"></button>
         </div>
+        <nav id="nav" class="nav"></nav>
         <div id="side-stats" class="side-stat"></div>
+        <div class="side-actions">
+          <button id="open-sheet" class="secondary" type="button">Open Spreadsheet</button>
+          <button id="copy-link" class="secondary" type="button">Copy Link</button>
+          <button id="export-csv" class="secondary" type="button">Export CSV</button>
+          <button id="close-app" class="secondary" type="button">Close App</button>
+        </div>
       </aside>
       <div class="main">
         <header>
@@ -130,6 +208,6 @@
         </div>
       </section>
     </div>
-    <script src="/static/app.js?v=20260605-issue20-pwa" defer></script>
+    <script src="/static/app.js?v=20260610-issue26-transcode" defer></script>
   </body>
 </html>

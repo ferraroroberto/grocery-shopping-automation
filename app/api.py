@@ -33,8 +33,9 @@ from src.data import (
     update_item_quantity,
     update_target_quantity,
 )
+from src.audio_audit_core import clean_transcript, write_audit_log
 from src.inventory_extract import ExtractionError, extract
-from src.transcribe_client import TranscriptionError, transcribe
+from src.transcribe_client import FfmpegMissingError, TranscriptionError, transcode_to_wav, transcribe
 from src.webapp_config import WebappConfig, load_webapp_config
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -125,6 +126,11 @@ def _inventory_payload(df: pd.DataFrame) -> dict[str, Any]:
             "supermarkets": supermarkets,
             "supermarket_stats": stats,
         },
+        "audio": {
+            "models": CONFIG["audio_audit"]["llm_models_available"],
+            "default_model": CONFIG["audio_audit"]["llm_model"],
+            "clamp": int(CONFIG["audio_audit"].get("max_count_clamp_above_target", 5)),
+        },
         "items": _records_from_frame(df),
     }
 
@@ -134,6 +140,20 @@ def _https_cert_present() -> bool:
         (REPO_ROOT / "webapp" / "certificates" / "cert.pem").exists()
         or (REPO_ROOT / "certificates" / "cert.pem").exists()
     )
+
+
+def _is_port_open(url: str, timeout: float = 1.5) -> bool:
+    """TCP reachability probe for a service URL (hub / whisper-server)."""
+    from urllib.parse import urlparse
+
+    parsed = urlparse(url)
+    host = parsed.hostname or "127.0.0.1"
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
 
 
 class DeltaPayload(BaseModel):
@@ -166,6 +186,14 @@ class MatchPayload(BaseModel):
 
 class ApplyPayload(BaseModel):
     updates: dict[int, int]
+    # Optional traceability context, sent by the PWA so the apply step can write
+    # the same audit log the Streamlit app produced. All optional — a bare
+    # {updates} still applies, it just logs less context.
+    transcript: str = ""
+    model: str = ""
+    matches: dict[str, Any] | None = None
+    audio_sha: str = ""
+    audio_bytes: int = 0
 
 
 @app.get("/", include_in_schema=False)
@@ -186,7 +214,7 @@ def manifest() -> JSONResponse:
             "scope": "/",
             "display": "standalone",
             "background_color": "#f8fafc",
-            "theme_color": "#0f766e",
+            "theme_color": "#1E88E5",
             "icons": [
                 {
                     "src": "/app-icon.svg",
@@ -427,6 +455,12 @@ def automation_stop() -> dict[str, Any]:
     return automation_status()
 
 
+@app.get("/api/automation/command")
+def automation_command(store: str = "all", dry_run: bool = True, cart_mode: str = "keep") -> dict[str, str]:
+    """Preview the exact argv a run would spawn (mirrors the Streamlit command preview)."""
+    return {"command": " ".join(automation_runner.build_command(store, dry_run, cart_mode))}
+
+
 @app.get("/api/automation/status")
 def automation_status() -> dict[str, Any]:
     process = _AUTOMATION_RUN.get("process")
@@ -472,14 +506,30 @@ async def audio_transcribe(file: UploadFile = File(...)) -> dict[str, str]:
     audio_bytes = await file.read()
     if not audio_bytes:
         raise _inventory_error(400, "empty audio file")
+    # whisper-server only decodes WAV/PCM and 400s on the webm/mp4 that browser
+    # MediaRecorder produces — transcode first. Fall back to the raw bytes only
+    # if ffmpeg is unavailable (still correct for a genuine WAV upload).
+    filename, mime = "audio.wav", "audio/wav"
+    try:
+        audio_bytes = transcode_to_wav(audio_bytes)
+    except FfmpegMissingError:
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "ffmpeg missing — posting raw audio to whisper (works only for WAV uploads)"
+        )
+        filename = file.filename or "audio.webm"
+        mime = file.content_type or "audio/webm"
+    except TranscriptionError as exc:
+        raise _inventory_error(502, str(exc)) from exc
     try:
         transcript = transcribe(
             audio_bytes,
             whisper_url=cfg["whisper_url"],
             model=cfg["whisper_model"],
             language=cfg.get("language", "es"),
-            filename=file.filename or "audio.webm",
-            mime=file.content_type or "audio/webm",
+            filename=filename,
+            mime=mime,
             timeout=600,
             temperature=0.0,
             prompt=WHISPER_PROMPT_ES,
@@ -489,20 +539,35 @@ async def audio_transcribe(file: UploadFile = File(...)) -> dict[str, str]:
     return {"transcript": transcript}
 
 
+@app.get("/api/audio/health")
+def audio_health() -> dict[str, Any]:
+    """Reachability of the local LLM hub and whisper-server, for the audio view's
+    service-status banner. Mirrors the Streamlit `_service_status_banner` probe."""
+    cfg = CONFIG["audio_audit"]
+    return {
+        "hub_ok": _is_port_open(cfg["llm_base_url"]),
+        "whisper_ok": _is_port_open(cfg["whisper_url"]),
+        "hub_url": cfg["llm_base_url"],
+        "whisper_url": cfg["whisper_url"],
+    }
+
+
 @app.post("/api/audio/match")
 def audio_match(payload: MatchPayload) -> dict[str, Any]:
     cfg = CONFIG["audio_audit"]
     df = _load_inventory_or_error()
-    transcript = payload.transcript.strip()
+    transcript = clean_transcript(payload.transcript.strip())
     if not transcript:
         raise _inventory_error(400, "transcript is empty")
+    model = payload.model or cfg["llm_model"]
     try:
         result = extract(
             transcript,
             df,
             base_url=cfg["llm_base_url"],
-            model=payload.model or cfg["llm_model"],
+            model=model,
             max_tokens=cfg["llm_max_tokens"],
+            timeout=cfg.get("llm_timeout", 600),
         )
     except ExtractionError as exc:
         raise _inventory_error(502, str(exc)) from exc
@@ -511,6 +576,9 @@ def audio_match(payload: MatchPayload) -> dict[str, Any]:
         "zones_mentioned": result.zones_mentioned,
         "unmatched_mentions": result.unmatched_mentions,
         "raw_text": result.raw_text,
+        "model": model,
+        "transcript_chars": len(transcript),
+        "candidates": int(len(df)),
     }
 
 
@@ -518,15 +586,41 @@ def audio_match(payload: MatchPayload) -> dict[str, Any]:
 def audio_apply(payload: ApplyPayload) -> dict[str, Any]:
     df = _load_inventory_or_error()
     cleaned = {int(idx): max(0, int(value)) for idx, value in payload.updates.items()}
-    for idx in cleaned:
-        _get_row(df, idx)
+    old_tenemos = {idx: int(_get_row(df, idx)[COLUMNS["tenemos"]]) for idx in cleaned}
     try:
         bulk_apply_tenemos(df, cleaned, save=True)
     except SpreadsheetLockedError as exc:
         raise _inventory_error(423, str(exc)) from exc
     except InventoryFileError as exc:
         raise _inventory_error(500, str(exc)) from exc
-    return _inventory_payload(_load_inventory_or_error())
+
+    new_df = _load_inventory_or_error()
+    cfg = CONFIG["audio_audit"]
+    log_path = ""
+    if cleaned:
+        try:
+            path = write_audit_log(
+                df=new_df,
+                old_tenemos=old_tenemos,
+                accepted=cleaned,
+                target_xlsx=str(CONFIG["data"]["xlsx_file"]),
+                transcript=payload.transcript,
+                model=payload.model or cfg["llm_model"],
+                whisper_model=cfg["whisper_model"],
+                result=payload.matches,
+                audio_sha=payload.audio_sha,
+                audio_bytes_len=payload.audio_bytes,
+                logs_dir=REPO_ROOT / cfg["logs_dir"],
+            )
+            log_path = str(path)
+        except OSError as exc:  # logging must never block the inventory update
+            import logging
+
+            logging.getLogger(__name__).warning("audit log write failed: %s", exc)
+
+    result = _inventory_payload(new_df)
+    result["audio_log_path"] = log_path
+    return result
 
 
 def _get_row(df: pd.DataFrame, item_id: int) -> pd.Series:
