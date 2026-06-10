@@ -1,14 +1,15 @@
-"""Subprocess plumbing for running the cart automation from the Streamlit app.
+"""Subprocess plumbing for running the cart automation from the app.
 
 UI-agnostic on purpose: this module knows how to spawn
 ``python -m automation.run_automation``, drain its merged stdout/stderr into a
-bounded buffer on a background thread, and stop it cleanly. It imports no
-``streamlit`` — all widgets and the rerun loop live in ``app/shopping.py``.
+bounded buffer on a background thread, and stop it cleanly. It imports no UI
+framework and is driven by both front ends — the FastAPI app (``app/api.py``)
+and the legacy Streamlit mode (``app/shopping.py``).
 
 The reader thread only ever *appends to* the ``deque`` object handed back to the
-caller; it never touches ``st.session_state``. The caller stores that same
-deque in session state, so the Streamlit script and the thread share one
-object without the thread going through the (thread-unsafe) session-state API.
+caller; it never reaches into any UI state. The caller holds that same deque,
+so the request/script side and the thread share one object without the thread
+going through a UI framework's (thread-unsafe) state API.
 """
 
 from __future__ import annotations
