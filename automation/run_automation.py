@@ -35,6 +35,24 @@ from automation.report import RunReport
 
 logger = logging.getLogger("automation.run_automation")
 
+
+def _force_utf8_streams() -> None:
+    """Force stdout/stderr to UTF-8 so the emoji summary survives capture.
+
+    When stdout is not an interactive console (a pipe, a file redirect, or the
+    app's ``subprocess.PIPE``), Python falls back to the locale encoding —
+    ``cp1252`` on Windows — which cannot encode the emoji and box-drawing
+    characters in :meth:`RunReport.print_summary`, so a bare ``print()`` raises
+    ``UnicodeEncodeError``. Reconfiguring to UTF-8 up front makes the summary
+    encode cleanly on every path. Guarded because streams replaced by a test
+    harness (e.g. pytest capture, ``io.StringIO``) do not expose
+    ``reconfigure``.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8")
+
 # Store key → handler module. Each handler exposes `add_to_cart(page, item)`.
 HANDLERS: dict[str, ModuleType] = {
     "mercadona": mercadona,
@@ -203,6 +221,7 @@ def _process_store_live(
 
 
 def main(argv: Optional[list[str]] = None) -> int:
+    _force_utf8_streams()
     args = parse_args(argv)
     logging.basicConfig(
         level=logging.DEBUG if args.debug else logging.INFO,
