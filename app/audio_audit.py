@@ -9,14 +9,10 @@ Pre-requisites (see README.md and the claude-local-calls sibling project):
 
 from __future__ import annotations
 
-import hashlib
-import json
 import logging
-import re
 import socket
 import threading
 import time
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
@@ -25,6 +21,7 @@ import pandas as pd
 import streamlit as st
 
 from app.ui_helpers import render_save_error
+from src.audio_audit_core import audio_sha256, clean_transcript, write_audit_log
 from src.data import (
     COLUMNS,
     CONFIG,
@@ -103,20 +100,6 @@ def _extract_progress(elapsed: int) -> str:
     if elapsed < 180:
         return f"⏳ Still working… ({t}) — long noisy transcripts take 2–4 min"
     return f"⏳ Still working… ({t}) — patience, can take up to 5 min on the longest walks"
-
-
-def _clean_transcript(t: str) -> str:
-    """Light pre-clean before sending to the LLM: collapse whitespace and dedupe
-    immediately-repeated sentences (a common Whisper hallucination pattern).
-    Idempotent and conservative — does not touch content the user actually said."""
-    if not t:
-        return t
-    t = re.sub(r"[ \t]+", " ", t)
-    t = re.sub(r"\n[ \t]*\n+", "\n", t)
-    t = t.strip()
-    # "Y con esto es todo. Y con esto es todo." → single occurrence
-    t = re.sub(r"(\b[^.!?\n]{4,}[.!?])(?:\s+\1)+", r"\1", t)
-    return t
 
 
 def _audio_cfg() -> Dict:
@@ -242,7 +225,7 @@ def _run_extract(df: pd.DataFrame, cfg: Dict) -> None:
         "audio_audit_transcript_input",
         st.session_state.get("audio_audit_transcript", ""),
     )
-    cleaned = _clean_transcript(raw_transcript)
+    cleaned = clean_transcript(raw_transcript)
     st.session_state.audio_audit_transcript = raw_transcript
     cleaned_note = ""
     if cleaned != raw_transcript:
@@ -290,42 +273,27 @@ def _write_audit_log(
     result: ExtractionResult,
     accepted: Dict[int, int],
     target_xlsx: str,
+    old_tenemos: Dict[int, int],
 ) -> Path:
     cfg = _audio_cfg()
-    logs_dir = Path(__file__).resolve().parent.parent / cfg["logs_dir"]
-    logs_dir.mkdir(parents=True, exist_ok=True)
-
     audio_bytes = st.session_state.get("audio_audit_audio_bytes", b"")
-    audio_sha = hashlib.sha256(audio_bytes).hexdigest() if audio_bytes else ""
-
-    log = {
-        "timestamp": datetime.now().isoformat(timespec="seconds"),
-        "target_xlsx": target_xlsx,
-        "audio_sha256": audio_sha,
-        "audio_bytes": len(audio_bytes),
-        "transcript": st.session_state.get("audio_audit_transcript", ""),
-        "model": st.session_state.get("audio_audit_llm_model", cfg["llm_model"]),
-        "whisper_model": cfg["whisper_model"],
-        "result": {
+    return write_audit_log(
+        df=df,
+        old_tenemos=old_tenemos,
+        accepted=accepted,
+        target_xlsx=target_xlsx,
+        transcript=st.session_state.get("audio_audit_transcript", ""),
+        model=st.session_state.get("audio_audit_llm_model", cfg["llm_model"]),
+        whisper_model=cfg["whisper_model"],
+        result={
             "items": result.items,
             "zones_mentioned": result.zones_mentioned,
             "unmatched_mentions": result.unmatched_mentions,
         },
-        "accepted_updates": [
-            {
-                "idx": idx,
-                "comida": str(df.at[idx, COLUMNS["comida"]]),
-                "lugar": str(df.at[idx, COLUMNS["lugar"]]),
-                "old_tenemos": int(df.at[idx, COLUMNS["tenemos"]]),
-                "new_tenemos": int(value),
-            }
-            for idx, value in accepted.items()
-        ],
-    }
-    path = logs_dir / f"{datetime.now().strftime('%Y-%m-%d_%H%M%S')}.json"
-    path.write_text(json.dumps(log, ensure_ascii=False, indent=2), encoding="utf-8")
-    logger.info(f"📝 audit log written to {path}")
-    return path
+        audio_sha=audio_sha256(audio_bytes),
+        audio_bytes_len=len(audio_bytes),
+        logs_dir=Path(__file__).resolve().parent.parent / cfg["logs_dir"],
+    )
 
 
 def _render_record(df: pd.DataFrame, cfg: Dict) -> None:
@@ -554,12 +522,13 @@ def _render_review(df: pd.DataFrame, cfg: Dict) -> pd.DataFrame:
             st.warning("Nothing to apply.")
         else:
             target_path = CONFIG["data"]["xlsx_file"]
+            old_tenemos = {idx: int(df.at[idx, COLUMNS["tenemos"]]) for idx in accepted}
             try:
                 new_df = bulk_apply_tenemos(df, accepted, save=True)
             except (SpreadsheetLockedError, InventoryFileError) as e:
                 render_save_error(e)
             else:
-                log_path = _write_audit_log(new_df, result, accepted, target_path)
+                log_path = _write_audit_log(new_df, result, accepted, target_path, old_tenemos)
                 st.session_state.inventory_data = new_df
                 st.session_state.audio_audit_log_path = str(log_path)
                 st.session_state.audio_audit_stage = "done"
