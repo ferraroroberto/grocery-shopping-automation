@@ -35,16 +35,17 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────────────────────────────────────
 # Third-party log noise suppression
 # ─────────────────────────────────────────────────────────────────────────────
-# Background: running this Streamlit app on Windows produces two kinds of
-# repetitive third-party log records that are not actionable for this project:
+# Background: running this web app on Windows (uvicorn/FastAPI, or the legacy
+# Streamlit server) produces two kinds of repetitive third-party log records
+# that are not actionable for this project:
 #
 # 1. `asyncio` — Windows' Proactor event loop emits an ERROR with a traceback
-#    ending in `ConnectionResetError: [WinError 10054]` whenever a Streamlit
-#    websocket peer disconnects abruptly (browser tab refresh, mobile screen
-#    sleep, Wi-Fi handoff, app restart from the sidebar's "Close app"). The
-#    underlying TCP reset is benign — Streamlit reconnects on its own, and
-#    nothing in user-space needs to handle it. During a single audit session
-#    we typically see a dozen of these, each as a 4-line traceback.
+#    ending in `ConnectionResetError: [WinError 10054]` whenever a long-lived
+#    HTTP/websocket peer disconnects abruptly (browser tab refresh, mobile
+#    screen sleep, Wi-Fi handoff, app restart). The underlying TCP reset is
+#    benign — the client reconnects on its own, and nothing in user-space needs
+#    to handle it. During a single audit session we typically see a dozen of
+#    these, each as a 4-line traceback.
 #
 # 2. `httpx` — the Anthropic SDK uses httpx, which logs an INFO line for every
 #    HTTP request (`HTTP Request: POST ...`). Our own loggers in
@@ -62,7 +63,7 @@ logger = logging.getLogger(__name__)
 # How to re-enable for debugging:
 #  - Comment out the `_suppress_known_log_noise()` call below, OR
 #  - Lower a specific logger at runtime, e.g. in a Python REPL or
-#    early in `app.py`:
+#    early in your entrypoint (`app/api.py` or `app/app.py`):
 #        logging.getLogger("httpx").setLevel(logging.INFO)
 #        logging.getLogger("asyncio").filters.clear()
 #

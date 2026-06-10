@@ -59,7 +59,9 @@ The FastAPI app on `:8502` covers the inventory dashboard, audit, target editing
 
 ### Legacy Streamlit app
 
-The original Streamlit UI is still available on `:8501` and drives the same modes. Double-click `launch_app.bat`, or from the repo root:
+The original Streamlit UI is **intentionally retained**, not dead code: it's a fully working fallback over the same `src/data.py` layer, handy for quick desktop access without the PWA's HTTPS-cert / bearer-token setup, and a reference for the per-mode logic. The FastAPI/PWA app on `:8502` is the recommended surface — reach for Streamlit only when you specifically want the old interface.
+
+It's still available on `:8501` and drives the same modes. Double-click `launch_app.bat`, or from the repo root:
 
 ```powershell
 & .\.venv\Scripts\python.exe -m streamlit run app/app.py
