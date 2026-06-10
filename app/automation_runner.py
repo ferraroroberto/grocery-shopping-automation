@@ -13,6 +13,7 @@ object without the thread going through the (thread-unsafe) session-state API.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import threading
@@ -61,13 +62,21 @@ def start_run(
     ``deque`` bounded to :data:`MAX_OUTPUT_LINES`; the reader thread appends to
     it line by line and exits when the process closes its stdout.
     """
+    # Force UTF-8 on both sides: PYTHONUTF8 makes the child encode its emoji
+    # output as UTF-8 even though stdout is a pipe (not a console), and reading
+    # with encoding="utf-8" lets the reader thread decode it without mojibake.
+    # errors="replace" keeps a stray byte from ever killing the drain thread.
+    child_env = {**os.environ, "PYTHONUTF8": "1"}
     process = subprocess.Popen(
         build_command(store, dry_run, cart_mode),
         cwd=str(_REPO_ROOT),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         bufsize=1,
+        env=child_env,
     )
     output_lines: "deque[str]" = deque(maxlen=MAX_OUTPUT_LINES)
 
