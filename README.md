@@ -28,6 +28,7 @@ Comprehensive household inventory management across multiple operational modes. 
   - `data.py` — config loading, XLSX load/save, supermarket stats, quantity mutators.
   - `gen_ssl_cert.py` — generate a local CA + server cert for HTTPS.
   - `inventory_extract.py` / `transcribe_client.py` — audio-audit transcription + LLM extraction (via the `claude-local-calls` hub).
+  - `audio_audit_core.py` — UI-agnostic transcript cleaning + audit-log writer shared by the PWA and the legacy Streamlit mode.
   - `webapp_config.py` — remote-access (token/password) config loader.
   - `config.example.json` — committed template; copied to `src/config.json` (gitignored) on first run.
 - **`automation/`** — Playwright + real-Chrome browser cart automation (see `automation/README.md`).
@@ -36,7 +37,7 @@ Comprehensive household inventory management across multiple operational modes. 
 - **`config/`** — `webapp_config.sample.json` template.
 - **`data/`** — `list.example.xlsx` sample inventory.
 - **`docs/`** — design records and the browser-automation build walk-through.
-- **`tests/`** — manual smoke tests (`smoke_*.py`, `automation_smoke_*.py`).
+- **`tests/`** — `pytest` suite (`test_*.py`: unit + FastAPI `TestClient` + a Playwright e2e that drives the real buttons) plus standalone smoke scripts (`smoke_*.py`, `automation_smoke_*.py`). Run `& .\.venv\Scripts\python.exe -m pytest`. The e2e stubs the LLM hub by default; set `GROCERY_E2E_LIVE=1` (with the hub running) to exercise the real model.
 - **Launchers** — `webapp.bat` (FastAPI/PWA on `:8502`), `launch_app.bat` (legacy Streamlit on `:8501`), `webapp_tunnel_named.bat` (FastAPI + Cloudflare tunnel).
 - **`.streamlit/config.toml`** — Streamlit theme customization (legacy app).
 
@@ -55,7 +56,7 @@ Double-click `webapp.bat`, or from the repo root:
 webapp.bat
 ```
 
-The FastAPI app on `:8502` covers the inventory dashboard, audit, target editing, item editing, item creation, shopping mode, automation controls, and the audio-audit workflow against the Excel-backed `src/data.py` layer. Open `http://127.0.0.1:8502` when no local cert exists, or `https://127.0.0.1:8502` after running `& .\.venv\Scripts\python.exe src\gen_ssl_cert.py`. The launcher binds to `0.0.0.0`, so the same port is reachable over LAN or Tailscale from devices that can reach this PC.
+The FastAPI app on `:8502` covers the inventory dashboard, audit, target editing, item editing, item creation, shopping mode, automation controls, and the audio-audit workflow against the Excel-backed `src/data.py` layer. Open `http://127.0.0.1:8502` when no local cert exists, or `https://127.0.0.1:8502` after running `& .\.venv\Scripts\python.exe src\gen_ssl_cert.py`. The launcher binds to `0.0.0.0`, so the same port is reachable over LAN or Tailscale from devices that can reach this PC. A light/dark theme toggle sits next to the sidebar brand and remembers your choice.
 
 ### Legacy Streamlit app
 
@@ -161,9 +162,9 @@ Walk through each zone of the house, update current stock levels with ±1 button
 Best done from mobile — rotate to **landscape** for optimal layout.
 
 ### 🎙️ Audio Audit
-Walk the house dictating the inventory in Spanish (*"ahora en la nevera, dos yogures, un litro de leche…"*). The audio is transcribed by the local whisper-server and matched against the inventory by the local LLM hub — same `claude-local-calls` services that power the rest of this monorepo. The record view shows a per-zone, alphabetical checklist of tracked items so nothing gets missed while dictating.
+Walk the house dictating the inventory in Spanish (*"ahora en la nevera, dos yogures, un litro de leche…"*). The audio is transcribed by the local whisper-server and matched against the inventory by the local LLM hub — same `claude-local-calls` services that power the rest of this monorepo. The record view shows a per-zone, alphabetical checklist of tracked items so nothing gets missed while dictating. A service-status banner reports hub/whisper reachability. A **Match model** selector picks which hub model performs the match (defaults to `gemini_pro`, configurable via `audio_audit.llm_model` / `llm_models_available`). Transcribe and Match show a **live elapsed timer** with staged progress and a **Cancel** button (calls budget up to 10 min — `audio_audit.llm_timeout`), and surface errors inline instead of failing silently. The review groups detected items by zone with current→new/Δ/evidence and a "not mentioned in audited zones → set 0" section; applying writes a JSON audit log to `audio_audit_logs/`.
 
-> **Pre-requisites:** the hub on `:8000` and whisper-server on `:8090` must be running. Start them via `E:\automation\claude-local-calls\run_hub.bat` and `launchers\run_whisper.bat`, or its tray launcher.
+> **Pre-requisites:** the hub on `:8000` and whisper-server on `:8090` must be running (start them via `E:\automation\claude-local-calls\run_hub.bat` and `launchers\run_whisper.bat`, or its tray launcher), and **`ffmpeg` must be on `PATH`** — browser recordings arrive as webm/mp4, which whisper-server can't decode, so the app transcodes them to 16 kHz WAV with ffmpeg first (`winget install Gyan.FFmpeg`). Recording auto-transcribes on Stop.
 
 ### ✏️ Edit Targets
 Set or adjust target quantities per item. Auto-saves every change.

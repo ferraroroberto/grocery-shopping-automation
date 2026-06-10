@@ -8,9 +8,11 @@ const modes = [
   ["edit", "Edit Item"],
   ["add", "Add Item"],
   ["shopping", "Shopping"],
-  ["automation", "Automation"],
   ["audio", "Audio Audit"],
+  ["automation", "Automation"],
 ];
+
+const THEME_KEY = "grocery.theme";
 
 const state = {
   payload: null,
@@ -19,15 +21,23 @@ const state = {
   query: "",
   zone: "",
   automationSource: null,
+  automationStarted: null,
+  automationTimer: null,
   mediaRecorder: null,
   audioChunks: [],
+  audioMime: "",
   transcript: "",
+  audioModel: "",
+  audioHealth: null,
+  audioSha: "",
+  audioBytes: 0,
   matches: null,
   shopping: loadShoppingState(),
 };
 
 const el = {
   nav: document.querySelector("#nav"),
+  themeToggle: document.querySelector("#theme-toggle"),
   title: document.querySelector("#view-title"),
   status: document.querySelector("#status"),
   search: document.querySelector("#search"),
@@ -62,6 +72,138 @@ function html(value) {
 
 function setStatus(message) {
   el.status.textContent = message;
+}
+
+// Colour-coded current/target, mirroring app/ui_helpers.qty_html:
+// green when stocked (current ≥ target), amber when low, red when empty.
+function qtyMarkup(current, target) {
+  const cur = Number(current) || 0;
+  const tgt = Number(target) || 0;
+  const cls = cur >= tgt ? "qty-ok" : (cur > 0 ? "qty-low" : "qty-zero");
+  return `<span class="${cls}">${html(current)}</span><span class="meta">/${html(target)}</span>`;
+}
+
+function setAudioStatus(message, kind = "") {
+  const target = document.querySelector("#audio-status");
+  if (target) {
+    target.textContent = message;
+    target.className = `panel-status${kind ? ` ${kind}` : ""}`;
+  }
+  setStatus(message);
+}
+
+let audioAbort = null;
+
+function formatElapsed(seconds) {
+  return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, "0")}s`;
+}
+
+// Staged progress text, mirroring app/audio_audit.py _extract_progress — budget
+// up to ~10 minutes; never imply a call is fast.
+function audioMatchStage(elapsed) {
+  const t = formatElapsed(elapsed);
+  if (elapsed < 5) return `📡 Sending request to LLM hub… (${t})`;
+  if (elapsed < 20) return `🧠 Hub routing to model, analysing transcript… (${t})`;
+  if (elapsed < 60) return `🧠 Matching mentions to candidates… (${t}) — typical 30s–2min`;
+  if (elapsed < 180) return `⏳ Still working… (${t}) — long noisy transcripts take 2–4 min`;
+  return `⏳ Still working… (${t}) — patience, can take up to 10 min on the longest walks`;
+}
+
+function audioTranscribeStage(elapsed) {
+  const t = formatElapsed(elapsed);
+  if (elapsed < 5) return `📡 Uploading audio to whisper-server… (${t})`;
+  if (elapsed < 30) return `🎙️ Whisper transcribing… (${t})`;
+  if (elapsed < 120) return `⏳ Whisper still working… (${t}) — long clips can take 1–3 min`;
+  return `⏳ Whisper still working… (${t}) — long audio can take up to 10 min`;
+}
+
+function setAudioInFlight(busy) {
+  const cancel = document.querySelector("#audio-cancel");
+  if (cancel) cancel.hidden = !busy;
+  ["#match-transcript", "#transcribe-audio", "#apply-audio", "#audio-model"].forEach((sel) => {
+    const node = document.querySelector(sel);
+    if (node) node.disabled = busy;
+  });
+}
+
+// Run an audio request with a live elapsed timer and a working Cancel button.
+// `doFetch(signal)` performs the request; the AbortController lets Cancel free
+// the UI even if the hub call is hung.
+async function runWithTimer(stageFn, doFetch) {
+  audioAbort = new AbortController();
+  const start = Date.now();
+  const tick = () => setAudioStatus(stageFn(Math.floor((Date.now() - start) / 1000)));
+  tick();
+  const interval = window.setInterval(tick, 1000);
+  setAudioInFlight(true);
+  try {
+    return await doFetch(audioAbort.signal);
+  } finally {
+    window.clearInterval(interval);
+    setAudioInFlight(false);
+    audioAbort = null;
+  }
+}
+
+async function computeAudioSha(blob) {
+  try {
+    const buffer = await blob.arrayBuffer();
+    state.audioBytes = buffer.byteLength;
+    const digest = await crypto.subtle.digest("SHA-256", buffer);
+    state.audioSha = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  } catch (_) {
+    // crypto.subtle is unavailable over plain http on LAN — sha is best-effort.
+    state.audioSha = "";
+    state.audioBytes = blob.size || 0;
+  }
+}
+
+async function refreshAudioHealth() {
+  try {
+    state.audioHealth = await fetchJson("/api/audio/health");
+  } catch (_) {
+    state.audioHealth = null;
+  }
+  renderAudioHealth();
+}
+
+function renderAudioHealth() {
+  const banner = document.querySelector("#audio-health-banner");
+  if (!banner) return;
+  const h = state.audioHealth;
+  if (!h) {
+    banner.innerHTML = "";
+    return;
+  }
+  const problems = [];
+  if (!h.hub_ok) problems.push(`❌ LLM hub unreachable at <code>${html(h.hub_url)}</code>`);
+  if (!h.whisper_ok) problems.push(`❌ Whisper server unreachable at <code>${html(h.whisper_url)}</code>`);
+  if (!problems.length) {
+    banner.className = "panel-status ok";
+    banner.innerHTML = "✅ Hub and whisper-server reachable";
+  } else {
+    banner.className = "panel-status error";
+    banner.innerHTML = `${problems.join("<br>")}<br>Start the local hub on :8000 and whisper-server on :8090 (claude-local-calls).`;
+  }
+  const matchBtn = document.querySelector("#match-transcript");
+  if (matchBtn && !audioAbort) matchBtn.disabled = !h.hub_ok;
+}
+
+function currentTheme() {
+  return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  localStorage.setItem(THEME_KEY, theme);
+  if (el.themeToggle) {
+    el.themeToggle.textContent = theme === "dark" ? "☀️" : "🌙";
+    el.themeToggle.title = theme === "dark" ? "Switch to light mode" : "Switch to dark mode";
+  }
+}
+
+function toggleTheme() {
+  applyTheme(currentTheme() === "dark" ? "light" : "dark");
 }
 
 function loadShoppingState() {
@@ -238,6 +380,7 @@ function renderSummary() {
   const s = state.payload.summary;
   return `<section class="summary">
     ${metric("Tracked items", s.total_items)}
+    ${metric("Stocked", s.total_items - s.shopping_items)}
     ${metric("Need buying", s.shopping_items)}
     ${metric("Units to buy", s.shopping_units)}
     ${metric("Zones", s.zones.length)}
@@ -286,7 +429,7 @@ function itemCard(item, cols) {
   const buy = Number(item[cols.comprar]) || 0;
   return `<article class="item" data-id="${item.id}">
     <div><h3>${html(item[cols.comida])}</h3><div class="meta">${html(item[cols.lugar])} · ${html(item[cols.super])}</div></div>
-    <div class="qty"><div>${html(item[cols.tenemos])}/${html(item[cols.cantidad])}</div><div class="${buy > 0 ? "buy" : "ok"}">${buy > 0 ? `Buy ${buy}` : "Stocked"}</div></div>
+    <div class="qty"><div>${qtyMarkup(item[cols.tenemos], item[cols.cantidad])}</div><div class="${buy > 0 ? "buy" : "ok"}">${buy > 0 ? `Buy ${buy}` : "Stocked"}</div></div>
   </article>`;
 }
 
@@ -300,14 +443,16 @@ function renderAudit(targetsOnly = false) {
   const cols = c();
   const source = filteredItems(items()
     .filter((item) => item[cols.lugar] === state.zone)
-    .filter((item) => !targetsOnly || Number(item[cols.cantidad]) > 0));
-  el.main.innerHTML = `<section class="panel"><div class="row"><h2>${targetsOnly ? "Audit Inventory" : "Edit Targets"}</h2><span class="hint">${html(state.zone)}</span></div>${zoneTabs()}</section>
+    .filter((item) => !targetsOnly || Number(item[cols.cantidad]) > 0))
+    .sort((a, b) => text(a[cols.comida]).localeCompare(text(b[cols.comida])));
+  const header = targetsOnly ? "➖ have ➕ · have/target · ⊖ target ⊕ · buy" : "have/target · ⊖ target ⊕ · buy";
+  el.main.innerHTML = `<section class="panel"><div class="row"><h2>${targetsOnly ? "Audit Inventory" : "Edit Targets"}</h2><span class="hint">${html(state.zone)} · ${source.length} items</span></div>${zoneTabs()}<div class="hint">${header}</div></section>
     <section class="grid">${source.map((item) => `
       <article class="item" data-id="${item.id}">
         <div><h3>${html(item[cols.comida])}</h3><div class="meta">${html(item[cols.super])}</div></div>
         <div class="item-actions">
           ${targetsOnly ? `<button class="icon-btn" data-action="current-minus">-</button><button class="icon-btn" data-action="current-plus">+</button>` : ""}
-          <span class="qty">${item[cols.tenemos]}/${item[cols.cantidad]}</span>
+          <span class="qty">${qtyMarkup(item[cols.tenemos], item[cols.cantidad])}</span>
           <button class="icon-btn" data-action="target-minus">-</button>
           <button class="icon-btn" data-action="target-plus">+</button>
           <span class="${Number(item[cols.comprar]) > 0 ? "buy" : "ok"}">${Number(item[cols.comprar]) > 0 ? `Buy ${item[cols.comprar]}` : "OK"}</span>
@@ -327,7 +472,7 @@ function renderEdit() {
           <input class="field" name="super" value="${html(item[cols.super])}" placeholder="Supermarket" />
           <input class="field" name="lugar" value="${html(item[cols.lugar])}" placeholder="Zone" />
         </div>
-        <div class="three">
+        <div class="three-link">
           <input class="field" name="cantidad" type="number" min="0" value="${html(item[cols.cantidad])}" placeholder="Target" />
           <input class="field" name="tenemos" type="number" min="0" value="${html(item[cols.tenemos])}" placeholder="Current" />
           <input class="field" name="buscador" value="${html(item[cols.buscador])}" placeholder="URL" />
@@ -348,7 +493,7 @@ function renderAdd() {
         <input class="field" name="super" list="stores" placeholder="Supermarket" required />
         <input class="field" name="lugar" list="zones" placeholder="Zone" required />
       </div>
-      <div class="three">
+      <div class="three-link">
         <input class="field" name="cantidad" type="number" min="0" value="0" placeholder="Target" />
         <input class="field" name="tenemos" type="number" min="0" value="0" placeholder="Current" />
         <input class="field" name="buscador" placeholder="URL" />
@@ -373,7 +518,13 @@ function renderShopping() {
     el.main.innerHTML = `<div class="empty">All stocked up.</div>`;
     return;
   }
-  el.main.innerHTML = stores.map((store) => {
+  const missingLink = base.filter((item) => text(item[cols.buscador]) === "-" || !text(item[cols.buscador]).trim());
+  const boughtCount = state.shopping.bought.size + Object.values(state.shopping.extraBought || {}).reduce((n, list) => n + (list?.length || 0), 0);
+  const header = `<section class="panel">
+    <div class="row"><h2>Shopping</h2>${boughtCount ? `<button class="secondary" id="shopping-unmark-all" type="button">↩️ Unmark all</button>` : ""}</div>
+    ${missingLink.length ? `<div class="panel-status error">⚠️ ${missingLink.length} item(s) missing a buy link — their Buy button is disabled.</div>` : ""}
+  </section>`;
+  el.main.innerHTML = header + stores.map((store) => {
     const storeItems = base.filter((item) => item[cols.super] === store);
     const extras = state.shopping.extras[store] || [];
     const extraBought = new Set(state.shopping.extraBought[store] || []);
@@ -427,59 +578,164 @@ function extraRow(item, store, extraBought) {
 }
 
 function renderAutomation() {
+  const stores = state.payload.summary.supermarkets;
   el.main.innerHTML = `<section class="panel">
     <h2>Run Automation</h2>
+    <div class="hint">Fills the store carts from this list via Chrome automation. You still confirm and pay in the browser.</div>
     <div class="three">
-      <select id="automation-store" class="field"><option value="all">All stores</option>${state.payload.summary.supermarkets.map((s) => `<option value="${html(s)}">${html(s)}</option>`).join("")}</select>
+      <select id="automation-store" class="field"><option value="all">All stores</option>${stores.map((s) => `<option value="${html(s)}">${html(s)}</option>`).join("")}</select>
       <select id="automation-cart-mode" class="field"><option value="keep">Keep cart</option><option value="clean">Clean cart</option></select>
       <label class="hint"><input id="automation-dry-run" type="checkbox" checked> Dry run</label>
     </div>
-    <div class="row">
-      <button id="automation-start" class="primary" type="button">Run Automation</button>
-      <button id="automation-stop" class="danger" type="button">Stop</button>
+    <div id="automation-clean-warn" class="panel-status error" hidden>⚠️ Clean mode empties the store cart first — anything added by hand will be removed.</div>
+    <label id="automation-clean-confirm-wrap" class="hint" hidden><input id="automation-clean-confirm" type="checkbox"> Yes, empty the cart first</label>
+    <pre id="automation-command" class="log"></pre>
+    <div class="actions">
+      <button id="automation-start" class="primary" type="button">▶ Run Automation</button>
+      <button id="automation-stop" class="danger" type="button" hidden>🛑 Stop</button>
+      <button id="automation-dismiss" class="secondary" type="button" hidden>Dismiss</button>
     </div>
+    <div id="automation-elapsed" class="panel-status"></div>
     <pre id="automation-log" class="log">(not running)</pre>
   </section>`;
+  updateAutomationCommand();
   refreshAutomation();
 }
 
+// Mirror the Streamlit controls: clean-mode warning + destructive confirm, and a
+// live command preview pulled from the backend so the argv never diverges.
+async function updateAutomationCommand() {
+  const store = document.querySelector("#automation-store")?.value || "all";
+  const cartMode = document.querySelector("#automation-cart-mode")?.value || "keep";
+  const dryRun = document.querySelector("#automation-dry-run")?.checked ?? true;
+  const clean = cartMode === "clean";
+  const warn = document.querySelector("#automation-clean-warn");
+  const confirmWrap = document.querySelector("#automation-clean-confirm-wrap");
+  if (warn) warn.hidden = !clean;
+  if (confirmWrap) confirmWrap.hidden = !(clean && !dryRun);
+  const confirmBox = document.querySelector("#automation-clean-confirm");
+  const start = document.querySelector("#automation-start");
+  if (start) start.disabled = clean && !dryRun && !(confirmBox?.checked);
+  try {
+    const r = await fetchJson(`/api/automation/command?store=${encodeURIComponent(store)}&dry_run=${dryRun}&cart_mode=${cartMode}`);
+    const cmd = document.querySelector("#automation-command");
+    if (cmd) cmd.textContent = r.command;
+  } catch (_) {
+    // preview is best-effort
+  }
+}
+
 async function refreshAutomation() {
+  const status = await fetchJson("/api/automation/status").catch(() => null);
+  if (!status) return;
+  applyAutomationStatus(status);
+  if (status.running) {
+    if (!state.automationStarted) state.automationStarted = Date.now();
+    startAutomationTimer();
+    connectAutomationEvents();
+  }
+}
+
+function applyAutomationStatus(status) {
   const log = document.querySelector("#automation-log");
-  if (!log) return;
-  const status = await fetchJson("/api/automation/status");
-  log.textContent = status.lines?.join("\n") || (status.running ? "(waiting for output...)" : "(not running)");
+  if (log) log.textContent = status.lines?.length ? status.lines.join("\n") : (status.running ? "(waiting for output…)" : "(not running)");
+  const finished = !status.running && status.returncode !== null && status.returncode !== undefined;
+  const start = document.querySelector("#automation-start");
+  const stop = document.querySelector("#automation-stop");
+  const dismiss = document.querySelector("#automation-dismiss");
+  if (start) start.hidden = status.running || finished;
+  if (stop) stop.hidden = !status.running;
+  if (dismiss) dismiss.hidden = !finished;
+  const elapsed = document.querySelector("#automation-elapsed");
+  if (elapsed && finished) {
+    stopAutomationTimer();
+    elapsed.className = `panel-status ${status.returncode === 0 ? "ok" : "error"}`;
+    elapsed.textContent = status.returncode === 0
+      ? "✅ Automation finished — exit 0. Review and pay in the browser."
+      : `❌ Automation exited with code ${status.returncode}. See the log above.`;
+  }
+}
+
+function startAutomationTimer() {
+  if (state.automationTimer) return;
+  const tick = () => {
+    const elapsed = document.querySelector("#automation-elapsed");
+    if (!elapsed || !state.automationStarted) return;
+    elapsed.className = "panel-status";
+    elapsed.textContent = `⏳ Automation running… (${formatElapsed(Math.floor((Date.now() - state.automationStarted) / 1000))} elapsed)`;
+  };
+  tick();
+  state.automationTimer = window.setInterval(tick, 1000);
+}
+
+function stopAutomationTimer() {
+  if (state.automationTimer) {
+    window.clearInterval(state.automationTimer);
+    state.automationTimer = null;
+  }
+  state.automationStarted = null;
 }
 
 function connectAutomationEvents() {
   if (state.automationSource) state.automationSource.close();
   state.automationSource = new EventSource("/api/automation/events");
-  state.automationSource.onmessage = (event) => {
+  state.automationSource.onmessage = async (event) => {
     const status = JSON.parse(event.data);
-    const log = document.querySelector("#automation-log");
-    if (log) log.textContent = status.lines?.join("\n") || "(waiting for output...)";
-    if (!status.running) state.automationSource.close();
+    applyAutomationStatus(status);
+    if (!status.running) {
+      state.automationSource.close();
+      state.automationSource = null;
+      const final = await fetchJson("/api/automation/status").catch(() => null);
+      if (final) applyAutomationStatus(final);
+    }
   };
 }
 
 function renderAudio() {
   const cols = c();
+  const audioCfg = state.payload.audio || { models: [], default_model: "" };
+  if (!state.audioModel) state.audioModel = audioCfg.default_model || audioCfg.models[0] || "";
+  const modelOptions = (audioCfg.models || [])
+    .map((name) => `<option value="${html(name)}" ${name === state.audioModel ? "selected" : ""}>${html(name)}</option>`)
+    .join("");
   const checklist = state.payload.summary.zones.map((zone) => {
     const zoneItems = items().filter((item) => item[cols.lugar] === zone && Number(item[cols.cantidad]) > 0);
-    return `<details><summary>${html(zone)} · ${zoneItems.length}</summary><div class="grid">${zoneItems.map((item) => `<label><input type="checkbox"> ${html(item[cols.comida])}</label>`).join("")}</div></details>`;
+    return `<details class="zone"><summary>${html(zone)} · ${zoneItems.length}</summary><div class="zone-items">${zoneItems.map((item) => `<label><input type="checkbox"> ${html(item[cols.comida])}</label>`).join("")}</div></details>`;
   }).join("");
   el.main.innerHTML = `<section class="panel">
     <h2>Audio Audit</h2>
-    <div class="row"><button id="record-toggle" class="primary">Start Recording</button><input id="audio-file" type="file" accept="audio/*"></div>
+    <div id="audio-health-banner" class="panel-status"></div>
     <div class="hint">Keep the checklist visible while recording. Announce the zone, then item counts in Spanish.</div>
-    <div class="grid">${checklist}</div>
+    <div class="actions"><button id="record-toggle" class="primary">Start Recording</button><input id="audio-file" type="file" accept="audio/*"></div>
+    <div class="zone-list">${checklist}</div>
   </section>
   <section class="panel">
-    <div class="row"><h2>Transcript</h2><button id="transcribe-audio" class="secondary">Transcribe Upload/Recording</button></div>
+    <div class="row"><h2>Transcript</h2><button id="transcribe-audio" class="secondary">Transcribe</button></div>
     <textarea id="transcript" placeholder="Transcript appears here, or paste one manually.">${html(state.transcript)}</textarea>
-    <div class="row"><button id="match-transcript" class="primary">Match Inventory</button><button id="apply-audio" class="secondary" disabled>Apply Accepted</button></div>
+    <label class="field-label" for="audio-model">Match model
+      <select id="audio-model"${modelOptions ? "" : " disabled"}>${modelOptions || `<option>${html(state.audioModel || "config default")}</option>`}</select>
+    </label>
+    <div id="audio-context" class="hint"></div>
+    <div class="actions">
+      <button id="match-transcript" class="primary">Match Inventory</button>
+      <button id="apply-audio" class="secondary" disabled>Apply Accepted</button>
+      <button id="audio-clear" class="secondary" type="button">🧽 Clear</button>
+      <button id="audio-cancel" class="danger" hidden>Cancel</button>
+    </div>
+    <div id="audio-status" class="panel-status" role="status"></div>
   </section>
   <section id="match-results" class="grid"></section>`;
+  renderAudioContext();
   renderMatches();
+  renderAudioHealth();
+  refreshAudioHealth();
+}
+
+function renderAudioContext() {
+  const node = document.querySelector("#audio-context");
+  if (!node) return;
+  const hub = state.audioHealth?.hub_url || state.payload.audio?.hub_url || "local hub";
+  node.textContent = `📡 ${hub} · candidates ${items().length} · model ${state.audioModel || "config default"}`;
 }
 
 function renderMatches() {
@@ -492,14 +748,63 @@ function renderMatches() {
     return;
   }
   const cols = c();
+  const clamp = Number(state.payload.audio?.clamp ?? 5);
   const byId = new Map(items().map((item) => [item.id, item]));
-  target.innerHTML = `<section class="panel"><h2>Detected Items</h2><div class="grid">${state.matches.items.map((match) => {
+  const matched = state.matches.items.filter((match) => byId.has(match.idx));
+
+  // Group detected items by the zone the speaker was in (fall back to lugar).
+  const byZone = {};
+  matched.forEach((match) => {
     const item = byId.get(match.idx);
-    if (!item) return "";
-    return `<label class="item"><span><strong>${html(item[cols.comida])}</strong><span class="meta"> ${html(item[cols.lugar])} · ${html(match.evidence)}</span></span><span><input type="checkbox" data-audio-idx="${match.idx}" data-count="${match.count}" checked> set ${match.count}</span></label>`;
-  }).join("") || '<div class="empty">No recognised items.</div>'}</div></section>
+    const zone = match.zone || item[cols.lugar] || "—";
+    (byZone[zone] ||= []).push(match);
+  });
+
+  const detectedRow = (match) => {
+    const item = byId.get(match.idx);
+    const current = Number(item[cols.tenemos]) || 0;
+    const target = Number(item[cols.cantidad]) || 0;
+    const proposed = Math.min(Number(match.count) || 0, target + clamp);
+    const delta = proposed - current;
+    const deltaTxt = `${delta > 0 ? "+" : ""}${delta}`;
+    const badge = (match.zone && match.zone !== item[cols.lugar]) ? ` <span class="meta">(list: ${html(item[cols.lugar])})</span>` : "";
+    return `<label class="item">
+      <span><strong>${html(item[cols.comida])}</strong>${badge}<span class="meta"> ${html(match.evidence || "")}</span></span>
+      <span class="match-figures"><span class="meta">${current} →</span> <strong>${proposed}</strong> <span class="${delta > 0 ? "buy" : "meta"}">${deltaTxt}</span>
+        <input type="checkbox" data-audio-idx="${match.idx}" data-count="${proposed}" checked></span>
+    </label>`;
+  };
+
+  const zoneSections = Object.keys(byZone).sort().map((zone) =>
+    `<h3>${html(zone)}</h3><div class="grid">${byZone[zone].map(detectedRow).join("")}</div>`,
+  ).join("");
+
+  // "Not mentioned in audited zones" — items in a walked zone with target>0 and
+  // current>0 that the speaker didn't name. Tick to zero them.
+  const matchedIdx = new Set(matched.map((m) => m.idx));
+  const zonesMentioned = new Set((state.matches.zones_mentioned || []).map((z) => String(z).toLowerCase().trim()));
+  const unseen = items().filter((item) =>
+    !matchedIdx.has(item.id)
+    && zonesMentioned.has(String(item[cols.lugar]).toLowerCase().trim())
+    && Number(item[cols.cantidad]) > 0
+    && Number(item[cols.tenemos]) > 0,
+  );
+  const unseenSection = unseen.length
+    ? `<section class="panel"><h2>Not mentioned (in audited zones)</h2>
+      <div class="hint">${unseen.length} item(s) in the zones you walked but didn't name. Tick to set them to 0.</div>
+      <div class="grid">${unseen.map((item) =>
+        `<label class="item"><span><strong>${html(item[cols.comida])}</strong> <span class="meta">(list: ${html(item[cols.lugar])})</span></span>
+          <span class="match-figures"><span class="meta">${Number(item[cols.tenemos])} → <strong>0</strong></span>
+            <input type="checkbox" data-audio-zero="${item.id}"></span></label>`,
+      ).join("")}</div></section>`
+    : "";
+
+  target.innerHTML = `<section class="panel"><h2>Detected Items</h2>${
+    zoneSections || '<div class="empty">No recognised items.</div>'
+  }</section>
+  ${unseenSection}
   ${state.matches.unmatched_mentions?.length ? `<section class="panel"><h2>Unmatched Mentions</h2>${state.matches.unmatched_mentions.map((m) => `<div class="meta">${html(m.phrase)} · ${html(m.note)}</div>`).join("")}</section>` : ""}`;
-  if (apply) apply.disabled = !state.matches.items.length;
+  if (apply) apply.disabled = !matched.length && !unseen.length;
 }
 
 function render() {
@@ -578,6 +883,15 @@ el.main.addEventListener("submit", async (event) => {
 });
 
 el.main.addEventListener("change", (event) => {
+  if (event.target.id === "audio-model") {
+    state.audioModel = event.target.value;
+    renderAudioContext();
+    return;
+  }
+  if (["automation-store", "automation-cart-mode", "automation-dry-run", "automation-clean-confirm"].includes(event.target.id)) {
+    updateAutomationCommand();
+    return;
+  }
   const action = event.target.dataset.action;
   const panel = event.target.closest("[data-store]");
   if (!panel || !action) return;
@@ -591,7 +905,8 @@ el.main.addEventListener("change", (event) => {
 
 el.main.addEventListener("click", async (event) => {
   if (event.target.id === "automation-start") {
-    await fetchJson("/api/automation/start", {
+    state.automationStarted = Date.now();
+    const status = await fetchJson("/api/automation/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -600,14 +915,54 @@ el.main.addEventListener("click", async (event) => {
         cart_mode: document.querySelector("#automation-cart-mode").value,
       }),
     });
+    applyAutomationStatus(status);
+    startAutomationTimer();
     connectAutomationEvents();
   }
   if (event.target.id === "automation-stop") await fetchJson("/api/automation/stop", { method: "POST" });
-  if (event.target.id === "record-toggle") toggleRecording(event.target);
-  if (event.target.id === "transcribe-audio") transcribeAudio();
-  if (event.target.id === "match-transcript") matchTranscript();
-  if (event.target.id === "apply-audio") applyAudio();
+  if (event.target.id === "automation-dismiss") {
+    stopAutomationTimer();
+    renderAutomation();
+  }
+  if (event.target.id === "shopping-unmark-all") {
+    state.shopping.bought.clear();
+    state.shopping.extraBought = {};
+    saveShoppingState();
+    render();
+  }
+  if (event.target.id === "record-toggle") await toggleRecording(event.target);
+  if (event.target.id === "transcribe-audio") await transcribeAudio();
+  if (event.target.id === "match-transcript") await matchTranscript();
+  if (event.target.id === "apply-audio") await applyAudio();
+  if (event.target.id === "audio-clear") clearAudio();
+  if (event.target.id === "audio-cancel" && audioAbort) audioAbort.abort();
 });
+
+// Wipe the transcript + match results so the next audit starts from scratch.
+function clearAudio() {
+  if (audioAbort) audioAbort.abort();
+  state.transcript = "";
+  state.matches = null;
+  state.audioSha = "";
+  state.audioBytes = 0;
+  state.audioChunks = [];
+  const fileInput = document.querySelector("#audio-file");
+  if (fileInput) fileInput.value = "";
+  render();
+  setAudioStatus("Cleared — ready for a new audit", "");
+}
+
+// iOS Safari's MediaRecorder only produces audio/mp4 — picking a supported
+// type (and labelling the blob/filename to match) is what stops whisper from
+// choking on mp4 bytes mislabelled as .webm. Mirrors voice-transcriber.
+function pickAudioMime() {
+  if (!("MediaRecorder" in window)) return "";
+  const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4;codecs=mp4a.40.2", "audio/mp4"];
+  for (const m of candidates) {
+    if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) return m;
+  }
+  return "";
+}
 
 async function toggleRecording(button) {
   if (state.mediaRecorder && state.mediaRecorder.state === "recording") {
@@ -617,48 +972,87 @@ async function toggleRecording(button) {
   }
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   state.audioChunks = [];
-  state.mediaRecorder = new MediaRecorder(stream);
+  state.audioMime = pickAudioMime();
+  state.mediaRecorder = new MediaRecorder(stream, state.audioMime ? { mimeType: state.audioMime } : undefined);
   state.mediaRecorder.ondataavailable = (event) => { if (event.data.size) state.audioChunks.push(event.data); };
-  state.mediaRecorder.onstop = () => stream.getTracks().forEach((track) => track.stop());
-  state.mediaRecorder.start();
+  state.mediaRecorder.onstop = () => {
+    stream.getTracks().forEach((track) => track.stop());
+    // Auto-transcribe the take so Stop "just works" — no separate tap needed.
+    transcribeAudio();
+  };
+  state.mediaRecorder.start(1000);
   button.textContent = "Stop Recording";
 }
 
 async function selectedAudioBlob() {
   const input = document.querySelector("#audio-file");
   if (input?.files?.[0]) return input.files[0];
-  if (state.audioChunks.length) return new Blob(state.audioChunks, { type: "audio/webm" });
+  if (state.audioChunks.length) {
+    const type = state.audioMime || state.audioChunks[0]?.type || "audio/webm";
+    return new Blob(state.audioChunks, { type });
+  }
   return null;
 }
 
 async function transcribeAudio() {
   const blob = await selectedAudioBlob();
   if (!blob) {
-    setStatus("No audio selected or recorded");
+    setAudioStatus("No audio selected or recorded", "error");
     return;
   }
-  setStatus("Transcribing audio...");
-  const form = new FormData();
-  form.append("file", blob, blob.name || "recording.webm");
-  const response = await authFetch("/api/audio/transcribe", { method: "POST", body: form });
-  if (!response.ok) throw new Error((await response.json()).detail || "transcription failed");
-  const body = await response.json();
-  state.transcript = body.transcript;
-  document.querySelector("#transcript").value = body.transcript;
-  setStatus("Transcript ready");
+  await computeAudioSha(blob);
+  try {
+    const body = await runWithTimer(audioTranscribeStage, async (signal) => {
+      const form = new FormData();
+      const ext = (blob.type || "").includes("mp4") ? "mp4" : "webm";
+      form.append("file", blob, blob.name || `recording.${ext}`);
+      const response = await authFetch("/api/audio/transcribe", { method: "POST", body: form, signal });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || `HTTP ${response.status}`);
+      return data;
+    });
+    state.transcript = body.transcript;
+    const field = document.querySelector("#transcript");
+    if (field) field.value = body.transcript;
+    setAudioStatus("✅ Transcript ready", "ok");
+  } catch (error) {
+    if (error.name === "AbortError") setAudioStatus("Transcription cancelled", "");
+    else setAudioStatus(`Transcription failed: ${error.message}`, "error");
+  }
 }
 
 async function matchTranscript() {
-  const transcript = document.querySelector("#transcript").value.trim();
+  const field = document.querySelector("#transcript");
+  const transcript = (field?.value || "").trim();
   state.transcript = transcript;
-  setStatus("Matching transcript...");
-  state.matches = await fetchJson("/api/audio/match", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ transcript }),
-  });
-  setStatus(`Matched ${state.matches.items.length} items`);
-  renderMatches();
+  if (!transcript) {
+    setAudioStatus("Add or transcribe a transcript first", "error");
+    return;
+  }
+  if (state.audioHealth && !state.audioHealth.hub_ok) {
+    setAudioStatus("LLM hub unreachable — start the hub before matching", "error");
+    return;
+  }
+  const model = state.audioModel;
+  try {
+    state.matches = await runWithTimer(audioMatchStage, (signal) =>
+      fetchJson("/api/audio/match", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(model ? { transcript, model } : { transcript }),
+        signal,
+      }),
+    );
+    const m = state.matches;
+    setAudioStatus(
+      `✅ Matched ${m.items.length} item${m.items.length === 1 ? "" : "s"} · ${m.candidates} candidates · ${m.transcript_chars} chars · ${m.model}`,
+      "ok",
+    );
+    renderMatches();
+  } catch (error) {
+    if (error.name === "AbortError") setAudioStatus("Match cancelled", "");
+    else setAudioStatus(`Match failed: ${error.message}`, "error");
+  }
 }
 
 async function applyAudio() {
@@ -666,14 +1060,37 @@ async function applyAudio() {
   document.querySelectorAll("[data-audio-idx]:checked").forEach((box) => {
     updates[box.dataset.audioIdx] = Number(box.dataset.count);
   });
-  state.payload = await fetchJson("/api/audio/apply", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ updates }),
+  document.querySelectorAll("[data-audio-zero]:checked").forEach((box) => {
+    updates[box.dataset.audioZero] = 0;
   });
-  state.matches = null;
-  setStatus("Inventory updated");
-  render();
+  if (!Object.keys(updates).length) {
+    setAudioStatus("Nothing accepted to apply", "error");
+    return;
+  }
+  const button = document.querySelector("#apply-audio");
+  if (button) button.disabled = true;
+  setAudioStatus("Applying accepted counts…");
+  try {
+    state.payload = await fetchJson("/api/audio/apply", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        updates,
+        transcript: state.transcript,
+        model: state.audioModel,
+        matches: state.matches,
+        audio_sha: state.audioSha || "",
+        audio_bytes: state.audioBytes || 0,
+      }),
+    });
+    const logPath = state.payload.audio_log_path || "";
+    state.matches = null;
+    render();
+    setAudioStatus(logPath ? `✅ Inventory updated · 📝 log ${logPath.split(/[\\/]/).pop()}` : "✅ Inventory updated", "ok");
+  } catch (error) {
+    setAudioStatus(`Apply failed: ${error.message}`, "error");
+    if (button) button.disabled = false;
+  }
 }
 
 el.search.addEventListener("input", () => { state.query = el.search.value.trim().toLowerCase(); render(); });
@@ -687,6 +1104,9 @@ el.copyLink.addEventListener("click", async () => {
 el.exportCsv.addEventListener("click", () => { window.location.href = "/api/export.csv"; });
 el.closeApp.addEventListener("click", () => { if (confirm("Close the FastAPI app?")) fetchJson("/api/actions/close", { method: "POST" }); });
 
+el.themeToggle.addEventListener("click", toggleTheme);
+
 captureTokenFromURL();
+applyTheme(currentTheme());
 initNav();
 loadInventory();

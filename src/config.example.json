@@ -60,6 +60,7 @@
       "claude_opus"
     ],
     "llm_max_tokens": 4096,
+    "llm_timeout": 600,
     "max_count_clamp_above_target": 5,
     "logs_dir": "audio_audit_logs",
     "test_fixture_path": "tests/list_test_fixture.xlsx"
