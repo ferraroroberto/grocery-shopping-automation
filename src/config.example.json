@@ -47,6 +47,7 @@
     "whisper_url": "http://127.0.0.1:8090",
     "whisper_model": "whisper-large-v3-turbo",
     "language": "es",
+    "voice_transcriber_url": "https://127.0.0.1:8443",
     "llm_base_url": "http://127.0.0.1:8000",
     "llm_model": "gemini_pro",
     "llm_models_available": [

@@ -13,6 +13,7 @@ from io import StringIO
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pandas as pd
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
@@ -154,6 +155,53 @@ def _is_port_open(url: str, timeout: float = 1.5) -> bool:
             return True
     except OSError:
         return False
+
+
+# --------------------------------------------------------------------------- #
+# voice-transcriber session-API proxy
+#
+# The sibling voice-transcriber webapp owns hardened recording: 1 s chunks are
+# streamed and archived to disk the moment they arrive (recoverable if the phone
+# dies), whisper runs rolling partials over SSE, /finish returns the canonical
+# transcript, and /retranscribe recovers a saved take. Rather than duplicate any
+# of that, grocery proxies the recording lifecycle to it on loopback. The VT
+# middleware bypasses loopback callers, so no token is needed; verify=False
+# because it serves a self-signed cert. The phone only ever talks to grocery's
+# own origin — no CORS, no second tunnel.
+# --------------------------------------------------------------------------- #
+
+
+def _voice_url() -> str:
+    return CONFIG["audio_audit"].get("voice_transcriber_url", "https://127.0.0.1:8443").rstrip("/")
+
+
+def _vt_client(read_timeout: float | None = 600.0) -> httpx.AsyncClient:
+    """AsyncClient for the voice-transcriber proxy. Factored out so tests can
+    inject an httpx.MockTransport. read_timeout is None for the long-lived SSE
+    stream (a walk can run >10 min) and bounded for unary calls."""
+    return httpx.AsyncClient(
+        base_url=_voice_url(),
+        verify=False,
+        timeout=httpx.Timeout(connect=5.0, read=read_timeout, write=600.0, pool=5.0),
+    )
+
+
+async def _vt_request(method: str, path: str, **kwargs: Any) -> httpx.Response:
+    """Forward one unary request to the voice-transcriber webapp.
+
+    Connection failures map to 502 (recorder down → the audio view shows the
+    banner); a VT 4xx (unknown session, no chunks) propagates as-is so the
+    client gets the meaningful detail; a VT 5xx collapses to 502.
+    """
+    try:
+        async with _vt_client() as client:
+            resp = await client.request(method, path, **kwargs)
+    except httpx.RequestError as exc:
+        raise _inventory_error(502, f"voice-transcriber unreachable at {_voice_url()}: {exc}") from exc
+    if resp.status_code >= 400:
+        status = resp.status_code if resp.status_code < 500 else 502
+        raise _inventory_error(status, f"voice-transcriber error {resp.status_code}: {resp.text[:300]}")
+    return resp
 
 
 class DeltaPayload(BaseModel):
@@ -544,11 +592,104 @@ def audio_health() -> dict[str, Any]:
     """Reachability of the local LLM hub and whisper-server, for the audio view's
     service-status banner. Mirrors the Streamlit `_service_status_banner` probe."""
     cfg = CONFIG["audio_audit"]
+    voice_url = _voice_url()
     return {
         "hub_ok": _is_port_open(cfg["llm_base_url"]),
         "whisper_ok": _is_port_open(cfg["whisper_url"]),
+        "voice_ok": _is_port_open(voice_url),
         "hub_url": cfg["llm_base_url"],
         "whisper_url": cfg["whisper_url"],
+        "voice_url": voice_url,
+    }
+
+
+@app.post("/api/audio/session")
+async def audio_session_create() -> dict[str, Any]:
+    """Open a voice-transcriber session for a hardened, streamed recording.
+
+    incognito=True so audit takes don't pile into the voice app's History — they
+    live only long enough to drive this audit (and a Redo/retranscribe)."""
+    cfg = CONFIG["audio_audit"]
+    resp = await _vt_request(
+        "POST", "/api/sessions",
+        json={"language": cfg.get("language", "es"), "incognito": True},
+    )
+    return {"session_id": resp.json()["session_id"]}
+
+
+@app.post("/api/audio/session/{session_id}/chunk")
+async def audio_session_chunk(session_id: str, request: Request) -> dict[str, Any]:
+    """Stream one recording chunk straight to the PC (archived on arrival)."""
+    body = await request.body()
+    headers = {}
+    ctype = request.headers.get("content-type")
+    if ctype:
+        headers["Content-Type"] = ctype
+    resp = await _vt_request(
+        "POST", f"/api/sessions/{session_id}/chunk", content=body, headers=headers,
+    )
+    return resp.json()
+
+
+@app.get("/api/audio/session/{session_id}/events")
+async def audio_session_events(session_id: str) -> StreamingResponse:
+    """Proxy the voice-transcriber rolling-transcription SSE through grocery's
+    own origin so EventSource on the phone never needs a second tunnel."""
+
+    async def proxy():
+        try:
+            async with _vt_client(read_timeout=None) as client:
+                async with client.stream("GET", f"/api/sessions/{session_id}/events") as resp:
+                    async for chunk in resp.aiter_raw():
+                        yield chunk
+        except httpx.RequestError:
+            yield b'event: error\ndata: {"detail":"voice-transcriber unreachable"}\n\n'
+
+    return StreamingResponse(
+        proxy(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
+    )
+
+
+@app.post("/api/audio/session/{session_id}/finish")
+async def audio_session_finish(
+    session_id: str, request: Request, language: str | None = None, translate: bool = False,
+) -> dict[str, Any]:
+    """Close the chunked take and return the canonical transcript."""
+    cfg = CONFIG["audio_audit"]
+    lang = language or cfg.get("language", "es")
+    body = await request.body()
+    resp = await _vt_request(
+        "POST", f"/api/sessions/{session_id}/finish",
+        params={"language": lang, "translate": str(translate).lower()},
+        content=body or b"{}",
+        headers={"Content-Type": "application/json"},
+    )
+    data = resp.json()
+    return {
+        "transcript": data.get("transcript", ""),
+        "language": data.get("language", lang),
+        "silent": bool(data.get("silent", False)),
+    }
+
+
+@app.post("/api/audio/session/{session_id}/retranscribe")
+async def audio_session_retranscribe(
+    session_id: str, language: str | None = None, translate: bool = False,
+) -> dict[str, Any]:
+    """Re-run whisper on the saved audio (Redo / crash recovery)."""
+    cfg = CONFIG["audio_audit"]
+    lang = language or cfg.get("language", "es")
+    resp = await _vt_request(
+        "POST", f"/api/sessions/{session_id}/retranscribe",
+        params={"language": lang, "translate": str(translate).lower()},
+    )
+    data = resp.json()
+    return {
+        "transcript": data.get("transcript", ""),
+        "language": data.get("language", lang),
+        "silent": bool(data.get("silent", False)),
     }
 
 
