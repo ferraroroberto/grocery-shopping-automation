@@ -31,6 +31,15 @@ const state = {
   audioHealth: null,
   audioSha: "",
   audioBytes: 0,
+  // Hardened recording via the voice-transcriber session API (issue #30).
+  audioStream: null,
+  sessionId: "",
+  uploadChain: Promise.resolve(),
+  pendingUploads: 0,
+  bytesSent: 0,
+  recordStartedAt: 0,
+  recordTimer: null,
+  audioEventSource: null,
   matches: null,
   shopping: loadShoppingState(),
 };
@@ -176,17 +185,26 @@ function renderAudioHealth() {
     return;
   }
   const problems = [];
+  if (!h.voice_ok) problems.push(`❌ Voice recorder unreachable at <code>${html(h.voice_url)}</code> — start the voice-transcriber tray`);
   if (!h.hub_ok) problems.push(`❌ LLM hub unreachable at <code>${html(h.hub_url)}</code>`);
   if (!h.whisper_ok) problems.push(`❌ Whisper server unreachable at <code>${html(h.whisper_url)}</code>`);
   if (!problems.length) {
     banner.className = "panel-status ok";
-    banner.innerHTML = "✅ Hub and whisper-server reachable";
+    banner.innerHTML = "✅ Voice recorder, hub and whisper-server reachable";
   } else {
     banner.className = "panel-status error";
-    banner.innerHTML = `${problems.join("<br>")}<br>Start the local hub on :8000 and whisper-server on :8090 (claude-local-calls).`;
+    banner.innerHTML = `${problems.join("<br>")}<br>Voice recorder is the voice-transcriber app; hub :8000 + whisper :8090 are claude-local-calls.`;
   }
   const matchBtn = document.querySelector("#match-transcript");
   if (matchBtn && !audioAbort) matchBtn.disabled = !h.hub_ok;
+  // Record needs the voice-transcriber webapp up — disable it (and show why)
+  // rather than letting a take silently hang. File upload + Match still work.
+  const recordBtn = document.querySelector("#record-toggle");
+  const recording = state.mediaRecorder && state.mediaRecorder.state === "recording";
+  if (recordBtn && !recording) {
+    recordBtn.disabled = !h.voice_ok;
+    recordBtn.title = h.voice_ok ? "" : "Voice recorder unreachable — start the voice-transcriber tray";
+  }
 }
 
 function currentTheme() {
@@ -706,11 +724,16 @@ function renderAudio() {
     <h2>Audio Audit</h2>
     <div id="audio-health-banner" class="panel-status"></div>
     <div class="hint">Keep the checklist visible while recording. Announce the zone, then item counts in Spanish.</div>
-    <div class="actions"><button id="record-toggle" class="primary">Start Recording</button><input id="audio-file" type="file" accept="audio/*"></div>
+    <div class="actions">
+      <button id="record-toggle" class="primary">Start Recording</button>
+      <button id="audio-redo" class="secondary" type="button" hidden>↻ Redo</button>
+      <input id="audio-file" type="file" accept="audio/*">
+    </div>
+    <div class="hint">Recording streams to the PC as you talk — the take is safe even if the phone dies. ↻ Redo re-transcribes the saved audio.</div>
     <div class="zone-list">${checklist}</div>
   </section>
   <section class="panel">
-    <div class="row"><h2>Transcript</h2><button id="transcribe-audio" class="secondary">Transcribe</button></div>
+    <div class="row"><h2>Transcript</h2><button id="transcribe-audio" class="secondary">Transcribe File</button></div>
     <textarea id="transcript" placeholder="Transcript appears here, or paste one manually.">${html(state.transcript)}</textarea>
     <label class="field-label" for="audio-model">Match model
       <select id="audio-model"${modelOptions ? "" : " disabled"}>${modelOptions || `<option>${html(state.audioModel || "config default")}</option>`}</select>
@@ -931,6 +954,7 @@ el.main.addEventListener("click", async (event) => {
     render();
   }
   if (event.target.id === "record-toggle") await toggleRecording(event.target);
+  if (event.target.id === "audio-redo") await redoTranscribe();
   if (event.target.id === "transcribe-audio") await transcribeAudio();
   if (event.target.id === "match-transcript") await matchTranscript();
   if (event.target.id === "apply-audio") await applyAudio();
@@ -941,11 +965,14 @@ el.main.addEventListener("click", async (event) => {
 // Wipe the transcript + match results so the next audit starts from scratch.
 function clearAudio() {
   if (audioAbort) audioAbort.abort();
+  closeAudioPartialStream();
   state.transcript = "";
   state.matches = null;
   state.audioSha = "";
   state.audioBytes = 0;
   state.audioChunks = [];
+  state.sessionId = "";
+  state.bytesSent = 0;
   const fileInput = document.querySelector("#audio-file");
   if (fileInput) fileInput.value = "";
   render();
@@ -964,24 +991,217 @@ function pickAudioMime() {
   return "";
 }
 
+function formatBytes(n) {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+// Hardened recording (issue #30): every 1 s chunk is streamed to the PC and
+// archived to disk by the voice-transcriber app the moment it arrives, so the
+// take survives a dying phone. Rolling partials flow back over SSE; Stop yields
+// the canonical transcript. grocery only proxies — VT owns the audio.
 async function toggleRecording(button) {
   if (state.mediaRecorder && state.mediaRecorder.state === "recording") {
+    button.disabled = true;
+    button.textContent = "⏳ Finishing…";
     state.mediaRecorder.stop();
-    button.textContent = "Start Recording";
     return;
   }
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  state.audioChunks = [];
+  if (state.audioHealth && !state.audioHealth.voice_ok) {
+    setAudioStatus("Voice recorder unreachable — start the voice-transcriber tray", "error");
+    return;
+  }
+
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (_) {
+    setAudioStatus("Mic permission denied", "error");
+    return;
+  }
+
+  let session;
+  try {
+    session = await fetchJson("/api/audio/session", { method: "POST" });
+  } catch (error) {
+    stream.getTracks().forEach((track) => track.stop());
+    setAudioStatus(`Could not start recording session: ${error.message}`, "error");
+    return;
+  }
+
+  state.audioStream = stream;
+  state.sessionId = session.session_id;
   state.audioMime = pickAudioMime();
+  state.uploadChain = Promise.resolve();
+  state.pendingUploads = 0;
+  state.bytesSent = 0;
+  state.audioSha = "";
+  state.audioBytes = 0;
+  state.recordStartedAt = Date.now();
+
   state.mediaRecorder = new MediaRecorder(stream, state.audioMime ? { mimeType: state.audioMime } : undefined);
-  state.mediaRecorder.ondataavailable = (event) => { if (event.data.size) state.audioChunks.push(event.data); };
+  state.mediaRecorder.ondataavailable = (event) => {
+    if (event.data && event.data.size) enqueueChunkUpload(event.data);
+  };
   state.mediaRecorder.onstop = () => {
     stream.getTracks().forEach((track) => track.stop());
-    // Auto-transcribe the take so Stop "just works" — no separate tap needed.
-    transcribeAudio();
+    state.audioStream = null;
+    finishRecording();
   };
-  state.mediaRecorder.start(1000);
+  state.mediaRecorder.start(1000); // 1 s cadence — survives a connection drop
+
+  startRecordTimer();
+  openAudioPartialStream(state.sessionId);
   button.textContent = "Stop Recording";
+  const redo = document.querySelector("#audio-redo");
+  if (redo) redo.hidden = true;
+}
+
+// Serialised upload chain — each chunk POSTs after the previous resolves so
+// they land on disk in order without overwhelming the connection.
+function enqueueChunkUpload(chunk) {
+  state.pendingUploads += 1;
+  const sessionId = state.sessionId;
+  state.uploadChain = state.uploadChain.then(async () => {
+    try {
+      const response = await authFetch(`/api/audio/session/${sessionId}/chunk`, {
+        method: "POST",
+        headers: { "Content-Type": chunk.type || state.audioMime || "audio/webm" },
+        body: chunk,
+      });
+      if (response.ok) state.bytesSent += chunk.size;
+      else console.warn("chunk upload failed", response.status);
+    } catch (error) {
+      console.warn("chunk upload errored", error);
+    } finally {
+      state.pendingUploads -= 1;
+    }
+  });
+}
+
+function startRecordTimer() {
+  stopRecordTimer();
+  const tick = () => {
+    const elapsed = Math.floor((Date.now() - state.recordStartedAt) / 1000);
+    setAudioStatus(`🔴 Recording · ${formatElapsed(elapsed)} · ${formatBytes(state.bytesSent)} streamed to PC`);
+  };
+  tick();
+  state.recordTimer = window.setInterval(tick, 1000);
+}
+
+function stopRecordTimer() {
+  if (state.recordTimer) {
+    window.clearInterval(state.recordTimer);
+    state.recordTimer = null;
+  }
+}
+
+// VT's rolling-transcription SSE, proxied through grocery's own origin. Partials
+// fill the transcript box live; if VT has rolling transcription off, no events
+// arrive and the box simply fills on finish.
+function openAudioPartialStream(sessionId) {
+  closeAudioPartialStream();
+  if (!("EventSource" in window)) return;
+  let url = `/api/audio/session/${sessionId}/events`;
+  const token = storedToken();
+  if (token) url += `?token=${encodeURIComponent(token)}`;
+  let es;
+  try {
+    es = new EventSource(url);
+  } catch (_) {
+    return;
+  }
+  state.audioEventSource = es;
+  es.addEventListener("partial", (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      if (typeof data.transcript === "string") {
+        state.transcript = data.transcript;
+        const field = document.querySelector("#transcript");
+        if (field) field.value = data.transcript;
+      }
+    } catch (_) {}
+  });
+  es.addEventListener("final", () => closeAudioPartialStream());
+  es.onerror = () => {}; // browser auto-retries; leave the handle in place
+}
+
+function closeAudioPartialStream() {
+  if (state.audioEventSource) {
+    try { state.audioEventSource.close(); } catch (_) {}
+    state.audioEventSource = null;
+  }
+}
+
+async function finishRecording() {
+  const button = document.querySelector("#record-toggle");
+  stopRecordTimer();
+  try {
+    setAudioStatus(`Finalising upload · ${state.pendingUploads} chunk(s) left…`);
+    await state.uploadChain;
+    state.audioBytes = state.bytesSent;
+    const body = await runWithTimer(audioTranscribeStage, async (signal) => {
+      const response = await authFetch(
+        `/api/audio/session/${state.sessionId}/finish?language=es&translate=false`,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}", signal },
+      );
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || `HTTP ${response.status}`);
+      return data;
+    });
+    closeAudioPartialStream();
+    if (body.silent) {
+      setAudioStatus("🤫 Empty audio — nothing transcribed", "");
+    } else {
+      state.transcript = body.transcript || "";
+      const field = document.querySelector("#transcript");
+      if (field) field.value = state.transcript;
+      setAudioStatus("✅ Transcript ready — recording saved on the PC", "ok");
+    }
+    const redo = document.querySelector("#audio-redo");
+    if (redo) redo.hidden = !state.sessionId;
+  } catch (error) {
+    closeAudioPartialStream();
+    if (error.name === "AbortError") {
+      setAudioStatus("Finish cancelled — recording is safe on the PC, tap ↻ Redo", "");
+    } else {
+      setAudioStatus(`Transcription failed: ${error.message} — recording is safe on the PC, tap ↻ Redo`, "error");
+    }
+    const redo = document.querySelector("#audio-redo");
+    if (redo) redo.hidden = !state.sessionId;
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Start Recording";
+    }
+  }
+}
+
+// Re-run whisper on the saved audio — crash recovery, or after a finish error.
+async function redoTranscribe() {
+  if (!state.sessionId) {
+    setAudioStatus("No saved recording to redo", "error");
+    return;
+  }
+  try {
+    const body = await runWithTimer(audioTranscribeStage, async (signal) => {
+      const response = await authFetch(
+        `/api/audio/session/${state.sessionId}/retranscribe?language=es&translate=false`,
+        { method: "POST", signal },
+      );
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || `HTTP ${response.status}`);
+      return data;
+    });
+    state.transcript = body.transcript || "";
+    const field = document.querySelector("#transcript");
+    if (field) field.value = state.transcript;
+    setAudioStatus(body.silent ? "🤫 Empty audio — nothing transcribed" : "✅ Re-transcribed from saved audio", body.silent ? "" : "ok");
+  } catch (error) {
+    if (error.name === "AbortError") setAudioStatus("Redo cancelled", "");
+    else setAudioStatus(`Redo failed: ${error.message}`, "error");
+  }
 }
 
 async function selectedAudioBlob() {
