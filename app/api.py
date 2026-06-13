@@ -5,7 +5,6 @@ import csv
 import hmac
 import os
 import platform
-import socket
 import subprocess
 import threading
 import uuid
@@ -34,18 +33,14 @@ from src.data import (
     update_item_quantity,
     update_target_quantity,
 )
-from src.audio_audit_core import clean_transcript, write_audit_log
+from src.audio_audit_core import WHISPER_PROMPT_ES, clean_transcript, write_audit_log
 from src.inventory_extract import ExtractionError, extract
+from src.net import is_port_open, local_ip
 from src.transcribe_client import FfmpegMissingError, TranscriptionError, transcode_to_wav, transcribe
 from src.webapp_config import WebappConfig, load_webapp_config
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 REPO_ROOT = Path(__file__).resolve().parent.parent
-WHISPER_PROMPT_ES = (
-    "Inventario domestico en espanol. "
-    "Zonas: nevera, congelador, despensa, estante, garaje, bajo escalera. "
-    "Cantidades: cero, uno, una, dos, tres, cuatro, cinco, seis, siete, ocho, nueve, diez."
-)
 
 _AUTOMATION_RUN: dict[str, Any] = {}
 NO_CACHE_PATH_PREFIXES = ("/", "/static/")
@@ -141,20 +136,6 @@ def _https_cert_present() -> bool:
         (REPO_ROOT / "webapp" / "certificates" / "cert.pem").exists()
         or (REPO_ROOT / "certificates" / "cert.pem").exists()
     )
-
-
-def _is_port_open(url: str, timeout: float = 1.5) -> bool:
-    """TCP reachability probe for a service URL (hub / whisper-server)."""
-    from urllib.parse import urlparse
-
-    parsed = urlparse(url)
-    host = parsed.hostname or "127.0.0.1"
-    port = parsed.port or (443 if parsed.scheme == "https" else 80)
-    try:
-        with socket.create_connection((host, port), timeout=timeout):
-            return True
-    except OSError:
-        return False
 
 
 # --------------------------------------------------------------------------- #
@@ -324,7 +305,7 @@ def access_urls() -> dict[str, Any]:
     cfg: WebappConfig = app.state.webapp_config
     scheme = "https" if _https_cert_present() else "http"
     local = f"{scheme}://127.0.0.1:{cfg.port}"
-    lan = f"{scheme}://{_local_ip()}:{cfg.port}"
+    lan = f"{scheme}://{local_ip()}:{cfg.port}"
     cloudflare_url = ""
     tunnel_file = REPO_ROOT / "webapp" / "last_tunnel_url.txt"
     if tunnel_file.exists():
@@ -594,9 +575,9 @@ def audio_health() -> dict[str, Any]:
     cfg = CONFIG["audio_audit"]
     voice_url = _voice_url()
     return {
-        "hub_ok": _is_port_open(cfg["llm_base_url"]),
-        "whisper_ok": _is_port_open(cfg["whisper_url"]),
-        "voice_ok": _is_port_open(voice_url),
+        "hub_ok": is_port_open(cfg["llm_base_url"]),
+        "whisper_ok": is_port_open(cfg["whisper_url"]),
+        "voice_ok": is_port_open(voice_url),
         "hub_url": cfg["llm_base_url"],
         "whisper_url": cfg["whisper_url"],
         "voice_url": voice_url,
@@ -768,14 +749,3 @@ def _get_row(df: pd.DataFrame, item_id: int) -> pd.Series:
     if item_id not in df.index:
         raise _inventory_error(404, f"item {item_id} not found")
     return df.loc[item_id]
-
-
-def _local_ip() -> str:
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.connect(("8.8.8.8", 80))
-        ip = sock.getsockname()[0]
-        sock.close()
-        return ip
-    except OSError:
-        return "127.0.0.1"
