@@ -15,13 +15,6 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-import streamlit as st  # noqa: E402  — bulk_apply_tenemos calls st.error/st.warning
-
-# Streamlit normally raises NoSessionContext when called from a plain script;
-# patch the two we use to no-ops.
-st.error = lambda *a, **k: None  # type: ignore[assignment]
-st.warning = lambda *a, **k: None  # type: ignore[assignment]
-
 import src.data as data  # noqa: E402
 
 fixture = _REPO_ROOT / "tests" / "list_test_fixture.xlsx"

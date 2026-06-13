@@ -14,7 +14,6 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
-import requests
 from anthropic import Anthropic, APIError
 
 logger = logging.getLogger(__name__)
@@ -180,12 +179,3 @@ def extract(
         ],
         raw_text=raw_text,
     )
-
-
-def health_check(base_url: str, timeout: int = 5) -> bool:
-    """Reach the hub's /v1/models endpoint."""
-    try:
-        resp = requests.get(base_url.rstrip("/") + "/v1/models", timeout=timeout)
-        return resp.status_code == 200
-    except requests.RequestException:
-        return False
