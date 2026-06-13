@@ -18,12 +18,8 @@ Comprehensive household inventory management across multiple operational modes. 
 ## 🏗️ Project Structure
 
 - **`app/`** — UI layers.
-  - `api.py` — FastAPI entrypoint (the primary app): inventory, audit, edit/add, shopping, automation, and audio-audit endpoints.
-  - `middleware.py` — bearer-token auth for non-loopback (remote) requests.
-  - `static/` — the PWA front end (`index.html`, `app.js`).
-  - `automation_runner.py` — shared subprocess plumbing that streams the cart-automation CLI into the app.
-  - `app.py` — legacy Streamlit entrypoint (page config, session state, sidebar, mode routing).
-  - `audit.py` / `audio_audit.py` / `edit_targets.py` / `edit_item.py` / `add_item.py` / `shopping.py` / `export.py` / `ui_helpers.py` — Streamlit per-mode modules, each exposing `main(df)`.
+  - *Primary (FastAPI/PWA on `:8502`):* `api.py` (entrypoint — inventory, audit, edit/add, shopping, automation, and audio-audit endpoints), `middleware.py` (bearer-token auth for non-loopback requests), `static/` (PWA front end: `index.html`, `app.js`), `automation_runner.py` (shared subprocess plumbing that streams the cart-automation CLI into the app).
+  - *Legacy (Streamlit fallback on `:8501`):* `app.py` (entrypoint — page config, session state, sidebar, mode routing), `audit.py` / `audio_audit.py` / `edit_targets.py` / `edit_item.py` / `add_item.py` / `shopping.py` / `export.py` / `ui_helpers.py` (per-mode modules, each exposing `main(df)`).
 - **`src/`** — UI-free data/business layer.
   - `data.py` — config loading, XLSX load/save, supermarket stats, quantity mutators.
   - `gen_ssl_cert.py` — generate a local CA + server cert for HTTPS.
