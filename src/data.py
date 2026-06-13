@@ -101,7 +101,6 @@ _suppress_known_log_noise()
 
 COLUMNS = CONFIG["data"]["columns"]
 MODES = CONFIG["ui"]["modes"]
-UI_LABELS = CONFIG["data"]["ui_labels"]
 
 SPREADSHEET_LOCKED_HINT = (
     "The spreadsheet is open in Excel or locked by OneDrive. "
