@@ -103,7 +103,9 @@ surfaces share the subprocess plumbing in `app/automation_runner.py`.
   shopper — if it has lapsed to a guest, a `SessionExpiredError` is raised. A
   product page that renders an empty shell — a stale/discontinued buy URL — is
   reported as an end-of-run **🔗 Unavailable (check URL)** alert, not a hard
-  failure.
+  failure. Selectors use Chakra component classes, ARIA labels, and visible
+  button text only — never the Emotion `css-*` hashes, which are regenerated
+  on every deploy and will silently break the handler.
 
 ## Modules
 
