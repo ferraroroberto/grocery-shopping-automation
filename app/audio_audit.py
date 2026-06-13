@@ -10,18 +10,21 @@ Pre-requisites (see README.md and the claude-local-calls sibling project):
 from __future__ import annotations
 
 import logging
-import socket
 import threading
 import time
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
-from urllib.parse import urlparse
 
 import pandas as pd
 import streamlit as st
 
 from app.ui_helpers import render_save_error
-from src.audio_audit_core import audio_sha256, clean_transcript, write_audit_log
+from src.audio_audit_core import (
+    WHISPER_PROMPT_ES,
+    audio_sha256,
+    clean_transcript,
+    write_audit_log,
+)
 from src.data import (
     COLUMNS,
     CONFIG,
@@ -30,19 +33,12 @@ from src.data import (
     bulk_apply_tenemos,
 )
 from src.inventory_extract import ExtractionError, ExtractionResult, extract
+from src.net import is_port_open
 from src.transcribe_client import TranscriptionError, transcribe
 
 logger = logging.getLogger(__name__)
 
 ZONE_KEYWORDS = ["nevera", "congelador", "despensa", "estante", "garaje", "bajo escalera"]
-
-# Vocabulary hint for whisper-server. Reduces transcription drift on long audio.
-WHISPER_PROMPT_ES = (
-    "Inventario doméstico en español. "
-    "Zonas: nevera, congelador, despensa, estante, garaje, bajo escalera. "
-    "Cantidades: cero, uno, una, dos, tres, cuatro, cinco, seis, siete, ocho, nueve, diez. "
-    "Frases típicas: tengo dos, no hay, ninguno, hay tres, paso a la nevera."
-)
 
 
 def _format_elapsed(seconds: int) -> str:
@@ -106,20 +102,9 @@ def _audio_cfg() -> Dict:
     return CONFIG["audio_audit"]
 
 
-def _is_port_open(url: str, timeout: float = 1.5) -> bool:
-    parsed = urlparse(url)
-    host = parsed.hostname or "127.0.0.1"
-    port = parsed.port or 80
-    try:
-        with socket.create_connection((host, port), timeout=timeout):
-            return True
-    except OSError:
-        return False
-
-
 def _service_status_banner(cfg: Dict) -> bool:
-    hub_ok = _is_port_open(cfg["llm_base_url"])
-    whisper_ok = _is_port_open(cfg["whisper_url"])
+    hub_ok = is_port_open(cfg["llm_base_url"])
+    whisper_ok = is_port_open(cfg["whisper_url"])
     if hub_ok and whisper_ok:
         return True
     msgs = []
@@ -598,7 +583,7 @@ def _render_transcribed(df: pd.DataFrame, cfg: Dict) -> None:
         help="Routed through the local LLM hub. Defaults to Gemini Pro.",
     )
 
-    hub_ok = _is_port_open(cfg["llm_base_url"])
+    hub_ok = is_port_open(cfg["llm_base_url"])
     if not hub_ok:
         st.error(
             f"❌ LLM hub unreachable at `{cfg['llm_base_url']}`. Start the hub "

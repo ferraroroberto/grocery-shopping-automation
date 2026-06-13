@@ -3,7 +3,6 @@
 import logging
 import os
 import platform
-import socket
 import subprocess
 from pathlib import Path
 
@@ -128,18 +127,6 @@ def buy_html(qty: int) -> str:
             f"color:#ff4b4b;font-weight:600'>↓{qty}</div>"
         )
     return "<div style='text-align:center;padding-top:6px;font-size:0.93rem;color:#21c354'>✓</div>"
-
-
-def get_local_ip() -> str:
-    """Return the LAN IP of this machine."""
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except Exception:
-        return "localhost"
 
 
 def copy_to_clipboard(text: str) -> None:
