@@ -15,7 +15,7 @@ sys.path.insert(0, _repo_str)
 import streamlit as st
 
 from app import add_item, audio_audit, audit, edit_item, edit_targets, export, shopping
-from app.ui_helpers import CSS, copy_to_clipboard, get_local_ip, open_inventory_spreadsheet
+from app.ui_helpers import CSS, copy_to_clipboard, open_inventory_spreadsheet
 from src.data import (
     COLUMNS,
     CONFIG,
@@ -25,6 +25,7 @@ from src.data import (
     get_supermarket_stats,
     load_inventory_data,
 )
+from src.net import local_ip
 
 
 def _render_sidebar() -> str:
@@ -46,7 +47,7 @@ def _render_sidebar() -> str:
         ):
             open_inventory_spreadsheet()
 
-        local_url = f"https://{get_local_ip()}:8501"
+        local_url = f"https://{local_ip()}:8501"
         if st.button(
             "📋 Copy link",
             help=f"Copies {local_url} to clipboard — paste in Telegram to open on mobile.",

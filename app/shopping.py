@@ -156,16 +156,12 @@ def _render_automation_section(df: pd.DataFrame) -> None:
 
 
 def main(df: pd.DataFrame) -> None:
-    """Render the shopping list mode interface."""
-    if "bought_items" not in st.session_state:
-        st.session_state.bought_items = set()
-    if "extra_shopping_items" not in st.session_state:
-        st.session_state.extra_shopping_items = {}
-    if "extra_bought_items" not in st.session_state:
-        st.session_state.extra_bought_items = {}
-    if "extra_item_counter" not in st.session_state:
-        st.session_state.extra_item_counter = 0
+    """Render the shopping list mode interface.
 
+    Session-state keys (``bought_items``, ``extra_shopping_items``,
+    ``extra_bought_items``, ``extra_item_counter``) are initialised once by
+    ``app.app._init_session_state`` before any mode renders.
+    """
     shopping_items = df[df[COLUMNS["comprar"]] > 0].copy()
 
     base_supermarkets = get_unique_supermarkets(shopping_items) if not shopping_items.empty else []

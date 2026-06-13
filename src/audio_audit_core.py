@@ -21,6 +21,16 @@ from src.data import COLUMNS
 
 logger = logging.getLogger(__name__)
 
+# Vocabulary hint for the whisper-server call. Reduces transcription drift on
+# long audio. Shared by both front ends so the two UIs feed whisper the same
+# hint and produce the same transcription.
+WHISPER_PROMPT_ES = (
+    "Inventario doméstico en español. "
+    "Zonas: nevera, congelador, despensa, estante, garaje, bajo escalera. "
+    "Cantidades: cero, uno, una, dos, tres, cuatro, cinco, seis, siete, ocho, nueve, diez. "
+    "Frases típicas: tengo dos, no hay, ninguno, hay tres, paso a la nevera."
+)
+
 
 def clean_transcript(text: str) -> str:
     """Light pre-clean before sending to the LLM: collapse whitespace and dedupe
