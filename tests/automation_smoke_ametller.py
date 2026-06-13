@@ -4,8 +4,6 @@ Drives `ametller.add_to_cart` against one real product URL and asserts it
 returns without raising. This is a LIVE test:
 
 * Requires a bootstrapped Chrome profile (`python -m automation.bootstrap_session`).
-* Requires `automation.ametller_postal_code` set in `src/config.json` (the
-  delivery postal-code modal needs it the first time something is added).
 * Opens a real headed Chrome window and really adds the item to the cart.
 * Not a CI test — run it manually and watch the window.
 

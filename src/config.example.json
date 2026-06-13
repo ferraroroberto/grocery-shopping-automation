@@ -14,16 +14,6 @@
       "cantidad": "cantidad",
       "tenemos": "tenemos",
       "comprar": "comprar"
-    },
-    "ui_labels": {
-      "target": "cantidad",
-      "current": "tenemos",
-      "buy": "comprar"
-    },
-    "excel_columns": {
-      "target": "G",
-      "current": "H",
-      "buy": "I"
     }
   },
   "ui": {
@@ -66,9 +56,7 @@
     "logs_dir": "audio_audit_logs",
     "test_fixture_path": "tests/list_test_fixture.xlsx"
   },
-  "automation": {
-    "ametller_postal_code": ""
-  },
+  "automation": {},
   "logging": {
     "level": "INFO",
     "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
