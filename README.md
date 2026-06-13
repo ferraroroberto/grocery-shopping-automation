@@ -25,6 +25,7 @@ Comprehensive household inventory management across multiple operational modes. 
   - `gen_ssl_cert.py` — generate a local CA + server cert for HTTPS.
   - `inventory_extract.py` / `transcribe_client.py` — audio-audit transcription + LLM extraction (via the `claude-local-calls` hub).
   - `audio_audit_core.py` — UI-agnostic transcript cleaning + audit-log writer shared by the PWA and the legacy Streamlit mode.
+  - `net.py` — LAN-IP / port-probe helpers shared by the FastAPI and Streamlit front ends.
   - `webapp_config.py` — remote-access (token/password) config loader.
   - `config.example.json` — committed template; copied to `src/config.json` (gitignored) on first run.
 - **`automation/`** — Playwright + real-Chrome browser cart automation (see `automation/README.md`).
