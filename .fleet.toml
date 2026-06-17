@@ -1,0 +1,9 @@
+# .fleet.toml — this repo's card on the fleet architecture map.
+# fleet-config's /system-map aggregates every repo's .fleet.toml. Keep current:
+# update in the same PR as any material change (layer, port, role, one-line
+# description, exposed services). Schema: fleet-config/architecture/README.md.
+layer        = "working-web"
+icon         = "🛒"
+display_name = "grocery"
+description  = "Inventory + shopping PWA, voice-audit mode."
+tag          = ["uses", "hub + whisper"]
