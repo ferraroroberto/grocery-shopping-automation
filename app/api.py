@@ -484,6 +484,14 @@ def automation_stop() -> dict[str, Any]:
     return automation_status()
 
 
+@app.post("/api/automation/reset")
+def automation_reset() -> dict[str, Any]:
+    """Dismiss a finished run — clears server state so the panel can start fresh."""
+    if not automation_runner.is_running(_AUTOMATION_RUN.get("process")):
+        _AUTOMATION_RUN.clear()
+    return automation_status()
+
+
 @app.get("/api/automation/command")
 def automation_command(store: str = "all", dry_run: bool = True, cart_mode: str = "keep") -> dict[str, str]:
     """Preview the exact argv a run would spawn (mirrors the Streamlit command preview)."""
