@@ -603,7 +603,7 @@ function renderAutomation() {
     <div class="three">
       <select id="automation-store" class="field"><option value="all">All stores</option>${stores.map((s) => `<option value="${html(s)}">${html(s)}</option>`).join("")}</select>
       <select id="automation-cart-mode" class="field"><option value="keep">Keep cart</option><option value="clean">Clean cart</option></select>
-      <label class="hint"><input id="automation-dry-run" type="checkbox" checked> Dry run</label>
+      <label class="hint"><input id="automation-dry-run" type="checkbox"> Dry run</label>
     </div>
     <div id="automation-clean-warn" class="panel-status error" hidden>⚠️ Clean mode empties the store cart first — anything added by hand will be removed.</div>
     <label id="automation-clean-confirm-wrap" class="hint" hidden><input id="automation-clean-confirm" type="checkbox"> Yes, empty the cart first</label>
@@ -945,6 +945,7 @@ el.main.addEventListener("click", async (event) => {
   if (event.target.id === "automation-stop") await fetchJson("/api/automation/stop", { method: "POST" });
   if (event.target.id === "automation-dismiss") {
     stopAutomationTimer();
+    await fetchJson("/api/automation/reset", { method: "POST" }).catch(() => null);
     renderAutomation();
   }
   if (event.target.id === "shopping-unmark-all") {
