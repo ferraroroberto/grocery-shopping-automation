@@ -1,13 +1,9 @@
-# Building the browser cart automation — what we learned
+# Browser cart automation — implementation notes and adding a new store
 
-**Date:** 2026-05-14
-**Issues:** #1 (scaffolding & profile), #2 (Mercadona handler), #3 (Ametller handler), #4 (Streamlit integration)
-**PRs:** #5 (scaffolding), #6 (handlers + CLI), #7 (Streamlit integration)
-
-This is the retrospective for the four issues that turned "I open two grocery
-sites every week and click ~50 products by hand" into "the app fills both
-carts and I just pay". It is written so the *next* store handler is faster to
-add — most of the cost was discovering quirks, not writing code.
+How the `automation/` package is structured and why. Written so the *next*
+store handler is faster to add — most of the cost was discovering quirks, not
+writing code. For the canonical module-by-module reference see
+[`automation/README.md`](../automation/README.md).
 
 ---
 
@@ -93,32 +89,36 @@ fix and the staleness is visible.
   goes +3. Every run verifies *both* the product's on-page unit count *and* the
   header cart badge delta before declaring success.
 
-### Ametller Origen (`ametller.py`) — a VTEX store, counts *distinct products*
+### Ametller Origen (`ametller.py`) — Salesforce Commerce Cloud, SCAPI verification
 
-- VTEX class names are long and ugly but stable
-  (`.vtex-numeric-stepper__plus-button`, etc.). It hydrates slowly — waits had
-  to be deliberately generous (3–4 s after navigation).
-- Quantity model is the opposite of Mercadona: you set the stepper *first*,
-  then click "Añadir" once. And the header badge counts **distinct products** —
-  3 units of one product still shows "1". So the badge is **useless for
-  verification**; the handler opens the **minicart drawer** and reads the
-  product's line quantity instead.
-- **Three modals**, all of which had to be handled:
-  - *Cart-restore* ("Ya tienes una cesta en curso") at session start — always
-    click "MANTENER CESTA ANTERIOR" to keep the existing cart. Clicking it
-    **reloads the page**, so you must `wait_for_load_state("domcontentloaded")`
-    afterwards or the next action throws *"Execution context was destroyed"*.
-  - *Delivery postal-code* modal — this one was a red herring at first: a
-    `.vtex-modal__overlay` was intercepting clicks and it looked like the
-    cart-restore modal. It is actually triggered by the *first* "Añadir" and
-    needs a postal code. The handler fills it from
-    `automation.ametller_postal_code` in `config.json`; once a delivery option
-    is saved it persists in the profile and never reappears.
-  - The first "Añadir" click is sometimes consumed by that postal-code modal,
-    so the handler re-checks the minicart and retries the add once.
-- Product-name matching across the minicart had to be normalised (lowercase,
-  collapsed whitespace) because Ametller serves both Catalan and Spanish URL
-  slugs / labels.
+Ametller Origen migrated off VTEX to **Salesforce Commerce Cloud** (the
+Chakra-UI "Composable Storefront") in May 2026 (issue #12).
+
+- Quantity model: set the stepper *first*, then click "AÑADIR" once. The
+  site hydrates slowly — navigation waits are deliberately generous (3–4 s).
+- **Verification reads the SCAPI Shopper Baskets API** directly — not the
+  minicart DOM. The storefront exposes its own basket endpoint via
+  `/mobify/proxy/api`; the handler calls it with the SLAS shopper token that
+  the storefront stores in `localStorage` (`access_token_ametller`). Both the
+  idempotency check ("already have N") and the post-add verification ("add
+  landed") use this authoritative source.
+- **Lines are matched by numeric `productId`**, read from the redirected URL
+  (`…/{productId}.html`). The legacy `/p` buy URLs stored in the inventory
+  sheet 301-redirect there, so no inventory change was needed.
+- **Session check**: the same `localStorage` entry reveals whether the session
+  is still a *registered* shopper. If it has lapsed to a guest, the handler
+  raises `SessionExpiredError` immediately.
+- **Selectors** use Chakra component classes (`h1.chakra-heading`,
+  `input.chakra-numberinput__field`) and ARIA labels — never the Emotion
+  `css-*` hashes, which are regenerated on every deploy and would silently
+  break the handler.
+- A product page that renders an empty shell (no title, no productId) is
+  reported as `ProductUnavailableError` — a run-end alert to fix the buy URL,
+  not a hard failure.
+- After firing "AÑADIR", the handler polls the basket a few times with a
+  short delay, returning as soon as the target quantity appears. A retry (up
+  to `_MAX_ADD_ATTEMPTS`) reloads the product page and re-reads the basket to
+  avoid double-adding.
 
 ### Shared design decisions
 
