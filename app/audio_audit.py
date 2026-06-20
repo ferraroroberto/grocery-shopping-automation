@@ -237,7 +237,7 @@ def _run_extract(df: pd.DataFrame, cfg: Dict) -> None:
             base_url=cfg["llm_base_url"],
             model=model,
             max_tokens=cfg.get("llm_max_tokens", 4096),
-            timeout=300,
+            timeout=cfg.get("llm_timeout", 600),
         )
 
     result, error = _run_with_progress(progress, work, _extract_progress)
