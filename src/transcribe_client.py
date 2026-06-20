@@ -113,19 +113,3 @@ def transcribe(
 
     logger.info(f"✅ transcript ({len(text)} chars): {text[:120]}…")
     return text
-
-
-def health_check(whisper_url: str, timeout: int = 5) -> bool:
-    """Best-effort reachability probe. The whisper.cpp server has no /health,
-    so we just open a TCP connection."""
-    import socket
-    from urllib.parse import urlparse
-
-    parsed = urlparse(whisper_url)
-    host = parsed.hostname or "127.0.0.1"
-    port = parsed.port or 8090
-    try:
-        with socket.create_connection((host, port), timeout=timeout):
-            return True
-    except OSError:
-        return False
