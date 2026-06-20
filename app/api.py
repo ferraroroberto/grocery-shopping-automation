@@ -43,7 +43,7 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 _AUTOMATION_RUN: dict[str, Any] = {}
-NO_CACHE_PATH_PREFIXES = ("/", "/static/")
+NO_CACHE_PATH_PREFIXES = ("/static/",)
 
 app = FastAPI(
     title=CONFIG["app"]["title"],
@@ -61,7 +61,7 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 @app.middleware("http")
 async def no_cache_for_pwa_assets(request: Request, call_next):
     response = await call_next(request)
-    if request.url.path == "/" or any(request.url.path.startswith(prefix) for prefix in NO_CACHE_PATH_PREFIXES[1:]):
+    if request.url.path == "/" or any(request.url.path.startswith(prefix) for prefix in NO_CACHE_PATH_PREFIXES):
         response.headers["Cache-Control"] = "no-store, max-age=0"
         response.headers["Pragma"] = "no-cache"
     return response
