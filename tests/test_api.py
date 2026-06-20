@@ -187,6 +187,28 @@ def test_automation_command_preview(client):
     assert "--dry-run" not in body["command"]
 
 
+def test_index_shell_is_no_cache_and_hash_stamped(client):
+    """The entry document must always revalidate, and its app.js URL must
+    carry the build content hash so iOS Safari can't serve a stale module."""
+    resp = client.get("/")
+    assert resp.status_code == 200
+    assert "no-cache" in resp.headers.get("cache-control", "")
+    # The __APP_JS__ placeholder is replaced with the real content hash.
+    expected = api.BUILD_INFO.asset_hashes["app.js"]
+    assert "__APP_JS__" not in resp.text
+    assert f"/static/app.js?v={expected}" in resp.text
+
+
+def test_static_js_is_long_cached(client):
+    """Served .js assets carry an explicit immutable Cache-Control instead of
+    being left to the browser's heuristic cache."""
+    resp = client.get("/static/app.js")
+    assert resp.status_code == 200
+    cache_control = resp.headers.get("cache-control", "")
+    assert "max-age=31536000" in cache_control
+    assert "immutable" in cache_control
+
+
 def test_auth_required_when_token_set(client):
     cfg = api.app.state.webapp_config
     cfg.auth_token = "secret"

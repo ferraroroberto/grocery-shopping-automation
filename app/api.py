@@ -15,7 +15,7 @@ from typing import Any
 import httpx
 import pandas as pd
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -36,6 +36,7 @@ from src.data import (
 from src.audio_audit_core import WHISPER_PROMPT_ES, clean_transcript, write_audit_log
 from src.inventory_extract import ExtractionError, extract
 from src.net import is_port_open, local_ip
+from src.static_versioning import BuildInfo
 from src.transcribe_client import FfmpegMissingError, TranscriptionError, transcode_to_wav, transcribe
 from src.webapp_config import WebappConfig, load_webapp_config
 
@@ -43,7 +44,59 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 _AUTOMATION_RUN: dict[str, Any] = {}
-NO_CACHE_PATH_PREFIXES = ("/static/",)
+
+# Build identity, computed once at import — the app restarts on every code
+# edit, so a fresh process always reflects the deployed code.
+BUILD_INFO = BuildInfo(STATIC_DIR, REPO_ROOT)
+
+# Hash-stamped assets (.js / .css) get a one-year immutable cache: the
+# content hash in the query string makes the URL change on every edit, so a
+# stale copy can never be served. index.html itself is served no-cache (see
+# the `index` route) so it always revalidates and picks up new asset hashes.
+_IMMUTABLE_CACHE = "public, max-age=31536000, immutable"
+
+
+class CachingStaticFiles(StaticFiles):
+    """``StaticFiles`` with per-file ``Cache-Control`` + JS import stamping.
+
+    Starlette's mount serves every file with only ``ETag`` /
+    ``Last-Modified``, leaving iOS Safari free to heuristic-cache. This
+    subclass stamps an explicit policy keyed on the suffix, and rewrites
+    the ``import './x.js'`` URLs inside every ``.js`` module with a content
+    hash so a stale module can never be served — the hashed URL changes on
+    every edit.
+
+    Local port of the fleet pattern (photo-ocr / voice-transcriber); see
+    ``src/static_versioning.py``.
+    """
+
+    def __init__(self, *, directory: Any, build_info: BuildInfo) -> None:
+        super().__init__(directory=directory)
+        self._build_info = build_info
+
+    def file_response(self, full_path, *args, **kwargs):  # type: ignore[override]
+        path = Path(full_path)
+        suffix = path.suffix.lower()
+
+        if suffix == ".js":
+            # Rewrite the module graph's `import './x.js'` URLs with a
+            # content hash, then long-cache — the hashed URL is the cache
+            # key, so an edit invalidates it for free.
+            try:
+                body = path.read_text(encoding="utf-8")
+            except OSError:
+                return super().file_response(full_path, *args, **kwargs)
+            return Response(
+                content=self._build_info.rewrite_js_imports(body),
+                media_type="text/javascript",
+                headers={"Cache-Control": _IMMUTABLE_CACHE},
+            )
+
+        response = super().file_response(full_path, *args, **kwargs)
+        if suffix == ".css":
+            response.headers["Cache-Control"] = _IMMUTABLE_CACHE
+        return response
+
 
 app = FastAPI(
     title=CONFIG["app"]["title"],
@@ -55,16 +108,7 @@ app.add_middleware(
     BearerTokenMiddleware,
     get_token=lambda: getattr(app.state.webapp_config, "auth_token", ""),
 )
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-
-
-@app.middleware("http")
-async def no_cache_for_pwa_assets(request: Request, call_next):
-    response = await call_next(request)
-    if request.url.path == "/" or any(request.url.path.startswith(prefix) for prefix in NO_CACHE_PATH_PREFIXES):
-        response.headers["Cache-Control"] = "no-store, max-age=0"
-        response.headers["Pragma"] = "no-cache"
-    return response
+app.mount("/static", CachingStaticFiles(directory=STATIC_DIR, build_info=BUILD_INFO), name="static")
 
 
 def _inventory_error(status_code: int, detail: str) -> HTTPException:
@@ -226,9 +270,15 @@ class ApplyPayload(BaseModel):
 
 
 @app.get("/", include_in_schema=False)
-def index() -> FileResponse:
-    """Serve the PWA shell."""
-    return FileResponse(STATIC_DIR / "index.html")
+def index() -> HTMLResponse:
+    """Serve the PWA shell.
+
+    Stamp the directly-referenced asset URLs with their content hash and
+    force the entry document to revalidate (``no-cache``), so an app restart
+    after an edit is always picked up — no stale iOS PWA cache.
+    """
+    html = BUILD_INFO.stamp_html((STATIC_DIR / "index.html").read_text(encoding="utf-8"))
+    return HTMLResponse(html, headers={"Cache-Control": "no-cache, must-revalidate"})
 
 
 @app.get("/manifest.json", include_in_schema=False)
