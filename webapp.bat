@@ -21,6 +21,9 @@ if not exist "%CERT%" if exist "%SCRIPT_DIR%certificates\cert.pem" (
     set "KEY=%SCRIPT_DIR%certificates\key.pem"
 )
 
+REM Auto-renew Tailscale cert if expiring within 30 days.
+"%VENV_PY%" "%SCRIPT_DIR%scripts\gen_tailscale_cert.py" --check
+
 if exist "%CERT%" (
     echo [INFO] Starting HTTPS FastAPI webapp on :8502.
     "%VENV_PY%" -m uvicorn app.api:app --host 0.0.0.0 --port 8502 --ssl-keyfile "%KEY%" --ssl-certfile "%CERT%"
