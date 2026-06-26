@@ -112,22 +112,49 @@ For the legacy Streamlit app:
 
 ### HTTPS setup (required for microphone access on mobile)
 
-Mobile browsers block microphone access on plain HTTP. The app serves over HTTPS using a self-signed certificate stored in `certificates/` (gitignored). `webapp.bat` picks the cert up automatically and starts uvicorn with TLS on `:8502`.
+Mobile browsers block microphone access on plain HTTP. The app serves over HTTPS using a certificate stored in `certificates/` (gitignored). `webapp.bat` picks the cert up automatically and starts uvicorn with TLS on `:8502`.
+
+There are two certificate options — pick one:
+
+#### Option A: Tailscale HTTPS cert (recommended — no cert installation on any device)
+
+If you access the app over Tailscale, provision a real Let's Encrypt certificate via the Tailscale CLI. Browsers on every device trust it automatically — no manual cert installation, no "Not secure" warning anywhere.
+
+**Prerequisites (one-time):**
+1. Enable HTTPS in the Tailscale admin console: go to **DNS → HTTPS Certificates** and toggle it on.
+2. `tailscale` must be running and authenticated on this machine.
+
+**Run once from the repo root:**
+```powershell
+& .\.venv\Scripts\python.exe scripts\gen_tailscale_cert.py
+```
+
+The script auto-detects your Tailscale hostname and writes `certificates/cert.pem` and `certificates/key.pem`. Restart `webapp.bat`, then open:
+```
+https://tower.tail1121fd.ts.net:8502
+```
+
+**Renewal:** Tailscale certs expire after 90 days. Re-run the script when they expire (the script is idempotent — it renews if needed).
+
+**Note:** after switching to the Tailscale cert, `https://localhost:8502` will show a cert hostname-mismatch warning (the cert is issued for the Tailscale domain, not `localhost`). Use `http://localhost:8502` for plain local desktop access when not on Tailscale.
+
+#### Option B: self-signed cert (LAN / localhost access)
+
+Generates a local CA and a self-signed server cert that covers `localhost` and all LAN IPs. Requires installing the CA once on this PC; mobile devices need a one-time "Proceed to … (unsafe)" tap per device.
 
 **First-time setup** (run once from the repo root):
 ```powershell
 & .\.venv\Scripts\python.exe src\gen_ssl_cert.py
 ```
 
-This detects all local IP addresses (LAN + Tailscale) and writes three files to `certificates/` (valid 10 years):
+This detects all local IP addresses and writes three files to `certificates/` (valid 10 years):
 - `ca.pem` — local CA certificate, installed into Windows `CurrentUser\Root` (no admin required)
-- `cert.pem` — server certificate signed by that CA (passed to uvicorn as `--ssl-certfile`)
-- `key.pem` — server private key (passed to uvicorn as `--ssl-keyfile`)
+- `cert.pem` — server certificate signed by that CA
+- `key.pem` — server private key
 
 Chrome and Edge on this PC will show no security warning because the CA is trusted.
 
-**Accepting the cert on mobile (one-time per device):**  
-Open `https://<local-ip>:8502` — the browser will warn "Not secure". Tap **Advanced → Proceed to … (unsafe)**. You won't be asked again on that device.
+**Accepting the cert on mobile (one-time per device):** open `https://<local-ip>:8502` — the browser will warn "Not secure". Tap **Advanced → Proceed to … (unsafe)**. You won't be asked again on that device.
 
 **If your PC's IP changes**, regenerate and reinstall with the same command above, then restart the app.
 
@@ -252,7 +279,9 @@ is in [`docs/browser-automation-build.md`](docs/browser-automation-build.md).
 | Microphone shows "An error has occurred" on mobile | App must be opened over **HTTPS** — see HTTPS setup section above |
 | Browser says "Your connection is not private" on desktop | Re-run `& .\.venv\Scripts\python.exe src\gen_ssl_cert.py` — it installs the cert into Windows trust store |
 | Browser says "Your connection is not private" on mobile | Self-signed cert warning — tap **Advanced → Proceed** once per device |
-| HTTPS cert missing / app won't start | Run `& .\.venv\Scripts\python.exe src\gen_ssl_cert.py` from the repo root, then restart |
+| HTTPS cert missing / app won't start | Run `& .\.venv\Scripts\python.exe src\gen_ssl_cert.py` (or `scripts\gen_tailscale_cert.py`) from the repo root, then restart |
+| `https://localhost:8502` shows cert mismatch after running `gen_tailscale_cert.py` | Expected — the Tailscale cert is issued for the Tailscale hostname, not `localhost`. Use `http://localhost:8502` locally or `https://tower.tail1121fd.ts.net:8502` over Tailscale |
+| `tailscale cert` fails with permission error | Enable HTTPS Certificates in the Tailscale admin console: **DNS → HTTPS Certificates** |
 
 ---
 
