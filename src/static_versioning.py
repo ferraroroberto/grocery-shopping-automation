@@ -43,7 +43,7 @@ STAMPED_SUFFIXES = (".js", ".css")
 # placeholder. The placeholder for each is the uppercased name with dots
 # turned to underscores, e.g. ``app.js`` -> ``__APP_JS__``. Every other
 # ``.js`` module is reached only through an ``import`` inside ``app.js``.
-HTML_STAMPED_ASSETS = ("app.js", "styles.css")
+HTML_STAMPED_ASSETS = ("app.js",)
 
 # Static ES-module imports inside the JS graph: ``from './x.js'`` and the
 # bare ``import './x.js'`` side-effect form. The optional ``?v=`` group
