@@ -24,7 +24,6 @@ const state = {
   automationStarted: null,
   automationTimer: null,
   mediaRecorder: null,
-  audioChunks: [],
   audioMime: "",
   transcript: "",
   audioModel: "",
@@ -971,7 +970,6 @@ function clearAudio() {
   state.matches = null;
   state.audioSha = "";
   state.audioBytes = 0;
-  state.audioChunks = [];
   state.sessionId = "";
   state.bytesSent = 0;
   const fileInput = document.querySelector("#audio-file");
@@ -1208,10 +1206,6 @@ async function redoTranscribe() {
 async function selectedAudioBlob() {
   const input = document.querySelector("#audio-file");
   if (input?.files?.[0]) return input.files[0];
-  if (state.audioChunks.length) {
-    const type = state.audioMime || state.audioChunks[0]?.type || "audio/webm";
-    return new Blob(state.audioChunks, { type });
-  }
   return null;
 }
 
