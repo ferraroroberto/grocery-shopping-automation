@@ -28,12 +28,19 @@ with tempfile.TemporaryDirectory() as td:
     before = {i: (int(df.at[i, "tenemos"]), int(df.at[i, "comprar"])) for i in sample}
 
     bad_path = str(Path(td) / "does" / "not" / "exist" / "live.xlsx")
-    df_attempt = data.bulk_apply_tenemos(
-        df.copy(),
-        {sample[0]: 99, sample[1]: 0},
-        save=True,
-        xlsx_path=bad_path,
-    )
+    df_attempt = df.copy()
+    try:
+        data.bulk_apply_tenemos(
+            df_attempt,
+            {sample[0]: 99, sample[1]: 0},
+            save=True,
+            xlsx_path=bad_path,
+        )
+    except data.InventoryFileError:
+        pass
+    else:
+        raise AssertionError("expected save failure to raise InventoryFileError")
+
     after = {
         i: (int(df_attempt.at[i, "tenemos"]), int(df_attempt.at[i, "comprar"]))
         for i in sample
