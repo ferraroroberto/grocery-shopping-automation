@@ -7,7 +7,7 @@ Mobile-responsive web app for managing household grocery inventory with intellig
 Comprehensive household inventory management across multiple operational modes. Audit current stock room-by-room, edit target quantities, track shopping in real time, and add on-the-fly items directly to the shopping list.
 
 **Key Features:**
-- Mobile access over local Wi-Fi — use the **Copy link** button in the sidebar to get the URL and open it on your phone
+- Mobile access over local Wi-Fi — use the **Copy Link** button in the ⚙️ Options menu to get the URL and open it on your phone
 - Room-by-room inventory auditing with auto-save (best done from mobile)
 - Shopping list grouped by supermarket with per-store progress bars (best done from desktop)
 - Cart offset counters to account for items already in the cart
@@ -18,7 +18,7 @@ Comprehensive household inventory management across multiple operational modes. 
 ## 🏗️ Project Structure
 
 - **`app/`** — UI layers.
-  - *Primary (FastAPI/PWA on `:8502`):* `api.py` (entrypoint — inventory, audit, edit/add, shopping, automation, and audio-audit endpoints), `middleware.py` (bearer-token auth for non-loopback requests), `static/` (PWA front end: `index.html`, `app.js`), `automation_runner.py` (shared subprocess plumbing that streams the cart-automation CLI into the app).
+  - *Primary (FastAPI/PWA on `:8502`):* `api.py` (entrypoint — inventory, audit, edit/add, shopping, automation, and audio-audit endpoints), `middleware.py` (bearer-token auth for non-loopback requests), `static/` (PWA front end: `index.html`, `app.js`, `styles.css`, `_vendored/` fleet components), `automation_runner.py` (shared subprocess plumbing that streams the cart-automation CLI into the app).
   - *Legacy (Streamlit fallback on `:8501`):* `app.py` (entrypoint — page config, session state, sidebar, mode routing), `audit.py` / `audio_audit.py` / `edit_targets.py` / `edit_item.py` / `add_item.py` / `shopping.py` / `export.py` / `ui_helpers.py` (per-mode modules, each exposing `main(df)`).
 - **`src/`** — UI-free data/business layer.
   - `data.py` — config loading, XLSX load/save, supermarket stats, quantity mutators.
@@ -53,7 +53,9 @@ Double-click `webapp.bat`, or from the repo root:
 webapp.bat
 ```
 
-The FastAPI app on `:8502` covers the inventory dashboard, audit, target editing, item editing, item creation, shopping mode, automation controls, and the audio-audit workflow against the Excel-backed `src/data.py` layer. Open `http://127.0.0.1:8502` when no local cert exists, or `https://127.0.0.1:8502` after running `& .\.venv\Scripts\python.exe src\gen_ssl_cert.py`. The launcher binds to `0.0.0.0`, so the same port is reachable over LAN or Tailscale from devices that can reach this PC. A light/dark theme toggle sits next to the sidebar brand and remembers your choice.
+The FastAPI app on `:8502` covers the inventory dashboard, audit, target editing, item editing, item creation, shopping mode, automation controls, and the audio-audit workflow against the Excel-backed `src/data.py` layer. Open `http://127.0.0.1:8502` when no local cert exists, or `https://127.0.0.1:8502` after running `& .\.venv\Scripts\python.exe src\gen_ssl_cert.py`. The launcher binds to `0.0.0.0`, so the same port is reachable over LAN or Tailscale from devices that can reach this PC.
+
+The PWA follows the fleet design system (`~/.claude/design.md` + `design.dark.md`): a floating bottom-tab pill on the phone (inline top tabs on desktop) with five tabs — **Inventory · Shopping · Audit · Items · Automation** (Audio Audit lives as a sub-pill under Audit; Targets / Edit Item / Add Item under Items) — vendored fleet components under `app/static/_vendored/`, and a light/dark **theme toggle in the top bar** (moon/sun icon) that remembers your choice. The utility actions (Open Spreadsheet, Copy Link, Export CSV, Close App) live in the ⚙️ Options menu at the top of the page.
 
 ### Legacy Streamlit app
 
@@ -204,7 +206,7 @@ Add new items to the inventory via a form.
 ### 🛒 Shopping List
 View items that need to be purchased, grouped by supermarket.
 
-**Cart offset counters (sidebar):**
+**Cart offset counters:**
 Each supermarket shows an editable `＋items` and `＋units` counter below its progress bar. Use these when items were already placed in the physical cart before opening the app — the bar and totals update immediately to reflect the combined count.
 
 **Quick-add items:**

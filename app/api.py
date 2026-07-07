@@ -87,7 +87,7 @@ class CachingStaticFiles(StaticFiles):
             except OSError:
                 return super().file_response(full_path, *args, **kwargs)
             return Response(
-                content=self._build_info.rewrite_js_imports(body),
+                content=self._build_info.stamp_js(body),
                 media_type="text/javascript",
                 headers={"Cache-Control": _IMMUTABLE_CACHE},
             )
@@ -292,8 +292,8 @@ def manifest() -> JSONResponse:
             "start_url": "/",
             "scope": "/",
             "display": "standalone",
-            "background_color": "#f8fafc",
-            "theme_color": "#1E88E5",
+            "background_color": "#ffffff",
+            "theme_color": "#ffffff",
             "icons": [
                 {
                     "src": "/app-icon.svg",
