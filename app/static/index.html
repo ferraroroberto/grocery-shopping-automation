@@ -150,7 +150,7 @@
           <path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
         </svg>
         <span class="tab-emoji" aria-hidden="true">🏠</span>
-        <span class="tab-label">Inventory</span>
+        <span class="tab-label">Home</span>
       </button>
       <button id="tabShopping" type="button" class="tab" data-tab="shopping"
               role="tab" aria-selected="false" aria-controls="pane-shopping" tabindex="-1">
@@ -160,7 +160,7 @@
           <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
         </svg>
         <span class="tab-emoji" aria-hidden="true">🛒</span>
-        <span class="tab-label">Shopping</span>
+        <span class="tab-label">Shop</span>
       </button>
       <button id="tabAudit" type="button" class="tab" data-tab="audit"
               role="tab" aria-selected="false" aria-controls="pane-audit" tabindex="-1">
@@ -198,12 +198,24 @@
         <span class="tab-emoji" aria-hidden="true">🤖</span>
         <span class="tab-label">Auto</span>
       </button>
+      <button id="tabSettings" type="button" class="tab" data-tab="settings"
+              role="tab" aria-selected="false" aria-controls="pane-settings" tabindex="-1">
+        <svg class="tab-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+          <path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+        <span class="tab-emoji" aria-hidden="true">⚙️</span>
+        <span class="tab-label">Settings</span>
+      </button>
     </nav>
 
     <main class="app">
       <header class="topbar">
         <h1 id="view-title">Inventory</h1>
         <div class="topbar-actions">
+          <button id="refresh" class="icon-btn" type="button" title="Reload inventory" aria-label="Reload inventory">
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-refresh-cw"></use></svg>
+          </button>
           <button id="theme-toggle" class="theme-toggle" type="button"
                   title="Toggle theme" aria-label="Toggle dark mode">
             <!-- Sprite moon + sun; CSS shows the glyph for the *action*
@@ -215,39 +227,10 @@
       </header>
       <div id="status" class="status" role="status">Loading inventory...</div>
 
-      <details id="options" class="card card--collapsible">
-        <summary class="collapse-summary">
-          <span class="collapse-main">
-            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-settings"></use></svg>
-            <h2 class="collapse-title">Options</h2>
-          </span>
-          <span class="collapse-chevron" aria-hidden="true">›</span>
-        </summary>
-        <div class="collapse-body options-body">
-          <button id="open-sheet" class="secondary" type="button">
-            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-external-link"></use></svg>
-            Open Spreadsheet
-          </button>
-          <button id="copy-link" class="secondary" type="button">
-            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-link"></use></svg>
-            Copy Link
-          </button>
-          <button id="export-csv" class="secondary" type="button">
-            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-download"></use></svg>
-            Export CSV
-          </button>
-          <button id="close-app" class="secondary" type="button">
-            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-power"></use></svg>
-            Close App
-          </button>
-        </div>
-      </details>
-
-      <section class="toolbar" aria-label="Inventory controls">
+      <!-- Search shows only on the modes that filter the item list
+           (dashboard / audit / targets / edit) — app.js toggles it. -->
+      <section id="toolbar" class="toolbar" aria-label="Inventory search" hidden>
         <input id="search" class="search" type="search" placeholder="Search item, zone, or supermarket" autocomplete="off" />
-        <button id="refresh" class="icon-btn" type="button" title="Reload inventory" aria-label="Reload inventory">
-          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-refresh-cw"></use></svg>
-        </button>
       </section>
 
       <section id="pane-inventory" class="pane" role="tabpanel" aria-labelledby="tabInventory" aria-label="Inventory">
@@ -274,6 +257,40 @@
       <section id="pane-automation" class="pane" role="tabpanel" aria-labelledby="tabAutomation" aria-label="Automation" hidden>
         <div class="pane-body"></div>
       </section>
+      <section id="pane-settings" class="pane" role="tabpanel" aria-labelledby="tabSettings" aria-label="Settings" hidden>
+        <div class="card">
+          <div class="card-head">
+            <h2 class="card-title">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-settings"></use></svg>
+              Settings
+            </h2>
+          </div>
+          <div class="settings-actions">
+            <button id="open-sheet" class="secondary" type="button">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-external-link"></use></svg>
+              Open Spreadsheet
+            </button>
+            <button id="copy-link" class="secondary" type="button">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-link"></use></svg>
+              Copy Link
+            </button>
+            <button id="export-csv" class="secondary" type="button">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-download"></use></svg>
+              Export CSV
+            </button>
+            <button id="close-app" class="secondary" type="button">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-power"></use></svg>
+              Close App
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Build identity: which build the PWA is running. Filled by app.js
+           (fetchVersion), same contract as home-automation. -->
+      <footer class="page-foot">
+        <p id="build-readout" class="meta"></p>
+      </footer>
     </main>
 
     <!-- Login is a native <dialog> (fleet modal contract); the bottom nav hides

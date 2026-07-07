@@ -281,6 +281,16 @@ def index() -> HTMLResponse:
     return HTMLResponse(html, headers={"Cache-Control": "no-cache, must-revalidate"})
 
 
+@app.get("/api/version")
+def version() -> JSONResponse:
+    """Build identity (git SHA, build time, fleet asset hash).
+
+    Feeds the PWA's footer build readout + stale-shell reload guard — the
+    same contract as home-automation's ``/api/version``.
+    """
+    return JSONResponse(BUILD_INFO.as_dict())
+
+
 @app.get("/manifest.json", include_in_schema=False)
 def manifest() -> JSONResponse:
     """Return the install metadata without adding another static file yet."""

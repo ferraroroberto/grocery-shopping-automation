@@ -245,6 +245,10 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   line-height: 1.2;
 }
 .topbar-actions { display: inline-flex; align-items: center; gap: var(--space-xs); }
+/* Top-bar icon buttons are ghosts, matching the theme toggle. */
+.topbar-actions .icon-btn { border: 0; background: transparent; color: var(--muted); }
+.topbar-actions .icon-btn:active { background: var(--card-off); color: var(--ink); }
+.topbar-actions .icon-btn .icon { width: var(--icon-title); height: var(--icon-title); }
 .status {
   min-height: 20px;
   color: var(--muted);
@@ -260,12 +264,16 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   padding-bottom: var(--gap);
 }
 
-/* options disclosure body — the old sidebar utilities */
-.options-body {
+/* settings tab — the old sidebar utilities as a 2-up action grid */
+.settings-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-sm);
+  margin-top: var(--gap);
 }
+
+/* Build identity footer (home-automation contract) — filled by fetchVersion. */
+.page-foot { padding: var(--space-lg) 0 var(--space-sm); text-align: center; }
 
 /* --------------------------------------------------------- sub-mode pills */
 .pills { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
@@ -418,6 +426,13 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
   font-size: var(--font-caption);
   margin: 0;
 }
+
+/* --------------------------------------------------------- disclosures */
+/* Stack spacing inside any open disclosure body (offsets / list / quick-add). */
+.collapse-body > * + * { margin-top: var(--gap); }
+/* Flat item rows inside a disclosure body align their text with the body's
+   own 14px inset instead of double-indenting (matches .zone-item). */
+.collapse-body .item { padding-left: 0; padding-right: 0; }
 
 /* --------------------------------------------------- audio zone checklist */
 .zone-list { display: grid; gap: var(--space-sm); }

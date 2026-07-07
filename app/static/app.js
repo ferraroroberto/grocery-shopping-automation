@@ -16,7 +16,11 @@ const modes = [
   ["shopping", "Shopping"],
   ["audio", "Audio Audit"],
   ["automation", "Automation"],
+  ["settings", "Settings"],
 ];
+
+// Modes whose content the search box filters — it hides everywhere else.
+const SEARCHABLE_MODES = new Set(["dashboard", "audit", "targets", "edit"]);
 
 // The 8 modes group into the fleet nav's 5 tabs; audit/items tabs re-home
 // their modes as sub-pills (static markup in index.html).
@@ -29,6 +33,7 @@ const MODE_TO_TAB = {
   edit: "items",
   add: "items",
   automation: "automation",
+  settings: "settings",
 };
 const TAB_DEFAULT_MODE = {
   inventory: "dashboard",
@@ -36,6 +41,7 @@ const TAB_DEFAULT_MODE = {
   audit: "audit",
   items: "targets",
   automation: "automation",
+  settings: "settings",
 };
 
 const THEME_KEY = "grocery.theme";
@@ -74,7 +80,9 @@ const el = {
   title: document.querySelector("#view-title"),
   status: document.querySelector("#status"),
   search: document.querySelector("#search"),
+  toolbar: document.querySelector("#toolbar"),
   refresh: document.querySelector("#refresh"),
+  buildReadout: document.querySelector("#build-readout"),
   app: document.querySelector("main.app"),
   openSheet: document.querySelector("#open-sheet"),
   copyLink: document.querySelector("#copy-link"),
@@ -266,6 +274,45 @@ function applyTheme(theme) {
 
 function toggleTheme() {
   applyTheme(currentTheme() === "dark" ? "light" : "dark");
+}
+
+// --------------------------------------------------- build identity
+// Ported from home-automation main.js — visible proof of which build the PWA
+// is running (footer "Build: <sha> · <time>" line), plus a one-shot reload
+// when the served asset hash changed since the last visit (iOS standalone
+// PWAs can cling to an old shell even with stamped asset URLs).
+const ASSET_HASH_KEY = "grocery.assetHash";
+const ASSET_RELOAD_KEY = "grocery.assetReloadedFor";
+
+function fmtBuildTime(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return String(iso).replace("T", " ").slice(0, 16);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+async function fetchVersion() {
+  try {
+    const body = await fetchJson("/api/version");
+    const sha = body.git_sha || "unknown";
+    const assetHash = body.asset_hash || "";
+    const previousHash = localStorage.getItem(ASSET_HASH_KEY) || "";
+    if (
+      assetHash && previousHash && previousHash !== assetHash &&
+      sessionStorage.getItem(ASSET_RELOAD_KEY) !== assetHash
+    ) {
+      localStorage.setItem(ASSET_HASH_KEY, assetHash);
+      sessionStorage.setItem(ASSET_RELOAD_KEY, assetHash);
+      window.location.reload();
+      return;
+    }
+    if (assetHash) localStorage.setItem(ASSET_HASH_KEY, assetHash);
+    const ts = fmtBuildTime(body.built_at || "");
+    el.buildReadout.textContent = ts ? `Build: ${sha} · ${ts}` : `Build: ${sha}`;
+  } catch (_) {
+    el.buildReadout.textContent = "";
+  }
 }
 
 function loadShoppingState() {
@@ -478,8 +525,26 @@ function renderSummary() {
 
 function renderDashboard() {
   const cols = c();
-  const cards = filteredItems().map((item) => itemCard(item, cols)).join("");
-  activePaneBody().innerHTML = `${renderSummary()}${renderStoreCards()}<section class="grid">${cards || emptyStateEl("search", "No matching items.").outerHTML}</section>`;
+  const source = filteredItems();
+  const cards = source.map((item) => itemCard(item, cols)).join("");
+  const body = activePaneBody();
+  // The full item list folds by default (home-automation pattern: heavy cards
+  // are disclosures). A re-render must not slam it shut, so harvest the live
+  // open state first; an active search force-opens it — a filter whose
+  // results you can't see is a dead control.
+  const itemsOpen = !!body.querySelector("#dash-items[open]") || !!state.query;
+  body.innerHTML = `${renderSummary()}${renderStoreCards()}
+    <details id="dash-items" class="card card--collapsible"${itemsOpen ? " open" : ""}>
+      <summary class="collapse-summary">
+        <span class="collapse-main">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-package"></use></svg>
+          <h3 class="collapse-title">All items</h3>
+          <span class="collapse-count">${source.length}</span>
+        </span>
+        <span class="collapse-chevron" aria-hidden="true">›</span>
+      </summary>
+      <div class="collapse-body"><section class="grid">${cards || emptyStateEl("search", "No matching items.").outerHTML}</section></div>
+    </details>`;
 }
 
 // Per-store progress cards. Carries the cart-offset-aware done counts the old
@@ -603,7 +668,13 @@ function renderShopping() {
     <div class="row"><h2>Shopping</h2>${boughtCount ? `<button class="secondary" id="shopping-unmark-all" type="button">↩️ Unmark all</button>` : ""}</div>
     ${missingLink.length ? `<div class="panel-status error">⚠️ ${missingLink.length} item(s) missing a buy link — their Buy button is disabled.</div>` : ""}
   </section>` : "";
-  activePaneBody().innerHTML = header + stores.map((store) => {
+  const paneBody = activePaneBody();
+  // Store panels fold by default (summary carries the done/total readout);
+  // harvest the live open state so a Got-it re-render keeps your store open.
+  const openStores = new Set(
+    [...paneBody.querySelectorAll("details[data-store][open]")].map((d) => d.dataset.store),
+  );
+  paneBody.innerHTML = header + stores.map((store) => {
     const storeItems = base.filter((item) => item[cols.super] === store);
     const extras = state.shopping.extras[store] || [];
     const extraBought = new Set(state.shopping.extraBought[store] || []);
@@ -612,24 +683,33 @@ function renderShopping() {
     const totalUnits = storeItems.reduce((n, item) => n + Number(item[cols.comprar] || 0), 0) + extras.reduce((n, item) => n + Number(item.qty || 0), 0);
     const doneItems = storeItems.filter((item) => state.shopping.bought.has(item.id)).length + extras.filter((item) => extraBought.has(item.id)).length + Number(offset.items || 0);
     const doneUnits = storeItems.filter((item) => state.shopping.bought.has(item.id)).reduce((n, item) => n + Number(item[cols.comprar] || 0), 0) + extras.filter((item) => extraBought.has(item.id)).reduce((n, item) => n + Number(item.qty || 0), 0) + Number(offset.units || 0);
-    return `<section class="panel" data-store="${html(store)}">
-      <div class="row"><h2>${html(store)}</h2><span class="meta">${doneItems}/${totalItems} items · ${doneUnits}/${totalUnits} units</span></div>
-      <div class="two">
-        <label class="hint">Cart items offset<input class="field" data-action="offset-items" type="number" min="0" value="${Number(offset.items || 0)}"></label>
-        <label class="hint">Cart units offset<input class="field" data-action="offset-units" type="number" min="0" value="${Number(offset.units || 0)}"></label>
-      </div>
-      <div class="grid">
-        ${storeItems.map((item) => shoppingRow(item, cols)).join("")}
-        ${extras.map((item) => extraRow(item, store, extraBought)).join("")}
-      </div>
-      <form class="form quick-add">
-        <div class="three">
-          <input class="field" name="name" placeholder="Quick-add item" required>
-          <input class="field" name="qty" type="number" min="1" value="1">
-          <button class="secondary" type="submit">Add</button>
+    return `<details class="card card--collapsible" data-store="${html(store)}"${openStores.has(store) ? " open" : ""}>
+      <summary class="collapse-summary">
+        <span class="collapse-main">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-shopping-basket"></use></svg>
+          <h3 class="collapse-title">${html(store)}</h3>
+          <span class="collapse-count">${doneItems}/${totalItems} items · ${doneUnits}/${totalUnits} units</span>
+        </span>
+        <span class="collapse-chevron" aria-hidden="true">›</span>
+      </summary>
+      <div class="collapse-body">
+        <div class="two">
+          <label class="hint">Cart items offset<input class="field" data-action="offset-items" type="number" min="0" value="${Number(offset.items || 0)}"></label>
+          <label class="hint">Cart units offset<input class="field" data-action="offset-units" type="number" min="0" value="${Number(offset.units || 0)}"></label>
         </div>
-      </form>
-    </section>`;
+        <div class="grid">
+          ${storeItems.map((item) => shoppingRow(item, cols)).join("")}
+          ${extras.map((item) => extraRow(item, store, extraBought)).join("")}
+        </div>
+        <form class="form quick-add">
+          <div class="three">
+            <input class="field" name="name" placeholder="Quick-add item" required>
+            <input class="field" name="qty" type="number" min="1" value="1">
+            <button class="secondary" type="submit">Add</button>
+          </div>
+        </form>
+      </div>
+    </details>`;
   }).join("");
 }
 
@@ -906,6 +986,7 @@ function renderMatches() {
 function render() {
   if (!state.payload) return;
   el.title.textContent = modes.find(([id]) => id === state.mode)?.[1] || "Inventory";
+  el.toolbar.hidden = !SEARCHABLE_MODES.has(state.mode);
   el.app.querySelectorAll(".subnav [data-mode]").forEach((button) => button.classList.toggle("active", button.dataset.mode === state.mode));
   if (state.mode === "dashboard") renderDashboard();
   if (state.mode === "audit") renderAudit(true);
@@ -1428,3 +1509,4 @@ initNavTabs({
   scrollResetSelector: ".app",
 });
 loadInventory();
+fetchVersion();

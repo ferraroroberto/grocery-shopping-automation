@@ -41,6 +41,7 @@ TAB_FOR_MODE = {
     "edit": "items",
     "add": "items",
     "automation": "automation",
+    "settings": "settings",
 }
 
 
@@ -133,7 +134,7 @@ def page(browser, server):
 
 @pytest.mark.e2e
 def test_all_tabs_render_without_js_errors(page):
-    for mode in ["dashboard", "audit", "targets", "edit", "add", "shopping", "audio", "automation"]:
+    for mode in ["dashboard", "audit", "targets", "edit", "add", "shopping", "audio", "automation", "settings"]:
         goto_mode(page, mode)
         page.wait_for_timeout(150)
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
@@ -145,6 +146,19 @@ def test_dashboard_shows_stocked_metric(page):
     page.wait_for_selector(".summary")
     assert page.locator("text=Stocked").count() >= 1
     assert page.locator("text=Tracked items").count() >= 1
+    # Build identity footer (home-automation contract) is filled at boot.
+    page.wait_for_function("document.querySelector('#build-readout')?.textContent?.startsWith('Build:')")
+
+
+@pytest.mark.e2e
+def test_search_only_on_filterable_modes(page):
+    goto_mode(page, "dashboard")
+    assert page.locator("#toolbar").is_visible()
+    goto_mode(page, "shopping")
+    assert not page.locator("#toolbar").is_visible()
+    goto_mode(page, "settings")
+    assert not page.locator("#toolbar").is_visible()
+    assert page.locator("#open-sheet").is_visible()
 
 
 @pytest.mark.e2e
