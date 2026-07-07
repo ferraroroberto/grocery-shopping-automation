@@ -569,18 +569,18 @@ function renderAudit(targetsOnly = false) {
     .filter((item) => item[cols.lugar] === state.zone)
     .filter((item) => !targetsOnly || Number(item[cols.cantidad]) > 0))
     .sort((a, b) => text(a[cols.comida]).localeCompare(text(b[cols.comida])));
-  const header = targetsOnly ? "have − + · have/target · target − + · buy" : "have/target · target − + · buy";
+  const header = targetsOnly ? "have − + · have/target · target − + · need" : "have/target · target − + · need";
   const controlsClass = targetsOnly ? "audit-controls audit-controls--full" : "audit-controls audit-controls--targets";
   activePaneBody().innerHTML = `<section class="panel"><div class="row"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-${targetsOnly ? "list-checks" : "package"}"></use></svg>${targetsOnly ? "Audit Inventory" : "Edit Targets"}</h2><span class="hint">${html(state.zone)} · ${source.length} items</span></div>${zoneTabs()}<div class="hint">${header}</div></section>
     <section class="grid">${source.map((item) => `
       <article class="item audit-item" data-id="${item.id}">
-        <div class="audit-label"><h3>${html(item[cols.comida])}</h3><span class="meta"> · ${html(item[cols.super])}</span></div>
+        <div class="audit-name"><h3>${html(item[cols.comida])}</h3><div class="meta">${html(item[cols.super])}</div></div>
         <div class="${controlsClass}">
           ${targetsOnly ? `<button class="icon-btn" data-action="current-minus">-</button><button class="icon-btn" data-action="current-plus">+</button>` : ""}
           <span class="qty">${qtyMarkup(item[cols.tenemos], item[cols.cantidad])}</span>
           <button class="icon-btn" data-action="target-minus">-</button>
           <button class="icon-btn" data-action="target-plus">+</button>
-          <span class="audit-verdict ${Number(item[cols.comprar]) > 0 ? "buy" : "ok"}">${Number(item[cols.comprar]) > 0 ? `Buy ${item[cols.comprar]}` : "OK"}</span>
+          <span class="audit-verdict ${Number(item[cols.comprar]) > 0 ? "buy" : "ok"}">${Number(item[cols.comprar]) > 0 ? `−${item[cols.comprar]}` : "OK"}</span>
         </div>
       </article>`).join("") || emptyStateEl("package", "No items in this zone.").outerHTML}</section>`;
 }

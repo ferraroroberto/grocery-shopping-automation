@@ -373,30 +373,34 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
 .item:last-child { border-bottom: 0; }
 .item-actions { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; justify-content: flex-end; }
 
-/* Audit/targets rows read as a table: every control column has a FIXED width
-   so the buttons, counts and verdicts line up across rows (flex-wrap gave a
-   per-row zigzag). Phone stacks a single ellipsized "name · super" line over
-   the controls, packed tight; wide keeps one line. */
+/* Audit/targets rows: ONE line per row — name (super beneath, both
+   ellipsized) left, the whole control strip packed to the right. FIXED
+   control columns keep buttons, counts and verdicts table-aligned across
+   rows; the verdict is the terse need count (−N / OK) so it all fits.
+   Rows sit tight (no row-lg minimum) so the separators come close. */
 .audit-item {
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-xs);
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-sm);
   min-height: 0;
+  padding-top: var(--space-xs);
+  padding-bottom: var(--space-xs);
 }
-.audit-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.audit-label h3 { display: inline; }
+.audit-name { min-width: 0; }
+.audit-name h3, .audit-name .meta {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .audit-controls {
   display: grid;
   align-items: center;
   justify-content: end;
   gap: var(--space-xs);
 }
-.audit-controls--targets { grid-template-columns: 76px 36px 36px 58px; }
-.audit-controls--full { grid-template-columns: 36px 36px 76px 36px 36px 58px; }
+.audit-controls--targets { grid-template-columns: 56px 36px 36px 36px; }
+.audit-controls--full { grid-template-columns: 36px 36px 56px 36px 36px 36px; }
 .audit-controls .qty { min-width: 0; }
 .audit-verdict { text-align: right; font-size: var(--font-label); font-weight: 700; }
-@media (min-width: 640px) {
-  .audit-item { grid-template-columns: minmax(0, 1fr) auto; gap: var(--gap); }
-}
 .qty { min-width: 76px; text-align: right; font-weight: 700; }
 .buy { color: var(--deficit); }
 .ok { color: var(--on); }
