@@ -1,5 +1,11 @@
+import { initNavTabs } from "./_vendored/nav/nav-tabs.js";
+import { setSwitch, switchEl } from "./_vendored/switch/switch.js";
+import { emptyStateEl } from "./_vendored/empty-state/empty-state.js";
+
 const TOKEN_KEY = "grocery.authToken";
 const SHOP_STATE_KEY = "grocery.shoppingState";
+const TAB_KEY = "grocery.tab";
+const SUB_KEY_PREFIX = "grocery.sub.";
 
 const modes = [
   ["dashboard", "Inventory"],
@@ -11,6 +17,26 @@ const modes = [
   ["audio", "Audio Audit"],
   ["automation", "Automation"],
 ];
+
+// The 8 modes group into the fleet nav's 5 tabs; audit/items tabs re-home
+// their modes as sub-pills (static markup in index.html).
+const MODE_TO_TAB = {
+  dashboard: "inventory",
+  shopping: "shopping",
+  audit: "audit",
+  audio: "audit",
+  targets: "items",
+  edit: "items",
+  add: "items",
+  automation: "automation",
+};
+const TAB_DEFAULT_MODE = {
+  inventory: "dashboard",
+  shopping: "shopping",
+  audit: "audit",
+  items: "targets",
+  automation: "automation",
+};
 
 const THEME_KEY = "grocery.theme";
 
@@ -44,23 +70,41 @@ const state = {
 };
 
 const el = {
-  nav: document.querySelector("#nav"),
   themeToggle: document.querySelector("#theme-toggle"),
   title: document.querySelector("#view-title"),
   status: document.querySelector("#status"),
   search: document.querySelector("#search"),
   refresh: document.querySelector("#refresh"),
-  main: document.querySelector("#main"),
-  sideStats: document.querySelector("#side-stats"),
+  app: document.querySelector("main.app"),
   openSheet: document.querySelector("#open-sheet"),
   copyLink: document.querySelector("#copy-link"),
   exportCsv: document.querySelector("#export-csv"),
   closeApp: document.querySelector("#close-app"),
-  loginOverlay: document.querySelector("#login-overlay"),
+  loginDialog: document.querySelector("#login-dialog"),
   loginForm: document.querySelector("#login-form"),
   loginPassword: document.querySelector("#login-password"),
   loginError: document.querySelector("#login-error"),
 };
+
+// The pane body a mode renders into (each tab's <section class="pane"> holds
+// one .pane-body; audit/items also carry a static sub-pill row above it).
+function activePaneBody() {
+  const tab = MODE_TO_TAB[state.mode] || "inventory";
+  return document.querySelector(`#pane-${tab} .pane-body`);
+}
+
+// String-building renderers can't attach listeners, so switches render as
+// canonical vendored markup (switchEl → outerHTML) and one delegated click
+// handler on .app flips them via setSwitch — the single write path.
+function switchMarkup(on, label, attrs = {}) {
+  const btn = switchEl(on, { label });
+  for (const [key, value] of Object.entries(attrs)) btn.setAttribute(key, value);
+  return btn.outerHTML;
+}
+
+function switchOn(selector) {
+  return document.querySelector(selector)?.getAttribute("aria-checked") === "true";
+}
 
 function c() {
   return state.payload?.columns ?? {};
@@ -213,8 +257,9 @@ function currentTheme() {
 function applyTheme(theme) {
   document.documentElement.setAttribute("data-theme", theme);
   localStorage.setItem(THEME_KEY, theme);
+  // The button holds both sprite glyphs; CSS shows the one for the *action*
+  // keyed on html[data-theme] — no JS glyph swap.
   if (el.themeToggle) {
-    el.themeToggle.textContent = theme === "dark" ? "☀️" : "🌙";
     el.themeToggle.title = theme === "dark" ? "Switch to light mode" : "Switch to dark mode";
   }
 }
@@ -290,59 +335,86 @@ async function fetchJson(url, init = {}) {
   return body;
 }
 
-async function promptForPassword() {
-  return new Promise((resolve) => {
-    el.loginOverlay.hidden = false;
-    el.loginPassword.value = "";
-    el.loginError.textContent = "";
-    window.setTimeout(() => el.loginPassword.focus(), 60);
+// Concurrent 401s (e.g. the parallel inventory + access fetches) must share
+// one login prompt: every caller gets the same pending promise, resolved once
+// on a successful unlock. The dialog is mandatory — Esc/cancel is blocked and
+// there is no × close; the fleet nav hides itself while it is open.
+let loginPending = null;
+let loginResolve = null;
 
-    const onSubmit = async (event) => {
-      event.preventDefault();
-      const password = el.loginPassword.value;
-      if (!password) return;
-      const button = el.loginForm.querySelector("button[type='submit']");
-      button.disabled = true;
-      el.loginError.textContent = "";
-      try {
-        const response = await fetch("/api/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ password }),
-        });
-        if (response.status === 401) {
-          el.loginError.textContent = "Wrong password";
-          el.loginPassword.select();
-          return;
-        }
-        const body = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          el.loginError.textContent = body.detail || `Login failed: ${response.status}`;
-          return;
-        }
-        localStorage.setItem(TOKEN_KEY, body.token);
-        el.loginOverlay.hidden = true;
-        el.loginForm.removeEventListener("submit", onSubmit);
-        resolve(true);
-      } finally {
-        button.disabled = false;
-      }
-    };
-
-    el.loginForm.addEventListener("submit", onSubmit);
+function promptForPassword() {
+  if (loginPending) return loginPending;
+  loginPending = new Promise((resolve) => {
+    loginResolve = resolve;
   });
+  el.loginPassword.value = "";
+  el.loginError.textContent = "";
+  el.loginDialog.showModal();
+  window.setTimeout(() => el.loginPassword.focus(), 60);
+  return loginPending;
 }
 
-function initNav() {
-  el.nav.innerHTML = modes
-    .map(([id, label]) => `<button type="button" data-mode="${id}">${label}</button>`)
-    .join("");
-  el.nav.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-mode]");
-    if (!button) return;
-    state.mode = button.dataset.mode;
-    render();
-  });
+async function onLoginSubmit(event) {
+  event.preventDefault();
+  const password = el.loginPassword.value;
+  if (!password) return;
+  const button = el.loginForm.querySelector("button[type='submit']");
+  button.disabled = true;
+  el.loginError.textContent = "";
+  try {
+    const response = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    if (response.status === 401) {
+      el.loginError.textContent = "Wrong password";
+      el.loginPassword.select();
+      return;
+    }
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      el.loginError.textContent = body.detail || `Login failed: ${response.status}`;
+      return;
+    }
+    localStorage.setItem(TOKEN_KEY, body.token);
+    el.loginDialog.close();
+    const resolve = loginResolve;
+    loginPending = null;
+    loginResolve = null;
+    resolve?.(true);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+// Sub-mode persistence: each grouped tab remembers which of its modes was last
+// active, so the PWA reopens exactly where you left it (tab via the nav
+// component's own storage, sub-mode via grocery.sub.<tab>).
+function restoreSubMode(tab) {
+  const fallback = TAB_DEFAULT_MODE[tab] || "dashboard";
+  let stored = null;
+  try {
+    stored = localStorage.getItem(SUB_KEY_PREFIX + tab);
+  } catch (_) {
+    return fallback;
+  }
+  return stored && MODE_TO_TAB[stored] === tab ? stored : fallback;
+}
+
+function saveSubMode(mode) {
+  const tab = MODE_TO_TAB[mode];
+  if (!tab || TAB_DEFAULT_MODE[tab] === undefined) return;
+  try {
+    localStorage.setItem(SUB_KEY_PREFIX + tab, mode);
+  } catch (_) {
+    // private mode — persistence is best-effort
+  }
+}
+
+function onTabChange(tab) {
+  if (MODE_TO_TAB[state.mode] !== tab) state.mode = restoreSubMode(tab);
+  render();
 }
 
 async function loadInventory() {
@@ -356,7 +428,7 @@ async function loadInventory() {
     render();
   } catch (error) {
     setStatus(error.message);
-    el.main.innerHTML = `<div class="empty">Inventory unavailable.</div>`;
+    activePaneBody()?.replaceChildren(emptyStateEl("circle-alert", "Inventory unavailable."));
   } finally {
     el.refresh.disabled = false;
   }
@@ -404,39 +476,26 @@ function renderSummary() {
   </section>`;
 }
 
-function renderSideStats() {
-  if (!state.payload) return;
+function renderDashboard() {
+  const cols = c();
+  const cards = filteredItems().map((item) => itemCard(item, cols)).join("");
+  activePaneBody().innerHTML = `${renderSummary()}${renderStoreCards()}<section class="grid">${cards || emptyStateEl("search", "No matching items.").outerHTML}</section>`;
+}
+
+// Per-store progress cards. Carries the cart-offset-aware done counts the old
+// sidebar stats showed, so dissolving the sidebar loses no information.
+function renderStoreCards() {
   const stats = state.payload.summary.supermarket_stats;
   const stores = Object.keys(stats).sort();
-  el.sideStats.innerHTML = `<div>${state.payload.summary.total_items} total tracked items</div>` + stores.map((store) => {
+  if (!stores.length) return emptyStateEl("shopping-basket", "No shopping items right now.").outerHTML;
+  return `<section class="grid">${stores.map((store) => {
     const s = stats[store];
     const offset = state.shopping.offsets[store] || { items: 0, units: 0 };
     const doneItems = s.got_it_unique + Number(offset.items || 0);
     const doneUnits = s.got_it_quantity + Number(offset.units || 0);
     const pct = s.total_unique ? Math.min(100, Math.round((doneItems / s.total_unique) * 100)) : 0;
-    return `<div class="store-stat">
-      <strong>${html(store)}</strong>
-      <div>${doneItems}/${s.total_unique} items · ${doneUnits}/${s.total_quantity} units</div>
-      <div class="progress"><span style="width:${pct}%"></span></div>
-    </div>`;
-  }).join("");
-}
-
-function renderDashboard() {
-  const cols = c();
-  const cards = filteredItems().map((item) => itemCard(item, cols)).join("");
-  el.main.innerHTML = `${renderSummary()}${renderStoreCards()}<section class="grid">${cards || '<div class="empty">No matching items.</div>'}</section>`;
-}
-
-function renderStoreCards() {
-  const stats = state.payload.summary.supermarket_stats;
-  const stores = Object.keys(stats).sort();
-  if (!stores.length) return `<div class="empty">No shopping items right now.</div>`;
-  return `<section class="grid">${stores.map((store) => {
-    const s = stats[store];
-    const pct = s.total_unique ? Math.round((s.got_it_unique / s.total_unique) * 100) : 0;
     return `<article class="card">
-      <div class="row"><h2>${html(store)}</h2><div class="meta">${s.total_unique} items · ${s.total_quantity} units</div></div>
+      <div class="card-head"><h2 class="card-title">${html(store)}</h2><span class="card-head-meta">${doneItems}/${s.total_unique} items · ${doneUnits}/${s.total_quantity} units</span></div>
       <div class="progress"><span style="width:${pct}%"></span></div>
     </article>`;
   }).join("")}</section>`;
@@ -451,7 +510,8 @@ function itemCard(item, cols) {
 }
 
 function zoneTabs() {
-  return `<div class="tabs">${state.payload.summary.zones.map((zone) =>
+  // .pills, not .tabs — the vendored nav owns the .tabs class app-wide.
+  return `<div class="pills">${state.payload.summary.zones.map((zone) =>
     `<button type="button" class="pill ${zone === state.zone ? "active" : ""}" data-zone="${html(zone)}">${html(zone)}</button>`,
   ).join("")}</div>`;
 }
@@ -463,7 +523,7 @@ function renderAudit(targetsOnly = false) {
     .filter((item) => !targetsOnly || Number(item[cols.cantidad]) > 0))
     .sort((a, b) => text(a[cols.comida]).localeCompare(text(b[cols.comida])));
   const header = targetsOnly ? "➖ have ➕ · have/target · ⊖ target ⊕ · buy" : "have/target · ⊖ target ⊕ · buy";
-  el.main.innerHTML = `<section class="panel"><div class="row"><h2>${targetsOnly ? "Audit Inventory" : "Edit Targets"}</h2><span class="hint">${html(state.zone)} · ${source.length} items</span></div>${zoneTabs()}<div class="hint">${header}</div></section>
+  activePaneBody().innerHTML = `<section class="panel"><div class="row"><h2>${targetsOnly ? "Audit Inventory" : "Edit Targets"}</h2><span class="hint">${html(state.zone)} · ${source.length} items</span></div>${zoneTabs()}<div class="hint">${header}</div></section>
     <section class="grid">${source.map((item) => `
       <article class="item" data-id="${item.id}">
         <div><h3>${html(item[cols.comida])}</h3><div class="meta">${html(item[cols.super])}</div></div>
@@ -474,13 +534,13 @@ function renderAudit(targetsOnly = false) {
           <button class="icon-btn" data-action="target-plus">+</button>
           <span class="${Number(item[cols.comprar]) > 0 ? "buy" : "ok"}">${Number(item[cols.comprar]) > 0 ? `Buy ${item[cols.comprar]}` : "OK"}</span>
         </div>
-      </article>`).join("") || '<div class="empty">No items in this zone.</div>'}</section>`;
+      </article>`).join("") || emptyStateEl("package", "No items in this zone.").outerHTML}</section>`;
 }
 
 function renderEdit() {
   const cols = c();
   const source = filteredItems().sort((a, b) => text(a[cols.comida]).localeCompare(text(b[cols.comida])));
-  el.main.innerHTML = `<section class="grid">${source.map((item) => `
+  activePaneBody().innerHTML = `<section class="grid">${source.map((item) => `
     <article class="card" data-id="${item.id}">
       <form class="form edit-form">
         <div class="row"><h3>${html(item[cols.comida])}</h3><button class="danger" type="button" data-action="delete">Delete</button></div>
@@ -496,13 +556,13 @@ function renderEdit() {
         </div>
         <button class="primary" type="submit">Save</button>
       </form>
-    </article>`).join("") || '<div class="empty">No matching items.</div>'}</section>`;
+    </article>`).join("") || emptyStateEl("search", "No matching items.").outerHTML}</section>`;
 }
 
 function renderAdd() {
   const zones = state.payload.summary.zones;
   const stores = state.payload.summary.supermarkets;
-  el.main.innerHTML = `<section class="panel">
+  activePaneBody().innerHTML = `<section class="panel">
     <h2>Add Item</h2>
     <form id="add-form" class="form">
       <div class="three">
@@ -532,7 +592,7 @@ function renderShopping() {
   const base = shoppingItems();
   const stores = [...new Set([...base.map((item) => item[cols.super]), ...Object.keys(state.shopping.extras)])].sort();
   if (!stores.length) {
-    el.main.innerHTML = `<div class="empty">All stocked up.</div>`;
+    activePaneBody().replaceChildren(emptyStateEl("circle-check", "All stocked up."));
     return;
   }
   const missingLink = base.filter((item) => text(item[cols.buscador]) === "-" || !text(item[cols.buscador]).trim());
@@ -541,7 +601,7 @@ function renderShopping() {
     <div class="row"><h2>Shopping</h2>${boughtCount ? `<button class="secondary" id="shopping-unmark-all" type="button">↩️ Unmark all</button>` : ""}</div>
     ${missingLink.length ? `<div class="panel-status error">⚠️ ${missingLink.length} item(s) missing a buy link — their Buy button is disabled.</div>` : ""}
   </section>`;
-  el.main.innerHTML = header + stores.map((store) => {
+  activePaneBody().innerHTML = header + stores.map((store) => {
     const storeItems = base.filter((item) => item[cols.super] === store);
     const extras = state.shopping.extras[store] || [];
     const extraBought = new Set(state.shopping.extraBought[store] || []);
@@ -596,16 +656,16 @@ function extraRow(item, store, extraBought) {
 
 function renderAutomation() {
   const stores = state.payload.summary.supermarkets;
-  el.main.innerHTML = `<section class="panel">
+  activePaneBody().innerHTML = `<section class="panel">
     <h2>Run Automation</h2>
     <div class="hint">Fills the store carts from this list via Chrome automation. You still confirm and pay in the browser.</div>
     <div class="three">
       <select id="automation-store" class="field"><option value="all">All stores</option>${stores.map((s) => `<option value="${html(s)}">${html(s)}</option>`).join("")}</select>
       <select id="automation-cart-mode" class="field"><option value="keep">Keep cart</option><option value="clean">Clean cart</option></select>
-      <label class="hint"><input id="automation-dry-run" type="checkbox"> Dry run</label>
+      <div class="flag-row"><span>Dry run</span>${switchMarkup(false, "Dry run", { id: "automation-dry-run" })}</div>
     </div>
     <div id="automation-clean-warn" class="panel-status error" hidden>⚠️ Clean mode empties the store cart first — anything added by hand will be removed.</div>
-    <label id="automation-clean-confirm-wrap" class="hint" hidden><input id="automation-clean-confirm" type="checkbox"> Yes, empty the cart first</label>
+    <div id="automation-clean-confirm-wrap" class="flag-row" hidden><span>Yes, empty the cart first</span>${switchMarkup(false, "Yes, empty the cart first", { id: "automation-clean-confirm" })}</div>
     <pre id="automation-command" class="log"></pre>
     <div class="actions">
       <button id="automation-start" class="primary" type="button">▶ Run Automation</button>
@@ -624,15 +684,15 @@ function renderAutomation() {
 async function updateAutomationCommand() {
   const store = document.querySelector("#automation-store")?.value || "all";
   const cartMode = document.querySelector("#automation-cart-mode")?.value || "keep";
-  const dryRun = document.querySelector("#automation-dry-run")?.checked ?? true;
+  const dryEl = document.querySelector("#automation-dry-run");
+  const dryRun = dryEl ? dryEl.getAttribute("aria-checked") === "true" : true;
   const clean = cartMode === "clean";
   const warn = document.querySelector("#automation-clean-warn");
   const confirmWrap = document.querySelector("#automation-clean-confirm-wrap");
   if (warn) warn.hidden = !clean;
   if (confirmWrap) confirmWrap.hidden = !(clean && !dryRun);
-  const confirmBox = document.querySelector("#automation-clean-confirm");
   const start = document.querySelector("#automation-start");
-  if (start) start.disabled = clean && !dryRun && !(confirmBox?.checked);
+  if (start) start.disabled = clean && !dryRun && !switchOn("#automation-clean-confirm");
   try {
     const r = await fetchJson(`/api/automation/command?store=${encodeURIComponent(store)}&dry_run=${dryRun}&cart_mode=${cartMode}`);
     const cmd = document.querySelector("#automation-command");
@@ -717,9 +777,21 @@ function renderAudio() {
     .join("");
   const checklist = state.payload.summary.zones.map((zone) => {
     const zoneItems = items().filter((item) => item[cols.lugar] === zone && Number(item[cols.cantidad]) > 0);
-    return `<details class="zone"><summary>${html(zone)} · ${zoneItems.length}</summary><div class="zone-items">${zoneItems.map((item) => `<label><input type="checkbox"> ${html(item[cols.comida])}</label>`).join("")}</div></details>`;
+    return `<details class="card card--collapsible">
+      <summary class="collapse-summary">
+        <span class="collapse-main">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-list-checks"></use></svg>
+          <h3 class="collapse-title">${html(zone)}</h3>
+          <span class="collapse-count">${zoneItems.length}</span>
+        </span>
+        <span class="collapse-chevron" aria-hidden="true">›</span>
+      </summary>
+      <div class="collapse-body zone-items">${zoneItems.map((item) =>
+        `<div class="zone-item"><span>${html(item[cols.comida])}</span>${switchMarkup(false, `Checked ${text(item[cols.comida])}`)}</div>`,
+      ).join("")}</div>
+    </details>`;
   }).join("");
-  el.main.innerHTML = `<section class="panel">
+  activePaneBody().innerHTML = `<section class="panel">
     <h2>Audio Audit</h2>
     <div id="audio-health-banner" class="panel-status"></div>
     <div class="hint">Keep the checklist visible while recording. Announce the zone, then item counts in Spanish.</div>
@@ -765,7 +837,7 @@ function renderMatches() {
   const apply = document.querySelector("#apply-audio");
   if (!target) return;
   if (!state.matches) {
-    target.innerHTML = `<div class="empty">No match results yet.</div>`;
+    target.replaceChildren(emptyStateEl("mic", "No match results yet."));
     if (apply) apply.disabled = true;
     return;
   }
@@ -790,11 +862,11 @@ function renderMatches() {
     const delta = proposed - current;
     const deltaTxt = `${delta > 0 ? "+" : ""}${delta}`;
     const badge = (match.zone && match.zone !== item[cols.lugar]) ? ` <span class="meta">(list: ${html(item[cols.lugar])})</span>` : "";
-    return `<label class="item">
+    return `<div class="item">
       <span><strong>${html(item[cols.comida])}</strong>${badge}<span class="meta"> ${html(match.evidence || "")}</span></span>
       <span class="match-figures"><span class="meta">${current} →</span> <strong>${proposed}</strong> <span class="${delta > 0 ? "buy" : "meta"}">${deltaTxt}</span>
-        <input type="checkbox" data-audio-idx="${match.idx}" data-count="${proposed}" checked></span>
-    </label>`;
+        ${switchMarkup(true, `Accept ${text(item[cols.comida])}`, { "data-audio-idx": match.idx, "data-count": proposed })}</span>
+    </div>`;
   };
 
   const zoneSections = Object.keys(byZone).sort().map((zone) =>
@@ -815,14 +887,14 @@ function renderMatches() {
     ? `<section class="panel"><h2>Not mentioned (in audited zones)</h2>
       <div class="hint">${unseen.length} item(s) in the zones you walked but didn't name. Tick to set them to 0.</div>
       <div class="grid">${unseen.map((item) =>
-        `<label class="item"><span><strong>${html(item[cols.comida])}</strong> <span class="meta">(list: ${html(item[cols.lugar])})</span></span>
+        `<div class="item"><span><strong>${html(item[cols.comida])}</strong> <span class="meta">(list: ${html(item[cols.lugar])})</span></span>
           <span class="match-figures"><span class="meta">${Number(item[cols.tenemos])} → <strong>0</strong></span>
-            <input type="checkbox" data-audio-zero="${item.id}"></span></label>`,
+            ${switchMarkup(false, `Set ${text(item[cols.comida])} to zero`, { "data-audio-zero": item.id })}</span></div>`,
       ).join("")}</div></section>`
     : "";
 
   target.innerHTML = `<section class="panel"><h2>Detected Items</h2>${
-    zoneSections || '<div class="empty">No recognised items.</div>'
+    zoneSections || emptyStateEl("mic", "No recognised items.").outerHTML
   }</section>
   ${unseenSection}
   ${state.matches.unmatched_mentions?.length ? `<section class="panel"><h2>Unmatched Mentions</h2>${state.matches.unmatched_mentions.map((m) => `<div class="meta">${html(m.phrase)} · ${html(m.note)}</div>`).join("")}</section>` : ""}`;
@@ -832,8 +904,7 @@ function renderMatches() {
 function render() {
   if (!state.payload) return;
   el.title.textContent = modes.find(([id]) => id === state.mode)?.[1] || "Inventory";
-  el.nav.querySelectorAll("[data-mode]").forEach((button) => button.classList.toggle("active", button.dataset.mode === state.mode));
-  renderSideStats();
+  el.app.querySelectorAll(".subnav [data-mode]").forEach((button) => button.classList.toggle("active", button.dataset.mode === state.mode));
   if (state.mode === "dashboard") renderDashboard();
   if (state.mode === "audit") renderAudit(true);
   if (state.mode === "targets") renderAudit(false);
@@ -844,7 +915,25 @@ function render() {
   if (state.mode === "audio") renderAudio();
 }
 
-el.main.addEventListener("click", async (event) => {
+// Sub-mode pills (static markup in the audit/items panes).
+el.app.addEventListener("click", (event) => {
+  const button = event.target.closest(".subnav [data-mode]");
+  if (!button) return;
+  state.mode = button.dataset.mode;
+  saveSubMode(state.mode);
+  render();
+});
+
+// Vendored switches are rendered as markup strings, so their flips are
+// delegated here — setSwitch is the one write path for class + aria-checked.
+el.app.addEventListener("click", (event) => {
+  const sw = event.target.closest('.toggle[role="switch"]');
+  if (!sw) return;
+  setSwitch(sw, sw.getAttribute("aria-checked") !== "true");
+  if (sw.id === "automation-dry-run" || sw.id === "automation-clean-confirm") updateAutomationCommand();
+});
+
+el.app.addEventListener("click", async (event) => {
   const zoneButton = event.target.closest("[data-zone]");
   if (zoneButton) {
     state.zone = zoneButton.dataset.zone;
@@ -878,7 +967,7 @@ el.main.addEventListener("click", async (event) => {
   }
 });
 
-el.main.addEventListener("submit", async (event) => {
+el.app.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (event.target.matches(".edit-form")) {
     const card = event.target.closest("[data-id]");
@@ -904,13 +993,15 @@ el.main.addEventListener("submit", async (event) => {
   }
 });
 
-el.main.addEventListener("change", (event) => {
+el.app.addEventListener("change", (event) => {
   if (event.target.id === "audio-model") {
     state.audioModel = event.target.value;
     renderAudioContext();
     return;
   }
-  if (["automation-store", "automation-cart-mode", "automation-dry-run", "automation-clean-confirm"].includes(event.target.id)) {
+  // The dry-run / clean-confirm switches fire through the click delegation
+  // above; only the two selects arrive here.
+  if (["automation-store", "automation-cart-mode"].includes(event.target.id)) {
     updateAutomationCommand();
     return;
   }
@@ -925,7 +1016,7 @@ el.main.addEventListener("change", (event) => {
   render();
 });
 
-el.main.addEventListener("click", async (event) => {
+el.app.addEventListener("click", async (event) => {
   if (event.target.id === "automation-start") {
     state.automationStarted = Date.now();
     const status = await fetchJson("/api/automation/start", {
@@ -933,7 +1024,7 @@ el.main.addEventListener("click", async (event) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         store: document.querySelector("#automation-store").value,
-        dry_run: document.querySelector("#automation-dry-run").checked,
+        dry_run: switchOn("#automation-dry-run"),
         cart_mode: document.querySelector("#automation-cart-mode").value,
       }),
     });
@@ -1272,10 +1363,10 @@ async function matchTranscript() {
 
 async function applyAudio() {
   const updates = {};
-  document.querySelectorAll("[data-audio-idx]:checked").forEach((box) => {
+  document.querySelectorAll('[data-audio-idx][aria-checked="true"]').forEach((box) => {
     updates[box.dataset.audioIdx] = Number(box.dataset.count);
   });
-  document.querySelectorAll("[data-audio-zero]:checked").forEach((box) => {
+  document.querySelectorAll('[data-audio-zero][aria-checked="true"]').forEach((box) => {
     updates[box.dataset.audioZero] = 0;
   });
   if (!Object.keys(updates).length) {
@@ -1320,8 +1411,18 @@ el.exportCsv.addEventListener("click", () => { window.location.href = "/api/expo
 el.closeApp.addEventListener("click", () => { if (confirm("Close the FastAPI app?")) fetchJson("/api/actions/close", { method: "POST" }); });
 
 el.themeToggle.addEventListener("click", toggleTheme);
+el.loginForm.addEventListener("submit", onLoginSubmit);
+// Auth is mandatory — Esc must not dismiss the login dialog.
+el.loginDialog.addEventListener("cancel", (event) => event.preventDefault());
 
 captureTokenFromURL();
 applyTheme(currentTheme());
-initNav();
+// The nav restores the persisted tab and fires onChange once at init
+// (payload is still null there, so that first render() is a no-op — the
+// restored tab paints when loadInventory() completes).
+initNavTabs({
+  storageKey: TAB_KEY,
+  onChange: onTabChange,
+  scrollResetSelector: ".app",
+});
 loadInventory();
