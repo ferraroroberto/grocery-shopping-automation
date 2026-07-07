@@ -171,7 +171,21 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .app {
   max-width: 772px;
   margin: 0 auto;
-  padding: 0 var(--gap) 24px;
+  padding-top: env(safe-area-inset-top, 0);
+  padding-left: var(--gap);
+  padding-right: var(--gap);
+}
+/* Bottom padding is desktop/wide-only, deliberately split out of the rule
+   above (app-launcher#355 lesson): the coarse-pointer + narrow breakpoint is
+   where nav-tabs.css reserves .app's bottom padding for the floating tab bar
+   (its own `.app { padding: ... }` in that media condition) — a shorthand
+   `padding` here would win the cascade (equal specificity, later in source
+   order) and silently clobber that reservation. */
+@media (pointer: fine), (min-width: 521px) {
+  .app {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0) + 24px);
+    scroll-padding-bottom: calc(env(safe-area-inset-bottom, 0) + 24px);
+  }
 }
 
 /* ---------------------------------------------------- icons (Lucide) */
@@ -295,14 +309,18 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .card-head-meta { color: var(--muted); font-size: var(--font-caption); font-weight: 600; }
 
 h1, h2, h3 { margin: 0; line-height: 1.2; }
+/* One title size app-wide: page h1 (+ metric numbers) sit at heading-lg;
+   every other title — panel h2, item/card h3 — is body-size, weight-graded.
+   The full text scale is exactly four steps: heading-lg 1.5 / body 1 /
+   label 0.92 (controls, statuses, hints) / caption 0.78 (data metas). */
 h2 { font-size: var(--font-body); font-weight: 700; }
-h3 { font-size: var(--font-label); font-weight: 600; }
+h3 { font-size: var(--font-body); font-weight: 600; }
 
 .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: var(--gap); }
 .metric { padding: var(--gap); }
 .metric span, .meta, .hint { color: var(--muted); font-size: var(--font-caption); font-weight: 600; }
 .hint { font-weight: 400; font-size: var(--font-label); }
-.metric strong { display: block; margin-top: var(--space-xs); font-size: 1.35rem; }
+.metric strong { display: block; margin-top: var(--space-xs); font-size: var(--font-heading-lg); }
 
 .grid { display: grid; gap: var(--gap); }
 main.app > .pane { display: grid; gap: var(--gap); }
@@ -368,7 +386,7 @@ main.app > .pane { display: grid; gap: var(--gap); }
   color: var(--ink);
 }
 textarea { min-height: 150px; padding: 10px; resize: vertical; }
-.field-label { display: grid; gap: var(--space-xs); color: var(--muted); font-size: var(--font-caption); font-weight: 600; }
+.field-label { display: grid; gap: var(--space-xs); color: var(--muted); font-size: var(--font-label); font-weight: 600; }
 
 .form { display: grid; gap: var(--space-sm); }
 .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-sm); }
@@ -415,4 +433,4 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 .zone-item:last-child { border-bottom: 0; }
 
 /* ------------------------------------------------------------ login dialog */
-.login-error { min-height: 20px; color: var(--deficit); font-size: var(--font-caption); }
+.login-error { min-height: 20px; color: var(--deficit); font-size: var(--font-label); }

@@ -597,10 +597,12 @@ function renderShopping() {
   }
   const missingLink = base.filter((item) => text(item[cols.buscador]) === "-" || !text(item[cols.buscador]).trim());
   const boughtCount = state.shopping.bought.size + Object.values(state.shopping.extraBought || {}).reduce((n, list) => n + (list?.length || 0), 0);
-  const header = `<section class="panel">
+  // Header panel only when it has something to say (unmark-all / warnings) —
+  // an empty card under the page title is noise.
+  const header = (boughtCount || missingLink.length) ? `<section class="panel">
     <div class="row"><h2>Shopping</h2>${boughtCount ? `<button class="secondary" id="shopping-unmark-all" type="button">↩️ Unmark all</button>` : ""}</div>
     ${missingLink.length ? `<div class="panel-status error">⚠️ ${missingLink.length} item(s) missing a buy link — their Buy button is disabled.</div>` : ""}
-  </section>`;
+  </section>` : "";
   activePaneBody().innerHTML = header + stores.map((store) => {
     const storeItems = base.filter((item) => item[cols.super] === store);
     const extras = state.shopping.extras[store] || [];
