@@ -1,0 +1,543 @@
+/* Grocery — Inventory Helper PWA. */
+
+/* ============================================================ design tokens
+   Fleet design system (~/.claude/design.md + design.dark.md). Token *names*
+   are this app's; their *values* are the spec's. Light = :root, dark =
+   [data-theme="dark"]. P3 wide-gamut (oklch) twins override the saturated
+   tokens behind @media (color-gamut: p3) below. */
+:root {
+  /* colors — neutrals */
+  --bg: #ffffff;            /* canvas (page background) */
+  --card: #ffffff;          /* elevated card surface */
+  --card-off: #f6f8fa;      /* canvas-subtle (inset / off-card surfaces) */
+  --ink: #1f2328;           /* fg (primary text) */
+  --muted: #656d76;         /* fg-muted (secondary text) */
+  --line: #d1d9e0;          /* border (default hairline) */
+  --line-muted: #d8dee4;    /* border-muted (divider inside a card) */
+  /* colors — accent + status (status colors signal state only, never decoration) */
+  --accent: #0969da;
+  --accent-fg: #ffffff;     /* text/icon on an accent fill */
+  --on: #1a7f37;            /* success */
+  --deficit: #cf222e;       /* danger */
+  --attention: #9a6700;     /* attention */
+  /* derived surface roles (mapped onto the neutral tokens above) */
+  --input-bg: var(--card-off);
+  --toggle-track: var(--line);
+  --toggle-knob: #ffffff;
+  --toggle-label: var(--muted);
+  --close-bg: var(--card-off);
+  --scrim: rgba(0, 0, 0, 0.5);
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --accent-border-soft: color-mix(in srgb, var(--accent) 24%, transparent);
+  --accent-border-strong: color-mix(in srgb, var(--accent) 28%, transparent);
+  /* the transcript/automation log is a terminal-class surface that follows
+     the theme (a fixed dark matte read as "not switching" in light mode). */
+  --log-bg: var(--card-off);
+  --log-ink: var(--ink);
+  /* radii (rounded scale) */
+  --radius-md: 12px;
+  --radius: 16px;           /* rounded.lg — cards */
+  --radius-pill: 9999px;
+  --radius-nav: 30px;       /* the floating bottom-tab bar */
+  /* spacing scale */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  /* uniform gutter between cards/tiles and from the page edges */
+  --gap: 12px;
+  /* shared height for inline controls (switch / select / input) */
+  --control-h: 36px;
+  /* repeated-list row heights (flat separator-row canon, app-launcher#365) */
+  --row-sm: 44px;
+  --row-md: 52px;
+  --row-lg: 60px;
+  /* typography roles — system stack, weight (not case) for hierarchy. */
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-heading-xl: 2rem;
+  --font-heading-lg: 1.5rem;
+  --font-body: 1rem;
+  --font-label: 0.92rem;
+  --font-caption: 0.78rem;
+  /* canonical icon sizes (design.md icons.size) */
+  --icon-inline: 16px;
+  --icon-title: 18px;
+  --icon-feature: 24px;
+  /* elevation — cards lean on surface + hairline border; the floating nav is
+     the only element with a real shadow. */
+  --shadow: 0 8px 24px rgba(31, 35, 40, 0.12);
+  /* Mobile floating bottom tab bar (phone-validated geometry,
+     home-automation#118 — see _vendored/nav/README.md). */
+  --bottom-tabs-height: 61px;
+  --bottom-tabs-margin: 21px;
+  --bottom-tabs-pill-height: 53px;
+  --bottom-tabs-padding: 4px;
+  --bottom-tabs-gap: 4px;
+  --bottom-tabs-icon: 20px;
+  --bottom-tabs-label: 11px;
+  --tabbar-bg: rgba(255, 255, 255, 0.85);
+  --tabbar-border: rgba(31, 35, 40, 0.12);
+  color-scheme: light dark;
+}
+
+[data-theme="dark"] {
+  --bg: #0d1117;            /* canvas (GitHub dark canvas) */
+  --card: #161b22;          /* elevated card surface */
+  --card-off: #010409;      /* canvas-subtle (true black inset) */
+  --ink: #e6edf3;           /* fg */
+  --muted: #7d8590;         /* fg-muted */
+  --line: #30363d;          /* border */
+  --line-muted: #21262d;    /* border-muted */
+  --accent: #2f81f7;
+  --accent-fg: #ffffff;
+  --on: #3fb950;            /* success */
+  --deficit: #f85149;       /* danger */
+  --attention: #d29922;     /* attention */
+  --input-bg: var(--bg);
+  --toggle-track: var(--line);
+  --toggle-knob: var(--ink);
+  --toggle-label: var(--muted);
+  --close-bg: var(--line);
+  /* Depth on a near-black canvas comes from surface lightness, not shadow. */
+  --shadow: 0 8px 24px rgba(1, 4, 9, 0.6);
+  --tabbar-bg: rgba(22, 27, 34, 0.86);
+  --tabbar-border: rgba(255, 255, 255, 0.13);
+}
+
+/* P3 wide-gamut twins — saturated tokens only; neutrals are sRGB by design. */
+@media (color-gamut: p3) {
+  :root {
+    --accent: oklch(0.52 0.18 256);
+    --on: oklch(0.55 0.14 150);
+    --deficit: oklch(0.55 0.20 25);
+    --attention: oklch(0.55 0.11 80);
+  }
+  [data-theme="dark"] {
+    --accent: oklch(0.64 0.18 256);
+    --on: oklch(0.72 0.18 150);
+    --deficit: oklch(0.68 0.20 25);
+    --attention: oklch(0.77 0.13 85);
+  }
+}
+
+/* ============================================================ base */
+* { box-sizing: border-box; }
+
+/* The `hidden` attribute must always win, even over a class that sets
+   `display` — panes and toggled controls rely on it. */
+[hidden] { display: none !important; }
+
+/* Canonical focus-visible ring — one tokenized rule for every interactive
+   element app-wide (design.md focus contract). */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Honor the OS "reduce motion" preference: collapse authored motion to
+   near-instant (0.01ms, not 0 — some engines skip the end event at 0s). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--font-body);
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+  /* Fixed-scale app — pairs with the maximum-scale=1 viewport meta. */
+  touch-action: manipulation;
+  /* Kill rubber-band drag at the document edges (nav README hardening). */
+  overscroll-behavior: none;
+}
+
+/* UA stylesheets give form controls a platform font, never the document's. */
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: 0.55; }
+
+/* Centered phone-first measure — identical proportions at any width. */
+.app {
+  max-width: 772px;
+  margin: 0 auto;
+  padding-top: calc(env(safe-area-inset-top, 0px) + var(--gap));
+  padding-left: var(--gap);
+  padding-right: var(--gap);
+}
+/* Bottom padding is desktop/wide-only, deliberately split out of the rule
+   above (app-launcher#355 lesson): the coarse-pointer + narrow breakpoint is
+   where nav-tabs.css reserves .app's bottom padding for the floating tab bar
+   (its own `.app { padding: ... }` in that media condition) — a shorthand
+   `padding` here would win the cascade (equal specificity, later in source
+   order) and silently clobber that reservation. */
+@media (pointer: fine), (min-width: 521px) {
+  .app {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0) + 24px);
+    scroll-padding-bottom: calc(env(safe-area-inset-bottom, 0) + 24px);
+  }
+}
+
+/* ---------------------------------------------------- icons (Lucide) */
+/* Required .icon contract from _vendored/icons/README.md (verbatim). */
+.icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vertical-align: -0.15em;
+}
+
+/* ------------------------------------------------------ theme toggle */
+/* Sun/moon ghost button in the top bar. Shows the glyph for the ACTION:
+   moon in light (tap → dark), sun in dark (tap → light). */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control-h);
+  min-width: 36px;
+  padding: 6px;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-md);
+  color: var(--muted);
+}
+.theme-toggle:active { background: var(--card-off); color: var(--ink); }
+.theme-toggle-icon {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+:root[data-theme="dark"] .theme-icon-moon { display: none; }
+:root:not([data-theme="dark"]) .theme-icon-sun { display: none; }
+
+/* ------------------------------------------------------- home header card */
+/* Home-only, ONE row at disclosure-summary height (52px): icon + title,
+   status inline after it, theme toggle right — everything centered
+   vertically (the home-automation weather-tile shape, compacted). */
+.home-head {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+}
+.home-head .status {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.status {
+  min-height: 20px;
+  color: var(--muted);
+  font-size: var(--font-label);
+}
+
+/* Search sits alone below the pills: full card width (a second grid track
+   would inset it by one gap and break the alignment with the cards below)
+   and disclosure-summary height so it reads as a peer of the cards. The
+   pane's own grid gap spaces it — no extra padding. */
+.toolbar .search {
+  min-height: var(--row-md);
+  border-radius: var(--radius);
+  padding: 0 14px;
+}
+
+/* settings tab — the old sidebar utilities as a 2-up action grid */
+.settings-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm);
+  margin-top: var(--gap);
+}
+
+/* Build identity footer (home-automation contract) — filled by fetchVersion.
+   Regular weight: home-automation renders it muted+small, never bold. */
+.page-foot { padding: var(--space-lg) 0 var(--space-sm); text-align: center; }
+.page-foot .meta { font-weight: 400; }
+
+/* --------------------------------------------------------- sub-mode pills */
+.pills { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
+/* Zone pills: ONE compact swipeable line — six zones wrapped to two rows and
+   ate the screen. Scrollbar hidden; overflow affords the swipe. */
+.zone-pills {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.zone-pills::-webkit-scrollbar { display: none; }
+.zone-pills .pill { flex: none; min-height: 32px; padding: 0 12px; }
+.pill {
+  min-height: var(--control-h);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  padding: 0 14px;
+  font-size: var(--font-label);
+  font-weight: 600;
+}
+.pill.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ------------------------------------------------------------- surfaces */
+.card, .metric, .panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+/* Collapsible cards zero their own padding (vendored disclosure contract) —
+   this rule loads after disclosure.css, so it must not re-add it. */
+.card:not(.card--collapsible), .metric, .panel { padding: var(--space-md); }
+/* Home header matches the collapse-summary geometry exactly (52px, 14px
+   inset) — same 0-2-0 specificity as the padding rule above, later wins. */
+.card.home-head { min-height: var(--row-md); padding: 0 14px; }
+.panel > * + * { margin-top: var(--gap); }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
+.card-title {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-body);
+  font-weight: 700;
+}
+.card-title .icon { width: var(--icon-title); height: var(--icon-title); color: var(--muted); }
+.card-head-meta { color: var(--muted); font-size: var(--font-caption); font-weight: 600; }
+
+h1, h2, h3 { margin: 0; line-height: 1.2; }
+/* One title size app-wide: page h1 (+ metric numbers) sit at heading-lg;
+   every other title — panel h2, item/card h3 — is body-size, weight-graded.
+   The full text scale is exactly four steps: heading-lg 1.5 / body 1 /
+   label 0.92 (controls, statuses, hints) / caption 0.78 (data metas). */
+h2 { font-size: var(--font-body); font-weight: 700; }
+h3 { font-size: var(--font-body); font-weight: 600; }
+
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: var(--gap); }
+.metric { padding: var(--gap); }
+.metric span, .meta, .hint { color: var(--muted); font-size: var(--font-caption); font-weight: 600; }
+.hint { font-weight: 400; font-size: var(--font-label); }
+.metric strong { display: block; margin-top: var(--space-xs); font-size: var(--font-heading-lg); }
+
+/* Every stack in the pane chain pins its single track to minmax(0, 1fr):
+   an implicit `auto` track takes the min-content of its widest item
+   (grid items default to min-width:auto), so the zone-pills' no-wrap row
+   was silently widening .panel → .pane-body → .pane past the viewport and
+   the WHOLE PAGE scrolled horizontally on the phone — its own
+   overflow-x:auto never got the chance to scroll. */
+.grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
+main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
+.pane-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
+
+/* Repeated list rows: flat separator-row canon (app-launcher#365) — rows lose
+   their per-row box; the *list* is the card. Gap collapses so the separators
+   meet; per-row status accents survive as text color, not borders. */
+.grid:has(> .item) { gap: 0; }
+.pane-body > .grid:has(> .item) {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.item {
+  min-height: var(--row-lg);
+  padding: var(--space-sm) var(--space-md);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--gap);
+  align-items: center;
+  border-bottom: 1px solid var(--line-muted);
+}
+.item:last-child { border-bottom: 0; }
+.item-actions { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; justify-content: flex-end; }
+
+/* Audit/targets rows: ONE line per row — name (super beneath, both
+   ellipsized) left, the whole control strip packed to the right. FIXED
+   control columns keep buttons, counts and verdicts table-aligned across
+   rows; the verdict is the terse need count (−N / OK) so it all fits.
+   Rows sit tight (no row-lg minimum) so the separators come close. */
+.audit-item {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-sm);
+  min-height: 0;
+  padding-top: var(--space-xs);
+  padding-bottom: var(--space-xs);
+}
+.audit-name { min-width: 0; }
+.audit-name h3, .audit-name .meta {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.audit-controls {
+  display: grid;
+  align-items: center;
+  justify-content: end;
+  gap: var(--space-xs);
+}
+.audit-controls--targets { grid-template-columns: 44px 36px 36px 36px; }
+.audit-controls--full { grid-template-columns: 36px 36px 44px 36px 36px 36px; }
+.audit-controls .qty { min-width: 0; }
+.audit-verdict { text-align: right; font-size: var(--font-label); font-weight: 700; }
+.qty { min-width: 76px; text-align: right; font-weight: 700; }
+.buy { color: var(--deficit); }
+.ok { color: var(--on); }
+.qty-ok { color: var(--on); font-weight: 700; }
+.qty-low { color: var(--attention); font-weight: 700; }
+.qty-zero { color: var(--deficit); font-weight: 700; }
+
+.progress { height: 8px; overflow: hidden; border-radius: var(--radius-pill); background: var(--card-off); }
+.progress span { display: block; height: 100%; background: var(--accent); }
+
+/* Dashboard store progress: all stores share ONE card; the bar gets clear
+   air below the store name instead of hugging it. */
+.store-block + .store-block { margin-top: var(--space-lg); }
+.store-block .progress { margin-top: var(--gap); }
+
+/* ------------------------------------------------------------- controls */
+.primary, .secondary, .danger, .icon-btn {
+  min-height: var(--control-h);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  padding: 0 12px;
+  font-size: var(--font-label);
+  font-weight: 600;
+}
+.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); padding: 0 14px; }
+.danger { background: var(--deficit); border-color: var(--deficit); color: #ffffff; }
+.icon-btn { width: var(--control-h); padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.icon-btn .icon { width: var(--icon-inline); height: var(--icon-inline); }
+
+/* Accent-ghost feature button — home-automation's .big-btn recipe verbatim
+   (Net tab "Run speed test"): accent tint fill, accent text, soft accent
+   border, one shared 48px height. Match/Apply/Clear, Add Item, Run
+   Automation all wear it so the feature buttons read as one family. */
+.big-btn {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent-border-soft);
+  border-radius: var(--radius-md);
+  padding: 13px;
+  min-height: 48px;
+  font-size: var(--font-body);
+  font-weight: 700;
+  cursor: pointer;
+}
+.big-btn:active { transform: scale(0.98); }
+
+.actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-sm); }
+/* Full-width feature button (home-automation .net-speed-btn identity):
+   secondary shade, icon + label centered, spans the card. */
+.btn-block {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45em;
+}
+.btn-block .icon { width: 1.15em; height: 1.15em; }
+/* Match / Apply / Clear share one line; Cancel (when shown) spans it. */
+.audio-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-sm); }
+.audio-actions #audio-cancel { grid-column: 1 / -1; }
+.flag-row { display: flex; align-items: center; gap: var(--space-sm); color: var(--muted); font-size: var(--font-label); }
+
+.search, .field, textarea, select {
+  width: 100%;
+  min-height: var(--control-h);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 0 10px;
+  background: var(--input-bg);
+  color: var(--ink);
+}
+/* Selects take their height from padding (local-llm-hub .opt-stack recipe) —
+   iOS ignores min-height on a bare <select>, rendering it stubby. */
+select { padding: 10px 12px; font-size: var(--font-label); }
+textarea { min-height: 150px; padding: 10px; resize: vertical; }
+.field-label { display: grid; gap: var(--space-xs); color: var(--muted); font-size: var(--font-label); font-weight: 600; }
+
+.form { display: grid; gap: var(--space-sm); }
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-sm); }
+.three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-sm); }
+.three-link { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr); gap: var(--space-sm); }
+.row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
+
+@media (max-width: 560px) {
+  .two, .three, .three-link { grid-template-columns: 1fr; }
+}
+
+/* ------------------------------------------------------------ statuses */
+.panel-status { min-height: 20px; font-size: var(--font-label); color: var(--muted); }
+.panel-status code { background: var(--accent-soft); padding: 0 4px; border-radius: 4px; }
+.panel-status.error { color: var(--deficit); }
+.panel-status.ok { color: var(--on); }
+.match-figures { display: inline-flex; align-items: center; gap: var(--space-sm); white-space: nowrap; }
+
+/* Terminal-class log surface — theme-aware (canvas-subtle inset + hairline). */
+.log {
+  white-space: pre-wrap;
+  overflow: auto;
+  max-height: 360px;
+  padding: var(--gap);
+  border: 1px solid var(--line-muted);
+  border-radius: var(--radius-md);
+  background: var(--log-bg);
+  color: var(--log-ink);
+  font-family: Consolas, monospace;
+  font-size: var(--font-caption);
+  margin: 0;
+}
+/* .log's `margin: 0` (same specificity, later in source) silently killed the
+   panel's stack spacing — the "no space after the Dry run toggle" bug. */
+.panel > .log { margin-top: var(--gap); }
+
+/* --------------------------------------------------------- disclosures */
+/* Stack spacing inside any open disclosure body (offsets / list / quick-add). */
+.collapse-body > * + * { margin-top: var(--gap); }
+/* Flat item rows inside a disclosure body align their text with the body's
+   own 14px inset instead of double-indenting (matches .zone-item). */
+.collapse-body .item { padding-left: 0; padding-right: 0; }
+
+/* --------------------------------------------------- audio zone checklist */
+.zone-list { display: grid; gap: var(--space-sm); }
+.zone-items { display: grid; gap: 0; }
+/* The collapse-body stack spacing must NOT leak between checklist rows — a
+   12px margin above each row makes the text sit low in its row (more space
+   above the separator than below) and wastes a screenful of height. */
+.zone-items > * + * { margin-top: 0; }
+.zone-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  min-height: var(--row-sm);
+  border-bottom: 1px solid var(--line-muted);
+}
+.zone-item:last-child { border-bottom: 0; }
+
+/* ------------------------------------------------------------ login dialog */
+.login-error { min-height: 20px; color: var(--deficit); font-size: var(--font-label); }

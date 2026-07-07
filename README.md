@@ -7,7 +7,7 @@ Mobile-responsive web app for managing household grocery inventory with intellig
 Comprehensive household inventory management across multiple operational modes. Audit current stock room-by-room, edit target quantities, track shopping in real time, and add on-the-fly items directly to the shopping list.
 
 **Key Features:**
-- Mobile access over local Wi-Fi — use the **Copy link** button in the sidebar to get the URL and open it on your phone
+- Mobile access over local Wi-Fi — use the **Copy Link** button in the ⚙️ Settings tab to get the URL and open it on your phone
 - Room-by-room inventory auditing with auto-save (best done from mobile)
 - Shopping list grouped by supermarket with per-store progress bars (best done from desktop)
 - Cart offset counters to account for items already in the cart
@@ -18,7 +18,7 @@ Comprehensive household inventory management across multiple operational modes. 
 ## 🏗️ Project Structure
 
 - **`app/`** — UI layers.
-  - *Primary (FastAPI/PWA on `:8502`):* `api.py` (entrypoint — inventory, audit, edit/add, shopping, automation, and audio-audit endpoints), `middleware.py` (bearer-token auth for non-loopback requests), `static/` (PWA front end: `index.html`, `app.js`), `automation_runner.py` (shared subprocess plumbing that streams the cart-automation CLI into the app).
+  - *Primary (FastAPI/PWA on `:8502`):* `api.py` (entrypoint — inventory, audit, edit/add, shopping, automation, and audio-audit endpoints), `middleware.py` (bearer-token auth for non-loopback requests), `static/` (PWA front end: `index.html`, `app.js`, `styles.css`, `_vendored/` fleet components), `automation_runner.py` (shared subprocess plumbing that streams the cart-automation CLI into the app).
   - *Legacy (Streamlit fallback on `:8501`):* `app.py` (entrypoint — page config, session state, sidebar, mode routing), `audit.py` / `audio_audit.py` / `edit_targets.py` / `edit_item.py` / `add_item.py` / `shopping.py` / `export.py` / `ui_helpers.py` (per-mode modules, each exposing `main(df)`).
 - **`src/`** — UI-free data/business layer.
   - `data.py` — config loading, XLSX load/save, supermarket stats, quantity mutators.
@@ -53,7 +53,9 @@ Double-click `webapp.bat`, or from the repo root:
 webapp.bat
 ```
 
-The FastAPI app on `:8502` covers the inventory dashboard, audit, target editing, item editing, item creation, shopping mode, automation controls, and the audio-audit workflow against the Excel-backed `src/data.py` layer. Open `http://127.0.0.1:8502` when no local cert exists, or `https://127.0.0.1:8502` after running `& .\.venv\Scripts\python.exe src\gen_ssl_cert.py`. The launcher binds to `0.0.0.0`, so the same port is reachable over LAN or Tailscale from devices that can reach this PC. A light/dark theme toggle sits next to the sidebar brand and remembers your choice.
+The FastAPI app on `:8502` covers the inventory dashboard, audit, target editing, item editing, item creation, shopping mode, automation controls, and the audio-audit workflow against the Excel-backed `src/data.py` layer. Open `http://127.0.0.1:8502` when no local cert exists, or `https://127.0.0.1:8502` after running `& .\.venv\Scripts\python.exe src\gen_ssl_cert.py`. The launcher binds to `0.0.0.0`, so the same port is reachable over LAN or Tailscale from devices that can reach this PC.
+
+The PWA follows the fleet design system (`~/.claude/design.md` + `design.dark.md`): a floating bottom-tab pill on the phone (inline top tabs on desktop) with six tabs — **Inventory · Shopping · Audit · Items · Auto · Settings** (Audio Audit lives as a sub-pill under Audit; Targets / Edit Item / Add Item under Items) — vendored fleet components under `app/static/_vendored/`, and a light/dark **theme toggle in the top bar** (moon/sun icon) that remembers your choice. The utility actions (Open Spreadsheet, Copy Link, Export CSV, Close App) live in the ⚙️ **Settings tab**; heavy cards (the dashboard item list, the per-store shopping panels, the audio zone checklist) are collapsible and folded by default; the search box appears only on the modes that filter the item list. A footer line shows the running build (`Build: <git sha> · <time>`, from `/api/version`) so you always know which deploy the app is serving, and the shell auto-reloads once when it detects a newer build.
 
 ### Legacy Streamlit app
 
@@ -188,9 +190,9 @@ Best done from mobile — rotate to **landscape** for optimal layout.
 ### 🎙️ Audio Audit
 Walk the house dictating the inventory in Spanish (*"ahora en la nevera, dos yogures, un litro de leche…"*). The audio is transcribed by the local whisper-server and matched against the inventory by the local LLM hub — same `claude-local-calls` services that power the rest of this monorepo. The record view shows a per-zone, alphabetical checklist of tracked items so nothing gets missed while dictating. A service-status banner reports recorder/hub/whisper reachability. A **Match model** selector picks which hub model performs the match (defaults to `gemini_pro`, configurable via `audio_audit.llm_model` / `llm_models_available`). Transcribe and Match show a **live elapsed timer** with staged progress and a **Cancel** button (calls budget up to 10 min — `audio_audit.llm_timeout`), and surface errors inline instead of failing silently. The review groups detected items by zone with current→new/Δ/evidence and a "not mentioned in audited zones → set 0" section; applying writes a JSON audit log to `audio_audit_logs/`.
 
-**Hardened recording (never lose a take).** Recording does **not** buffer the whole take on the phone. Each 1-second chunk is streamed to the PC and archived to disk the moment it arrives by the sibling **voice-transcriber** app, so the audio survives even if the phone dies or the page is backgrounded mid-walk. The transcript fills in live as you talk (rolling partials over SSE when the voice-transcriber has them enabled), and **Stop** returns the canonical transcript ready to Match. The status line shows elapsed time and bytes streamed to the PC. **↻ Redo** re-runs whisper on the saved audio (crash recovery, or after a transient transcribe error); **🧽 Clear** resets everything for the next audit. grocery only *proxies* the recording lifecycle (`POST /api/audio/session` → `…/chunk` → `…/events` SSE → `…/finish` → `…/retranscribe`) to the voice-transcriber session API on loopback — it never re-implements recording or transcription. The recorder URL is `audio_audit.voice_transcriber_url` (default `https://127.0.0.1:8443`). **Choose File → Transcribe File** remains as a direct whisper fallback for an uploaded audio file.
+**Hardened recording (never lose a take).** Recording does **not** buffer the whole take on the phone. Each 1-second chunk is streamed to the PC and archived to disk the moment it arrives by the sibling **voice-transcriber** app, so the audio survives even if the phone dies or the page is backgrounded mid-walk. The transcript fills in live as you talk (rolling partials over SSE when the voice-transcriber has them enabled), and **Stop** returns the canonical transcript ready to Match. The status line shows elapsed time and bytes streamed to the PC. **Redo** re-runs whisper on the saved audio (crash recovery, or after a transient transcribe error); **Clear** resets everything for the next audit. grocery only *proxies* the recording lifecycle (`POST /api/audio/session` → `…/chunk` → `…/events` SSE → `…/finish` → `…/retranscribe`) to the voice-transcriber session API on loopback — it never re-implements recording or transcription. The recorder URL is `audio_audit.voice_transcriber_url` (default `https://127.0.0.1:8443`). (The old Choose-File upload fallback is gone from the UI — record, Redo, or paste a transcript; `POST /api/audio/transcribe` still accepts a direct file upload for scripted use.)
 
-> **Pre-requisites:** the **voice-transcriber** webapp must be running (it boots from its tray) for live recording — when it's down the audio view shows a clear banner and disables Record instead of hanging. The hub on `:8000` and whisper-server on `:8090` must also be running (start them via `E:\automation\claude-local-calls\run_hub.bat` and `launchers\run_whisper.bat`, or its tray launcher). **`ffmpeg` must be on `PATH`** (`winget install Gyan.FFmpeg`) for the Choose-File fallback — uploaded webm/mp4 is transcoded to 16 kHz WAV before whisper (the streamed record path transcodes inside voice-transcriber).
+> **Pre-requisites:** the **voice-transcriber** webapp must be running (it boots from its tray) for live recording — when it's down the audio view shows a clear banner and disables Record instead of hanging. The hub on `:8000` and whisper-server on `:8090` must also be running (start them via `E:\automation\claude-local-calls\run_hub.bat` and `launchers\run_whisper.bat`, or its tray launcher). **`ffmpeg` must be on `PATH`** (`winget install Gyan.FFmpeg`) for the direct-upload `/api/audio/transcribe` endpoint — uploaded webm/mp4 is transcoded to 16 kHz WAV before whisper (the streamed record path transcodes inside voice-transcriber).
 
 ### ✏️ Edit Targets
 Set or adjust target quantities per item. Auto-saves every change.
@@ -204,11 +206,11 @@ Add new items to the inventory via a form.
 ### 🛒 Shopping List
 View items that need to be purchased, grouped by supermarket.
 
-**Cart offset counters (sidebar):**
+**Cart offset counters:**
 Each supermarket shows an editable `＋items` and `＋units` counter below its progress bar. Use these when items were already placed in the physical cart before opening the app — the bar and totals update immediately to reflect the combined count.
 
 **Quick-add items:**
-At the bottom of each supermarket's expander, a small inline form lets you add ad-hoc items (name + quantity). These are session-only and support the full `✅ Got it` / `↩️ Undo` / `🗑️ Remove` workflow. Works for both Ametller and Mercadona (and any other supermarket in the list).
+At the bottom of each supermarket's expander, a small inline form lets you add ad-hoc items (name + quantity). These are session-only and support the full `Got it` / `Undo` / `Remove` workflow. Works for both Ametller and Mercadona (and any other supermarket in the list).
 
 ### 💾 Save / Export
 Manual save to Excel or download as CSV, plus summary statistics.
@@ -237,8 +239,8 @@ window, then press Enter in the terminal. See
 
 **Run it from the app:** the **🛒 Shopping List** mode has a **🤖 Run
 Automation** section — pick a store (or "All stores"), choose a **cart mode**,
-optionally tick *Dry run*, and click **▶ Run Automation**. Output streams live
-into the page and a **🛑 Stop** button cancels an in-progress run. From a
+optionally tick *Dry run*, and click **Run Automation**. Output streams live
+into the page and a **Stop** button cancels an in-progress run. From a
 terminal you can also run
 `& .\.venv\Scripts\python.exe -m automation.run_automation --keep-open`, which
 fills the cart and then waits so you can review and pay before it closes.
