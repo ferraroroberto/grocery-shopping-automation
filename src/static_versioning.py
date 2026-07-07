@@ -6,11 +6,20 @@ answered by feel:
 
   * content-hash query stamps on every ``.js`` / ``.css`` asset so any
     edit changes the URL — no manual ``?v=N`` bumps, no stale iOS cache.
-    ``index.html`` carries a ``?v=__NAME__`` placeholder for the assets
-    it references directly (``app.js``); every other module is a
-    transitive ``import`` from ``app.js`` and gets its ``?v=`` stamped by
-    :meth:`BuildInfo.rewrite_js_imports` at serve time,
+    ``index.html`` references its assets with plain ``/static/…`` URLs;
+    :meth:`BuildInfo.stamp_html` stamps them at serve time, and
+    :meth:`BuildInfo.stamp_js` stamps the relative ``import`` URLs inside
+    every served JS module (including the ``_vendored/`` component graph),
   * a build identity (git SHA + build time) surfaced via :meth:`as_dict`.
+
+The webapp is an ES-module graph (``index.html`` loads ``app.js`` which
+imports the vendored components). A naive per-file hash would go stale:
+if a vendored module changes but ``app.js`` does not, ``app.js``'s own
+bytes — and so its hash — are unchanged, yet the module it pulls in is
+now different. So we use a single **fleet hash** — one SHA-256 over the
+concatenation of every hashable file's per-file hash. Any edit to any
+asset rotates the fleet hash, so every ``?v=`` stamp changes and the
+whole (tiny) module graph is re-fetched.
 
 Every value is computed once when :class:`BuildInfo` is constructed at
 webapp startup — the app restarts on every code edit per project
@@ -31,46 +40,137 @@ import re
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Iterable
 
 logger = logging.getLogger(__name__)
 
-# Suffixes hashed + content-stamped. Everything else under static/
-# (icons, manifest) is cached more conservatively by the static mount.
-STAMPED_SUFFIXES = (".js", ".css")
+_HASH_LEN = 8
 
-# Assets that ``index.html`` references directly via a ``?v=__NAME__``
-# placeholder. The placeholder for each is the uppercased name with dots
-# turned to underscores, e.g. ``app.js`` -> ``__APP_JS__``. Every other
-# ``.js`` module is reached only through an ``import`` inside ``app.js``.
-HTML_STAMPED_ASSETS = ("app.js",)
+# Suffixes under static/ that get hashed + ``?v=`` stamped. Everything
+# else (icons, manifest) is cached conservatively by the static mount.
+_HASHED_SUFFIXES = (".js", ".css")
+
+# Subdirectories under static/ skipped entirely — third-party bundles
+# carry their own version in the path and never benefit from a hash.
+_SKIP_DIRS = ("vendor",)
 
 # Static ES-module imports inside the JS graph: ``from './x.js'`` and the
-# bare ``import './x.js'`` side-effect form. The optional ``?v=`` group
-# makes re-stamping an already-stamped body idempotent.
+# bare ``import './x.js'`` side-effect form. The path may descend into
+# subdirectories (``./_vendored/nav/nav-tabs.js``) or climb out of one
+# (``../icons/icons.js`` inside a vendored module). Any existing ``?v=…``
+# is captured too, so re-stamping an already-stamped body is idempotent.
 _JS_IMPORT_RE = re.compile(
-    r"""(from\s*['"]|import\s*['"])\./([\w\-.]+\.js)(\?v=[^'"]*)?(['"])"""
+    r"""(from\s*['"]|import\s*['"])((?:\.\./|\./)[\w\-./]+\.js)(\?v=[^'"]*)?(['"])"""
+)
+
+# ``href`` / ``src`` pointing at a hashable ``/static/`` asset in
+# index.html — subdirectory paths (``_vendored/…``) included. Same
+# idempotence rule as the JS import regex.
+_INDEX_ASSET_RE = re.compile(
+    r"""(href|src)=(['"])/static/([\w\-./]+\.(?:css|js))(\?v=[^'"]*)?(['"])"""
 )
 
 
-def _placeholder(asset_name: str) -> str:
-    """The index.html token a content hash replaces, e.g. ``__APP_JS__``."""
-    return "__" + asset_name.replace(".", "_").upper() + "__"
+def _short_hash(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()[:_HASH_LEN]
 
 
-def asset_hash(path: Path) -> str:
-    """Return the first 8 hex chars of the file's SHA-256.
+def _iter_hashable_files(static_dir: Path) -> Iterable[Path]:
+    for path in sorted(static_dir.rglob("*")):
+        if not path.is_file():
+            continue
+        rel_parts = path.relative_to(static_dir).parts[:-1]
+        if any(part in _SKIP_DIRS for part in rel_parts):
+            continue
+        if path.suffix.lower() not in _HASHED_SUFFIXES:
+            continue
+        yield path
 
-    Falls back to ``"missing"`` when the file can't be read so a partial
-    deployment degrades to a stable (if uninformative) stamp instead of
-    crashing the page.
+
+def compute_asset_hashes(static_dir: Path) -> Dict[str, str]:
+    """Return ``{filename: fleet_hash}`` for every hashable static file.
+
+    Every value is the same fleet hash (see the module docstring); the
+    dict is keyed by the slash-separated path relative to static/ — a root
+    file's key is its plain filename, a vendored file's key carries its
+    subdirectory (``_vendored/nav/nav-tabs.css``) — so the rewriters can
+    confirm a referenced file actually exists before stamping it. Falls
+    back to an empty dict when the static dir or its files can't be read —
+    a partial deploy then degrades to unstamped URLs rather than crashing
+    the page.
     """
-    try:
-        digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    except OSError as exc:
-        logger.warning(f"⚠️  Could not hash {path} ({exc})")
-        return "missing"
-    return digest[:8]
+    if not static_dir.exists():
+        return {}
+    per_file: Dict[str, str] = {}
+    for path in _iter_hashable_files(static_dir):
+        rel = path.relative_to(static_dir).as_posix()
+        try:
+            per_file[rel] = _short_hash(path.read_bytes())
+        except OSError as exc:
+            logger.warning(f"⚠️  Could not hash {path} ({exc})")
+    if not per_file:
+        return {}
+    fleet_input = "\n".join(
+        f"{name}:{per_file[name]}" for name in sorted(per_file)
+    ).encode("utf-8")
+    fleet_hash = _short_hash(fleet_input)
+    return {name: fleet_hash for name in per_file}
+
+
+def fleet_hash_of(hashes: Dict[str, str]) -> str:
+    """The single representative hash. Empty string if no assets."""
+    if not hashes:
+        return ""
+    return next(iter(hashes.values()))
+
+
+def rewrite_index_html(body: str, hashes: Dict[str, str]) -> str:
+    """Stamp ``?v=<hash>`` onto every ``/static/<file>.(css|js)`` href/src.
+
+    Unknown files pass through unchanged — robust against a new asset
+    not yet in the hash map. Existing ``?v=…`` is replaced.
+    """
+    if not hashes:
+        return body
+
+    def _sub(match: "re.Match[str]") -> str:
+        attr, quote_open, filename, _existing, quote_close = match.group(
+            1, 2, 3, 4, 5
+        )
+        stamp = hashes.get(filename)
+        if not stamp:
+            return match.group(0)
+        return f"{attr}={quote_open}/static/{filename}?v={stamp}{quote_close}"
+
+    return _INDEX_ASSET_RE.sub(_sub, body)
+
+
+def rewrite_js_imports(body: str, hashes: Dict[str, str]) -> str:
+    """Stamp ``?v=<hash>`` onto every relative ``'…/foo.js'`` import.
+
+    Imports with no matching entry in ``hashes`` are left alone. Existing
+    ``?v=…`` is replaced, so re-rewriting a served body is idempotent.
+
+    A ``./``-rooted import matches its static/-relative key directly. A
+    ``../`` import (a vendored module reaching a sibling component) can't
+    be resolved without knowing the importing file's directory, so it
+    falls back to a basename lookup — safe because every entry carries
+    the same fleet hash (see the module docstring).
+    """
+    if not hashes:
+        return body
+    by_basename = {name.rsplit("/", 1)[-1]: stamp for name, stamp in hashes.items()}
+
+    def _sub(match: "re.Match[str]") -> str:
+        prefix, filename, _existing, quote_close = match.group(1, 2, 3, 4)
+        stamp = hashes.get(filename[2:]) if filename.startswith("./") else None
+        if not stamp:
+            stamp = by_basename.get(filename.rsplit("/", 1)[-1])
+        if not stamp:
+            return match.group(0)
+        return f"{prefix}{filename}?v={stamp}{quote_close}"
+
+    return _JS_IMPORT_RE.sub(_sub, body)
 
 
 def _git_short_sha(repo_root: Path) -> str:
@@ -99,51 +199,25 @@ class BuildInfo:
     """Immutable build identity, computed once at webapp startup."""
 
     def __init__(self, static_dir: Path, repo_root: Path) -> None:
-        # Hash every .js/.css file in static/ — the whole ES-module graph,
-        # not just the assets index.html names directly.
-        self.asset_hashes: Dict[str, str] = {
-            path.name: asset_hash(path)
-            for path in sorted(static_dir.glob("*"))
-            if path.is_file() and path.suffix.lower() in STAMPED_SUFFIXES
-        }
+        self.asset_hashes: Dict[str, str] = compute_asset_hashes(static_dir)
+        self.fleet_hash: str = fleet_hash_of(self.asset_hashes)
         self.git_sha: str = _git_short_sha(repo_root)
         self.built_at: str = datetime.now(timezone.utc).isoformat(
             timespec="seconds"
         )
 
     def stamp_html(self, html: str) -> str:
-        """Replace the ``?v=__NAME__`` placeholders in index.html with the
-        content hash of each directly-referenced asset."""
-        for name in HTML_STAMPED_ASSETS:
-            digest = self.asset_hashes.get(name)
-            if digest:
-                html = html.replace(_placeholder(name), digest)
-        return html
+        """Stamp the asset URLs in index.html with the fleet hash."""
+        return rewrite_index_html(html, self.asset_hashes)
 
-    def rewrite_js_imports(self, body: str) -> str:
-        """Stamp ``?v=<hash>`` onto every ``from './foo.js'`` import.
-
-        Imports with no matching entry in :attr:`asset_hashes` are left
-        untouched — robust against a dynamic import or a file added but
-        not yet hashed. Any existing ``?v=…`` is replaced so re-rewriting
-        an already-stamped body is idempotent.
-        """
-        if not self.asset_hashes:
-            return body
-
-        def _sub(match: re.Match) -> str:
-            prefix, filename, _existing, quote_close = match.group(1, 2, 3, 4)
-            digest = self.asset_hashes.get(filename)
-            if not digest:
-                return match.group(0)
-            return f"{prefix}./{filename}?v={digest}{quote_close}"
-
-        return _JS_IMPORT_RE.sub(_sub, body)
+    def stamp_js(self, body: str) -> str:
+        """Stamp the relative ``import`` URLs in a served JS module."""
+        return rewrite_js_imports(body, self.asset_hashes)
 
     def as_dict(self) -> Dict[str, str]:
-        """Build-identity payload (git SHA, build time, app.js hash)."""
+        """Build-identity payload (git SHA, build time, fleet hash)."""
         return {
             "git_sha": self.git_sha,
             "built_at": self.built_at,
-            "asset_hash": self.asset_hashes.get("app.js", "missing"),
+            "asset_hash": self.fleet_hash or "missing",
         }

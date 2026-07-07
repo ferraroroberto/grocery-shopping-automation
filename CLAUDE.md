@@ -14,6 +14,16 @@ Canonical instructions for AI coding agents working in this repository. Claude C
 - User feedback via `st.error()` / `st.warning()` / `st.success()`, not `st.write()`.
 - **App layout:** main file (e.g. `app.py`) handles only page config, shared state, sidebar, and tab/radio routing. Each tab/mode lives in its own file exposing a `main(...)` (or `render_*`) function. Default to `st.tabs()`; use a sidebar radio only when asked.
 
+## UX surface
+*The design-conformance gate the `/issue-{start,finish,yolo}` skills read (convention: `project-scaffolding#83`). This is a live, parseable block — the product is the FastAPI + static PWA under `app/static/`.*
+
+- design spec applies: yes        # this repo serves a real PWA on :8502; the legacy Streamlit app on :8501 is exempt
+- paths:
+  - app/static/**/*.css
+  - app/static/**/*.{js,html}
+- key views:                      # single tabbed SPA served at `/`
+  - /          (Inventory · Shopping · Audit · Items · Auto · Settings tabs, bottom-pill nav)
+
 ## This repository
 Mobile-responsive web app for managing a household grocery inventory and shopping list, backed by an Excel file. The primary surface is a FastAPI + vanilla-JS PWA on `:8502` (`app/api.py`); a legacy Streamlit app on `:8501` (`app/app.py`) remains and drives the same modes. Includes a voice-narrated audit mode that uses a local whisper-server and LLM hub from the `claude-local-calls` sibling project. Windows + PowerShell.
 See `README.md` for setup, layout, and usage.

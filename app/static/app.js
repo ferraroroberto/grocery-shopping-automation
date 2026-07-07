@@ -1,16 +1,36 @@
+import { initNavTabs } from "./_vendored/nav/nav-tabs.js";
+import { setSwitch, switchEl } from "./_vendored/switch/switch.js";
+import { emptyStateEl } from "./_vendored/empty-state/empty-state.js";
+
 const TOKEN_KEY = "grocery.authToken";
 const SHOP_STATE_KEY = "grocery.shoppingState";
+const TAB_KEY = "grocery.tab";
+const SUB_KEY_PREFIX = "grocery.sub.";
 
-const modes = [
-  ["dashboard", "Inventory"],
-  ["audit", "Audit"],
-  ["targets", "Targets"],
-  ["edit", "Edit Item"],
-  ["add", "Add Item"],
-  ["shopping", "Shopping"],
-  ["audio", "Audio Audit"],
-  ["automation", "Automation"],
-];
+// Modes whose content the search box filters — it hides everywhere else.
+const SEARCHABLE_MODES = new Set(["dashboard", "audit", "targets", "edit"]);
+
+// The 8 modes group into the fleet nav's 5 tabs; audit/items tabs re-home
+// their modes as sub-pills (static markup in index.html).
+const MODE_TO_TAB = {
+  dashboard: "inventory",
+  shopping: "shopping",
+  audit: "audit",
+  audio: "audit",
+  targets: "items",
+  edit: "items",
+  add: "items",
+  automation: "automation",
+  settings: "settings",
+};
+const TAB_DEFAULT_MODE = {
+  inventory: "dashboard",
+  shopping: "shopping",
+  audit: "audit",
+  items: "targets",
+  automation: "automation",
+  settings: "settings",
+};
 
 const THEME_KEY = "grocery.theme";
 
@@ -44,23 +64,41 @@ const state = {
 };
 
 const el = {
-  nav: document.querySelector("#nav"),
   themeToggle: document.querySelector("#theme-toggle"),
-  title: document.querySelector("#view-title"),
   status: document.querySelector("#status"),
   search: document.querySelector("#search"),
-  refresh: document.querySelector("#refresh"),
-  main: document.querySelector("#main"),
-  sideStats: document.querySelector("#side-stats"),
+  toolbar: document.querySelector("#toolbar"),
+  buildReadout: document.querySelector("#build-readout"),
+  app: document.querySelector("main.app"),
   openSheet: document.querySelector("#open-sheet"),
   copyLink: document.querySelector("#copy-link"),
   exportCsv: document.querySelector("#export-csv"),
   closeApp: document.querySelector("#close-app"),
-  loginOverlay: document.querySelector("#login-overlay"),
+  loginDialog: document.querySelector("#login-dialog"),
   loginForm: document.querySelector("#login-form"),
   loginPassword: document.querySelector("#login-password"),
   loginError: document.querySelector("#login-error"),
 };
+
+// The pane body a mode renders into (each tab's <section class="pane"> holds
+// one .pane-body; audit/items also carry a static sub-pill row above it).
+function activePaneBody() {
+  const tab = MODE_TO_TAB[state.mode] || "inventory";
+  return document.querySelector(`#pane-${tab} .pane-body`);
+}
+
+// String-building renderers can't attach listeners, so switches render as
+// canonical vendored markup (switchEl → outerHTML) and one delegated click
+// handler on .app flips them via setSwitch — the single write path.
+function switchMarkup(on, label, attrs = {}) {
+  const btn = switchEl(on, { label });
+  for (const [key, value] of Object.entries(attrs)) btn.setAttribute(key, value);
+  return btn.outerHTML;
+}
+
+function switchOn(selector) {
+  return document.querySelector(selector)?.getAttribute("aria-checked") === "true";
+}
 
 function c() {
   return state.payload?.columns ?? {};
@@ -82,6 +120,15 @@ function setStatus(message) {
   el.status.textContent = message;
 }
 
+// Resting top-bar text: the item count on Home, silence elsewhere (the same
+// "Loaded 160 items" on every tab read as clutter). Transient action feedback
+// (Saving… / Saved / errors) still writes over it via setStatus.
+function idleStatus() {
+  return state.mode === "dashboard" && state.payload
+    ? `Loaded ${state.payload.summary.total_items} items`
+    : "";
+}
+
 // Colour-coded current/target, mirroring app/ui_helpers.qty_html:
 // green when stocked (current ≥ target), amber when low, red when empty.
 function qtyMarkup(current, target) {
@@ -97,7 +144,6 @@ function setAudioStatus(message, kind = "") {
     target.textContent = message;
     target.className = `panel-status${kind ? ` ${kind}` : ""}`;
   }
-  setStatus(message);
 }
 
 let audioAbort = null;
@@ -110,25 +156,25 @@ function formatElapsed(seconds) {
 // up to ~10 minutes; never imply a call is fast.
 function audioMatchStage(elapsed) {
   const t = formatElapsed(elapsed);
-  if (elapsed < 5) return `📡 Sending request to LLM hub… (${t})`;
-  if (elapsed < 20) return `🧠 Hub routing to model, analysing transcript… (${t})`;
-  if (elapsed < 60) return `🧠 Matching mentions to candidates… (${t}) — typical 30s–2min`;
-  if (elapsed < 180) return `⏳ Still working… (${t}) — long noisy transcripts take 2–4 min`;
-  return `⏳ Still working… (${t}) — patience, can take up to 10 min on the longest walks`;
+  if (elapsed < 5) return `Sending request to LLM hub… (${t})`;
+  if (elapsed < 20) return `Hub routing to model, analysing transcript… (${t})`;
+  if (elapsed < 60) return `Matching mentions to candidates… (${t}) — typical 30s–2min`;
+  if (elapsed < 180) return `Still working… (${t}) — long noisy transcripts take 2–4 min`;
+  return `Still working… (${t}) — patience, can take up to 10 min on the longest walks`;
 }
 
 function audioTranscribeStage(elapsed) {
   const t = formatElapsed(elapsed);
-  if (elapsed < 5) return `📡 Uploading audio to whisper-server… (${t})`;
-  if (elapsed < 30) return `🎙️ Whisper transcribing… (${t})`;
-  if (elapsed < 120) return `⏳ Whisper still working… (${t}) — long clips can take 1–3 min`;
-  return `⏳ Whisper still working… (${t}) — long audio can take up to 10 min`;
+  if (elapsed < 5) return `Uploading audio to whisper-server… (${t})`;
+  if (elapsed < 30) return `Whisper transcribing… (${t})`;
+  if (elapsed < 120) return `Whisper still working… (${t}) — long clips can take 1–3 min`;
+  return `Whisper still working… (${t}) — long audio can take up to 10 min`;
 }
 
 function setAudioInFlight(busy) {
   const cancel = document.querySelector("#audio-cancel");
   if (cancel) cancel.hidden = !busy;
-  ["#match-transcript", "#transcribe-audio", "#apply-audio", "#audio-model"].forEach((sel) => {
+  ["#match-transcript", "#apply-audio", "#audio-model"].forEach((sel) => {
     const node = document.querySelector(sel);
     if (node) node.disabled = busy;
   });
@@ -153,19 +199,6 @@ async function runWithTimer(stageFn, doFetch) {
   }
 }
 
-async function computeAudioSha(blob) {
-  try {
-    const buffer = await blob.arrayBuffer();
-    state.audioBytes = buffer.byteLength;
-    const digest = await crypto.subtle.digest("SHA-256", buffer);
-    state.audioSha = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
-  } catch (_) {
-    // crypto.subtle is unavailable over plain http on LAN — sha is best-effort.
-    state.audioSha = "";
-    state.audioBytes = blob.size || 0;
-  }
-}
-
 async function refreshAudioHealth() {
   try {
     state.audioHealth = await fetchJson("/api/audio/health");
@@ -183,13 +216,16 @@ function renderAudioHealth() {
     banner.innerHTML = "";
     return;
   }
+  // Sprite icons, not emoji — the status colour + glyph carry the state.
+  const okIcon = '<svg class="icon" aria-hidden="true" focusable="false"><use href="#i-circle-check"></use></svg> ';
+  const badIcon = '<svg class="icon" aria-hidden="true" focusable="false"><use href="#i-circle-alert"></use></svg> ';
   const problems = [];
-  if (!h.voice_ok) problems.push(`❌ Voice recorder unreachable at <code>${html(h.voice_url)}</code> — start the voice-transcriber tray`);
-  if (!h.hub_ok) problems.push(`❌ LLM hub unreachable at <code>${html(h.hub_url)}</code>`);
-  if (!h.whisper_ok) problems.push(`❌ Whisper server unreachable at <code>${html(h.whisper_url)}</code>`);
+  if (!h.voice_ok) problems.push(`${badIcon}Voice recorder unreachable at <code>${html(h.voice_url)}</code> — start the voice-transcriber tray`);
+  if (!h.hub_ok) problems.push(`${badIcon}LLM hub unreachable at <code>${html(h.hub_url)}</code>`);
+  if (!h.whisper_ok) problems.push(`${badIcon}Whisper server unreachable at <code>${html(h.whisper_url)}</code>`);
   if (!problems.length) {
     banner.className = "panel-status ok";
-    banner.innerHTML = "✅ Voice recorder, hub and whisper-server reachable";
+    banner.innerHTML = `${okIcon}Voice recorder, hub and whisper-server reachable`;
   } else {
     banner.className = "panel-status error";
     banner.innerHTML = `${problems.join("<br>")}<br>Voice recorder is the voice-transcriber app; hub :8000 + whisper :8090 are claude-local-calls.`;
@@ -197,7 +233,7 @@ function renderAudioHealth() {
   const matchBtn = document.querySelector("#match-transcript");
   if (matchBtn && !audioAbort) matchBtn.disabled = !h.hub_ok;
   // Record needs the voice-transcriber webapp up — disable it (and show why)
-  // rather than letting a take silently hang. File upload + Match still work.
+  // rather than letting a take silently hang. Paste + Match still work.
   const recordBtn = document.querySelector("#record-toggle");
   const recording = state.mediaRecorder && state.mediaRecorder.state === "recording";
   if (recordBtn && !recording) {
@@ -213,14 +249,54 @@ function currentTheme() {
 function applyTheme(theme) {
   document.documentElement.setAttribute("data-theme", theme);
   localStorage.setItem(THEME_KEY, theme);
+  // The button holds both sprite glyphs; CSS shows the one for the *action*
+  // keyed on html[data-theme] — no JS glyph swap.
   if (el.themeToggle) {
-    el.themeToggle.textContent = theme === "dark" ? "☀️" : "🌙";
     el.themeToggle.title = theme === "dark" ? "Switch to light mode" : "Switch to dark mode";
   }
 }
 
 function toggleTheme() {
   applyTheme(currentTheme() === "dark" ? "light" : "dark");
+}
+
+// --------------------------------------------------- build identity
+// Ported from home-automation main.js — visible proof of which build the PWA
+// is running (footer "Build: <sha> · <time>" line), plus a one-shot reload
+// when the served asset hash changed since the last visit (iOS standalone
+// PWAs can cling to an old shell even with stamped asset URLs).
+const ASSET_HASH_KEY = "grocery.assetHash";
+const ASSET_RELOAD_KEY = "grocery.assetReloadedFor";
+
+function fmtBuildTime(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return String(iso).replace("T", " ").slice(0, 16);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+async function fetchVersion() {
+  try {
+    const body = await fetchJson("/api/version");
+    const sha = body.git_sha || "unknown";
+    const assetHash = body.asset_hash || "";
+    const previousHash = localStorage.getItem(ASSET_HASH_KEY) || "";
+    if (
+      assetHash && previousHash && previousHash !== assetHash &&
+      sessionStorage.getItem(ASSET_RELOAD_KEY) !== assetHash
+    ) {
+      localStorage.setItem(ASSET_HASH_KEY, assetHash);
+      sessionStorage.setItem(ASSET_RELOAD_KEY, assetHash);
+      window.location.reload();
+      return;
+    }
+    if (assetHash) localStorage.setItem(ASSET_HASH_KEY, assetHash);
+    const ts = fmtBuildTime(body.built_at || "");
+    el.buildReadout.textContent = ts ? `Build: ${sha} · ${ts}` : `Build: ${sha}`;
+  } catch (_) {
+    el.buildReadout.textContent = "";
+  }
 }
 
 function loadShoppingState() {
@@ -290,75 +366,98 @@ async function fetchJson(url, init = {}) {
   return body;
 }
 
-async function promptForPassword() {
-  return new Promise((resolve) => {
-    el.loginOverlay.hidden = false;
-    el.loginPassword.value = "";
-    el.loginError.textContent = "";
-    window.setTimeout(() => el.loginPassword.focus(), 60);
+// Concurrent 401s (e.g. the parallel inventory + access fetches) must share
+// one login prompt: every caller gets the same pending promise, resolved once
+// on a successful unlock. The dialog is mandatory — Esc/cancel is blocked and
+// there is no × close; the fleet nav hides itself while it is open.
+let loginPending = null;
+let loginResolve = null;
 
-    const onSubmit = async (event) => {
-      event.preventDefault();
-      const password = el.loginPassword.value;
-      if (!password) return;
-      const button = el.loginForm.querySelector("button[type='submit']");
-      button.disabled = true;
-      el.loginError.textContent = "";
-      try {
-        const response = await fetch("/api/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ password }),
-        });
-        if (response.status === 401) {
-          el.loginError.textContent = "Wrong password";
-          el.loginPassword.select();
-          return;
-        }
-        const body = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          el.loginError.textContent = body.detail || `Login failed: ${response.status}`;
-          return;
-        }
-        localStorage.setItem(TOKEN_KEY, body.token);
-        el.loginOverlay.hidden = true;
-        el.loginForm.removeEventListener("submit", onSubmit);
-        resolve(true);
-      } finally {
-        button.disabled = false;
-      }
-    };
-
-    el.loginForm.addEventListener("submit", onSubmit);
+function promptForPassword() {
+  if (loginPending) return loginPending;
+  loginPending = new Promise((resolve) => {
+    loginResolve = resolve;
   });
+  el.loginPassword.value = "";
+  el.loginError.textContent = "";
+  el.loginDialog.showModal();
+  window.setTimeout(() => el.loginPassword.focus(), 60);
+  return loginPending;
 }
 
-function initNav() {
-  el.nav.innerHTML = modes
-    .map(([id, label]) => `<button type="button" data-mode="${id}">${label}</button>`)
-    .join("");
-  el.nav.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-mode]");
-    if (!button) return;
-    state.mode = button.dataset.mode;
-    render();
-  });
+async function onLoginSubmit(event) {
+  event.preventDefault();
+  const password = el.loginPassword.value;
+  if (!password) return;
+  const button = el.loginForm.querySelector("button[type='submit']");
+  button.disabled = true;
+  el.loginError.textContent = "";
+  try {
+    const response = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    if (response.status === 401) {
+      el.loginError.textContent = "Wrong password";
+      el.loginPassword.select();
+      return;
+    }
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      el.loginError.textContent = body.detail || `Login failed: ${response.status}`;
+      return;
+    }
+    localStorage.setItem(TOKEN_KEY, body.token);
+    el.loginDialog.close();
+    const resolve = loginResolve;
+    loginPending = null;
+    loginResolve = null;
+    resolve?.(true);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+// Sub-mode persistence: each grouped tab remembers which of its modes was last
+// active, so the PWA reopens exactly where you left it (tab via the nav
+// component's own storage, sub-mode via grocery.sub.<tab>).
+function restoreSubMode(tab) {
+  const fallback = TAB_DEFAULT_MODE[tab] || "dashboard";
+  let stored = null;
+  try {
+    stored = localStorage.getItem(SUB_KEY_PREFIX + tab);
+  } catch (_) {
+    return fallback;
+  }
+  return stored && MODE_TO_TAB[stored] === tab ? stored : fallback;
+}
+
+function saveSubMode(mode) {
+  const tab = MODE_TO_TAB[mode];
+  if (!tab || TAB_DEFAULT_MODE[tab] === undefined) return;
+  try {
+    localStorage.setItem(SUB_KEY_PREFIX + tab, mode);
+  } catch (_) {
+    // private mode — persistence is best-effort
+  }
+}
+
+function onTabChange(tab) {
+  if (MODE_TO_TAB[state.mode] !== tab) state.mode = restoreSubMode(tab);
+  render();
 }
 
 async function loadInventory() {
   setStatus("Loading inventory...");
-  el.refresh.disabled = true;
   try {
     state.payload = await fetchJson("/api/inventory", { headers: { Accept: "application/json" } });
     state.access = await fetchJson("/api/access").catch(() => null);
     if (!state.zone) state.zone = defaultZone();
-    setStatus(`Loaded ${state.payload.summary.total_items} items`);
     render();
   } catch (error) {
     setStatus(error.message);
-    el.main.innerHTML = `<div class="empty">Inventory unavailable.</div>`;
-  } finally {
-    el.refresh.disabled = false;
+    activePaneBody()?.replaceChildren(emptyStateEl("circle-alert", "Inventory unavailable."));
   }
 }
 
@@ -369,8 +468,8 @@ async function mutate(url, payload, method = "POST") {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  setStatus(`Loaded ${state.payload.summary.total_items} items`);
   render();
+  setStatus("Saved");
 }
 
 function items() {
@@ -404,42 +503,48 @@ function renderSummary() {
   </section>`;
 }
 
-function renderSideStats() {
-  if (!state.payload) return;
+function renderDashboard() {
+  const cols = c();
+  const source = filteredItems();
+  const cards = source.map((item) => itemCard(item, cols)).join("");
+  const body = activePaneBody();
+  // The full item list folds by default (home-automation pattern: heavy cards
+  // are disclosures). A re-render must not slam it shut, so harvest the live
+  // open state first; an active search force-opens it — a filter whose
+  // results you can't see is a dead control.
+  const itemsOpen = !!body.querySelector("#dash-items[open]") || !!state.query;
+  body.innerHTML = `${renderSummary()}${renderStoreCards()}
+    <details id="dash-items" class="card card--collapsible"${itemsOpen ? " open" : ""}>
+      <summary class="collapse-summary">
+        <span class="collapse-main">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-package"></use></svg>
+          <h3 class="collapse-title">All items</h3>
+          <span class="collapse-count">${source.length}</span>
+        </span>
+        <span class="collapse-chevron" aria-hidden="true">›</span>
+      </summary>
+      <div class="collapse-body"><section class="grid">${cards || emptyStateEl("search", "No matching items.").outerHTML}</section></div>
+    </details>`;
+}
+
+// Store progress — ONE shared card, one block per store, with clear air
+// between the store name and its progress bar. Carries the cart-offset-aware
+// done counts the old sidebar stats showed.
+function renderStoreCards() {
   const stats = state.payload.summary.supermarket_stats;
   const stores = Object.keys(stats).sort();
-  el.sideStats.innerHTML = `<div>${state.payload.summary.total_items} total tracked items</div>` + stores.map((store) => {
+  if (!stores.length) return emptyStateEl("shopping-basket", "No shopping items right now.").outerHTML;
+  return `<article class="card">${stores.map((store) => {
     const s = stats[store];
     const offset = state.shopping.offsets[store] || { items: 0, units: 0 };
     const doneItems = s.got_it_unique + Number(offset.items || 0);
     const doneUnits = s.got_it_quantity + Number(offset.units || 0);
     const pct = s.total_unique ? Math.min(100, Math.round((doneItems / s.total_unique) * 100)) : 0;
-    return `<div class="store-stat">
-      <strong>${html(store)}</strong>
-      <div>${doneItems}/${s.total_unique} items · ${doneUnits}/${s.total_quantity} units</div>
+    return `<div class="store-block">
+      <div class="card-head"><h3 class="card-title">${html(store)}</h3><span class="card-head-meta">${doneItems}/${s.total_unique} items · ${doneUnits}/${s.total_quantity} units</span></div>
       <div class="progress"><span style="width:${pct}%"></span></div>
     </div>`;
-  }).join("");
-}
-
-function renderDashboard() {
-  const cols = c();
-  const cards = filteredItems().map((item) => itemCard(item, cols)).join("");
-  el.main.innerHTML = `${renderSummary()}${renderStoreCards()}<section class="grid">${cards || '<div class="empty">No matching items.</div>'}</section>`;
-}
-
-function renderStoreCards() {
-  const stats = state.payload.summary.supermarket_stats;
-  const stores = Object.keys(stats).sort();
-  if (!stores.length) return `<div class="empty">No shopping items right now.</div>`;
-  return `<section class="grid">${stores.map((store) => {
-    const s = stats[store];
-    const pct = s.total_unique ? Math.round((s.got_it_unique / s.total_unique) * 100) : 0;
-    return `<article class="card">
-      <div class="row"><h2>${html(store)}</h2><div class="meta">${s.total_unique} items · ${s.total_quantity} units</div></div>
-      <div class="progress"><span style="width:${pct}%"></span></div>
-    </article>`;
-  }).join("")}</section>`;
+  }).join("")}</article>`;
 }
 
 function itemCard(item, cols) {
@@ -451,7 +556,9 @@ function itemCard(item, cols) {
 }
 
 function zoneTabs() {
-  return `<div class="tabs">${state.payload.summary.zones.map((zone) =>
+  // .pills, not .tabs — the vendored nav owns the .tabs class app-wide.
+  // zone-pills keeps all zones on one swipeable line.
+  return `<div class="pills zone-pills">${state.payload.summary.zones.map((zone) =>
     `<button type="button" class="pill ${zone === state.zone ? "active" : ""}" data-zone="${html(zone)}">${html(zone)}</button>`,
   ).join("")}</div>`;
 }
@@ -462,25 +569,26 @@ function renderAudit(targetsOnly = false) {
     .filter((item) => item[cols.lugar] === state.zone)
     .filter((item) => !targetsOnly || Number(item[cols.cantidad]) > 0))
     .sort((a, b) => text(a[cols.comida]).localeCompare(text(b[cols.comida])));
-  const header = targetsOnly ? "➖ have ➕ · have/target · ⊖ target ⊕ · buy" : "have/target · ⊖ target ⊕ · buy";
-  el.main.innerHTML = `<section class="panel"><div class="row"><h2>${targetsOnly ? "Audit Inventory" : "Edit Targets"}</h2><span class="hint">${html(state.zone)} · ${source.length} items</span></div>${zoneTabs()}<div class="hint">${header}</div></section>
+  const header = targetsOnly ? "have − + · have/target · target − + · need" : "have/target · target − + · need";
+  const controlsClass = targetsOnly ? "audit-controls audit-controls--full" : "audit-controls audit-controls--targets";
+  activePaneBody().innerHTML = `<section class="panel"><div class="row"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-${targetsOnly ? "list-checks" : "package"}"></use></svg>${targetsOnly ? "Audit Inventory" : "Edit Targets"}</h2><span class="hint">${html(state.zone)} · ${source.length} items</span></div>${zoneTabs()}<div class="hint">${header}</div></section>
     <section class="grid">${source.map((item) => `
-      <article class="item" data-id="${item.id}">
-        <div><h3>${html(item[cols.comida])}</h3><div class="meta">${html(item[cols.super])}</div></div>
-        <div class="item-actions">
+      <article class="item audit-item" data-id="${item.id}">
+        <div class="audit-name"><h3>${html(item[cols.comida])}</h3><div class="meta">${html(item[cols.super])}</div></div>
+        <div class="${controlsClass}">
           ${targetsOnly ? `<button class="icon-btn" data-action="current-minus">-</button><button class="icon-btn" data-action="current-plus">+</button>` : ""}
           <span class="qty">${qtyMarkup(item[cols.tenemos], item[cols.cantidad])}</span>
           <button class="icon-btn" data-action="target-minus">-</button>
           <button class="icon-btn" data-action="target-plus">+</button>
-          <span class="${Number(item[cols.comprar]) > 0 ? "buy" : "ok"}">${Number(item[cols.comprar]) > 0 ? `Buy ${item[cols.comprar]}` : "OK"}</span>
+          <span class="audit-verdict ${Number(item[cols.comprar]) > 0 ? "buy" : "ok"}">${Number(item[cols.comprar]) > 0 ? `−${item[cols.comprar]}` : "OK"}</span>
         </div>
-      </article>`).join("") || '<div class="empty">No items in this zone.</div>'}</section>`;
+      </article>`).join("") || emptyStateEl("package", "No items in this zone.").outerHTML}</section>`;
 }
 
 function renderEdit() {
   const cols = c();
   const source = filteredItems().sort((a, b) => text(a[cols.comida]).localeCompare(text(b[cols.comida])));
-  el.main.innerHTML = `<section class="grid">${source.map((item) => `
+  activePaneBody().innerHTML = `<section class="grid">${source.map((item) => `
     <article class="card" data-id="${item.id}">
       <form class="form edit-form">
         <div class="row"><h3>${html(item[cols.comida])}</h3><button class="danger" type="button" data-action="delete">Delete</button></div>
@@ -496,14 +604,14 @@ function renderEdit() {
         </div>
         <button class="primary" type="submit">Save</button>
       </form>
-    </article>`).join("") || '<div class="empty">No matching items.</div>'}</section>`;
+    </article>`).join("") || emptyStateEl("search", "No matching items.").outerHTML}</section>`;
 }
 
 function renderAdd() {
   const zones = state.payload.summary.zones;
   const stores = state.payload.summary.supermarkets;
-  el.main.innerHTML = `<section class="panel">
-    <h2>Add Item</h2>
+  activePaneBody().innerHTML = `<section class="panel">
+    <h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg>Add Item</h2>
     <form id="add-form" class="form">
       <div class="three">
         <input class="field" name="comida" placeholder="Item name" required />
@@ -515,7 +623,7 @@ function renderAdd() {
         <input class="field" name="tenemos" type="number" min="0" value="0" placeholder="Current" />
         <input class="field" name="buscador" placeholder="URL" />
       </div>
-      <button class="primary" type="submit">Add Item</button>
+      <button class="big-btn" type="submit">Add Item</button>
     </form>
     <datalist id="stores">${stores.map((x) => `<option value="${html(x)}"></option>`).join("")}</datalist>
     <datalist id="zones">${zones.map((x) => `<option value="${html(x)}"></option>`).join("")}</datalist>
@@ -532,16 +640,24 @@ function renderShopping() {
   const base = shoppingItems();
   const stores = [...new Set([...base.map((item) => item[cols.super]), ...Object.keys(state.shopping.extras)])].sort();
   if (!stores.length) {
-    el.main.innerHTML = `<div class="empty">All stocked up.</div>`;
+    activePaneBody().replaceChildren(emptyStateEl("circle-check", "All stocked up."));
     return;
   }
   const missingLink = base.filter((item) => text(item[cols.buscador]) === "-" || !text(item[cols.buscador]).trim());
   const boughtCount = state.shopping.bought.size + Object.values(state.shopping.extraBought || {}).reduce((n, list) => n + (list?.length || 0), 0);
-  const header = `<section class="panel">
-    <div class="row"><h2>Shopping</h2>${boughtCount ? `<button class="secondary" id="shopping-unmark-all" type="button">↩️ Unmark all</button>` : ""}</div>
-    ${missingLink.length ? `<div class="panel-status error">⚠️ ${missingLink.length} item(s) missing a buy link — their Buy button is disabled.</div>` : ""}
-  </section>`;
-  el.main.innerHTML = header + stores.map((store) => {
+  // Header panel only when it has something to say (unmark-all / warnings) —
+  // an empty card under the page title is noise.
+  const header = (boughtCount || missingLink.length) ? `<section class="panel">
+    <div class="row"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-shopping-cart"></use></svg>Shopping</h2>${boughtCount ? `<button class="secondary" id="shopping-unmark-all" type="button">Unmark all</button>` : ""}</div>
+    ${missingLink.length ? `<div class="panel-status error">${missingLink.length} item(s) missing a buy link — their Buy button is disabled.</div>` : ""}
+  </section>` : "";
+  const paneBody = activePaneBody();
+  // Store panels fold by default (summary carries the done/total readout);
+  // harvest the live open state so a Got-it re-render keeps your store open.
+  const openStores = new Set(
+    [...paneBody.querySelectorAll("details[data-store][open]")].map((d) => d.dataset.store),
+  );
+  paneBody.innerHTML = header + stores.map((store) => {
     const storeItems = base.filter((item) => item[cols.super] === store);
     const extras = state.shopping.extras[store] || [];
     const extraBought = new Set(state.shopping.extraBought[store] || []);
@@ -550,24 +666,33 @@ function renderShopping() {
     const totalUnits = storeItems.reduce((n, item) => n + Number(item[cols.comprar] || 0), 0) + extras.reduce((n, item) => n + Number(item.qty || 0), 0);
     const doneItems = storeItems.filter((item) => state.shopping.bought.has(item.id)).length + extras.filter((item) => extraBought.has(item.id)).length + Number(offset.items || 0);
     const doneUnits = storeItems.filter((item) => state.shopping.bought.has(item.id)).reduce((n, item) => n + Number(item[cols.comprar] || 0), 0) + extras.filter((item) => extraBought.has(item.id)).reduce((n, item) => n + Number(item.qty || 0), 0) + Number(offset.units || 0);
-    return `<section class="panel" data-store="${html(store)}">
-      <div class="row"><h2>${html(store)}</h2><span class="meta">${doneItems}/${totalItems} items · ${doneUnits}/${totalUnits} units</span></div>
-      <div class="two">
-        <label class="hint">Cart items offset<input class="field" data-action="offset-items" type="number" min="0" value="${Number(offset.items || 0)}"></label>
-        <label class="hint">Cart units offset<input class="field" data-action="offset-units" type="number" min="0" value="${Number(offset.units || 0)}"></label>
-      </div>
-      <div class="grid">
-        ${storeItems.map((item) => shoppingRow(item, cols)).join("")}
-        ${extras.map((item) => extraRow(item, store, extraBought)).join("")}
-      </div>
-      <form class="form quick-add">
-        <div class="three">
-          <input class="field" name="name" placeholder="Quick-add item" required>
-          <input class="field" name="qty" type="number" min="1" value="1">
-          <button class="secondary" type="submit">Add</button>
+    return `<details class="card card--collapsible" data-store="${html(store)}"${openStores.has(store) ? " open" : ""}>
+      <summary class="collapse-summary">
+        <span class="collapse-main">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-shopping-basket"></use></svg>
+          <h3 class="collapse-title">${html(store)}</h3>
+          <span class="collapse-count">${doneItems}/${totalItems} items · ${doneUnits}/${totalUnits} units</span>
+        </span>
+        <span class="collapse-chevron" aria-hidden="true">›</span>
+      </summary>
+      <div class="collapse-body">
+        <div class="two">
+          <label class="hint">Cart items offset<input class="field" data-action="offset-items" type="number" min="0" value="${Number(offset.items || 0)}"></label>
+          <label class="hint">Cart units offset<input class="field" data-action="offset-units" type="number" min="0" value="${Number(offset.units || 0)}"></label>
         </div>
-      </form>
-    </section>`;
+        <div class="grid">
+          ${storeItems.map((item) => shoppingRow(item, cols)).join("")}
+          ${extras.map((item) => extraRow(item, store, extraBought)).join("")}
+        </div>
+        <form class="form quick-add">
+          <div class="three">
+            <input class="field" name="name" placeholder="Quick-add item" required>
+            <input class="field" name="qty" type="number" min="1" value="1">
+            <button class="secondary" type="submit">Add</button>
+          </div>
+        </form>
+      </div>
+    </details>`;
   }).join("");
 }
 
@@ -578,7 +703,7 @@ function shoppingRow(item, cols) {
     <div><h3>${bought ? `<s>${html(item[cols.comida])}</s>` : html(item[cols.comida])}</h3><div class="meta">${html(item[cols.lugar])} · ${item[cols.comprar]}x</div></div>
     <div class="item-actions">
       <button class="secondary" data-action="open-buy" ${url ? `data-url="${html(url)}"` : "disabled"}>${bought ? "Again" : "Buy"}</button>
-      <button class="${bought ? "secondary" : "primary"}" data-action="${bought ? "undo-buy" : "mark-buy"}">${bought ? "Undo" : "Got it"}</button>
+      <button class="secondary" data-action="${bought ? "undo-buy" : "mark-buy"}">${bought ? "Undo" : "Got it"}</button>
     </div>
   </article>`;
 }
@@ -589,28 +714,32 @@ function extraRow(item, store, extraBought) {
     <div><h3>${bought ? `<s>${html(item.name)}</s>` : html(item.name)} <span class="meta">+</span></h3><div class="meta">${item.qty}x</div></div>
     <div class="item-actions">
       <button class="danger" data-action="remove-extra">Remove</button>
-      <button class="${bought ? "secondary" : "primary"}" data-action="${bought ? "undo-extra" : "mark-extra"}">${bought ? "Undo" : "Got it"}</button>
+      <button class="secondary" data-action="${bought ? "undo-extra" : "mark-extra"}">${bought ? "Undo" : "Got it"}</button>
     </div>
   </article>`;
 }
 
 function renderAutomation() {
   const stores = state.payload.summary.supermarkets;
-  el.main.innerHTML = `<section class="panel">
-    <h2>Run Automation</h2>
+  activePaneBody().innerHTML = `<section class="panel">
+    <h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-bot"></use></svg>Run Automation</h2>
     <div class="hint">Fills the store carts from this list via Chrome automation. You still confirm and pay in the browser.</div>
-    <div class="three">
-      <select id="automation-store" class="field"><option value="all">All stores</option>${stores.map((s) => `<option value="${html(s)}">${html(s)}</option>`).join("")}</select>
-      <select id="automation-cart-mode" class="field"><option value="keep">Keep cart</option><option value="clean">Clean cart</option></select>
-      <label class="hint"><input id="automation-dry-run" type="checkbox"> Dry run</label>
+    <div class="two">
+      <label class="field-label">Store
+        <select id="automation-store"><option value="all">All stores</option>${stores.map((s) => `<option value="${html(s)}">${html(s)}</option>`).join("")}</select>
+      </label>
+      <label class="field-label">Cart mode
+        <select id="automation-cart-mode"><option value="keep">Keep cart</option><option value="clean">Clean cart</option></select>
+      </label>
     </div>
-    <div id="automation-clean-warn" class="panel-status error" hidden>⚠️ Clean mode empties the store cart first — anything added by hand will be removed.</div>
-    <label id="automation-clean-confirm-wrap" class="hint" hidden><input id="automation-clean-confirm" type="checkbox"> Yes, empty the cart first</label>
+    <div class="flag-row"><span>Dry run</span>${switchMarkup(false, "Dry run", { id: "automation-dry-run" })}</div>
+    <div id="automation-clean-warn" class="panel-status error" hidden>Clean mode empties the store cart first — anything added by hand will be removed.</div>
+    <div id="automation-clean-confirm-wrap" class="flag-row" hidden><span>Yes, empty the cart first</span>${switchMarkup(false, "Yes, empty the cart first", { id: "automation-clean-confirm" })}</div>
     <pre id="automation-command" class="log"></pre>
     <div class="actions">
-      <button id="automation-start" class="primary" type="button">▶ Run Automation</button>
-      <button id="automation-stop" class="danger" type="button" hidden>🛑 Stop</button>
-      <button id="automation-dismiss" class="secondary" type="button" hidden>Dismiss</button>
+      <button id="automation-start" class="big-btn btn-block" type="button"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-play"></use></svg>Run Automation</button>
+      <button id="automation-stop" class="danger btn-block" type="button" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-square"></use></svg>Stop</button>
+      <button id="automation-dismiss" class="secondary btn-block" type="button" hidden>Dismiss</button>
     </div>
     <div id="automation-elapsed" class="panel-status"></div>
     <pre id="automation-log" class="log">(not running)</pre>
@@ -624,15 +753,15 @@ function renderAutomation() {
 async function updateAutomationCommand() {
   const store = document.querySelector("#automation-store")?.value || "all";
   const cartMode = document.querySelector("#automation-cart-mode")?.value || "keep";
-  const dryRun = document.querySelector("#automation-dry-run")?.checked ?? true;
+  const dryEl = document.querySelector("#automation-dry-run");
+  const dryRun = dryEl ? dryEl.getAttribute("aria-checked") === "true" : true;
   const clean = cartMode === "clean";
   const warn = document.querySelector("#automation-clean-warn");
   const confirmWrap = document.querySelector("#automation-clean-confirm-wrap");
   if (warn) warn.hidden = !clean;
   if (confirmWrap) confirmWrap.hidden = !(clean && !dryRun);
-  const confirmBox = document.querySelector("#automation-clean-confirm");
   const start = document.querySelector("#automation-start");
-  if (start) start.disabled = clean && !dryRun && !(confirmBox?.checked);
+  if (start) start.disabled = clean && !dryRun && !switchOn("#automation-clean-confirm");
   try {
     const r = await fetchJson(`/api/automation/command?store=${encodeURIComponent(store)}&dry_run=${dryRun}&cart_mode=${cartMode}`);
     const cmd = document.querySelector("#automation-command");
@@ -668,8 +797,8 @@ function applyAutomationStatus(status) {
     stopAutomationTimer();
     elapsed.className = `panel-status ${status.returncode === 0 ? "ok" : "error"}`;
     elapsed.textContent = status.returncode === 0
-      ? "✅ Automation finished — exit 0. Review and pay in the browser."
-      : `❌ Automation exited with code ${status.returncode}. See the log above.`;
+      ? "Automation finished — exit 0. Review and pay in the browser."
+      : `Automation exited with code ${status.returncode}. See the log above.`;
   }
 }
 
@@ -679,7 +808,7 @@ function startAutomationTimer() {
     const elapsed = document.querySelector("#automation-elapsed");
     if (!elapsed || !state.automationStarted) return;
     elapsed.className = "panel-status";
-    elapsed.textContent = `⏳ Automation running… (${formatElapsed(Math.floor((Date.now() - state.automationStarted) / 1000))} elapsed)`;
+    elapsed.textContent = `Automation running… (${formatElapsed(Math.floor((Date.now() - state.automationStarted) / 1000))} elapsed)`;
   };
   tick();
   state.automationTimer = window.setInterval(tick, 1000);
@@ -717,31 +846,40 @@ function renderAudio() {
     .join("");
   const checklist = state.payload.summary.zones.map((zone) => {
     const zoneItems = items().filter((item) => item[cols.lugar] === zone && Number(item[cols.cantidad]) > 0);
-    return `<details class="zone"><summary>${html(zone)} · ${zoneItems.length}</summary><div class="zone-items">${zoneItems.map((item) => `<label><input type="checkbox"> ${html(item[cols.comida])}</label>`).join("")}</div></details>`;
+    return `<details class="card card--collapsible">
+      <summary class="collapse-summary">
+        <span class="collapse-main">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-list-checks"></use></svg>
+          <h3 class="collapse-title">${html(zone)}</h3>
+          <span class="collapse-count">${zoneItems.length}</span>
+        </span>
+        <span class="collapse-chevron" aria-hidden="true">›</span>
+      </summary>
+      <div class="collapse-body zone-items">${zoneItems.map((item) =>
+        `<div class="zone-item"><span>${html(item[cols.comida])}</span>${switchMarkup(false, `Checked ${text(item[cols.comida])}`)}</div>`,
+      ).join("")}</div>
+    </details>`;
   }).join("");
-  el.main.innerHTML = `<section class="panel">
-    <h2>Audio Audit</h2>
+  activePaneBody().innerHTML = `<section class="panel">
+    <h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-mic"></use></svg>Audio Audit</h2>
     <div id="audio-health-banner" class="panel-status"></div>
     <div class="hint">Keep the checklist visible while recording. Announce the zone, then item counts in Spanish.</div>
-    <div class="actions">
-      <button id="record-toggle" class="primary">Start Recording</button>
-      <button id="audio-redo" class="secondary" type="button" hidden>↻ Redo</button>
-      <input id="audio-file" type="file" accept="audio/*">
-    </div>
-    <div class="hint">Recording streams to the PC as you talk — the take is safe even if the phone dies. ↻ Redo re-transcribes the saved audio.</div>
+    <button id="record-toggle" class="secondary btn-block" type="button">Start Recording</button>
+    <button id="audio-redo" class="secondary btn-block" type="button" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-refresh-cw"></use></svg>Redo</button>
+    <div class="hint">Recording streams to the PC as you talk — the take is safe even if the phone dies. Redo re-transcribes the saved audio.</div>
     <div class="zone-list">${checklist}</div>
   </section>
   <section class="panel">
-    <div class="row"><h2>Transcript</h2><button id="transcribe-audio" class="secondary">Transcribe File</button></div>
-    <textarea id="transcript" placeholder="Transcript appears here, or paste one manually.">${html(state.transcript)}</textarea>
+    <h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-list-checks"></use></svg>Transcript</h2>
+    <textarea id="transcript" placeholder="Transcript appears here, or paste one manually.">${state.transcript ? html(state.transcript) : ""}</textarea>
     <label class="field-label" for="audio-model">Match model
       <select id="audio-model"${modelOptions ? "" : " disabled"}>${modelOptions || `<option>${html(state.audioModel || "config default")}</option>`}</select>
     </label>
     <div id="audio-context" class="hint"></div>
-    <div class="actions">
-      <button id="match-transcript" class="primary">Match Inventory</button>
-      <button id="apply-audio" class="secondary" disabled>Apply Accepted</button>
-      <button id="audio-clear" class="secondary" type="button">🧽 Clear</button>
+    <div class="audio-actions">
+      <button id="match-transcript" class="big-btn">Match</button>
+      <button id="apply-audio" class="big-btn" disabled>Apply</button>
+      <button id="audio-clear" class="big-btn" type="button">Clear</button>
       <button id="audio-cancel" class="danger" hidden>Cancel</button>
     </div>
     <div id="audio-status" class="panel-status" role="status"></div>
@@ -757,7 +895,7 @@ function renderAudioContext() {
   const node = document.querySelector("#audio-context");
   if (!node) return;
   const hub = state.audioHealth?.hub_url || state.payload.audio?.hub_url || "local hub";
-  node.textContent = `📡 ${hub} · candidates ${items().length} · model ${state.audioModel || "config default"}`;
+  node.textContent = `${hub} · candidates ${items().length} · model ${state.audioModel || "config default"}`;
 }
 
 function renderMatches() {
@@ -765,7 +903,9 @@ function renderMatches() {
   const apply = document.querySelector("#apply-audio");
   if (!target) return;
   if (!state.matches) {
-    target.innerHTML = `<div class="empty">No match results yet.</div>`;
+    // The placeholder gets its own card so the results area reads as a
+    // surface, not a floating caption.
+    target.innerHTML = `<section class="panel">${emptyStateEl("mic", "No match results yet.").outerHTML}</section>`;
     if (apply) apply.disabled = true;
     return;
   }
@@ -790,11 +930,11 @@ function renderMatches() {
     const delta = proposed - current;
     const deltaTxt = `${delta > 0 ? "+" : ""}${delta}`;
     const badge = (match.zone && match.zone !== item[cols.lugar]) ? ` <span class="meta">(list: ${html(item[cols.lugar])})</span>` : "";
-    return `<label class="item">
+    return `<div class="item">
       <span><strong>${html(item[cols.comida])}</strong>${badge}<span class="meta"> ${html(match.evidence || "")}</span></span>
       <span class="match-figures"><span class="meta">${current} →</span> <strong>${proposed}</strong> <span class="${delta > 0 ? "buy" : "meta"}">${deltaTxt}</span>
-        <input type="checkbox" data-audio-idx="${match.idx}" data-count="${proposed}" checked></span>
-    </label>`;
+        ${switchMarkup(true, `Accept ${text(item[cols.comida])}`, { "data-audio-idx": match.idx, "data-count": proposed })}</span>
+    </div>`;
   };
 
   const zoneSections = Object.keys(byZone).sort().map((zone) =>
@@ -812,28 +952,34 @@ function renderMatches() {
     && Number(item[cols.tenemos]) > 0,
   );
   const unseenSection = unseen.length
-    ? `<section class="panel"><h2>Not mentioned (in audited zones)</h2>
+    ? `<section class="panel"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-circle-alert"></use></svg>Not mentioned (in audited zones)</h2>
       <div class="hint">${unseen.length} item(s) in the zones you walked but didn't name. Tick to set them to 0.</div>
       <div class="grid">${unseen.map((item) =>
-        `<label class="item"><span><strong>${html(item[cols.comida])}</strong> <span class="meta">(list: ${html(item[cols.lugar])})</span></span>
+        `<div class="item"><span><strong>${html(item[cols.comida])}</strong> <span class="meta">(list: ${html(item[cols.lugar])})</span></span>
           <span class="match-figures"><span class="meta">${Number(item[cols.tenemos])} → <strong>0</strong></span>
-            <input type="checkbox" data-audio-zero="${item.id}"></span></label>`,
+            ${switchMarkup(false, `Set ${text(item[cols.comida])} to zero`, { "data-audio-zero": item.id })}</span></div>`,
       ).join("")}</div></section>`
     : "";
 
-  target.innerHTML = `<section class="panel"><h2>Detected Items</h2>${
-    zoneSections || '<div class="empty">No recognised items.</div>'
+  target.innerHTML = `<section class="panel"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-circle-check"></use></svg>Detected Items</h2>${
+    zoneSections || emptyStateEl("mic", "No recognised items.").outerHTML
   }</section>
   ${unseenSection}
-  ${state.matches.unmatched_mentions?.length ? `<section class="panel"><h2>Unmatched Mentions</h2>${state.matches.unmatched_mentions.map((m) => `<div class="meta">${html(m.phrase)} · ${html(m.note)}</div>`).join("")}</section>` : ""}`;
+  ${state.matches.unmatched_mentions?.length ? `<section class="panel"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-circle-alert"></use></svg>Unmatched Mentions</h2>${state.matches.unmatched_mentions.map((m) => `<div class="meta">${html(m.phrase)} · ${html(m.note)}</div>`).join("")}</section>` : ""}`;
   if (apply) apply.disabled = !matched.length && !unseen.length;
 }
 
 function render() {
   if (!state.payload) return;
-  el.title.textContent = modes.find(([id]) => id === state.mode)?.[1] || "Inventory";
-  el.nav.querySelectorAll("[data-mode]").forEach((button) => button.classList.toggle("active", button.dataset.mode === state.mode));
-  renderSideStats();
+  setStatus(idleStatus());
+  // Re-home the (single) search node into the active pane, above its body but
+  // BELOW the sub-mode pills — the pills stay pinned to the top and never
+  // shift when the search appears/disappears across sub-modes.
+  const pane = document.querySelector(`#pane-${MODE_TO_TAB[state.mode] || "inventory"}`);
+  const paneBody = pane?.querySelector(".pane-body");
+  if (paneBody && el.toolbar.parentElement !== pane) pane.insertBefore(el.toolbar, paneBody);
+  el.toolbar.hidden = !SEARCHABLE_MODES.has(state.mode);
+  el.app.querySelectorAll(".subnav [data-mode]").forEach((button) => button.classList.toggle("active", button.dataset.mode === state.mode));
   if (state.mode === "dashboard") renderDashboard();
   if (state.mode === "audit") renderAudit(true);
   if (state.mode === "targets") renderAudit(false);
@@ -844,7 +990,25 @@ function render() {
   if (state.mode === "audio") renderAudio();
 }
 
-el.main.addEventListener("click", async (event) => {
+// Sub-mode pills (static markup in the audit/items panes).
+el.app.addEventListener("click", (event) => {
+  const button = event.target.closest(".subnav [data-mode]");
+  if (!button) return;
+  state.mode = button.dataset.mode;
+  saveSubMode(state.mode);
+  render();
+});
+
+// Vendored switches are rendered as markup strings, so their flips are
+// delegated here — setSwitch is the one write path for class + aria-checked.
+el.app.addEventListener("click", (event) => {
+  const sw = event.target.closest('.toggle[role="switch"]');
+  if (!sw) return;
+  setSwitch(sw, sw.getAttribute("aria-checked") !== "true");
+  if (sw.id === "automation-dry-run" || sw.id === "automation-clean-confirm") updateAutomationCommand();
+});
+
+el.app.addEventListener("click", async (event) => {
   const zoneButton = event.target.closest("[data-zone]");
   if (zoneButton) {
     state.zone = zoneButton.dataset.zone;
@@ -878,7 +1042,7 @@ el.main.addEventListener("click", async (event) => {
   }
 });
 
-el.main.addEventListener("submit", async (event) => {
+el.app.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (event.target.matches(".edit-form")) {
     const card = event.target.closest("[data-id]");
@@ -904,13 +1068,15 @@ el.main.addEventListener("submit", async (event) => {
   }
 });
 
-el.main.addEventListener("change", (event) => {
+el.app.addEventListener("change", (event) => {
   if (event.target.id === "audio-model") {
     state.audioModel = event.target.value;
     renderAudioContext();
     return;
   }
-  if (["automation-store", "automation-cart-mode", "automation-dry-run", "automation-clean-confirm"].includes(event.target.id)) {
+  // The dry-run / clean-confirm switches fire through the click delegation
+  // above; only the two selects arrive here.
+  if (["automation-store", "automation-cart-mode"].includes(event.target.id)) {
     updateAutomationCommand();
     return;
   }
@@ -925,15 +1091,19 @@ el.main.addEventListener("change", (event) => {
   render();
 });
 
-el.main.addEventListener("click", async (event) => {
-  if (event.target.id === "automation-start") {
+el.app.addEventListener("click", async (event) => {
+  // Buttons carry inline sprite icons, so the click target can be the <svg>
+  // — resolve the owning button before dispatching on id.
+  const button = event.target.closest("button");
+  const id = button?.id || "";
+  if (id === "automation-start") {
     state.automationStarted = Date.now();
     const status = await fetchJson("/api/automation/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         store: document.querySelector("#automation-store").value,
-        dry_run: document.querySelector("#automation-dry-run").checked,
+        dry_run: switchOn("#automation-dry-run"),
         cart_mode: document.querySelector("#automation-cart-mode").value,
       }),
     });
@@ -941,25 +1111,24 @@ el.main.addEventListener("click", async (event) => {
     startAutomationTimer();
     connectAutomationEvents();
   }
-  if (event.target.id === "automation-stop") await fetchJson("/api/automation/stop", { method: "POST" });
-  if (event.target.id === "automation-dismiss") {
+  if (id === "automation-stop") await fetchJson("/api/automation/stop", { method: "POST" });
+  if (id === "automation-dismiss") {
     stopAutomationTimer();
     await fetchJson("/api/automation/reset", { method: "POST" }).catch(() => null);
     renderAutomation();
   }
-  if (event.target.id === "shopping-unmark-all") {
+  if (id === "shopping-unmark-all") {
     state.shopping.bought.clear();
     state.shopping.extraBought = {};
     saveShoppingState();
     render();
   }
-  if (event.target.id === "record-toggle") await toggleRecording(event.target);
-  if (event.target.id === "audio-redo") await redoTranscribe();
-  if (event.target.id === "transcribe-audio") await transcribeAudio();
-  if (event.target.id === "match-transcript") await matchTranscript();
-  if (event.target.id === "apply-audio") await applyAudio();
-  if (event.target.id === "audio-clear") clearAudio();
-  if (event.target.id === "audio-cancel" && audioAbort) audioAbort.abort();
+  if (id === "record-toggle") await toggleRecording(button);
+  if (id === "audio-redo") await redoTranscribe();
+  if (id === "match-transcript") await matchTranscript();
+  if (id === "apply-audio") await applyAudio();
+  if (id === "audio-clear") clearAudio();
+  if (id === "audio-cancel" && audioAbort) audioAbort.abort();
 });
 
 // Wipe the transcript + match results so the next audit starts from scratch.
@@ -972,8 +1141,6 @@ function clearAudio() {
   state.audioBytes = 0;
   state.sessionId = "";
   state.bytesSent = 0;
-  const fileInput = document.querySelector("#audio-file");
-  if (fileInput) fileInput.value = "";
   render();
   setAudioStatus("Cleared — ready for a new audit", "");
 }
@@ -1003,7 +1170,7 @@ function formatBytes(n) {
 async function toggleRecording(button) {
   if (state.mediaRecorder && state.mediaRecorder.state === "recording") {
     button.disabled = true;
-    button.textContent = "⏳ Finishing…";
+    button.textContent = "Finishing…";
     state.mediaRecorder.stop();
     return;
   }
@@ -1083,7 +1250,7 @@ function startRecordTimer() {
   stopRecordTimer();
   const tick = () => {
     const elapsed = Math.floor((Date.now() - state.recordStartedAt) / 1000);
-    setAudioStatus(`🔴 Recording · ${formatElapsed(elapsed)} · ${formatBytes(state.bytesSent)} streamed to PC`);
+    setAudioStatus(`Recording · ${formatElapsed(elapsed)} · ${formatBytes(state.bytesSent)} streamed to PC`);
   };
   tick();
   state.recordTimer = window.setInterval(tick, 1000);
@@ -1151,21 +1318,21 @@ async function finishRecording() {
     });
     closeAudioPartialStream();
     if (body.silent) {
-      setAudioStatus("🤫 Empty audio — nothing transcribed", "");
+      setAudioStatus("Empty audio — nothing transcribed", "");
     } else {
       state.transcript = body.transcript || "";
       const field = document.querySelector("#transcript");
       if (field) field.value = state.transcript;
-      setAudioStatus("✅ Transcript ready — recording saved on the PC", "ok");
+      setAudioStatus("Transcript ready — recording saved on the PC", "ok");
     }
     const redo = document.querySelector("#audio-redo");
     if (redo) redo.hidden = !state.sessionId;
   } catch (error) {
     closeAudioPartialStream();
     if (error.name === "AbortError") {
-      setAudioStatus("Finish cancelled — recording is safe on the PC, tap ↻ Redo", "");
+      setAudioStatus("Finish cancelled — recording is safe on the PC, tap Redo", "");
     } else {
-      setAudioStatus(`Transcription failed: ${error.message} — recording is safe on the PC, tap ↻ Redo`, "error");
+      setAudioStatus(`Transcription failed: ${error.message} — recording is safe on the PC, tap Redo`, "error");
     }
     const redo = document.querySelector("#audio-redo");
     if (redo) redo.hidden = !state.sessionId;
@@ -1196,43 +1363,10 @@ async function redoTranscribe() {
     state.transcript = body.transcript || "";
     const field = document.querySelector("#transcript");
     if (field) field.value = state.transcript;
-    setAudioStatus(body.silent ? "🤫 Empty audio — nothing transcribed" : "✅ Re-transcribed from saved audio", body.silent ? "" : "ok");
+    setAudioStatus(body.silent ? "Empty audio — nothing transcribed" : "Re-transcribed from saved audio", body.silent ? "" : "ok");
   } catch (error) {
     if (error.name === "AbortError") setAudioStatus("Redo cancelled", "");
     else setAudioStatus(`Redo failed: ${error.message}`, "error");
-  }
-}
-
-async function selectedAudioBlob() {
-  const input = document.querySelector("#audio-file");
-  if (input?.files?.[0]) return input.files[0];
-  return null;
-}
-
-async function transcribeAudio() {
-  const blob = await selectedAudioBlob();
-  if (!blob) {
-    setAudioStatus("No audio selected or recorded", "error");
-    return;
-  }
-  await computeAudioSha(blob);
-  try {
-    const body = await runWithTimer(audioTranscribeStage, async (signal) => {
-      const form = new FormData();
-      const ext = (blob.type || "").includes("mp4") ? "mp4" : "webm";
-      form.append("file", blob, blob.name || `recording.${ext}`);
-      const response = await authFetch("/api/audio/transcribe", { method: "POST", body: form, signal });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.detail || `HTTP ${response.status}`);
-      return data;
-    });
-    state.transcript = body.transcript;
-    const field = document.querySelector("#transcript");
-    if (field) field.value = body.transcript;
-    setAudioStatus("✅ Transcript ready", "ok");
-  } catch (error) {
-    if (error.name === "AbortError") setAudioStatus("Transcription cancelled", "");
-    else setAudioStatus(`Transcription failed: ${error.message}`, "error");
   }
 }
 
@@ -1260,7 +1394,7 @@ async function matchTranscript() {
     );
     const m = state.matches;
     setAudioStatus(
-      `✅ Matched ${m.items.length} item${m.items.length === 1 ? "" : "s"} · ${m.candidates} candidates · ${m.transcript_chars} chars · ${m.model}`,
+      `Matched ${m.items.length} item${m.items.length === 1 ? "" : "s"} · ${m.candidates} candidates · ${m.transcript_chars} chars · ${m.model}`,
       "ok",
     );
     renderMatches();
@@ -1272,10 +1406,10 @@ async function matchTranscript() {
 
 async function applyAudio() {
   const updates = {};
-  document.querySelectorAll("[data-audio-idx]:checked").forEach((box) => {
+  document.querySelectorAll('[data-audio-idx][aria-checked="true"]').forEach((box) => {
     updates[box.dataset.audioIdx] = Number(box.dataset.count);
   });
-  document.querySelectorAll("[data-audio-zero]:checked").forEach((box) => {
+  document.querySelectorAll('[data-audio-zero][aria-checked="true"]').forEach((box) => {
     updates[box.dataset.audioZero] = 0;
   });
   if (!Object.keys(updates).length) {
@@ -1301,7 +1435,7 @@ async function applyAudio() {
     const logPath = state.payload.audio_log_path || "";
     state.matches = null;
     render();
-    setAudioStatus(logPath ? `✅ Inventory updated · 📝 log ${logPath.split(/[\\/]/).pop()}` : "✅ Inventory updated", "ok");
+    setAudioStatus(logPath ? `Inventory updated · log ${logPath.split(/[\\/]/).pop()}` : "Inventory updated", "ok");
   } catch (error) {
     setAudioStatus(`Apply failed: ${error.message}`, "error");
     if (button) button.disabled = false;
@@ -1309,7 +1443,6 @@ async function applyAudio() {
 }
 
 el.search.addEventListener("input", () => { state.query = el.search.value.trim().toLowerCase(); render(); });
-el.refresh.addEventListener("click", loadInventory);
 el.openSheet.addEventListener("click", () => fetchJson("/api/actions/open-spreadsheet", { method: "POST" }).then(() => setStatus("Spreadsheet opened")));
 el.copyLink.addEventListener("click", async () => {
   const url = state.access?.cloudflare || state.access?.lan || window.location.href;
@@ -1320,8 +1453,28 @@ el.exportCsv.addEventListener("click", () => { window.location.href = "/api/expo
 el.closeApp.addEventListener("click", () => { if (confirm("Close the FastAPI app?")) fetchJson("/api/actions/close", { method: "POST" }); });
 
 el.themeToggle.addEventListener("click", toggleTheme);
+el.loginForm.addEventListener("submit", onLoginSubmit);
+// Auth is mandatory — Esc must not dismiss the login dialog.
+el.loginDialog.addEventListener("cancel", (event) => event.preventDefault());
 
 captureTokenFromURL();
 applyTheme(currentTheme());
-initNav();
+// The nav restores the persisted tab and fires onChange once at init
+// (payload is still null there, so that first render() is a no-op — the
+// restored tab paints when loadInventory() completes).
+initNavTabs({
+  storageKey: TAB_KEY,
+  onChange: onTabChange,
+  scrollResetSelector: ".app",
+});
 loadInventory();
+fetchVersion();
+
+// No manual refresh button: refetch when the PWA returns to the foreground.
+// Only on the read-only list modes — a re-render on edit/add/audio would wipe
+// in-progress form input or a pasted transcript.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") return;
+  fetchVersion();
+  if (["dashboard", "shopping", "audit", "targets"].includes(state.mode)) loadInventory();
+});

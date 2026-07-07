@@ -193,10 +193,18 @@ def test_index_shell_is_no_cache_and_hash_stamped(client):
     resp = client.get("/")
     assert resp.status_code == 200
     assert "no-cache" in resp.headers.get("cache-control", "")
-    # The __APP_JS__ placeholder is replaced with the real content hash.
+    # Every asset URL is stamped with the fleet hash at serve time —
+    # app.js and the vendored component CSS alike.
     expected = api.BUILD_INFO.asset_hashes["app.js"]
-    assert "__APP_JS__" not in resp.text
     assert f"/static/app.js?v={expected}" in resp.text
+    assert f"/static/_vendored/nav/nav-tabs.css?v={expected}" in resp.text
+
+
+def test_version_reports_build_identity(client):
+    """/api/version feeds the PWA footer readout + stale-shell reload guard."""
+    body = client.get("/api/version").json()
+    assert set(body) == {"git_sha", "built_at", "asset_hash"}
+    assert body["asset_hash"] == api.BUILD_INFO.fleet_hash
 
 
 def test_static_js_is_long_cached(client):

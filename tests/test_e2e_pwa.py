@@ -30,6 +30,29 @@ FIXTURE = REPO_ROOT / "tests" / "list_test_fixture.xlsx"
 LIVE = os.environ.get("GROCERY_E2E_LIVE") == "1"
 TRANSCRIPT = "en la nevera, tengo dos yogures y un litro de leche. en el congelador, tres salmones."
 
+# The 8 modes group into the fleet nav's 5 tabs (mirrors MODE_TO_TAB in app.js);
+# grouped modes are reached via a sub-pill inside their tab's pane.
+TAB_FOR_MODE = {
+    "dashboard": "inventory",
+    "shopping": "shopping",
+    "audit": "audit",
+    "audio": "audit",
+    "targets": "items",
+    "edit": "items",
+    "add": "items",
+    "automation": "automation",
+    "settings": "settings",
+}
+
+
+def goto_mode(page, mode: str) -> None:
+    """Navigate to a mode: click its nav tab, then its sub-pill when grouped."""
+    page.click(f"[data-tab='{TAB_FOR_MODE[mode]}']")
+    pill = page.locator(f".subnav [data-mode='{mode}']")
+    if pill.count():
+        pill.click()
+    page.wait_for_timeout(100)
+
 
 def _free_port() -> int:
     sock = socket.socket()
@@ -103,39 +126,55 @@ def page(browser, server):
     pg.on("pageerror", lambda exc: errors.append(str(exc)))
     pg._js_errors = errors  # type: ignore[attr-defined]
     pg.goto(server.url)
-    pg.wait_for_selector("[data-mode='audio']")
+    pg.wait_for_selector("[data-tab='audit']")
+    pg.wait_for_function("document.querySelector('#status')?.textContent?.includes('Loaded')")
     yield pg
     pg.close()
 
 
 @pytest.mark.e2e
 def test_all_tabs_render_without_js_errors(page):
-    for mode in ["dashboard", "audit", "targets", "edit", "add", "shopping", "audio", "automation"]:
-        page.click(f"[data-mode='{mode}']")
+    for mode in ["dashboard", "audit", "targets", "edit", "add", "shopping", "audio", "automation", "settings"]:
+        goto_mode(page, mode)
         page.wait_for_timeout(150)
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
 
 
 @pytest.mark.e2e
 def test_dashboard_shows_stocked_metric(page):
-    page.click("[data-mode='dashboard']")
+    goto_mode(page, "dashboard")
     page.wait_for_selector(".summary")
     assert page.locator("text=Stocked").count() >= 1
     assert page.locator("text=Tracked items").count() >= 1
+    # Build identity footer (home-automation contract) is filled at boot.
+    page.wait_for_function("document.querySelector('#build-readout')?.textContent?.startsWith('Build:')")
+
+
+@pytest.mark.e2e
+def test_search_only_on_filterable_modes(page):
+    goto_mode(page, "dashboard")
+    assert page.locator("#toolbar").is_visible()
+    goto_mode(page, "shopping")
+    assert not page.locator("#toolbar").is_visible()
+    goto_mode(page, "settings")
+    assert not page.locator("#toolbar").is_visible()
+    assert page.locator("#open-sheet").is_visible()
 
 
 @pytest.mark.e2e
 def test_add_item_increases_count(page):
-    page.click("[data-mode='dashboard']")
+    goto_mode(page, "dashboard")
     page.wait_for_selector(".summary")
     before = int(page.locator(".metric strong").first.inner_text())
-    page.click("[data-mode='add']")
+    goto_mode(page, "add")
     page.fill("#add-form input[name='comida']", "zzz e2e item")
     page.fill("#add-form input[name='super']", "mercadona")
     page.fill("#add-form input[name='lugar']", "nevera")
     page.click("#add-form button[type='submit']")
-    page.wait_for_function("document.querySelector('#status')?.textContent?.includes('Loaded')")
-    page.click("[data-mode='dashboard']")
+    # Mutations report transient "Saved" feedback; the resting count only
+    # shows on Home (the repeated "Loaded N items" line was UI noise).
+    page.wait_for_function("document.querySelector('#status')?.textContent?.includes('Saved')")
+    goto_mode(page, "dashboard")
     page.wait_for_selector(".summary")
     after = int(page.locator(".metric strong").first.inner_text())
     assert after == before + 1
@@ -143,11 +182,13 @@ def test_add_item_increases_count(page):
 
 @pytest.mark.e2e
 def test_audio_match_and_apply_writes_log(page, server):
-    page.click("[data-mode='audio']")
+    goto_mode(page, "audio")
     page.fill("#transcript", TRANSCRIPT)
     page.click("#match-transcript")
     page.wait_for_selector("text=Detected Items", timeout=120000)
-    # the accept checkbox is pre-ticked; apply it
+    # the accept switch renders pre-on (the old checkbox's pre-ticked guarantee)
+    accept = page.locator("[data-audio-idx]").first
+    assert accept.get_attribute("aria-checked") == "true"
     page.click("#apply-audio")
     page.wait_for_function(
         "document.querySelector('#audio-status')?.textContent?.includes('Inventory updated')",
@@ -162,7 +203,7 @@ def test_audio_match_and_apply_writes_log(page, server):
 @pytest.mark.live
 @pytest.mark.skipif(not LIVE, reason="set GROCERY_E2E_LIVE=1 and run the hub to exercise the real LLM")
 def test_audio_match_live_hub(page):
-    page.click("[data-mode='audio']")
+    goto_mode(page, "audio")
     page.fill("#transcript", TRANSCRIPT)
     page.click("#match-transcript")
     # Real hub call — proves no premature timeout (budget up to 10 min).
