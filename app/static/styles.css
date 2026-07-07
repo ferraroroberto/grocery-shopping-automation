@@ -341,9 +341,15 @@ h3 { font-size: var(--font-body); font-weight: 600; }
 .hint { font-weight: 400; font-size: var(--font-label); }
 .metric strong { display: block; margin-top: var(--space-xs); font-size: var(--font-heading-lg); }
 
-.grid { display: grid; gap: var(--gap); }
-main.app > .pane { display: grid; gap: var(--gap); }
-.pane-body { display: grid; gap: var(--gap); }
+/* Every stack in the pane chain pins its single track to minmax(0, 1fr):
+   an implicit `auto` track takes the min-content of its widest item
+   (grid items default to min-width:auto), so the zone-pills' no-wrap row
+   was silently widening .panel → .pane-body → .pane past the viewport and
+   the WHOLE PAGE scrolled horizontally on the phone — its own
+   overflow-x:auto never got the chance to scroll. */
+.grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
+main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
+.pane-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
 
 /* Repeated list rows: flat separator-row canon (app-launcher#365) — rows lose
    their per-row box; the *list* is the card. Gap collapses so the separators
