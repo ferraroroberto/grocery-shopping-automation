@@ -397,8 +397,8 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
   justify-content: end;
   gap: var(--space-xs);
 }
-.audit-controls--targets { grid-template-columns: 56px 36px 36px 36px; }
-.audit-controls--full { grid-template-columns: 36px 36px 56px 36px 36px 36px; }
+.audit-controls--targets { grid-template-columns: 44px 36px 36px 36px; }
+.audit-controls--full { grid-template-columns: 36px 36px 44px 36px 36px 36px; }
 .audit-controls .qty { min-width: 0; }
 .audit-verdict { text-align: right; font-size: var(--font-label); font-weight: 700; }
 .qty { min-width: 76px; text-align: right; font-weight: 700; }
