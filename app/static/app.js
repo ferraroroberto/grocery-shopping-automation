@@ -7,18 +7,6 @@ const SHOP_STATE_KEY = "grocery.shoppingState";
 const TAB_KEY = "grocery.tab";
 const SUB_KEY_PREFIX = "grocery.sub.";
 
-const modes = [
-  ["dashboard", "Inventory"],
-  ["audit", "Audit"],
-  ["targets", "Targets"],
-  ["edit", "Edit Item"],
-  ["add", "Add Item"],
-  ["shopping", "Shopping"],
-  ["audio", "Audio Audit"],
-  ["automation", "Automation"],
-  ["settings", "Settings"],
-];
-
 // Modes whose content the search box filters — it hides everywhere else.
 const SEARCHABLE_MODES = new Set(["dashboard", "audit", "targets", "edit"]);
 
@@ -77,11 +65,9 @@ const state = {
 
 const el = {
   themeToggle: document.querySelector("#theme-toggle"),
-  title: document.querySelector("#view-title"),
   status: document.querySelector("#status"),
   search: document.querySelector("#search"),
   toolbar: document.querySelector("#toolbar"),
-  refresh: document.querySelector("#refresh"),
   buildReadout: document.querySelector("#build-readout"),
   app: document.querySelector("main.app"),
   openSheet: document.querySelector("#open-sheet"),
@@ -134,6 +120,15 @@ function setStatus(message) {
   el.status.textContent = message;
 }
 
+// Resting top-bar text: the item count on Home, silence elsewhere (the same
+// "Loaded 160 items" on every tab read as clutter). Transient action feedback
+// (Saving… / Saved / errors) still writes over it via setStatus.
+function idleStatus() {
+  return state.mode === "dashboard" && state.payload
+    ? `Loaded ${state.payload.summary.total_items} items`
+    : "";
+}
+
 // Colour-coded current/target, mirroring app/ui_helpers.qty_html:
 // green when stocked (current ≥ target), amber when low, red when empty.
 function qtyMarkup(current, target) {
@@ -149,7 +144,6 @@ function setAudioStatus(message, kind = "") {
     target.textContent = message;
     target.className = `panel-status${kind ? ` ${kind}` : ""}`;
   }
-  setStatus(message);
 }
 
 let audioAbort = null;
@@ -162,25 +156,25 @@ function formatElapsed(seconds) {
 // up to ~10 minutes; never imply a call is fast.
 function audioMatchStage(elapsed) {
   const t = formatElapsed(elapsed);
-  if (elapsed < 5) return `📡 Sending request to LLM hub… (${t})`;
-  if (elapsed < 20) return `🧠 Hub routing to model, analysing transcript… (${t})`;
-  if (elapsed < 60) return `🧠 Matching mentions to candidates… (${t}) — typical 30s–2min`;
-  if (elapsed < 180) return `⏳ Still working… (${t}) — long noisy transcripts take 2–4 min`;
-  return `⏳ Still working… (${t}) — patience, can take up to 10 min on the longest walks`;
+  if (elapsed < 5) return `Sending request to LLM hub… (${t})`;
+  if (elapsed < 20) return `Hub routing to model, analysing transcript… (${t})`;
+  if (elapsed < 60) return `Matching mentions to candidates… (${t}) — typical 30s–2min`;
+  if (elapsed < 180) return `Still working… (${t}) — long noisy transcripts take 2–4 min`;
+  return `Still working… (${t}) — patience, can take up to 10 min on the longest walks`;
 }
 
 function audioTranscribeStage(elapsed) {
   const t = formatElapsed(elapsed);
-  if (elapsed < 5) return `📡 Uploading audio to whisper-server… (${t})`;
-  if (elapsed < 30) return `🎙️ Whisper transcribing… (${t})`;
-  if (elapsed < 120) return `⏳ Whisper still working… (${t}) — long clips can take 1–3 min`;
-  return `⏳ Whisper still working… (${t}) — long audio can take up to 10 min`;
+  if (elapsed < 5) return `Uploading audio to whisper-server… (${t})`;
+  if (elapsed < 30) return `Whisper transcribing… (${t})`;
+  if (elapsed < 120) return `Whisper still working… (${t}) — long clips can take 1–3 min`;
+  return `Whisper still working… (${t}) — long audio can take up to 10 min`;
 }
 
 function setAudioInFlight(busy) {
   const cancel = document.querySelector("#audio-cancel");
   if (cancel) cancel.hidden = !busy;
-  ["#match-transcript", "#transcribe-audio", "#apply-audio", "#audio-model"].forEach((sel) => {
+  ["#match-transcript", "#apply-audio", "#audio-model"].forEach((sel) => {
     const node = document.querySelector(sel);
     if (node) node.disabled = busy;
   });
@@ -205,19 +199,6 @@ async function runWithTimer(stageFn, doFetch) {
   }
 }
 
-async function computeAudioSha(blob) {
-  try {
-    const buffer = await blob.arrayBuffer();
-    state.audioBytes = buffer.byteLength;
-    const digest = await crypto.subtle.digest("SHA-256", buffer);
-    state.audioSha = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
-  } catch (_) {
-    // crypto.subtle is unavailable over plain http on LAN — sha is best-effort.
-    state.audioSha = "";
-    state.audioBytes = blob.size || 0;
-  }
-}
-
 async function refreshAudioHealth() {
   try {
     state.audioHealth = await fetchJson("/api/audio/health");
@@ -235,13 +216,16 @@ function renderAudioHealth() {
     banner.innerHTML = "";
     return;
   }
+  // Sprite icons, not emoji — the status colour + glyph carry the state.
+  const okIcon = '<svg class="icon" aria-hidden="true" focusable="false"><use href="#i-circle-check"></use></svg> ';
+  const badIcon = '<svg class="icon" aria-hidden="true" focusable="false"><use href="#i-circle-alert"></use></svg> ';
   const problems = [];
-  if (!h.voice_ok) problems.push(`❌ Voice recorder unreachable at <code>${html(h.voice_url)}</code> — start the voice-transcriber tray`);
-  if (!h.hub_ok) problems.push(`❌ LLM hub unreachable at <code>${html(h.hub_url)}</code>`);
-  if (!h.whisper_ok) problems.push(`❌ Whisper server unreachable at <code>${html(h.whisper_url)}</code>`);
+  if (!h.voice_ok) problems.push(`${badIcon}Voice recorder unreachable at <code>${html(h.voice_url)}</code> — start the voice-transcriber tray`);
+  if (!h.hub_ok) problems.push(`${badIcon}LLM hub unreachable at <code>${html(h.hub_url)}</code>`);
+  if (!h.whisper_ok) problems.push(`${badIcon}Whisper server unreachable at <code>${html(h.whisper_url)}</code>`);
   if (!problems.length) {
     banner.className = "panel-status ok";
-    banner.innerHTML = "✅ Voice recorder, hub and whisper-server reachable";
+    banner.innerHTML = `${okIcon}Voice recorder, hub and whisper-server reachable`;
   } else {
     banner.className = "panel-status error";
     banner.innerHTML = `${problems.join("<br>")}<br>Voice recorder is the voice-transcriber app; hub :8000 + whisper :8090 are claude-local-calls.`;
@@ -249,7 +233,7 @@ function renderAudioHealth() {
   const matchBtn = document.querySelector("#match-transcript");
   if (matchBtn && !audioAbort) matchBtn.disabled = !h.hub_ok;
   // Record needs the voice-transcriber webapp up — disable it (and show why)
-  // rather than letting a take silently hang. File upload + Match still work.
+  // rather than letting a take silently hang. Paste + Match still work.
   const recordBtn = document.querySelector("#record-toggle");
   const recording = state.mediaRecorder && state.mediaRecorder.state === "recording";
   if (recordBtn && !recording) {
@@ -466,18 +450,14 @@ function onTabChange(tab) {
 
 async function loadInventory() {
   setStatus("Loading inventory...");
-  el.refresh.disabled = true;
   try {
     state.payload = await fetchJson("/api/inventory", { headers: { Accept: "application/json" } });
     state.access = await fetchJson("/api/access").catch(() => null);
     if (!state.zone) state.zone = defaultZone();
-    setStatus(`Loaded ${state.payload.summary.total_items} items`);
     render();
   } catch (error) {
     setStatus(error.message);
     activePaneBody()?.replaceChildren(emptyStateEl("circle-alert", "Inventory unavailable."));
-  } finally {
-    el.refresh.disabled = false;
   }
 }
 
@@ -488,8 +468,8 @@ async function mutate(url, payload, method = "POST") {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  setStatus(`Loaded ${state.payload.summary.total_items} items`);
   render();
+  setStatus("Saved");
 }
 
 function items() {
@@ -547,23 +527,24 @@ function renderDashboard() {
     </details>`;
 }
 
-// Per-store progress cards. Carries the cart-offset-aware done counts the old
-// sidebar stats showed, so dissolving the sidebar loses no information.
+// Store progress — ONE shared card, one block per store, with clear air
+// between the store name and its progress bar. Carries the cart-offset-aware
+// done counts the old sidebar stats showed.
 function renderStoreCards() {
   const stats = state.payload.summary.supermarket_stats;
   const stores = Object.keys(stats).sort();
   if (!stores.length) return emptyStateEl("shopping-basket", "No shopping items right now.").outerHTML;
-  return `<section class="grid">${stores.map((store) => {
+  return `<article class="card">${stores.map((store) => {
     const s = stats[store];
     const offset = state.shopping.offsets[store] || { items: 0, units: 0 };
     const doneItems = s.got_it_unique + Number(offset.items || 0);
     const doneUnits = s.got_it_quantity + Number(offset.units || 0);
     const pct = s.total_unique ? Math.min(100, Math.round((doneItems / s.total_unique) * 100)) : 0;
-    return `<article class="card">
-      <div class="card-head"><h2 class="card-title">${html(store)}</h2><span class="card-head-meta">${doneItems}/${s.total_unique} items · ${doneUnits}/${s.total_quantity} units</span></div>
+    return `<div class="store-block">
+      <div class="card-head"><h3 class="card-title">${html(store)}</h3><span class="card-head-meta">${doneItems}/${s.total_unique} items · ${doneUnits}/${s.total_quantity} units</span></div>
       <div class="progress"><span style="width:${pct}%"></span></div>
-    </article>`;
-  }).join("")}</section>`;
+    </div>`;
+  }).join("")}</article>`;
 }
 
 function itemCard(item, cols) {
@@ -587,17 +568,18 @@ function renderAudit(targetsOnly = false) {
     .filter((item) => item[cols.lugar] === state.zone)
     .filter((item) => !targetsOnly || Number(item[cols.cantidad]) > 0))
     .sort((a, b) => text(a[cols.comida]).localeCompare(text(b[cols.comida])));
-  const header = targetsOnly ? "➖ have ➕ · have/target · ⊖ target ⊕ · buy" : "have/target · ⊖ target ⊕ · buy";
-  activePaneBody().innerHTML = `<section class="panel"><div class="row"><h2>${targetsOnly ? "Audit Inventory" : "Edit Targets"}</h2><span class="hint">${html(state.zone)} · ${source.length} items</span></div>${zoneTabs()}<div class="hint">${header}</div></section>
+  const header = targetsOnly ? "have − + · have/target · target − + · buy" : "have/target · target − + · buy";
+  const controlsClass = targetsOnly ? "audit-controls audit-controls--full" : "audit-controls audit-controls--targets";
+  activePaneBody().innerHTML = `<section class="panel"><div class="row"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-${targetsOnly ? "list-checks" : "package"}"></use></svg>${targetsOnly ? "Audit Inventory" : "Edit Targets"}</h2><span class="hint">${html(state.zone)} · ${source.length} items</span></div>${zoneTabs()}<div class="hint">${header}</div></section>
     <section class="grid">${source.map((item) => `
-      <article class="item" data-id="${item.id}">
+      <article class="item audit-item" data-id="${item.id}">
         <div><h3>${html(item[cols.comida])}</h3><div class="meta">${html(item[cols.super])}</div></div>
-        <div class="item-actions">
+        <div class="${controlsClass}">
           ${targetsOnly ? `<button class="icon-btn" data-action="current-minus">-</button><button class="icon-btn" data-action="current-plus">+</button>` : ""}
           <span class="qty">${qtyMarkup(item[cols.tenemos], item[cols.cantidad])}</span>
           <button class="icon-btn" data-action="target-minus">-</button>
           <button class="icon-btn" data-action="target-plus">+</button>
-          <span class="${Number(item[cols.comprar]) > 0 ? "buy" : "ok"}">${Number(item[cols.comprar]) > 0 ? `Buy ${item[cols.comprar]}` : "OK"}</span>
+          <span class="audit-verdict ${Number(item[cols.comprar]) > 0 ? "buy" : "ok"}">${Number(item[cols.comprar]) > 0 ? `Buy ${item[cols.comprar]}` : "OK"}</span>
         </div>
       </article>`).join("") || emptyStateEl("package", "No items in this zone.").outerHTML}</section>`;
 }
@@ -628,7 +610,7 @@ function renderAdd() {
   const zones = state.payload.summary.zones;
   const stores = state.payload.summary.supermarkets;
   activePaneBody().innerHTML = `<section class="panel">
-    <h2>Add Item</h2>
+    <h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg>Add Item</h2>
     <form id="add-form" class="form">
       <div class="three">
         <input class="field" name="comida" placeholder="Item name" required />
@@ -665,8 +647,8 @@ function renderShopping() {
   // Header panel only when it has something to say (unmark-all / warnings) —
   // an empty card under the page title is noise.
   const header = (boughtCount || missingLink.length) ? `<section class="panel">
-    <div class="row"><h2>Shopping</h2>${boughtCount ? `<button class="secondary" id="shopping-unmark-all" type="button">↩️ Unmark all</button>` : ""}</div>
-    ${missingLink.length ? `<div class="panel-status error">⚠️ ${missingLink.length} item(s) missing a buy link — their Buy button is disabled.</div>` : ""}
+    <div class="row"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-shopping-cart"></use></svg>Shopping</h2>${boughtCount ? `<button class="secondary" id="shopping-unmark-all" type="button">Unmark all</button>` : ""}</div>
+    ${missingLink.length ? `<div class="panel-status error">${missingLink.length} item(s) missing a buy link — their Buy button is disabled.</div>` : ""}
   </section>` : "";
   const paneBody = activePaneBody();
   // Store panels fold by default (summary carries the done/total readout);
@@ -720,7 +702,7 @@ function shoppingRow(item, cols) {
     <div><h3>${bought ? `<s>${html(item[cols.comida])}</s>` : html(item[cols.comida])}</h3><div class="meta">${html(item[cols.lugar])} · ${item[cols.comprar]}x</div></div>
     <div class="item-actions">
       <button class="secondary" data-action="open-buy" ${url ? `data-url="${html(url)}"` : "disabled"}>${bought ? "Again" : "Buy"}</button>
-      <button class="${bought ? "secondary" : "primary"}" data-action="${bought ? "undo-buy" : "mark-buy"}">${bought ? "Undo" : "Got it"}</button>
+      <button class="secondary" data-action="${bought ? "undo-buy" : "mark-buy"}">${bought ? "Undo" : "Got it"}</button>
     </div>
   </article>`;
 }
@@ -731,7 +713,7 @@ function extraRow(item, store, extraBought) {
     <div><h3>${bought ? `<s>${html(item.name)}</s>` : html(item.name)} <span class="meta">+</span></h3><div class="meta">${item.qty}x</div></div>
     <div class="item-actions">
       <button class="danger" data-action="remove-extra">Remove</button>
-      <button class="${bought ? "secondary" : "primary"}" data-action="${bought ? "undo-extra" : "mark-extra"}">${bought ? "Undo" : "Got it"}</button>
+      <button class="secondary" data-action="${bought ? "undo-extra" : "mark-extra"}">${bought ? "Undo" : "Got it"}</button>
     </div>
   </article>`;
 }
@@ -739,20 +721,24 @@ function extraRow(item, store, extraBought) {
 function renderAutomation() {
   const stores = state.payload.summary.supermarkets;
   activePaneBody().innerHTML = `<section class="panel">
-    <h2>Run Automation</h2>
+    <h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-bot"></use></svg>Run Automation</h2>
     <div class="hint">Fills the store carts from this list via Chrome automation. You still confirm and pay in the browser.</div>
-    <div class="three">
-      <select id="automation-store" class="field"><option value="all">All stores</option>${stores.map((s) => `<option value="${html(s)}">${html(s)}</option>`).join("")}</select>
-      <select id="automation-cart-mode" class="field"><option value="keep">Keep cart</option><option value="clean">Clean cart</option></select>
-      <div class="flag-row"><span>Dry run</span>${switchMarkup(false, "Dry run", { id: "automation-dry-run" })}</div>
+    <div class="two">
+      <label class="field-label">Store
+        <select id="automation-store"><option value="all">All stores</option>${stores.map((s) => `<option value="${html(s)}">${html(s)}</option>`).join("")}</select>
+      </label>
+      <label class="field-label">Cart mode
+        <select id="automation-cart-mode"><option value="keep">Keep cart</option><option value="clean">Clean cart</option></select>
+      </label>
     </div>
-    <div id="automation-clean-warn" class="panel-status error" hidden>⚠️ Clean mode empties the store cart first — anything added by hand will be removed.</div>
+    <div class="flag-row"><span>Dry run</span>${switchMarkup(false, "Dry run", { id: "automation-dry-run" })}</div>
+    <div id="automation-clean-warn" class="panel-status error" hidden>Clean mode empties the store cart first — anything added by hand will be removed.</div>
     <div id="automation-clean-confirm-wrap" class="flag-row" hidden><span>Yes, empty the cart first</span>${switchMarkup(false, "Yes, empty the cart first", { id: "automation-clean-confirm" })}</div>
     <pre id="automation-command" class="log"></pre>
     <div class="actions">
-      <button id="automation-start" class="primary" type="button">▶ Run Automation</button>
-      <button id="automation-stop" class="danger" type="button" hidden>🛑 Stop</button>
-      <button id="automation-dismiss" class="secondary" type="button" hidden>Dismiss</button>
+      <button id="automation-start" class="secondary btn-block" type="button"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-play"></use></svg>Run Automation</button>
+      <button id="automation-stop" class="danger btn-block" type="button" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-square"></use></svg>Stop</button>
+      <button id="automation-dismiss" class="secondary btn-block" type="button" hidden>Dismiss</button>
     </div>
     <div id="automation-elapsed" class="panel-status"></div>
     <pre id="automation-log" class="log">(not running)</pre>
@@ -810,8 +796,8 @@ function applyAutomationStatus(status) {
     stopAutomationTimer();
     elapsed.className = `panel-status ${status.returncode === 0 ? "ok" : "error"}`;
     elapsed.textContent = status.returncode === 0
-      ? "✅ Automation finished — exit 0. Review and pay in the browser."
-      : `❌ Automation exited with code ${status.returncode}. See the log above.`;
+      ? "Automation finished — exit 0. Review and pay in the browser."
+      : `Automation exited with code ${status.returncode}. See the log above.`;
   }
 }
 
@@ -821,7 +807,7 @@ function startAutomationTimer() {
     const elapsed = document.querySelector("#automation-elapsed");
     if (!elapsed || !state.automationStarted) return;
     elapsed.className = "panel-status";
-    elapsed.textContent = `⏳ Automation running… (${formatElapsed(Math.floor((Date.now() - state.automationStarted) / 1000))} elapsed)`;
+    elapsed.textContent = `Automation running… (${formatElapsed(Math.floor((Date.now() - state.automationStarted) / 1000))} elapsed)`;
   };
   tick();
   state.automationTimer = window.setInterval(tick, 1000);
@@ -874,28 +860,25 @@ function renderAudio() {
     </details>`;
   }).join("");
   activePaneBody().innerHTML = `<section class="panel">
-    <h2>Audio Audit</h2>
+    <h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-mic"></use></svg>Audio Audit</h2>
     <div id="audio-health-banner" class="panel-status"></div>
     <div class="hint">Keep the checklist visible while recording. Announce the zone, then item counts in Spanish.</div>
-    <div class="actions">
-      <button id="record-toggle" class="primary">Start Recording</button>
-      <button id="audio-redo" class="secondary" type="button" hidden>↻ Redo</button>
-      <input id="audio-file" type="file" accept="audio/*">
-    </div>
-    <div class="hint">Recording streams to the PC as you talk — the take is safe even if the phone dies. ↻ Redo re-transcribes the saved audio.</div>
+    <button id="record-toggle" class="secondary btn-block" type="button">Start Recording</button>
+    <button id="audio-redo" class="secondary btn-block" type="button" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-refresh-cw"></use></svg>Redo</button>
+    <div class="hint">Recording streams to the PC as you talk — the take is safe even if the phone dies. Redo re-transcribes the saved audio.</div>
     <div class="zone-list">${checklist}</div>
   </section>
   <section class="panel">
-    <div class="row"><h2>Transcript</h2><button id="transcribe-audio" class="secondary">Transcribe File</button></div>
-    <textarea id="transcript" placeholder="Transcript appears here, or paste one manually.">${html(state.transcript)}</textarea>
+    <h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-list-checks"></use></svg>Transcript</h2>
+    <textarea id="transcript" placeholder="Transcript appears here, or paste one manually.">${state.transcript ? html(state.transcript) : ""}</textarea>
     <label class="field-label" for="audio-model">Match model
       <select id="audio-model"${modelOptions ? "" : " disabled"}>${modelOptions || `<option>${html(state.audioModel || "config default")}</option>`}</select>
     </label>
     <div id="audio-context" class="hint"></div>
-    <div class="actions">
+    <div class="audio-actions">
       <button id="match-transcript" class="primary">Match Inventory</button>
       <button id="apply-audio" class="secondary" disabled>Apply Accepted</button>
-      <button id="audio-clear" class="secondary" type="button">🧽 Clear</button>
+      <button id="audio-clear" class="secondary" type="button">Clear</button>
       <button id="audio-cancel" class="danger" hidden>Cancel</button>
     </div>
     <div id="audio-status" class="panel-status" role="status"></div>
@@ -911,7 +894,7 @@ function renderAudioContext() {
   const node = document.querySelector("#audio-context");
   if (!node) return;
   const hub = state.audioHealth?.hub_url || state.payload.audio?.hub_url || "local hub";
-  node.textContent = `📡 ${hub} · candidates ${items().length} · model ${state.audioModel || "config default"}`;
+  node.textContent = `${hub} · candidates ${items().length} · model ${state.audioModel || "config default"}`;
 }
 
 function renderMatches() {
@@ -919,7 +902,9 @@ function renderMatches() {
   const apply = document.querySelector("#apply-audio");
   if (!target) return;
   if (!state.matches) {
-    target.replaceChildren(emptyStateEl("mic", "No match results yet."));
+    // The placeholder gets its own card so the results area reads as a
+    // surface, not a floating caption.
+    target.innerHTML = `<section class="panel">${emptyStateEl("mic", "No match results yet.").outerHTML}</section>`;
     if (apply) apply.disabled = true;
     return;
   }
@@ -966,7 +951,7 @@ function renderMatches() {
     && Number(item[cols.tenemos]) > 0,
   );
   const unseenSection = unseen.length
-    ? `<section class="panel"><h2>Not mentioned (in audited zones)</h2>
+    ? `<section class="panel"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-circle-alert"></use></svg>Not mentioned (in audited zones)</h2>
       <div class="hint">${unseen.length} item(s) in the zones you walked but didn't name. Tick to set them to 0.</div>
       <div class="grid">${unseen.map((item) =>
         `<div class="item"><span><strong>${html(item[cols.comida])}</strong> <span class="meta">(list: ${html(item[cols.lugar])})</span></span>
@@ -975,17 +960,17 @@ function renderMatches() {
       ).join("")}</div></section>`
     : "";
 
-  target.innerHTML = `<section class="panel"><h2>Detected Items</h2>${
+  target.innerHTML = `<section class="panel"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-circle-check"></use></svg>Detected Items</h2>${
     zoneSections || emptyStateEl("mic", "No recognised items.").outerHTML
   }</section>
   ${unseenSection}
-  ${state.matches.unmatched_mentions?.length ? `<section class="panel"><h2>Unmatched Mentions</h2>${state.matches.unmatched_mentions.map((m) => `<div class="meta">${html(m.phrase)} · ${html(m.note)}</div>`).join("")}</section>` : ""}`;
+  ${state.matches.unmatched_mentions?.length ? `<section class="panel"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-circle-alert"></use></svg>Unmatched Mentions</h2>${state.matches.unmatched_mentions.map((m) => `<div class="meta">${html(m.phrase)} · ${html(m.note)}</div>`).join("")}</section>` : ""}`;
   if (apply) apply.disabled = !matched.length && !unseen.length;
 }
 
 function render() {
   if (!state.payload) return;
-  el.title.textContent = modes.find(([id]) => id === state.mode)?.[1] || "Inventory";
+  setStatus(idleStatus());
   el.toolbar.hidden = !SEARCHABLE_MODES.has(state.mode);
   el.app.querySelectorAll(".subnav [data-mode]").forEach((button) => button.classList.toggle("active", button.dataset.mode === state.mode));
   if (state.mode === "dashboard") renderDashboard();
@@ -1100,7 +1085,11 @@ el.app.addEventListener("change", (event) => {
 });
 
 el.app.addEventListener("click", async (event) => {
-  if (event.target.id === "automation-start") {
+  // Buttons carry inline sprite icons, so the click target can be the <svg>
+  // — resolve the owning button before dispatching on id.
+  const button = event.target.closest("button");
+  const id = button?.id || "";
+  if (id === "automation-start") {
     state.automationStarted = Date.now();
     const status = await fetchJson("/api/automation/start", {
       method: "POST",
@@ -1115,25 +1104,24 @@ el.app.addEventListener("click", async (event) => {
     startAutomationTimer();
     connectAutomationEvents();
   }
-  if (event.target.id === "automation-stop") await fetchJson("/api/automation/stop", { method: "POST" });
-  if (event.target.id === "automation-dismiss") {
+  if (id === "automation-stop") await fetchJson("/api/automation/stop", { method: "POST" });
+  if (id === "automation-dismiss") {
     stopAutomationTimer();
     await fetchJson("/api/automation/reset", { method: "POST" }).catch(() => null);
     renderAutomation();
   }
-  if (event.target.id === "shopping-unmark-all") {
+  if (id === "shopping-unmark-all") {
     state.shopping.bought.clear();
     state.shopping.extraBought = {};
     saveShoppingState();
     render();
   }
-  if (event.target.id === "record-toggle") await toggleRecording(event.target);
-  if (event.target.id === "audio-redo") await redoTranscribe();
-  if (event.target.id === "transcribe-audio") await transcribeAudio();
-  if (event.target.id === "match-transcript") await matchTranscript();
-  if (event.target.id === "apply-audio") await applyAudio();
-  if (event.target.id === "audio-clear") clearAudio();
-  if (event.target.id === "audio-cancel" && audioAbort) audioAbort.abort();
+  if (id === "record-toggle") await toggleRecording(button);
+  if (id === "audio-redo") await redoTranscribe();
+  if (id === "match-transcript") await matchTranscript();
+  if (id === "apply-audio") await applyAudio();
+  if (id === "audio-clear") clearAudio();
+  if (id === "audio-cancel" && audioAbort) audioAbort.abort();
 });
 
 // Wipe the transcript + match results so the next audit starts from scratch.
@@ -1146,8 +1134,6 @@ function clearAudio() {
   state.audioBytes = 0;
   state.sessionId = "";
   state.bytesSent = 0;
-  const fileInput = document.querySelector("#audio-file");
-  if (fileInput) fileInput.value = "";
   render();
   setAudioStatus("Cleared — ready for a new audit", "");
 }
@@ -1177,7 +1163,7 @@ function formatBytes(n) {
 async function toggleRecording(button) {
   if (state.mediaRecorder && state.mediaRecorder.state === "recording") {
     button.disabled = true;
-    button.textContent = "⏳ Finishing…";
+    button.textContent = "Finishing…";
     state.mediaRecorder.stop();
     return;
   }
@@ -1257,7 +1243,7 @@ function startRecordTimer() {
   stopRecordTimer();
   const tick = () => {
     const elapsed = Math.floor((Date.now() - state.recordStartedAt) / 1000);
-    setAudioStatus(`🔴 Recording · ${formatElapsed(elapsed)} · ${formatBytes(state.bytesSent)} streamed to PC`);
+    setAudioStatus(`Recording · ${formatElapsed(elapsed)} · ${formatBytes(state.bytesSent)} streamed to PC`);
   };
   tick();
   state.recordTimer = window.setInterval(tick, 1000);
@@ -1325,21 +1311,21 @@ async function finishRecording() {
     });
     closeAudioPartialStream();
     if (body.silent) {
-      setAudioStatus("🤫 Empty audio — nothing transcribed", "");
+      setAudioStatus("Empty audio — nothing transcribed", "");
     } else {
       state.transcript = body.transcript || "";
       const field = document.querySelector("#transcript");
       if (field) field.value = state.transcript;
-      setAudioStatus("✅ Transcript ready — recording saved on the PC", "ok");
+      setAudioStatus("Transcript ready — recording saved on the PC", "ok");
     }
     const redo = document.querySelector("#audio-redo");
     if (redo) redo.hidden = !state.sessionId;
   } catch (error) {
     closeAudioPartialStream();
     if (error.name === "AbortError") {
-      setAudioStatus("Finish cancelled — recording is safe on the PC, tap ↻ Redo", "");
+      setAudioStatus("Finish cancelled — recording is safe on the PC, tap Redo", "");
     } else {
-      setAudioStatus(`Transcription failed: ${error.message} — recording is safe on the PC, tap ↻ Redo`, "error");
+      setAudioStatus(`Transcription failed: ${error.message} — recording is safe on the PC, tap Redo`, "error");
     }
     const redo = document.querySelector("#audio-redo");
     if (redo) redo.hidden = !state.sessionId;
@@ -1370,43 +1356,10 @@ async function redoTranscribe() {
     state.transcript = body.transcript || "";
     const field = document.querySelector("#transcript");
     if (field) field.value = state.transcript;
-    setAudioStatus(body.silent ? "🤫 Empty audio — nothing transcribed" : "✅ Re-transcribed from saved audio", body.silent ? "" : "ok");
+    setAudioStatus(body.silent ? "Empty audio — nothing transcribed" : "Re-transcribed from saved audio", body.silent ? "" : "ok");
   } catch (error) {
     if (error.name === "AbortError") setAudioStatus("Redo cancelled", "");
     else setAudioStatus(`Redo failed: ${error.message}`, "error");
-  }
-}
-
-async function selectedAudioBlob() {
-  const input = document.querySelector("#audio-file");
-  if (input?.files?.[0]) return input.files[0];
-  return null;
-}
-
-async function transcribeAudio() {
-  const blob = await selectedAudioBlob();
-  if (!blob) {
-    setAudioStatus("No audio selected or recorded", "error");
-    return;
-  }
-  await computeAudioSha(blob);
-  try {
-    const body = await runWithTimer(audioTranscribeStage, async (signal) => {
-      const form = new FormData();
-      const ext = (blob.type || "").includes("mp4") ? "mp4" : "webm";
-      form.append("file", blob, blob.name || `recording.${ext}`);
-      const response = await authFetch("/api/audio/transcribe", { method: "POST", body: form, signal });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.detail || `HTTP ${response.status}`);
-      return data;
-    });
-    state.transcript = body.transcript;
-    const field = document.querySelector("#transcript");
-    if (field) field.value = body.transcript;
-    setAudioStatus("✅ Transcript ready", "ok");
-  } catch (error) {
-    if (error.name === "AbortError") setAudioStatus("Transcription cancelled", "");
-    else setAudioStatus(`Transcription failed: ${error.message}`, "error");
   }
 }
 
@@ -1434,7 +1387,7 @@ async function matchTranscript() {
     );
     const m = state.matches;
     setAudioStatus(
-      `✅ Matched ${m.items.length} item${m.items.length === 1 ? "" : "s"} · ${m.candidates} candidates · ${m.transcript_chars} chars · ${m.model}`,
+      `Matched ${m.items.length} item${m.items.length === 1 ? "" : "s"} · ${m.candidates} candidates · ${m.transcript_chars} chars · ${m.model}`,
       "ok",
     );
     renderMatches();
@@ -1475,7 +1428,7 @@ async function applyAudio() {
     const logPath = state.payload.audio_log_path || "";
     state.matches = null;
     render();
-    setAudioStatus(logPath ? `✅ Inventory updated · 📝 log ${logPath.split(/[\\/]/).pop()}` : "✅ Inventory updated", "ok");
+    setAudioStatus(logPath ? `Inventory updated · log ${logPath.split(/[\\/]/).pop()}` : "Inventory updated", "ok");
   } catch (error) {
     setAudioStatus(`Apply failed: ${error.message}`, "error");
     if (button) button.disabled = false;
@@ -1483,7 +1436,6 @@ async function applyAudio() {
 }
 
 el.search.addEventListener("input", () => { state.query = el.search.value.trim().toLowerCase(); render(); });
-el.refresh.addEventListener("click", loadInventory);
 el.openSheet.addEventListener("click", () => fetchJson("/api/actions/open-spreadsheet", { method: "POST" }).then(() => setStatus("Spreadsheet opened")));
 el.copyLink.addEventListener("click", async () => {
   const url = state.access?.cloudflare || state.access?.lan || window.location.href;
@@ -1510,3 +1462,12 @@ initNavTabs({
 });
 loadInventory();
 fetchVersion();
+
+// No manual refresh button: refetch when the PWA returns to the foreground.
+// Only on the read-only list modes — a re-render on edit/add/audio would wipe
+// in-progress form input or a pasted transcript.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") return;
+  fetchVersion();
+  if (["dashboard", "shopping", "audit", "targets"].includes(state.mode)) loadInventory();
+});
