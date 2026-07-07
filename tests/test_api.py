@@ -200,6 +200,13 @@ def test_index_shell_is_no_cache_and_hash_stamped(client):
     assert f"/static/_vendored/nav/nav-tabs.css?v={expected}" in resp.text
 
 
+def test_version_reports_build_identity(client):
+    """/api/version feeds the PWA footer readout + stale-shell reload guard."""
+    body = client.get("/api/version").json()
+    assert set(body) == {"git_sha", "built_at", "asset_hash"}
+    assert body["asset_hash"] == api.BUILD_INFO.fleet_hash
+
+
 def test_static_js_is_long_cached(client):
     """Served .js assets carry an explicit immutable Cache-Control instead of
     being left to the browser's heuristic cache."""

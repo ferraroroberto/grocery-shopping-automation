@@ -22,7 +22,7 @@ Canonical instructions for AI coding agents working in this repository. Claude C
   - app/static/**/*.css
   - app/static/**/*.{js,html}
 - key views:                      # single tabbed SPA served at `/`
-  - /          (Inventory · Shopping · Audit · Items · Automation tabs, bottom-pill nav)
+  - /          (Inventory · Shopping · Audit · Items · Auto · Settings tabs, bottom-pill nav)
 
 ## This repository
 Mobile-responsive web app for managing a household grocery inventory and shopping list, backed by an Excel file. The primary surface is a FastAPI + vanilla-JS PWA on `:8502` (`app/api.py`); a legacy Streamlit app on `:8501` (`app/app.py`) remains and drives the same modes. Includes a voice-narrated audit mode that uses a local whisper-server and LLM hub from the `claude-local-calls` sibling project. Windows + PowerShell.
