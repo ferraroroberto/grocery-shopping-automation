@@ -171,7 +171,9 @@ def test_add_item_increases_count(page):
     page.fill("#add-form input[name='super']", "mercadona")
     page.fill("#add-form input[name='lugar']", "nevera")
     page.click("#add-form button[type='submit']")
-    page.wait_for_function("document.querySelector('#status')?.textContent?.includes('Loaded')")
+    # Mutations report transient "Saved" feedback; the resting count only
+    # shows on Home (the repeated "Loaded N items" line was UI noise).
+    page.wait_for_function("document.querySelector('#status')?.textContent?.includes('Saved')")
     goto_mode(page, "dashboard")
     page.wait_for_selector(".summary")
     after = int(page.locator(".metric strong").first.inner_text())

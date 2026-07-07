@@ -30,10 +30,10 @@
   --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
   --accent-border-soft: color-mix(in srgb, var(--accent) 24%, transparent);
   --accent-border-strong: color-mix(in srgb, var(--accent) 28%, transparent);
-  /* the transcript/automation log is a terminal-class surface — authored dark
-     in both themes, like a media matte (see home-automation --video-matte). */
-  --log-bg: #0d1117;
-  --log-ink: #e6edf3;
+  /* the transcript/automation log is a terminal-class surface that follows
+     the theme (a fixed dark matte read as "not switching" in light mode). */
+  --log-bg: var(--card-off);
+  --log-ink: var(--ink);
   /* radii (rounded scale) */
   --radius-md: 12px;
   --radius: 16px;           /* rounded.lg — cards */
@@ -99,7 +99,6 @@
   --toggle-knob: var(--ink);
   --toggle-label: var(--muted);
   --close-bg: var(--line);
-  --log-bg: #010409;
   /* Depth on a near-black canvas comes from surface lightness, not shadow. */
   --shadow: 0 8px 24px rgba(1, 4, 9, 0.6);
   --tabbar-bg: rgba(22, 27, 34, 0.86);
@@ -231,37 +230,30 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 :root:not([data-theme="dark"]) .theme-icon-sun { display: none; }
 
 /* ------------------------------------------------------------ top bar */
+/* Status readout left, theme toggle right — no page title, no refresh. */
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--gap);
-  padding: var(--space-md) 0 var(--space-sm);
+  padding: var(--space-sm) 0;
 }
-.topbar h1 {
-  margin: 0;
-  font-size: var(--font-heading-lg);
-  font-weight: 700;
-  line-height: 1.2;
-}
-.topbar-actions { display: inline-flex; align-items: center; gap: var(--space-xs); }
-/* Top-bar icon buttons are ghosts, matching the theme toggle. */
-.topbar-actions .icon-btn { border: 0; background: transparent; color: var(--muted); }
-.topbar-actions .icon-btn:active { background: var(--card-off); color: var(--ink); }
-.topbar-actions .icon-btn .icon { width: var(--icon-title); height: var(--icon-title); }
 .status {
+  flex: 1;
+  min-width: 0;
   min-height: 20px;
   color: var(--muted);
   font-size: var(--font-label);
-  padding-bottom: var(--space-sm);
 }
 
-.toolbar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--space-sm);
-  align-items: center;
-  padding-bottom: var(--gap);
+/* Search sits alone above the list: full card width (a second grid track
+   would inset it by one gap and break the alignment with the cards below)
+   and disclosure-summary height so it reads as a peer of the cards. */
+.toolbar { padding-bottom: var(--gap); }
+.toolbar .search {
+  min-height: var(--row-md);
+  border-radius: var(--radius);
+  padding: 0 14px;
 }
 
 /* settings tab — the old sidebar utilities as a 2-up action grid */
@@ -272,8 +264,10 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   margin-top: var(--gap);
 }
 
-/* Build identity footer (home-automation contract) — filled by fetchVersion. */
+/* Build identity footer (home-automation contract) — filled by fetchVersion.
+   Regular weight: home-automation renders it muted+small, never bold. */
 .page-foot { padding: var(--space-lg) 0 var(--space-sm); text-align: center; }
+.page-foot .meta { font-weight: 400; }
 
 /* --------------------------------------------------------- sub-mode pills */
 .pills { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
@@ -355,6 +349,24 @@ main.app > .pane { display: grid; gap: var(--gap); }
 }
 .item:last-child { border-bottom: 0; }
 .item-actions { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; justify-content: flex-end; }
+
+/* Audit/targets rows read as a table: every control column has a FIXED width
+   so the buttons, counts and verdicts line up across rows (flex-wrap gave a
+   per-row zigzag). Phone stacks name over controls; wide keeps one line. */
+.audit-item { grid-template-columns: minmax(0, 1fr); }
+.audit-controls {
+  display: grid;
+  align-items: center;
+  justify-content: end;
+  gap: var(--space-xs);
+}
+.audit-controls--targets { grid-template-columns: 76px 36px 36px 58px; }
+.audit-controls--full { grid-template-columns: 36px 36px 76px 36px 36px 58px; }
+.audit-controls .qty { min-width: 0; }
+.audit-verdict { text-align: right; font-size: var(--font-label); font-weight: 700; }
+@media (min-width: 640px) {
+  .audit-item { grid-template-columns: minmax(0, 1fr) auto; }
+}
 .qty { min-width: 76px; text-align: right; font-weight: 700; }
 .buy { color: var(--deficit); }
 .ok { color: var(--on); }
@@ -364,6 +376,11 @@ main.app > .pane { display: grid; gap: var(--gap); }
 
 .progress { height: 8px; overflow: hidden; border-radius: var(--radius-pill); background: var(--card-off); }
 .progress span { display: block; height: 100%; background: var(--accent); }
+
+/* Dashboard store progress: all stores share ONE card; the bar gets clear
+   air below the store name instead of hugging it. */
+.store-block + .store-block { margin-top: var(--space-lg); }
+.store-block .progress { margin-top: var(--gap); }
 
 /* ------------------------------------------------------------- controls */
 .primary, .secondary, .danger, .icon-btn {
@@ -382,6 +399,19 @@ main.app > .pane { display: grid; gap: var(--gap); }
 .icon-btn .icon { width: var(--icon-inline); height: var(--icon-inline); }
 
 .actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-sm); }
+/* Full-width feature button (home-automation .net-speed-btn identity):
+   secondary shade, icon + label centered, spans the card. */
+.btn-block {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45em;
+}
+.btn-block .icon { width: 1.15em; height: 1.15em; }
+/* Match / Apply / Clear share one line; Cancel (when shown) spans it. */
+.audio-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-sm); }
+.audio-actions #audio-cancel { grid-column: 1 / -1; }
 .flag-row { display: flex; align-items: center; gap: var(--space-sm); color: var(--muted); font-size: var(--font-label); }
 
 .search, .field, textarea, select {
@@ -393,6 +423,9 @@ main.app > .pane { display: grid; gap: var(--gap); }
   background: var(--input-bg);
   color: var(--ink);
 }
+/* Selects take their height from padding (local-llm-hub .opt-stack recipe) —
+   iOS ignores min-height on a bare <select>, rendering it stubby. */
+select { padding: 10px 12px; font-size: var(--font-label); }
 textarea { min-height: 150px; padding: 10px; resize: vertical; }
 .field-label { display: grid; gap: var(--space-xs); color: var(--muted); font-size: var(--font-label); font-weight: 600; }
 
@@ -413,12 +446,13 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 .panel-status.ok { color: var(--on); }
 .match-figures { display: inline-flex; align-items: center; gap: var(--space-sm); white-space: nowrap; }
 
-/* Terminal-class log surface — authored dark in both themes. */
+/* Terminal-class log surface — theme-aware (canvas-subtle inset + hairline). */
 .log {
   white-space: pre-wrap;
   overflow: auto;
   max-height: 360px;
   padding: var(--gap);
+  border: 1px solid var(--line-muted);
   border-radius: var(--radius-md);
   background: var(--log-bg);
   color: var(--log-ink);
@@ -437,6 +471,10 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 /* --------------------------------------------------- audio zone checklist */
 .zone-list { display: grid; gap: var(--space-sm); }
 .zone-items { display: grid; gap: 0; }
+/* The collapse-body stack spacing must NOT leak between checklist rows — a
+   12px margin above each row makes the text sit low in its row (more space
+   above the separator than below) and wastes a screenful of height. */
+.zone-items > * + * { margin-top: 0; }
 .zone-item {
   display: flex;
   align-items: center;
