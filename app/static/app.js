@@ -623,7 +623,7 @@ function renderAdd() {
         <input class="field" name="tenemos" type="number" min="0" value="0" placeholder="Current" />
         <input class="field" name="buscador" placeholder="URL" />
       </div>
-      <button class="primary" type="submit">Add Item</button>
+      <button class="big-btn" type="submit">Add Item</button>
     </form>
     <datalist id="stores">${stores.map((x) => `<option value="${html(x)}"></option>`).join("")}</datalist>
     <datalist id="zones">${zones.map((x) => `<option value="${html(x)}"></option>`).join("")}</datalist>
@@ -737,7 +737,7 @@ function renderAutomation() {
     <div id="automation-clean-confirm-wrap" class="flag-row" hidden><span>Yes, empty the cart first</span>${switchMarkup(false, "Yes, empty the cart first", { id: "automation-clean-confirm" })}</div>
     <pre id="automation-command" class="log"></pre>
     <div class="actions">
-      <button id="automation-start" class="secondary btn-block" type="button"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-play"></use></svg>Run Automation</button>
+      <button id="automation-start" class="big-btn btn-block" type="button"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-play"></use></svg>Run Automation</button>
       <button id="automation-stop" class="danger btn-block" type="button" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-square"></use></svg>Stop</button>
       <button id="automation-dismiss" class="secondary btn-block" type="button" hidden>Dismiss</button>
     </div>
@@ -877,9 +877,9 @@ function renderAudio() {
     </label>
     <div id="audio-context" class="hint"></div>
     <div class="audio-actions">
-      <button id="match-transcript" class="primary">Match Inventory</button>
-      <button id="apply-audio" class="secondary" disabled>Apply Accepted</button>
-      <button id="audio-clear" class="secondary" type="button">Clear</button>
+      <button id="match-transcript" class="big-btn">Match</button>
+      <button id="apply-audio" class="big-btn" disabled>Apply</button>
+      <button id="audio-clear" class="big-btn" type="button">Clear</button>
       <button id="audio-cancel" class="danger" hidden>Cancel</button>
     </div>
     <div id="audio-status" class="panel-status" role="status"></div>

@@ -230,15 +230,22 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 :root:not([data-theme="dark"]) .theme-icon-sun { display: none; }
 
 /* ------------------------------------------------------- home header card */
-/* Home-only: icon + title + status left, theme toggle right (the
-   home-automation weather-tile shape). */
+/* Home-only, ONE row at disclosure-summary height (52px): icon + title,
+   status inline after it, theme toggle right — everything centered
+   vertically (the home-automation weather-tile shape, compacted). */
 .home-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--gap);
 }
-.home-head-info { display: grid; gap: var(--space-xs); min-width: 0; }
+.home-head .status {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .status {
   min-height: 20px;
   color: var(--muted);
@@ -304,6 +311,9 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 /* Collapsible cards zero their own padding (vendored disclosure contract) —
    this rule loads after disclosure.css, so it must not re-add it. */
 .card:not(.card--collapsible), .metric, .panel { padding: var(--space-md); }
+/* Home header matches the collapse-summary geometry exactly (52px, 14px
+   inset) — same 0-2-0 specificity as the padding rule above, later wins. */
+.card.home-head { min-height: var(--row-md); padding: 0 14px; }
 .panel > * + * { margin-top: var(--gap); }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
 .card-title {
@@ -411,6 +421,23 @@ main.app > .pane { display: grid; gap: var(--gap); }
 .danger { background: var(--deficit); border-color: var(--deficit); color: #ffffff; }
 .icon-btn { width: var(--control-h); padding: 0; display: inline-flex; align-items: center; justify-content: center; }
 .icon-btn .icon { width: var(--icon-inline); height: var(--icon-inline); }
+
+/* Accent-ghost feature button — home-automation's .big-btn recipe verbatim
+   (Net tab "Run speed test"): accent tint fill, accent text, soft accent
+   border, one shared 48px height. Match/Apply/Clear, Add Item, Run
+   Automation all wear it so the feature buttons read as one family. */
+.big-btn {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent-border-soft);
+  border-radius: var(--radius-md);
+  padding: 13px;
+  min-height: 48px;
+  font-size: var(--font-body);
+  font-weight: 700;
+  cursor: pointer;
+}
+.big-btn:active { transform: scale(0.98); }
 
 .actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-sm); }
 /* Full-width feature button (home-automation .net-speed-btn identity):
