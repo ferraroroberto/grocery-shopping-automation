@@ -557,7 +557,8 @@ function itemCard(item, cols) {
 
 function zoneTabs() {
   // .pills, not .tabs — the vendored nav owns the .tabs class app-wide.
-  return `<div class="pills">${state.payload.summary.zones.map((zone) =>
+  // zone-pills keeps all zones on one swipeable line.
+  return `<div class="pills zone-pills">${state.payload.summary.zones.map((zone) =>
     `<button type="button" class="pill ${zone === state.zone ? "active" : ""}" data-zone="${html(zone)}">${html(zone)}</button>`,
   ).join("")}</div>`;
 }
@@ -573,7 +574,7 @@ function renderAudit(targetsOnly = false) {
   activePaneBody().innerHTML = `<section class="panel"><div class="row"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-${targetsOnly ? "list-checks" : "package"}"></use></svg>${targetsOnly ? "Audit Inventory" : "Edit Targets"}</h2><span class="hint">${html(state.zone)} · ${source.length} items</span></div>${zoneTabs()}<div class="hint">${header}</div></section>
     <section class="grid">${source.map((item) => `
       <article class="item audit-item" data-id="${item.id}">
-        <div><h3>${html(item[cols.comida])}</h3><div class="meta">${html(item[cols.super])}</div></div>
+        <div class="audit-label"><h3>${html(item[cols.comida])}</h3><span class="meta"> · ${html(item[cols.super])}</span></div>
         <div class="${controlsClass}">
           ${targetsOnly ? `<button class="icon-btn" data-action="current-minus">-</button><button class="icon-btn" data-action="current-plus">+</button>` : ""}
           <span class="qty">${qtyMarkup(item[cols.tenemos], item[cols.cantidad])}</span>
@@ -971,6 +972,12 @@ function renderMatches() {
 function render() {
   if (!state.payload) return;
   setStatus(idleStatus());
+  // Re-home the (single) search node into the active pane, above its body but
+  // BELOW the sub-mode pills — the pills stay pinned to the top and never
+  // shift when the search appears/disappears across sub-modes.
+  const pane = document.querySelector(`#pane-${MODE_TO_TAB[state.mode] || "inventory"}`);
+  const paneBody = pane?.querySelector(".pane-body");
+  if (paneBody && el.toolbar.parentElement !== pane) pane.insertBefore(el.toolbar, paneBody);
   el.toolbar.hidden = !SEARCHABLE_MODES.has(state.mode);
   el.app.querySelectorAll(".subnav [data-mode]").forEach((button) => button.classList.toggle("active", button.dataset.mode === state.mode));
   if (state.mode === "dashboard") renderDashboard();

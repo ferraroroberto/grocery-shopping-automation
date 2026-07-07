@@ -220,26 +220,33 @@
     </nav>
 
     <main class="app">
-      <!-- No per-tab title and no manual refresh (the app refetches on
-           foreground): the top bar is the status readout + theme toggle. -->
-      <header class="topbar">
-        <div id="status" class="status" role="status">Loading inventory...</div>
-        <button id="theme-toggle" class="theme-toggle" type="button"
-                title="Toggle theme" aria-label="Toggle dark mode">
-          <!-- Sprite moon + sun; CSS shows the glyph for the *action*
-               keyed on html[data-theme]. -->
-          <svg class="theme-toggle-icon theme-icon-moon" aria-hidden="true" focusable="false"><use href="#i-moon"></use></svg>
-          <svg class="theme-toggle-icon theme-icon-sun" aria-hidden="true" focusable="false"><use href="#i-sun"></use></svg>
-        </button>
-      </header>
-
-      <!-- Search shows only on the modes that filter the item list
-           (dashboard / audit / targets / edit) — app.js toggles it. -->
-      <section id="toolbar" class="toolbar" aria-label="Inventory search" hidden>
-        <input id="search" class="search" type="search" placeholder="Search item, zone, or supermarket" autocomplete="off" />
-      </section>
-
       <section id="pane-inventory" class="pane" role="tabpanel" aria-labelledby="tabInventory" aria-label="Inventory">
+        <!-- Home-only header card (home-automation weather-tile pattern):
+             app icon + title + status left, theme toggle right. Living inside
+             the home pane keeps the toggle (and the row) off every other tab. -->
+        <section class="card home-head" aria-label="Grocery">
+          <div class="home-head-info">
+            <h1 class="card-title">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-shopping-basket"></use></svg>
+              Grocery
+            </h1>
+            <div id="status" class="status" role="status">Loading inventory...</div>
+          </div>
+          <button id="theme-toggle" class="theme-toggle" type="button"
+                  title="Toggle theme" aria-label="Toggle dark mode">
+            <!-- Sprite moon + sun; CSS shows the glyph for the *action*
+                 keyed on html[data-theme]. -->
+            <svg class="theme-toggle-icon theme-icon-moon" aria-hidden="true" focusable="false"><use href="#i-moon"></use></svg>
+            <svg class="theme-toggle-icon theme-icon-sun" aria-hidden="true" focusable="false"><use href="#i-sun"></use></svg>
+          </button>
+        </section>
+        <!-- Search shows only on the modes that filter the item list
+             (dashboard / audit / targets / edit) — app.js re-homes this node
+             into the active pane BELOW the sub-mode pills, so the pills never
+             move vertically when the search appears/disappears. -->
+        <section id="toolbar" class="toolbar" aria-label="Inventory search" hidden>
+          <input id="search" class="search" type="search" placeholder="Search item, zone, or supermarket" autocomplete="off" />
+        </section>
         <div class="pane-body"></div>
       </section>
       <section id="pane-shopping" class="pane" role="tabpanel" aria-labelledby="tabShopping" aria-label="Shopping" hidden>
