@@ -170,7 +170,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .app {
   max-width: 772px;
   margin: 0 auto;
-  padding-top: env(safe-area-inset-top, 0);
+  padding-top: calc(env(safe-area-inset-top, 0px) + var(--gap));
   padding-left: var(--gap);
   padding-right: var(--gap);
 }
@@ -229,27 +229,26 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 :root[data-theme="dark"] .theme-icon-moon { display: none; }
 :root:not([data-theme="dark"]) .theme-icon-sun { display: none; }
 
-/* ------------------------------------------------------------ top bar */
-/* Status readout left, theme toggle right — no page title, no refresh. */
-.topbar {
+/* ------------------------------------------------------- home header card */
+/* Home-only: icon + title + status left, theme toggle right (the
+   home-automation weather-tile shape). */
+.home-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--gap);
-  padding: var(--space-sm) 0;
 }
+.home-head-info { display: grid; gap: var(--space-xs); min-width: 0; }
 .status {
-  flex: 1;
-  min-width: 0;
   min-height: 20px;
   color: var(--muted);
   font-size: var(--font-label);
 }
 
-/* Search sits alone above the list: full card width (a second grid track
+/* Search sits alone below the pills: full card width (a second grid track
    would inset it by one gap and break the alignment with the cards below)
-   and disclosure-summary height so it reads as a peer of the cards. */
-.toolbar { padding-bottom: var(--gap); }
+   and disclosure-summary height so it reads as a peer of the cards. The
+   pane's own grid gap spaces it — no extra padding. */
 .toolbar .search {
   min-height: var(--row-md);
   border-radius: var(--radius);
@@ -271,7 +270,15 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 
 /* --------------------------------------------------------- sub-mode pills */
 .pills { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
-.subnav { padding-bottom: var(--gap); }
+/* Zone pills: ONE compact swipeable line — six zones wrapped to two rows and
+   ate the screen. Scrollbar hidden; overflow affords the swipe. */
+.zone-pills {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.zone-pills::-webkit-scrollbar { display: none; }
+.zone-pills .pill { flex: none; min-height: 32px; padding: 0 12px; }
 .pill {
   min-height: var(--control-h);
   border-radius: var(--radius-pill);
@@ -352,8 +359,15 @@ main.app > .pane { display: grid; gap: var(--gap); }
 
 /* Audit/targets rows read as a table: every control column has a FIXED width
    so the buttons, counts and verdicts line up across rows (flex-wrap gave a
-   per-row zigzag). Phone stacks name over controls; wide keeps one line. */
-.audit-item { grid-template-columns: minmax(0, 1fr); }
+   per-row zigzag). Phone stacks a single ellipsized "name · super" line over
+   the controls, packed tight; wide keeps one line. */
+.audit-item {
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-xs);
+  min-height: 0;
+}
+.audit-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.audit-label h3 { display: inline; }
 .audit-controls {
   display: grid;
   align-items: center;
@@ -365,7 +379,7 @@ main.app > .pane { display: grid; gap: var(--gap); }
 .audit-controls .qty { min-width: 0; }
 .audit-verdict { text-align: right; font-size: var(--font-label); font-weight: 700; }
 @media (min-width: 640px) {
-  .audit-item { grid-template-columns: minmax(0, 1fr) auto; }
+  .audit-item { grid-template-columns: minmax(0, 1fr) auto; gap: var(--gap); }
 }
 .qty { min-width: 76px; text-align: right; font-weight: 700; }
 .buy { color: var(--deficit); }
@@ -460,6 +474,9 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
   font-size: var(--font-caption);
   margin: 0;
 }
+/* .log's `margin: 0` (same specificity, later in source) silently killed the
+   panel's stack spacing — the "no space after the Dry run toggle" bug. */
+.panel > .log { margin-top: var(--gap); }
 
 /* --------------------------------------------------------- disclosures */
 /* Stack spacing inside any open disclosure body (offsets / list / quick-add). */
