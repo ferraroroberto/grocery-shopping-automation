@@ -13,6 +13,18 @@ _AUTH_EXEMPT_EXACT = frozenset(
     {"/", "/manifest.json", "/app-icon.svg", "/healthz", "/api/health", "/api/login"}
 )
 
+# Cloudflare's edge stamps these on every request it proxies through a
+# tunnel — their presence means the connection genuinely crossed the public
+# internet before `cloudflared` handed it to uvicorn over loopback, so it
+# must not be treated as a trusted same-machine caller (see
+# scripts/run_named_tunnel.py, which binds uvicorn to 127.0.0.1 for the
+# named-tunnel launch path). Same signal app-launcher's middleware uses.
+_CLOUDFLARE_HEADERS = ("cf-ray", "cf-connecting-ip")
+
+
+def _via_cloudflare(headers) -> bool:
+    return any(h in headers for h in _CLOUDFLARE_HEADERS)
+
 
 class BearerTokenMiddleware(BaseHTTPMiddleware):
     """Require a bearer token on non-loopback API calls when configured."""
@@ -27,7 +39,7 @@ class BearerTokenMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         client_host = request.client.host if request.client else ""
-        if client_host in _LOOPBACK_HOSTS:
+        if client_host in _LOOPBACK_HOSTS and not _via_cloudflare(request.headers):
             return await call_next(request)
 
         path = request.url.path
