@@ -226,3 +226,40 @@ def test_auth_required_when_token_set(client):
         assert ok.status_code == 200
     finally:
         cfg.auth_token = ""
+
+
+def test_tunnel_traffic_still_requires_token_despite_loopback_client(temp_env):
+    """Regression for #65: scripts/run_named_tunnel.py binds uvicorn to
+    127.0.0.1 so cloudflared can reverse-proxy to it, which makes
+    request.client.host "127.0.0.1" for every tunnel request regardless of
+    the real internet client's IP. A request carrying the cf-ray header
+    Cloudflare's edge stamps on tunnel traffic must not be waved through by
+    the loopback exemption — it must still need a valid bearer token."""
+    from fastapi.testclient import TestClient
+
+    cfg = api.app.state.webapp_config
+    orig_token = cfg.auth_token
+    cfg.auth_token = "secret"
+    try:
+        with TestClient(api.app, client=("127.0.0.1", 51234)) as tunnel_client:
+            no_token = tunnel_client.get("/api/inventory", headers={"cf-ray": "abc123-LHR"})
+            assert no_token.status_code == 401
+
+            wrong_token = tunnel_client.get(
+                "/api/inventory",
+                headers={"cf-ray": "abc123-LHR", "Authorization": "Bearer wrong"},
+            )
+            assert wrong_token.status_code == 401
+
+            with_token = tunnel_client.get(
+                "/api/inventory",
+                headers={"cf-ray": "abc123-LHR", "Authorization": "Bearer secret"},
+            )
+            assert with_token.status_code == 200
+
+            # A genuine same-machine loopback caller (no Cloudflare headers)
+            # is still exempt — this only tightens tunnel traffic.
+            genuine_loopback = tunnel_client.get("/api/inventory")
+            assert genuine_loopback.status_code == 200
+    finally:
+        cfg.auth_token = orig_token
