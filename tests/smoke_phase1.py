@@ -59,7 +59,10 @@ fixture_hash_after = hashlib.sha256(fixture.read_bytes()).hexdigest()
 assert fixture_hash_before == fixture_hash_after, "fixture was modified!"
 print(f"[OK] fixture unchanged (sha256 prefix {fixture_hash_after[:12]})")
 
-live = Path(r"E:\OneDrive\Documentos\Roberto\areas\groceries\list.xlsx")
-print(f"[OK] live file size {live.stat().st_size} (untouched by this test)")
+live = data._resolve_xlsx_path()
+if live.exists():
+    print(f"[OK] live file size {live.stat().st_size} (untouched by this test)")
+else:
+    print(f"[SKIP] configured xlsx_file not found at {live} (nothing to verify)")
 
 print("\nPHASE 1 SMOKE TEST: PASS")
