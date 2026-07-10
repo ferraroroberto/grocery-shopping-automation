@@ -26,6 +26,8 @@ from src.data import (
     CONFIG,
     InventoryFileError,
     SpreadsheetLockedError,
+    apply_item_edit,
+    build_new_item_row,
     bulk_apply_tenemos,
     get_supermarket_stats,
     load_inventory_data,
@@ -132,8 +134,18 @@ def _load_inventory_or_error() -> pd.DataFrame:
 
 
 def _save_or_error(df: pd.DataFrame) -> None:
+    _mutate_or_error(save_inventory_data, df)
+
+
+def _mutate_or_error(fn: Any, *args: Any, **kwargs: Any) -> Any:
+    """Call a data-layer mutator, translating its lock/file errors to HTTP.
+
+    Shared by every endpoint that calls into `src/data.py`'s mutators —
+    `SpreadsheetLockedError` -> 423, `InventoryFileError` -> 500 — so that
+    translation lives in one place instead of being re-typed per call site.
+    """
     try:
-        save_inventory_data(df)
+        return fn(*args, **kwargs)
     except SpreadsheetLockedError as exc:
         raise _inventory_error(423, str(exc)) from exc
     except InventoryFileError as exc:
@@ -385,12 +397,7 @@ def access_urls() -> dict[str, Any]:
 def current_delta(item_id: int, payload: DeltaPayload) -> dict[str, Any]:
     df = _load_inventory_or_error()
     _get_row(df, item_id)
-    try:
-        update_item_quantity(df, item_id, payload.delta)
-    except SpreadsheetLockedError as exc:
-        raise _inventory_error(423, str(exc)) from exc
-    except InventoryFileError as exc:
-        raise _inventory_error(500, str(exc)) from exc
+    _mutate_or_error(update_item_quantity, df, item_id, payload.delta)
     return _inventory_payload(_load_inventory_or_error())
 
 
@@ -398,12 +405,7 @@ def current_delta(item_id: int, payload: DeltaPayload) -> dict[str, Any]:
 def target_delta(item_id: int, payload: DeltaPayload) -> dict[str, Any]:
     df = _load_inventory_or_error()
     _get_row(df, item_id)
-    try:
-        update_target_quantity(df, item_id, payload.delta)
-    except SpreadsheetLockedError as exc:
-        raise _inventory_error(423, str(exc)) from exc
-    except InventoryFileError as exc:
-        raise _inventory_error(500, str(exc)) from exc
+    _mutate_or_error(update_target_quantity, df, item_id, payload.delta)
     return _inventory_payload(_load_inventory_or_error())
 
 
@@ -411,12 +413,7 @@ def target_delta(item_id: int, payload: DeltaPayload) -> dict[str, Any]:
 def set_current(item_id: int, payload: QuantityPayload) -> dict[str, Any]:
     df = _load_inventory_or_error()
     _get_row(df, item_id)
-    try:
-        bulk_apply_tenemos(df, {item_id: payload.value}, save=True)
-    except SpreadsheetLockedError as exc:
-        raise _inventory_error(423, str(exc)) from exc
-    except InventoryFileError as exc:
-        raise _inventory_error(500, str(exc)) from exc
+    _mutate_or_error(bulk_apply_tenemos, df, {item_id: payload.value}, save=True)
     return _inventory_payload(_load_inventory_or_error())
 
 
@@ -424,13 +421,16 @@ def set_current(item_id: int, payload: QuantityPayload) -> dict[str, Any]:
 def update_item(item_id: int, payload: ItemPayload) -> dict[str, Any]:
     df = _load_inventory_or_error()
     snap = _get_row(df, item_id).copy()
-    df.at[item_id, COLUMNS["super"]] = payload.super_value.strip()
-    df.at[item_id, COLUMNS["lugar"]] = payload.lugar.strip()
-    df.at[item_id, COLUMNS["comida"]] = payload.comida.strip()
-    df.at[item_id, COLUMNS["cantidad"]] = int(payload.cantidad)
-    df.at[item_id, COLUMNS["tenemos"]] = int(payload.tenemos)
-    df.at[item_id, COLUMNS["buscador"]] = payload.buscador.strip()
-    df.at[item_id, COLUMNS["comprar"]] = max(0, int(payload.cantidad) - int(payload.tenemos))
+    apply_item_edit(
+        df,
+        item_id,
+        super_value=payload.super_value,
+        lugar=payload.lugar,
+        comida=payload.comida,
+        cantidad=payload.cantidad,
+        tenemos=payload.tenemos,
+        buscador=payload.buscador,
+    )
     try:
         _save_or_error(df)
     except HTTPException:
@@ -453,15 +453,14 @@ def add_item(payload: ItemPayload) -> dict[str, Any]:
     if not payload.comida.strip():
         raise _inventory_error(400, "item name is required")
     df = _load_inventory_or_error()
-    new_row = {
-        COLUMNS["super"]: payload.super_value.strip(),
-        COLUMNS["lugar"]: payload.lugar.strip(),
-        COLUMNS["comida"]: payload.comida.strip(),
-        COLUMNS["cantidad"]: int(payload.cantidad),
-        COLUMNS["tenemos"]: int(payload.tenemos),
-        COLUMNS["buscador"]: payload.buscador.strip(),
-        COLUMNS["comprar"]: max(0, int(payload.cantidad) - int(payload.tenemos)),
-    }
+    new_row = build_new_item_row(
+        super_value=payload.super_value,
+        lugar=payload.lugar,
+        comida=payload.comida,
+        cantidad=payload.cantidad,
+        tenemos=payload.tenemos,
+        buscador=payload.buscador,
+    )
     df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
     _save_or_error(df)
     return _inventory_payload(_load_inventory_or_error())
@@ -777,12 +776,7 @@ def audio_apply(payload: ApplyPayload) -> dict[str, Any]:
     df = _load_inventory_or_error()
     cleaned = {int(idx): max(0, int(value)) for idx, value in payload.updates.items()}
     old_tenemos = {idx: int(_get_row(df, idx)[COLUMNS["tenemos"]]) for idx in cleaned}
-    try:
-        bulk_apply_tenemos(df, cleaned, save=True)
-    except SpreadsheetLockedError as exc:
-        raise _inventory_error(423, str(exc)) from exc
-    except InventoryFileError as exc:
-        raise _inventory_error(500, str(exc)) from exc
+    _mutate_or_error(bulk_apply_tenemos, df, cleaned, save=True)
 
     new_df = _load_inventory_or_error()
     cfg = CONFIG["audio_audit"]
