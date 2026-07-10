@@ -5,9 +5,9 @@ import streamlit as st
 
 from app.ui_helpers import render_save_error
 from src.data import (
-    COLUMNS,
     InventoryFileError,
     SpreadsheetLockedError,
+    build_new_item_row,
     get_unique_supermarkets,
     get_unique_zones,
     save_inventory_data,
@@ -36,15 +36,14 @@ def main(df: pd.DataFrame) -> pd.DataFrame:
             if not new_comida.strip():
                 st.error("❌ Item name is required!")
             else:
-                new_row = {
-                    COLUMNS["super"]: new_super,
-                    COLUMNS["lugar"]: new_lugar,
-                    COLUMNS["comida"]: new_comida,
-                    COLUMNS["cantidad"]: new_cantidad,
-                    COLUMNS["tenemos"]: new_tenemos,
-                    COLUMNS["buscador"]: new_buscador,
-                    COLUMNS["comprar"]: max(0, new_cantidad - new_tenemos),
-                }
+                new_row = build_new_item_row(
+                    super_value=new_super,
+                    lugar=new_lugar,
+                    comida=new_comida,
+                    cantidad=new_cantidad,
+                    tenemos=new_tenemos,
+                    buscador=new_buscador,
+                )
                 df_extended = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
 
                 try:
