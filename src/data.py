@@ -258,6 +258,65 @@ def update_target_quantity(df: pd.DataFrame, item_index: int, delta: int) -> pd.
     return df
 
 
+def _clean_str(value: Optional[str]) -> str:
+    """Trim a text field, tolerating None (e.g. an empty-options selectbox)."""
+    return str(value).strip() if value is not None else ""
+
+
+def apply_item_edit(
+    df: pd.DataFrame,
+    item_index: int,
+    *,
+    super_value: Optional[str],
+    lugar: Optional[str],
+    comida: Optional[str],
+    cantidad: int,
+    tenemos: int,
+    buscador: Optional[str],
+) -> pd.DataFrame:
+    """Overwrite one item's editable fields in place and recompute comprar.
+
+    Single source of truth for "what does saving an item mean": trims string
+    fields and clamps `cantidad`/`tenemos` to int before recomputing
+    `comprar`, matching `update_item_quantity`/`update_target_quantity`
+    above. Does not persist — callers save (and roll back on failure) with
+    `save_inventory_data`.
+    """
+    cantidad = int(cantidad)
+    tenemos = int(tenemos)
+    df.at[item_index, COLUMNS["super"]] = _clean_str(super_value)
+    df.at[item_index, COLUMNS["lugar"]] = _clean_str(lugar)
+    df.at[item_index, COLUMNS["comida"]] = _clean_str(comida)
+    df.at[item_index, COLUMNS["cantidad"]] = cantidad
+    df.at[item_index, COLUMNS["tenemos"]] = tenemos
+    df.at[item_index, COLUMNS["buscador"]] = _clean_str(buscador)
+    df.at[item_index, COLUMNS["comprar"]] = max(0, cantidad - tenemos)
+    return df
+
+
+def build_new_item_row(
+    *,
+    super_value: Optional[str],
+    lugar: Optional[str],
+    comida: Optional[str],
+    cantidad: int,
+    tenemos: int,
+    buscador: Optional[str],
+) -> Dict[str, object]:
+    """Build one new inventory row, trimmed/clamped the same way as `apply_item_edit`."""
+    cantidad = int(cantidad)
+    tenemos = int(tenemos)
+    return {
+        COLUMNS["super"]: _clean_str(super_value),
+        COLUMNS["lugar"]: _clean_str(lugar),
+        COLUMNS["comida"]: _clean_str(comida),
+        COLUMNS["cantidad"]: cantidad,
+        COLUMNS["tenemos"]: tenemos,
+        COLUMNS["buscador"]: _clean_str(buscador),
+        COLUMNS["comprar"]: max(0, cantidad - tenemos),
+    }
+
+
 def bulk_apply_tenemos(
     df: pd.DataFrame,
     updates: Dict[int, int],

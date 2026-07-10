@@ -8,6 +8,7 @@ from src.data import (
     COLUMNS,
     InventoryFileError,
     SpreadsheetLockedError,
+    apply_item_edit,
     save_inventory_data,
 )
 
@@ -78,13 +79,16 @@ def main(df: pd.DataFrame) -> pd.DataFrame:
 
                 if save_clicked:
                     snap = df.loc[idx].copy()
-                    df.at[idx, COLUMNS["super"]] = new_super
-                    df.at[idx, COLUMNS["lugar"]] = new_lugar
-                    df.at[idx, COLUMNS["comida"]] = new_comida
-                    df.at[idx, COLUMNS["cantidad"]] = new_cantidad
-                    df.at[idx, COLUMNS["tenemos"]] = new_tenemos
-                    df.at[idx, COLUMNS["buscador"]] = new_buscador
-                    df.at[idx, COLUMNS["comprar"]] = max(0, new_cantidad - new_tenemos)
+                    apply_item_edit(
+                        df,
+                        idx,
+                        super_value=new_super,
+                        lugar=new_lugar,
+                        comida=new_comida,
+                        cantidad=new_cantidad,
+                        tenemos=new_tenemos,
+                        buscador=new_buscador,
+                    )
 
                     try:
                         save_inventory_data(df)
