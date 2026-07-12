@@ -167,6 +167,26 @@ Edit `src/config.json` to customize:
 - **UI Settings** — Page config, mode labels, layout
 - **Logging** — Log level and format
 
+### Telegram notifications
+
+The app can push short Telegram messages (e.g. purchase/delivery alerts) through
+the universal `src/notify/` component, vendored verbatim from
+`project-scaffolding` (see `src/notify/README.md`). This step only wires up the
+notifier and proves delivery works — no alert content or trigger is wired to it
+yet.
+
+Configure credentials by copying `config/notify_config.sample.json` to
+gitignored `config/notify_config.json` and filling in `bot_token` + `chat_id`
+(or set `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` in `.env`, which take
+precedence). With no credentials configured, `build_notify_notifier()` returns
+`None` and every send is a silent no-op.
+
+Manual smoke check:
+
+```powershell
+& .\.venv\Scripts\python.exe tests\smoke_notify.py ["optional custom message"]
+```
+
 ## 📊 Data Format
 
 Excel file columns:

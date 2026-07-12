@@ -30,6 +30,9 @@ certificates/
 
 # FastAPI webapp runtime state / secrets
 config/webapp_config.json
+
+# Telegram notifier credentials
+config/notify_config.json
 webapp/cloudflared.yml
 webapp/last_tunnel_url.txt
 webapp/auth.log
