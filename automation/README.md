@@ -76,10 +76,11 @@ least one item added, to the directory configured by
 `automation.purchase_logs_dir` in `src/config.json` (default `purchase_logs/`,
 gitignored — mirrors the `audio_audit_logs/` convention). The file is named
 `<date>_<store>.json` and records, per ordered item, the name, quantity, and
-`buscador` product URL — the "what we bought" source of truth a later step
-diffs against a parsed order-confirmation email (issue #70). The URL is what
-lets that later step resolve back to the actual product instead of matching
-on name alone. Dry runs and stores with zero added items produce no file.
+`buscador` product URL — the "what we bought" source of truth the
+order-confirmation email check below diffs against (issue #72). The URL is
+what could let a later step resolve back to the actual product instead of
+matching on name alone. Dry runs and stores with zero added items produce no
+file.
 
 `--keep-open` pauses after each store's cart is filled and waits for **Enter**
 in the terminal — so you can open the cart, review it, and pay before the
@@ -119,6 +120,69 @@ surfaces share the subprocess plumbing in `app/automation_runner.py`.
   button text only — never the Emotion `css-*` hashes, which are regenerated
   on every deploy and will silently break the handler.
 
+### Order-confirmation email check (issue #72)
+
+Supermarkets sometimes drop an item from an order (out of stock) and send a
+confirmation email listing what actually shipped. `automation.email_check`
+reads that email read-only, parses its item list deterministically (no LLM),
+and matches it against the latest purchase log so a dropped item is visible.
+
+- **Gmail access** is the `gmail_readonly/` package at the repo root —
+  vendored byte-for-byte from `whatsapp-radar` at commit
+  `404e2685b97f4009f1ba5f9e53c12582276698ff`, per that repo's
+  `docs/gmail-reuse.md` adoption path (OAuth `gmail.readonly` scope only, no
+  send/modify capability). Diff against that commit's `gmail_readonly/`
+  before adopting a newer one (`git diff --no-index`, per `gmail-reuse.md`).
+  This repo reuses the *same* OAuth client and
+  refresh token as `whatsapp-radar` (same Google account, same scope) —
+  copy `auth/gmail/credentials.json` and `auth/gmail/token.json` from that
+  repo's `auth/gmail/` into this repo's gitignored `auth/gmail/`; no new
+  Google Cloud registration or consent flow is needed. Override the paths
+  with `GMAIL_CREDENTIALS_PATH` / `GMAIL_TOKEN_PATH` in `.env` if reusing a
+  different token.
+- **Sender whitelist**: copy `config/gmail_config.sample.json` to gitignored
+  `config/gmail_config.json` and list the sender(s) to read from (today:
+  Ametller Origen, `noreply@news.ametllerorigen.cat`). `src/gmail_config.py`
+  wires this whitelist to the vendored component, mirroring
+  `src/notify_config.py`'s shape.
+- **Subject filtering**: the sender whitelist alone would also catch
+  promotional mail from the same address, so `automation.email_check`
+  additionally requires the subject to be *similar* (not identical — a
+  difflib ratio ≥ 0.8 after stripping accents/emoji/punctuation) to the
+  store's known "order prepared" subject, configured per store in
+  `STORE_SUBJECTS`.
+- **Per-store parser**: `automation/email_parsers/<store>.py` extracts the
+  ordered item-name list from that store's specific email HTML/text
+  structure — deterministic regex/parsing, never an LLM call, mirroring the
+  per-store handler split (`ametller.py` / `mercadona.py`) above. Only
+  Ametller is implemented today; add a sibling module once another store's
+  confirmation-email format is available.
+- **Matching**: `automation.item_matching` resolves each parsed website item
+  name to a purchase-log `comida` value. The website's full catalogue name
+  (e.g. *"American Burger Ametller Origen 150g - 2uds."*) rarely shares
+  enough characters with the short internal name (*"burguer ternera"*) for
+  string similarity alone, so the primary path is a persisted
+  correspondence table, `config/item_name_aliases.json` (committed — plain
+  name pairs, no secrets), keyed by store. A fuzzy fallback (ratio ≥ 0.9)
+  only catches minor future drift in an *already-aliased* website name (a
+  wording or emoji tweak), not the first-time internal-name gap. Whatever
+  purchase-log item is never matched is reported as dropped.
+- **Closing the loop**: once a confirmation email is fetched, parsed, and
+  matched, `check_latest_confirmation()` sends a plain Telegram summary via
+  the `src/notify/` component (issue #71) — e.g. which items matched and
+  which purchase-log item didn't show up in the confirmation. It records the
+  processed Gmail message id in gitignored `config/gmail_processed_state.json`
+  so a repeat call is a no-op — the seam issue #73 will call from a
+  scheduled/web-app-integrated poller to actually *alert* on a drop; this
+  module adds no scheduler or web route itself.
+
+Manual smoke check (runs the real pipeline once, including a real Telegram
+send if a match is found):
+
+```powershell
+& .\.venv\Scripts\python.exe tests\smoke_email_check.py [store]
+```
+
 ## Modules
 
 | File | Responsibility |
@@ -133,6 +197,9 @@ surfaces share the subprocess plumbing in `app/automation_runner.py`.
 | `run_automation.py` | CLI runner — reads the list, dispatches to handlers, prints a summary. |
 | `report.py` | `RunReport` — per-run summary with `print_summary()`. |
 | `purchase_log.py` | `write_purchase_logs()` — persists what was ordered, per store, after a live run. |
+| `email_parsers/ametller.py` | Deterministic order-confirmation item-list parser for Ametller. |
+| `item_matching.py` | `match_items()` — resolves confirmed email items to purchase-log `comida` values (alias table + fuzzy fallback). |
+| `email_check.py` | `check_latest_confirmation()` — the Gmail-fetch → parse → match → notify orchestration entrypoint (issue #72). |
 
 The app-side glue lives under `app/`, not here: `app/automation_runner.py`
 (shared subprocess plumbing), the automation endpoints in `app/api.py` wired to
