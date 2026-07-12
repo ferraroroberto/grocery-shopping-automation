@@ -22,6 +22,9 @@ data/list.xlsx
 audio_audit_logs/
 tests/smoke_phase2_result.json
 
+# cart-automation purchase logs (what was actually ordered, per run)
+purchase_logs/
+
 # generated SSL certificates (run gen_ssl_cert.py to recreate)
 certificates/
 
