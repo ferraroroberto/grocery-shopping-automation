@@ -60,11 +60,13 @@ flowchart TB
     BOOTSTRAP["bootstrap_session.py\none-time interactive store login"]
     READER["grocery_reader.py\nreads shopping-list rows from the inventory"]
     REPORT["report.py / models.py / errors.py\nrun summary, CartItem, typed exceptions"]
+    PURCHASELOG["purchase_log.py\nwrites per-store purchase_logs/ JSON after a live run"]
     RUNAUTO --> STOREMODS
     STOREMODS --> BROWSER
     BOOTSTRAP --> BROWSER
     RUNAUTO --> READER
     RUNAUTO --> REPORT
+    RUNAUTO --> PURCHASELOG
   end
   RUNNER --> RUNAUTO
   READER --> XLSX
