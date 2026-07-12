@@ -37,9 +37,10 @@ config/notify_config.json
 # Gmail OAuth client/token (read-only gmail.readonly scope)
 auth/gmail/
 
-# Gmail whitelist config + processed-message state
+# Gmail whitelist config + processed-message state + poller check log
 config/gmail_config.json
 config/gmail_processed_state.json
+config/email_check_log.json
 webapp/cloudflared.yml
 webapp/last_tunnel_url.txt
 webapp/auth.log

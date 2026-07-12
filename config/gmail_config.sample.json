@@ -2,7 +2,13 @@
   "senders": [
     {
       "address": "noreply@news.ametllerorigen.cat",
-      "name": "Ametller Origen"
+      "name": "Ametller Origen",
+      "store": "ametller",
+      "enabled": true
     }
-  ]
+  ],
+  "poller": {
+    "enabled": false,
+    "interval_minutes": 60
+  }
 }

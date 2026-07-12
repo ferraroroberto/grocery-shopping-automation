@@ -721,6 +721,9 @@ function extraRow(item, store, extraBought) {
 
 function renderAutomation() {
   const stores = state.payload.summary.supermarkets;
+  // Email Watch folds by default; harvest live open state so a re-render
+  // (e.g. automation dismiss) doesn't slam it shut.
+  const emailOpen = !!activePaneBody().querySelector("#email-monitor[open]");
   activePaneBody().innerHTML = `<section class="panel">
     <h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-bot"></use></svg>Run Automation</h2>
     <div class="hint">Fills the store carts from this list via Chrome automation. You still confirm and pay in the browser.</div>
@@ -743,9 +746,134 @@ function renderAutomation() {
     </div>
     <div id="automation-elapsed" class="panel-status"></div>
     <pre id="automation-log" class="log">(not running)</pre>
-  </section>`;
+  </section>
+  <details id="email-monitor" class="card card--collapsible"${emailOpen ? " open" : ""}>
+    <summary class="collapse-summary">
+      <span class="collapse-main">
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-mail"></use></svg>
+        <h3 class="collapse-title">Email Watch</h3>
+        <span class="collapse-count" id="email-monitor-count"></span>
+      </span>
+      <span class="collapse-chevron" aria-hidden="true">›</span>
+    </summary>
+    <div class="collapse-body" id="email-monitor-body">
+      <div class="panel-status">Loading email monitor…</div>
+    </div>
+  </details>`;
   updateAutomationCommand();
   refreshAutomation();
+  refreshEmailMonitor();
+}
+
+// ------------------------------------------------ email watch (issue #73)
+// Server-side poller over the #72 confirmation-email check: the card selects
+// which monitored senders (each mapped to a store) are active, sets the poll
+// cadence, and shows the last-check log. "Test last email" re-processes the
+// newest confirmation even if already seen — the end-to-end dry run.
+
+const EMAIL_INTERVALS = [
+  [15, "Every 15 min"], [30, "Every 30 min"], [60, "Every hour"],
+  [180, "Every 3 h"], [360, "Every 6 h"], [720, "Every 12 h"], [1440, "Daily"],
+];
+
+async function refreshEmailMonitor() {
+  const body = document.querySelector("#email-monitor-body");
+  if (!body) return;
+  let s;
+  try {
+    s = await fetchJson("/api/email-monitor/status");
+  } catch (error) {
+    body.innerHTML = `<div class="panel-status error">Email monitor unavailable: ${html(error.message)}</div>`;
+    return;
+  }
+  const count = document.querySelector("#email-monitor-count");
+  const activeSenders = s.senders.filter((x) => x.enabled).length;
+  if (count) count.textContent = `${s.poller.enabled ? "on" : "off"} · ${activeSenders}/${s.senders.length} senders`;
+  const senderRows = s.senders.length
+    ? s.senders.map((sender) => `<div class="zone-item">
+        <span>${html(sender.name || sender.address)}<span class="meta"> · ${html(sender.store || "no store")}</span></span>
+        ${switchMarkup(sender.enabled, `Monitor ${text(sender.name || sender.address)}`, { "data-monitor-sender": sender.address })}
+      </div>`).join("")
+    : `<div class="panel-status">No senders configured — see config/gmail_config.sample.json.</div>`;
+  const intervalOptions = EMAIL_INTERVALS.map(([mins, label]) =>
+    `<option value="${mins}"${mins === s.poller.interval_minutes ? " selected" : ""}>${label}</option>`).join("");
+  const checkRows = s.checks.length
+    ? s.checks.map((entry) => `<div class="zone-item">
+        <span>${html(entry.outcome)}<div class="meta">${fmtBuildTime(entry.ts)} · ${html(entry.store || "-")} · ${html(entry.trigger)}${entry.notified ? " · notified" : ""}</div></span>
+      </div>`).join("")
+    : "";
+  body.innerHTML = `
+    <div class="hint">Watches Gmail for store "order prepared" emails and alerts on Telegram when the confirmation drops an ordered item.</div>
+    <div class="zone-items">${senderRows}</div>
+    <div class="flag-row"><span>Poll automatically</span>${switchMarkup(s.poller.enabled, "Poll automatically", { id: "email-poller-enabled" })}</div>
+    <label class="field-label">Frequency
+      <select id="email-poller-interval">${intervalOptions}</select>
+    </label>
+    <div class="two">
+      <button id="email-check-now" class="secondary btn-block" type="button"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-refresh-cw"></use></svg>Check now</button>
+      <button id="email-check-test" class="secondary btn-block" type="button"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-play"></use></svg>Test last email</button>
+    </div>
+    <div id="email-monitor-status" class="panel-status">${emailNextCheckText(s)}</div>
+    ${checkRows ? `<div class="hint">Last checks</div><div class="zone-items">${checkRows}</div>` : ""}`;
+}
+
+function emailNextCheckText(s) {
+  if (!s.poller.enabled) return "Automatic polling is off.";
+  if (!s.next_check_at) return "Next check: soon.";
+  return `Next check: ${fmtBuildTime(s.next_check_at)}.`;
+}
+
+async function pushEmailMonitorConfig() {
+  const senders = [...document.querySelectorAll("[data-monitor-sender]")].map((sw) => ({
+    address: sw.dataset.monitorSender,
+    enabled: sw.getAttribute("aria-checked") === "true",
+  }));
+  const payload = {
+    enabled: switchOn("#email-poller-enabled"),
+    interval_minutes: Number(document.querySelector("#email-poller-interval")?.value || 60),
+    senders,
+  };
+  try {
+    await fetchJson("/api/email-monitor/config", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    await refreshEmailMonitor();
+  } catch (error) {
+    const status = document.querySelector("#email-monitor-status");
+    if (status) {
+      status.className = "panel-status error";
+      status.textContent = `Could not save settings: ${error.message}`;
+    }
+  }
+}
+
+async function runEmailCheck(force) {
+  const status = document.querySelector("#email-monitor-status");
+  const buttons = ["#email-check-now", "#email-check-test"]
+    .map((sel) => document.querySelector(sel)).filter(Boolean);
+  buttons.forEach((b) => { b.disabled = true; });
+  if (status) {
+    status.className = "panel-status";
+    status.textContent = force
+      ? "Re-checking the latest email end to end…"
+      : "Checking mailbox…";
+  }
+  try {
+    await fetchJson("/api/email-monitor/check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ force }),
+    });
+    await refreshEmailMonitor();
+  } catch (error) {
+    if (status) {
+      status.className = "panel-status error";
+      status.textContent = `Check failed: ${error.message}`;
+    }
+    buttons.forEach((b) => { b.disabled = false; });
+  }
 }
 
 // Mirror the Streamlit controls: clean-mode warning + destructive confirm, and a
@@ -1006,6 +1134,7 @@ el.app.addEventListener("click", (event) => {
   if (!sw) return;
   setSwitch(sw, sw.getAttribute("aria-checked") !== "true");
   if (sw.id === "automation-dry-run" || sw.id === "automation-clean-confirm") updateAutomationCommand();
+  if (sw.id === "email-poller-enabled" || sw.dataset.monitorSender !== undefined) pushEmailMonitorConfig();
 });
 
 el.app.addEventListener("click", async (event) => {
@@ -1080,6 +1209,10 @@ el.app.addEventListener("change", (event) => {
     updateAutomationCommand();
     return;
   }
+  if (event.target.id === "email-poller-interval") {
+    pushEmailMonitorConfig();
+    return;
+  }
   const action = event.target.dataset.action;
   const panel = event.target.closest("[data-store]");
   if (!panel || !action) return;
@@ -1112,6 +1245,8 @@ el.app.addEventListener("click", async (event) => {
     connectAutomationEvents();
   }
   if (id === "automation-stop") await fetchJson("/api/automation/stop", { method: "POST" });
+  if (id === "email-check-now") await runEmailCheck(false);
+  if (id === "email-check-test") await runEmailCheck(true);
   if (id === "automation-dismiss") {
     stopAutomationTimer();
     await fetchJson("/api/automation/reset", { method: "POST" }).catch(() => null);
