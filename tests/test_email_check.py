@@ -13,6 +13,7 @@ from automation.email_check import (
     _load_processed_state,
     _summary_message,
     _write_processed_state,
+    has_problem,
     subject_matches,
 )
 from automation.item_matching import MatchedItem, MatchResult
@@ -49,6 +50,18 @@ def test_processed_state_round_trip(tmp_path):
 
 def test_processed_state_missing_file_is_empty(tmp_path):
     assert _load_processed_state(tmp_path / "does_not_exist.json") == {}
+
+
+def test_has_problem_false_for_clean_order():
+    # Issue #73: a fully-matched confirmation must stay silent on the
+    # notify-only-on-problem path.
+    match = MatchResult(matched=[MatchedItem("Web Name", "comida", 1.0, "alias")])
+    assert not has_problem(match)
+
+
+def test_has_problem_true_for_dropped_or_unmatched():
+    assert has_problem(MatchResult(dropped_comida=["fresas"]))
+    assert has_problem(MatchResult(unmatched_website_names=["Mystery 500g"]))
 
 
 def test_summary_message_all_matched():

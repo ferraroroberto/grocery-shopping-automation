@@ -99,6 +99,12 @@ def _write_processed_state(path: Path, state: dict[str, str]) -> None:
     path.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def has_problem(match: MatchResult) -> bool:
+    """True when the confirmation dropped an ordered item or names went unmatched."""
+
+    return bool(match.dropped_comida or match.unmatched_website_names)
+
+
 def _summary_message(store: str, match: MatchResult) -> str:
     total = len(match.matched) + len(match.unmatched_website_names)
     lines = [f"✅ {store.title()} order confirmed — {len(match.matched)}/{total} items matched."]
@@ -115,12 +121,18 @@ def check_latest_confirmation(
     processed_state_path: Optional[Path] = None,
     purchase_logs_dir: Optional[Path] = None,
     send_notification: bool = True,
+    ignore_processed: bool = False,
+    notify_only_on_problem: bool = False,
 ) -> ConfirmationCheckResult:
     """Fetch, parse, match, and (optionally) alert on the latest confirmation email.
 
     Idempotent across repeated calls: once a message id has been processed
-    it is skipped on subsequent runs (`already_processed=True`), so a future
-    hourly poller (#73) can call this safely without double-notifying.
+    it is skipped on subsequent runs (`already_processed=True`), so the
+    Auto-tab poller (#73) can call this safely without double-notifying.
+    `ignore_processed=True` re-processes the latest email even if already
+    seen — the Auto tab's end-to-end test path. `notify_only_on_problem=True`
+    keeps a fully-matched order silent (issue #73: don't spam Telegram for a
+    clean confirmation) — only a dropped/unmatched item alerts.
     """
     if store not in STORE_SUBJECTS:
         return ConfirmationCheckResult(store, checked=False, reason=f"no parser configured for store '{store}'")
@@ -158,7 +170,7 @@ def check_latest_confirmation(
 
     latest = max(matching, key=lambda email: email.timestamp)
     state = _load_processed_state(state_path)
-    if state.get(store) == latest.message_id:
+    if not ignore_processed and state.get(store) == latest.message_id:
         return ConfirmationCheckResult(store, checked=True, message_id=latest.message_id, already_processed=True)
 
     website_names = STORE_PARSERS[store].parse_confirmed_items(latest.body_text or "")
@@ -167,7 +179,7 @@ def check_latest_confirmation(
     result = match_items(website_names, catalog, aliases=aliases)
 
     notified = False
-    if send_notification:
+    if send_notification and (not notify_only_on_problem or has_problem(result)):
         notifier = build_notify_notifier()
         if notifier is not None:
             notifier.send_text(_summary_message(store, result))
