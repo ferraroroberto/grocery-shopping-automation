@@ -201,6 +201,13 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   vertical-align: -0.15em;
 }
 
+/* ----------------------------------------------------------- utilities */
+/* Canonical hit-target expansion (design.md "Touch targets"): keep an
+   isolated compact control's small visual and grow its effective tap area
+   to 44px invisibly instead. Co-apply, never re-inline per control. */
+.hit-target { position: relative; }
+.hit-target::before { content: ""; position: absolute; inset: -5px; }
+
 /* ------------------------------------------------------ theme toggle */
 /* Sun/moon ghost button in the top bar. Shows the glyph for the ACTION:
    moon in light (tap → dark), sun in dark (tap → light). */
