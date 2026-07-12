@@ -7,3 +7,7 @@ icon         = "🛒"
 display_name = "grocery"
 description  = "Inventory + shopping PWA, voice-audit mode."
 tag          = ["uses", "hub + whisper"]
+port         = 8502
+
+[vendored]
+single_instance = { src = "app/tray/single_instance.py", sha = "c493e1ab36f464be046856e12171bdc79a1b959f", dest = "app/tray/single_instance.py" }
