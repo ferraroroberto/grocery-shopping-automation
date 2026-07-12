@@ -69,6 +69,18 @@ Each handler is **idempotent** — it reads the current cart quantity and only
 adds what is missing, so a re-run after a partial failure is safe. Existing
 cart contents are never wiped.
 
+### Purchase log
+
+Every **live** (non-dry-run) run writes one JSON file per store that had at
+least one item added, to the directory configured by
+`automation.purchase_logs_dir` in `src/config.json` (default `purchase_logs/`,
+gitignored — mirrors the `audio_audit_logs/` convention). The file is named
+`<date>_<store>.json` and records, per ordered item, the name, quantity, and
+`buscador` product URL — the "what we bought" source of truth a later step
+diffs against a parsed order-confirmation email (issue #70). The URL is what
+lets that later step resolve back to the actual product instead of matching
+on name alone. Dry runs and stores with zero added items produce no file.
+
 `--keep-open` pauses after each store's cart is filled and waits for **Enter**
 in the terminal — so you can open the cart, review it, and pay before the
 window closes and the next store starts. It blocks on stdin, so it is for
@@ -120,6 +132,7 @@ surfaces share the subprocess plumbing in `app/automation_runner.py`.
 | `ametller.py` | Ametller Origen `add_to_cart(page, item)` handler. |
 | `run_automation.py` | CLI runner — reads the list, dispatches to handlers, prints a summary. |
 | `report.py` | `RunReport` — per-run summary with `print_summary()`. |
+| `purchase_log.py` | `write_purchase_logs()` — persists what was ordered, per store, after a live run. |
 
 The app-side glue lives under `app/`, not here: `app/automation_runner.py`
 (shared subprocess plumbing), the automation endpoints in `app/api.py` wired to

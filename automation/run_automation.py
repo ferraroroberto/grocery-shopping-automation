@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+from pathlib import Path
 from types import ModuleType
 from typing import Optional
 
@@ -31,7 +32,14 @@ from automation.browser import (
 from automation.errors import AddToCartFailed, OutOfStockError, ProductUnavailableError
 from automation.grocery_reader import read_cart_items
 from automation.models import CartItem
+from automation.purchase_log import write_purchase_logs
 from automation.report import RunReport
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from src.data import CONFIG, REPO_ROOT  # noqa: E402
 
 logger = logging.getLogger("automation.run_automation")
 
@@ -220,6 +228,14 @@ def _process_store_live(
         playwright.stop()
 
 
+def _write_purchase_log_if_live(report: RunReport, dry_run: bool) -> list[Path]:
+    """Persist a purchase log for this run, skipping dry runs entirely."""
+    if dry_run:
+        return []
+    logs_dir = REPO_ROOT / CONFIG["automation"].get("purchase_logs_dir", "purchase_logs")
+    return write_purchase_logs(report.added, logs_dir)
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     _force_utf8_streams()
     args = parse_args(argv)
@@ -266,6 +282,7 @@ def main(argv: Optional[list[str]] = None) -> int:
                 return 2
 
     report.print_summary()
+    _write_purchase_log_if_live(report, args.dry_run)
     return 1 if report.errors else 0
 
 
