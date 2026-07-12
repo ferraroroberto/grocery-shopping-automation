@@ -1,0 +1,106 @@
+{
+  "date": "2026-07-08",
+  "store": "ametller",
+  "items": [
+    {
+      "comida": "burguer ternera",
+      "comprar": 1,
+      "buscador": "https://www.ametllerorigen.com/es/american-burger-ametller-origen-150g-2uds/p?sc=14"
+    },
+    {
+      "comida": "filete pavo",
+      "comprar": 1,
+      "buscador": "https://www.ametllerorigen.com/es/medallones-filete-pavo-ametller-origen/p"
+    },
+    {
+      "comida": "pollo",
+      "comprar": 3,
+      "buscador": "https://www.ametllerorigen.com/es/pechuga-de-pollo-fileteado-ametller-origen/p"
+    },
+    {
+      "comida": "salmon",
+      "comprar": 1,
+      "buscador": "https://www.ametllerorigen.com/es/suprema-de-salmon-familiar-ametller-origen/p"
+    },
+    {
+      "comida": "aguacate",
+      "comprar": 1,
+      "buscador": "https://www.ametllerorigen.com/es/aguacate-categoria-1-pack-3uds/p"
+    },
+    {
+      "comida": "arandanos",
+      "comprar": 2,
+      "buscador": "https://www.ametllerorigen.com/es/arandanos-bandeja-125g/p"
+    },
+    {
+      "comida": "berenjena",
+      "comprar": 1,
+      "buscador": "https://www.ametllerorigen.com/es/berenjena-extra/p"
+    },
+    {
+      "comida": "calabacin",
+      "comprar": 2,
+      "buscador": "https://www.ametllerorigen.com/es/calabacin-extra/p"
+    },
+    {
+      "comida": "huevos",
+      "comprar": 1,
+      "buscador": "https://www.ametllerorigen.com/es/huevos-ecologicos-l-ametller-origen-6uds/p"
+    },
+    {
+      "comida": "manzana",
+      "comprar": 8,
+      "buscador": "https://www.ametllerorigen.com/es/manzana-fuji-extra/p"
+    },
+    {
+      "comida": "pavo 90%",
+      "comprar": 1,
+      "buscador": "https://www.ametllerorigen.com/es/pechuga-de-pavo-cortado-familiar-ao-200g/p"
+    },
+    {
+      "comida": "platano",
+      "comprar": 3,
+      "buscador": "https://www.ametllerorigen.com/es/manojo-de-platanos-tropicales/p"
+    },
+    {
+      "comida": "tomate cherry",
+      "comprar": 1,
+      "buscador": "https://www.ametllerorigen.com/es/tomate-cherry-pera-bandeja-500g/p"
+    },
+    {
+      "comida": "yogur griego natural",
+      "comprar": 1,
+      "buscador": "https://www.ametllerorigen.com/es/yogurt-griego-10-koukakis-1kg/p"
+    },
+    {
+      "comida": "fresas",
+      "comprar": 2,
+      "buscador": "https://www.ametllerorigen.com/es/freson-caja-1kg/2762.html"
+    },
+    {
+      "comida": "jamon cocido lonchas",
+      "comprar": 2,
+      "buscador": "https://www.ametllerorigen.com/es/jamon-cocido-duroc-cortado-familiar-ao-200g/p"
+    },
+    {
+      "comida": "bases pizza",
+      "comprar": 3,
+      "buscador": "https://www.ametllerorigen.com/es/bases-de-pizza-ametller-origen-130-g/p"
+    },
+    {
+      "comida": "tomate mutti",
+      "comprar": 1,
+      "buscador": "https://www.ametllerorigen.com/es/salsa-de-tomate-passata-mutti-400g/p"
+    },
+    {
+      "comida": "mozzarella galbani",
+      "comprar": 5,
+      "buscador": "https://www.ametllerorigen.com/es/mozzarella-de-vaca-galbani-125g/p"
+    },
+    {
+      "comida": "paraguayos",
+      "comprar": 1,
+      "buscador": "https://www.ametllerorigen.com/es/paraguayo-extra/37.html"
+    }
+  ]
+}
