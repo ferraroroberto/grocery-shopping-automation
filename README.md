@@ -197,6 +197,13 @@ Copy `auth/gmail/credentials.json` + `auth/gmail/token.json` from the
 `whatsapp-radar` sister repo (same account, same scope) and
 `config/gmail_config.sample.json` → gitignored `config/gmail_config.json`.
 
+The PWA's Auto tab drives this via the **Email Watch** card: pick the
+monitored senders (each mapped to a store), switch automatic polling on/off
+and set its frequency, run a one-off *Check now* or an end-to-end *Test last
+email*, and review the last-check log. Scheduled checks alert only when the
+confirmation drops an ordered item (a clean order stays silent), and
+already-processed emails are never re-checked or re-notified.
+
 Manual smoke check:
 
 ```powershell

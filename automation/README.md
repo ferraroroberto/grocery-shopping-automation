@@ -172,9 +172,20 @@ and matches it against the latest purchase log so a dropped item is visible.
   the `src/notify/` component (issue #71) — e.g. which items matched and
   which purchase-log item didn't show up in the confirmation. It records the
   processed Gmail message id in gitignored `config/gmail_processed_state.json`
-  so a repeat call is a no-op — the seam issue #73 will call from a
-  scheduled/web-app-integrated poller to actually *alert* on a drop; this
-  module adds no scheduler or web route itself.
+  so a repeat call is a no-op.
+- **Auto-tab poller (issue #73)**: `app/email_poller.py` calls that seam on a
+  schedule. The PWA's Auto tab carries an **Email Watch** card (folded by
+  default) that selects which whitelisted senders are monitored (each mapped
+  to a store via the `store` field in `config/gmail_config.json`), switches
+  automatic polling on/off, sets the cadence (15 min – daily), and shows the
+  last-check log (last 20 entries, gitignored
+  `config/email_check_log.json`). *Check now* runs one check immediately;
+  *Test last email* re-processes the newest confirmation even if already
+  seen — the end-to-end dry run, and it always sends the Telegram summary.
+  Scheduled / *Check now* runs alert **only on a problem** (a dropped or
+  unrecognized item) — a fully-matched order stays silent, per issue #73 —
+  and are idempotent: an already-processed message logs "no new email" and
+  never re-notifies.
 
 Manual smoke check (runs the real pipeline once, including a real Telegram
 send if a match is found):

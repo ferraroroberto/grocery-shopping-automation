@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
@@ -37,26 +38,107 @@ DEFAULT_TOKEN_PATH = _REPO_ROOT / "auth" / "gmail" / "token.json"
 DEFAULT_WHITELIST_PATH = _REPO_ROOT / "config" / "gmail_config.json"
 
 
+DEFAULT_POLLER_INTERVAL_MINUTES = 60
+
+
+@dataclass
+class MonitoredSender:
+    """One whitelisted sender plus its Auto-tab monitoring metadata (#73)."""
+
+    address: str
+    name: str = ""
+    store: str = ""
+    enabled: bool = True
+
+
+@dataclass
+class PollerSettings:
+    """Background email-poller switch + cadence (Auto tab, issue #73)."""
+
+    enabled: bool = False
+    interval_minutes: int = DEFAULT_POLLER_INTERVAL_MINUTES
+
+
+def _read_config(target: Path) -> dict:
+    if not target.exists():
+        return {}
+    try:
+        raw = json.loads(target.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning("⚠️ Could not read %s (%s); treating config as empty", target, exc)
+        return {}
+    if not isinstance(raw, dict):
+        logger.warning("⚠️ %s is not a JSON object; treating config as empty", target)
+        return {}
+    return raw
+
+
 def load_gmail_senders(path: Optional[Path] = None) -> tuple[GmailSender, ...]:
     """Return the configured sender whitelist, or an empty tuple if unset."""
 
     target = Path(path) if path is not None else DEFAULT_WHITELIST_PATH
-    if not target.exists():
-        return ()
-    try:
-        raw = json.loads(target.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        logger.warning("⚠️ Could not read %s (%s); treating whitelist as empty", target, exc)
-        return ()
-    if not isinstance(raw, dict):
-        logger.warning("⚠️ %s is not a JSON object; treating whitelist as empty", target)
-        return ()
-    senders = raw.get("senders") or []
+    senders = _read_config(target).get("senders") or []
     return tuple(
         GmailSender(str(entry.get("address") or ""), str(entry.get("name") or ""))
         for entry in senders
         if isinstance(entry, dict) and entry.get("address")
     )
+
+
+def load_monitored_senders(path: Optional[Path] = None) -> list[MonitoredSender]:
+    """Return the senders with their store mapping + per-sender enable flag."""
+
+    target = Path(path) if path is not None else DEFAULT_WHITELIST_PATH
+    senders = _read_config(target).get("senders") or []
+    return [
+        MonitoredSender(
+            address=str(entry.get("address") or ""),
+            name=str(entry.get("name") or ""),
+            store=str(entry.get("store") or ""),
+            enabled=bool(entry.get("enabled", True)),
+        )
+        for entry in senders
+        if isinstance(entry, dict) and entry.get("address")
+    ]
+
+
+def load_poller_settings(path: Optional[Path] = None) -> PollerSettings:
+    """Return the poller switch + cadence; defaults to off / hourly."""
+
+    target = Path(path) if path is not None else DEFAULT_WHITELIST_PATH
+    raw = _read_config(target).get("poller") or {}
+    if not isinstance(raw, dict):
+        raw = {}
+    try:
+        interval = int(raw.get("interval_minutes", DEFAULT_POLLER_INTERVAL_MINUTES))
+    except (TypeError, ValueError):
+        interval = DEFAULT_POLLER_INTERVAL_MINUTES
+    return PollerSettings(
+        enabled=bool(raw.get("enabled", False)),
+        interval_minutes=max(5, min(1440, interval)),
+    )
+
+
+def save_gmail_monitor_config(
+    senders: list[MonitoredSender],
+    settings: PollerSettings,
+    path: Optional[Path] = None,
+) -> Path:
+    """Persist the full monitoring config (senders + poller), atomically."""
+
+    target = Path(path) if path is not None else DEFAULT_WHITELIST_PATH
+    target.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "senders": [
+            {"address": s.address, "name": s.name, "store": s.store, "enabled": s.enabled}
+            for s in senders
+        ],
+        "poller": {"enabled": settings.enabled, "interval_minutes": settings.interval_minutes},
+    }
+    tmp = target.with_suffix(target.suffix + ".tmp")
+    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(tmp, target)
+    return target
 
 
 def _resolved_path(env_var: str, default: Path) -> Path:
