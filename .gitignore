@@ -33,6 +33,13 @@ config/webapp_config.json
 
 # Telegram notifier credentials
 config/notify_config.json
+
+# Gmail OAuth client/token (read-only gmail.readonly scope)
+auth/gmail/
+
+# Gmail whitelist config + processed-message state
+config/gmail_config.json
+config/gmail_processed_state.json
 webapp/cloudflared.yml
 webapp/last_tunnel_url.txt
 webapp/auth.log
