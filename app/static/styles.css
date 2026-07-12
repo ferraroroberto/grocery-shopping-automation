@@ -463,6 +463,9 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
 /* Match / Apply / Clear share one line; Cancel (when shown) spans it. */
 .audio-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-sm); }
 .audio-actions #audio-cancel { grid-column: 1 / -1; }
+/* Check now / Test last email share one line at every width (unlike .two,
+   which collapses on phones — the fleet action-row idiom, same as above). */
+.email-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-sm); }
 .flag-row { display: flex; align-items: center; gap: var(--space-sm); color: var(--muted); font-size: var(--font-label); }
 
 .search, .field, textarea, select {

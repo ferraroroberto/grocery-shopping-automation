@@ -802,19 +802,23 @@ async function refreshEmailMonitor() {
         <span>${html(entry.outcome)}<div class="meta">${fmtBuildTime(entry.ts)} · ${html(entry.store || "-")} · ${html(entry.trigger)}${entry.notified ? " · notified" : ""}</div></span>
       </div>`).join("")
     : "";
+  // One flat switch-row list (dense-collection contract): the sender rows and
+  // the poll toggle share the container so every switch pins right and the
+  // rows divide on one hairline.
   body.innerHTML = `
     <div class="hint">Watches Gmail for store "order prepared" emails and alerts on Telegram when the confirmation drops an ordered item.</div>
-    <div class="zone-items">${senderRows}</div>
-    <div class="flag-row"><span>Poll automatically</span>${switchMarkup(s.poller.enabled, "Poll automatically", { id: "email-poller-enabled" })}</div>
+    <div class="zone-items">${senderRows}
+      <div class="zone-item"><span>Poll automatically</span>${switchMarkup(s.poller.enabled, "Poll automatically", { id: "email-poller-enabled" })}</div>
+    </div>
     <label class="field-label">Frequency
       <select id="email-poller-interval">${intervalOptions}</select>
     </label>
-    <div class="two">
+    <div class="email-actions">
       <button id="email-check-now" class="secondary btn-block" type="button"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-refresh-cw"></use></svg>Check now</button>
       <button id="email-check-test" class="secondary btn-block" type="button"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-play"></use></svg>Test last email</button>
     </div>
     <div id="email-monitor-status" class="panel-status">${emailNextCheckText(s)}</div>
-    ${checkRows ? `<div class="hint">Last checks</div><div class="zone-items">${checkRows}</div>` : ""}`;
+    ${checkRows ? `<div class="field-label">Last checks</div><div class="zone-items">${checkRows}</div>` : ""}`;
 }
 
 function emailNextCheckText(s) {
