@@ -228,12 +228,12 @@
             Grocery
           </h1>
           <div id="status" class="status" role="status">Loading inventory...</div>
-          <button id="theme-toggle" class="theme-toggle" type="button"
+          <button id="theme-toggle" class="theme-toggle hit-target" type="button"
                   title="Toggle theme" aria-label="Toggle dark mode">
             <!-- Sprite moon + sun; CSS shows the glyph for the *action*
                  keyed on html[data-theme]. -->
-            <svg class="theme-toggle-icon theme-icon-moon" aria-hidden="true" focusable="false"><use href="#i-moon"></use></svg>
-            <svg class="theme-toggle-icon theme-icon-sun" aria-hidden="true" focusable="false"><use href="#i-sun"></use></svg>
+            <svg class="theme-toggle-icon theme-icon-moon hit-target" aria-hidden="true" focusable="false"><use href="#i-moon"></use></svg>
+            <svg class="theme-toggle-icon theme-icon-sun hit-target" aria-hidden="true" focusable="false"><use href="#i-sun"></use></svg>
           </button>
         </section>
         <!-- Search shows only on the modes that filter the item list
@@ -303,19 +303,24 @@
     </main>
 
     <!-- Login is a native <dialog> (fleet modal contract); the bottom nav hides
-         itself while it is open. No × close and Esc is blocked — auth is
-         mandatory, the dialog closes only on a successful unlock. -->
+         itself while it is open. Esc is blocked and the header × close is
+         disabled — auth is mandatory, the dialog closes only on a successful
+         unlock — but the button is still present so the header keeps the
+         modal contract's shape (design-drift #81). -->
     <dialog id="login-dialog" class="detail-dialog">
       <div class="detail-card">
         <div class="detail-header">
           <h2>Unlock Grocery</h2>
+          <button type="button" class="detail-close" aria-label="Close" disabled title="Sign-in is required">
+            <svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg>
+          </button>
         </div>
         <form id="login-form">
           <div class="row">
             <input id="login-password" class="field" type="password" autocomplete="current-password" placeholder="Password" />
           </div>
           <div class="detail-actions">
-            <button class="primary" type="submit">Unlock</button>
+            <button class="detail-save-btn" type="submit">Unlock</button>
           </div>
           <div id="login-error" class="login-error"></div>
         </form>
