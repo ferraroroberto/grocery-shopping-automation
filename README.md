@@ -35,7 +35,8 @@ Comprehensive household inventory management across multiple operational modes. 
 - **`data/`** — `list.example.xlsx` sample inventory.
 - **`docs/`** — design records and the browser-automation build walk-through.
 - **`tests/`** — `pytest` suite (`test_*.py`: unit + FastAPI `TestClient` + a Playwright e2e that drives the real buttons) plus standalone smoke scripts (`smoke_*.py`, `automation_smoke_*.py`). Run `& .\.venv\Scripts\python.exe -m pytest`. The e2e stubs the LLM hub by default; set `GROCERY_E2E_LIVE=1` (with the hub running) to exercise the real model.
-- **Launchers** — `webapp.bat` (FastAPI/PWA on `:8502`), `launch_app.bat` (legacy Streamlit on `:8501`), `webapp_tunnel_named.bat` (FastAPI + Cloudflare tunnel).
+- **Launchers** — `tray.bat` (FastAPI/PWA on `:8502`, tray-managed, recommended), `webapp.bat` (same app, manual/no-tray), `launch_app.bat` (legacy Streamlit on `:8501`), `webapp_tunnel_named.bat` (FastAPI + Cloudflare tunnel).
+- **`app/tray/`** — Windows tray (`tray.py` pystray icon, `manager.py` uvicorn adopt-or-spawn, `single_instance.py` vendored named-mutex primitive) + root `launcher.py` entrypoint.
 - **`.streamlit/config.toml`** — Streamlit theme customization (legacy app).
 
 ## 🚀 Quick Start
@@ -46,14 +47,22 @@ Comprehensive household inventory management across multiple operational modes. 
 
 ### Launch the app (FastAPI/PWA — recommended)
 
-Double-click `webapp.bat`, or from the repo root:
+`tray.bat` is the recommended launcher — it puts a tray icon in the notification area that owns the webapp's lifecycle (idempotent start, orphan-proof `--restart`, single-instance guard). Drop a shortcut to it in your Startup folder for an always-on service across reboots, or just double-click it:
+
+```powershell
+& .\.venv\Scripts\pip.exe install -r requirements.txt
+tray.bat              REM start (no-op if already running)
+tray.bat --restart    REM stop + start, to pick up new code
+```
+
+Tray menu: **Open grocery** · **Copy local URL** · **Restart webapp** · **Status** · **Quit**. `webapp.bat` remains available as the manual/no-tray alternative — same app, no tray icon, no lifecycle management:
 
 ```powershell
 & .\.venv\Scripts\pip.exe install -r requirements.txt
 webapp.bat
 ```
 
-The FastAPI app on `:8502` covers the inventory dashboard, audit, target editing, item editing, item creation, shopping mode, automation controls, and the audio-audit workflow against the Excel-backed `src/data.py` layer. Open `http://127.0.0.1:8502` when no local cert exists, or `https://127.0.0.1:8502` after running `& .\.venv\Scripts\python.exe src\gen_ssl_cert.py`. The launcher binds to `0.0.0.0`, so the same port is reachable over LAN or Tailscale from devices that can reach this PC.
+The FastAPI app on `:8502` covers the inventory dashboard, audit, target editing, item editing, item creation, shopping mode, automation controls, and the audio-audit workflow against the Excel-backed `src/data.py` layer. Open `http://127.0.0.1:8502` when no local cert exists, or `https://127.0.0.1:8502` after running `& .\.venv\Scripts\python.exe src\gen_ssl_cert.py`. Either launcher binds to `0.0.0.0`, so the same port is reachable over LAN or Tailscale from devices that can reach this PC.
 
 The PWA follows the fleet design system (`~/.claude/design.md` + `design.dark.md`): a floating bottom-tab pill on the phone (inline top tabs on desktop) with six tabs — **Inventory · Shopping · Audit · Items · Auto · Settings** (Audio Audit lives as a sub-pill under Audit; Targets / Edit Item / Add Item under Items) — vendored fleet components under `app/static/_vendored/`, and a light/dark **theme toggle in the top bar** (moon/sun icon) that remembers your choice. The utility actions (Open Spreadsheet, Copy Link, Export CSV, Close App) live in the ⚙️ **Settings tab**; heavy cards (the dashboard item list, the per-store shopping panels, the audio zone checklist) are collapsible and folded by default; the search box appears only on the modes that filter the item list. A footer line shows the running build (`Build: <git sha> · <time>`, from `/api/version`) so you always know which deploy the app is serving, and the shell auto-reloads once when it detects a newer build.
 
