@@ -9,13 +9,15 @@
 flowchart TB
   subgraph frontend["Primary surface — FastAPI + vanilla-JS PWA (:8502)"]
     STATIC["app/static/\nindex.html · app.js · styles.css\n_vendored/ (fleet nav, icons, card, disclosure, modal, switch, empty-state)"]
-    API["app/api.py\nroutes: inventory, items, export, automation, version,\naudio/* (session, chunk, events, finish, retranscribe, match, apply)"]
+    API["app/api.py\nroutes: inventory, items, export, automation, version,\naudio/* (session, chunk, events, finish, retranscribe, match, apply),\nemail-monitor/* (status, config, check)"]
     MW["app/middleware.py\nBearerTokenMiddleware"]
     RUNNER["app/automation_runner.py\nstreams automation.run_automation subprocess into the app"]
+    POLLER["app/email_poller.py\nbackground confirmation-email poll loop + check log"]
     VERSIONING["src/static_versioning.py\nCachingStaticFiles: JS import hash-stamping, build identity"]
     STATIC --> API
     MW --> API
     API --> RUNNER
+    API --> POLLER
     API --> VERSIONING
   end
 
@@ -35,6 +37,8 @@ flowchart TB
     TRANSCRIBE["src/transcribe_client.py\nwhisper-server client + ffmpeg transcode"]
     NET["src/net.py\nLAN-IP / port-probe helpers"]
     WEBCFG["src/webapp_config.py\ntoken/password remote-access config"]
+    GMAILCFG["src/gmail_config.py\nsender whitelist + store mapping + poller settings"]
+    NOTIFYCFG["src/notify_config.py + src/notify/\nvendored Telegram notifier (from whatsapp-radar)"]
     SSL["src/gen_ssl_cert.py\nlocal CA + server cert"]
   end
   API --> DATA
@@ -61,14 +65,23 @@ flowchart TB
     READER["grocery_reader.py\nreads shopping-list rows from the inventory"]
     REPORT["report.py / models.py / errors.py\nrun summary, CartItem, typed exceptions"]
     PURCHASELOG["purchase_log.py\nwrites per-store purchase_logs/ JSON after a live run"]
+    EMAILCHECK["email_check.py\nconfirmation-email check seam:\nsubject similarity, processed-state idempotency"]
+    EMAILPARSERS["email_parsers/ametller.py\ndeterministic per-store item-list parser"]
+    ITEMMATCH["item_matching.py\nalias/exact/fuzzy matching vs latest purchase log"]
     RUNAUTO --> STOREMODS
     STOREMODS --> BROWSER
     BOOTSTRAP --> BROWSER
     RUNAUTO --> READER
     RUNAUTO --> REPORT
     RUNAUTO --> PURCHASELOG
+    EMAILCHECK --> EMAILPARSERS
+    EMAILCHECK --> ITEMMATCH
   end
   RUNNER --> RUNAUTO
+  POLLER --> EMAILCHECK
+  EMAILCHECK --> GMAILCFG
+  EMAILCHECK --> NOTIFYCFG
+  ITEMMATCH -.->|latest purchase_logs/ JSON| PURCHASELOG
   READER --> XLSX
 
   subgraph external["External dependencies (sibling projects, same machine)"]
@@ -77,12 +90,16 @@ flowchart TB
     VOICET["voice-transcriber webapp\n127.0.0.1:8443 — chunked recording/session API"]
     CHROME["Real installed Chrome\n(not bundled Chromium)"]
     CLOUDFLARE["cloudflared named tunnel\n(webapp/cloudflared.yml)"]
+    GMAILAPI["Gmail API — read-only scope\n(vendored gmail_readonly/, creds shared with whatsapp-radar)"]
+    TELEGRAM["Telegram Bot API\n(order-confirmation alerts)"]
   end
   EXTRACT -->|Anthropic SDK, base_url| HUB
   TRANSCRIBE -->|POST /v1/audio/transcriptions| WHISPER
   API -->|proxies recording lifecycle| VOICET
   BROWSER --> CHROME
   API -.->|optional public access| CLOUDFLARE
+  GMAILCFG -->|gmail_readonly client| GMAILAPI
+  NOTIFYCFG --> TELEGRAM
 
   subgraph scripts["scripts/ & webapp/ — setup & remote access"]
     GENTOKEN["gen_token.py / set_password.py\nbearer-token + password auth"]
