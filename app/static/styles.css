@@ -551,6 +551,3 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 
 /* ------------------------------------------------------------ login dialog */
 .login-error { min-height: 20px; color: var(--deficit); font-size: var(--font-label); }
-/* The header × is header-shape-only, never functional (auth is mandatory) —
-   dim it so it doesn't read as a live control (design-drift #81). */
-#login-dialog .detail-close:disabled { opacity: 0.45; cursor: default; }
