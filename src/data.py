@@ -196,13 +196,17 @@ def save_inventory_data(df: pd.DataFrame, xlsx_path: Optional[str] = None) -> No
 
 
 def get_unique_zones(df: pd.DataFrame) -> List[str]:
-    """Return sorted unique zones from inventory data."""
-    return sorted(df[COLUMNS["lugar"]].unique().tolist())
+    """Return sorted unique zones from inventory data.
+
+    NaN is dropped, not sorted: a row created without a zone/supermarket
+    (e.g. voice-added, issue #86) must not crash the str sort.
+    """
+    return sorted(df[COLUMNS["lugar"]].dropna().unique().tolist())
 
 
 def get_unique_supermarkets(df: pd.DataFrame) -> List[str]:
-    """Return sorted unique supermarkets from inventory data."""
-    return sorted(df[COLUMNS["super"]].unique().tolist())
+    """Return sorted unique supermarkets from inventory data (NaN dropped)."""
+    return sorted(df[COLUMNS["super"]].dropna().unique().tolist())
 
 
 def get_supermarket_stats(shopping_items: pd.DataFrame, bought_items: set) -> Dict[str, Dict[str, int]]:

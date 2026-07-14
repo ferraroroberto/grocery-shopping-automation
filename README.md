@@ -18,12 +18,13 @@ Comprehensive household inventory management across multiple operational modes. 
 ## 🏗️ Project Structure
 
 - **`app/`** — UI layers.
-  - *Primary (FastAPI/PWA on `:8502`):* `api.py` (entrypoint — inventory, audit, edit/add, shopping, automation, and audio-audit endpoints), `middleware.py` (bearer-token auth for non-loopback requests), `static/` (PWA front end: `index.html`, `app.js`, `styles.css`, `_vendored/` fleet components), `automation_runner.py` (shared subprocess plumbing that streams the cart-automation CLI into the app).
+  - *Primary (FastAPI/PWA on `:8502`):* `api.py` (entrypoint — inventory, audit, edit/add, shopping, automation, audio-audit, and voice-command endpoints), `middleware.py` (bearer-token auth for non-loopback requests), `static/` (PWA front end: `index.html`, `app.js`, `styles.css`, `_vendored/` fleet components), `automation_runner.py` (shared subprocess plumbing that streams the cart-automation CLI into the app).
   - *Legacy (Streamlit fallback on `:8501`):* `app.py` (entrypoint — page config, session state, sidebar, mode routing), `audit.py` / `audio_audit.py` / `edit_targets.py` / `edit_item.py` / `add_item.py` / `shopping.py` / `export.py` / `ui_helpers.py` (per-mode modules, each exposing `main(df)`).
 - **`src/`** — UI-free data/business layer.
   - `data.py` — config loading, XLSX load/save, supermarket stats, quantity mutators.
   - `gen_ssl_cert.py` — generate a local CA + server cert for HTTPS.
   - `inventory_extract.py` / `transcribe_client.py` — audio-audit transcription + LLM extraction (via the `claude-local-calls` hub).
+  - `voice_command.py` — voice-command bridge for the HA Voice PE pucks (home-automation#315): `POST /api/voice/command` takes free Spanish text with an intent (`add` / `target` / `stock` / `query`), parses items + quantities against the inventory via the hub LLM, applies through `data.py`, and returns a short ready-to-speak `speech` reply. The intent is chosen by Home Assistant's deterministic sentence match — the LLM never picks the operation.
   - `audio_audit_core.py` — UI-agnostic transcript cleaning + audit-log writer shared by the PWA and the legacy Streamlit mode.
   - `net.py` — LAN-IP / port-probe helpers shared by the FastAPI and Streamlit front ends.
   - `webapp_config.py` — remote-access (token/password) config loader.
