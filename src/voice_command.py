@@ -47,6 +47,8 @@ Rules:
 - For a matched item, "name" is the candidate's comida verbatim.
 - "qty" is the number spoken for that item ("dos huevos" → 2, "cuatro" → 4,
   "media docena" → 6). No number spoken → qty null.
+- Zero-phrases mean qty 0 for that item: "no queda", "no quedan", "se acabó",
+  "no hay", "ninguno" → qty 0 (0 is a valid, meaningful value).
 - NEVER guess an ambiguous amount ("algunos", "varios", "unos cuantos") —
   put the phrase in "ambiguous" instead of inventing a number.
 - Ignore politeness/filler words. Do not invent items that were not mentioned.
@@ -225,17 +227,18 @@ def apply_set(
 
 
 # --------------------------------------------------------------------------- #
-# Speech — one short English sentence naming the Spanish items (TTS voice is
-# en_US; same convention as home-automation's wake-alarm replies)
+# Speech — one short SPANISH sentence (issue #89): the voice loop runs on a
+# dedicated Spanish pipeline with an es_ES TTS voice (home-automation#315's
+# redesign), so replies are Spanish end-to-end.
 # --------------------------------------------------------------------------- #
-SPEECH_BUSY = "The grocery list is open somewhere else right now; try again in a moment."
+SPEECH_BUSY = "La lista está abierta en otro sitio; inténtalo en un momento."
 _QUERY_NAME_CAP = 8
 
 
 def _speak_list(parts: List[str]) -> str:
     if len(parts) <= 1:
         return "".join(parts)
-    return ", ".join(parts[:-1]) + " and " + parts[-1]
+    return ", ".join(parts[:-1]) + " y " + parts[-1]
 
 
 def _named_qty(name: str, qty: int) -> str:
@@ -246,45 +249,48 @@ def build_add_speech(outcome: AddOutcome, ambiguous: List[Dict[str, Any]]) -> st
     parts: List[str] = []
     if outcome.bumped:
         parts.append(
-            f"Added {_speak_list([_named_qty(n, q) for n, q in outcome.bumped])} to the list"
+            f"He añadido {_speak_list([_named_qty(n, q) for n, q in outcome.bumped])} a la lista"
         )
     if outcome.created:
         parts.append(
-            f"created {_speak_list([_named_qty(n, q) for n, q in outcome.created])} as new"
+            f"he creado {_speak_list([_named_qty(n, q) for n, q in outcome.created])} como nuevo"
         )
     if not parts:
-        return "I didn't catch any items to add — try again."
-    speech = "; ".join(parts).capitalize() + "."
+        return "No he entendido qué añadir — inténtalo otra vez."
+    speech = "; ".join(parts)
+    speech = speech[0].upper() + speech[1:] + "."
     if ambiguous:
         phrases = [str(m.get("phrase", "")).strip() for m in ambiguous if m.get("phrase")]
         if phrases:
-            speech += f" I didn't catch the amount for {_speak_list(phrases)}."
+            speech += f" No he entendido la cantidad de {_speak_list(phrases)}."
     return speech
 
 
 def build_set_speech(outcome: SetOutcome, kind: str) -> str:
+    kind_word = "El objetivo" if kind == "target" else "El stock"
     parts: List[str] = []
     if outcome.set_items:
         parts.append(
-            _speak_list([f"{kind} for {n} is now {q}" for n, q in outcome.set_items]).capitalize()
+            _speak_list([f"{kind_word.lower()} de {n} es ahora {q}" for n, q in outcome.set_items])
         )
+        parts[0] = parts[0][0].upper() + parts[0][1:]
     if outcome.no_value:
-        parts.append(f"I need a number for {_speak_list(outcome.no_value)}")
+        parts.append(f"Necesito un número para {_speak_list(outcome.no_value)}")
     if outcome.not_found:
-        parts.append(f"I couldn't find {_speak_list(outcome.not_found)} on the list")
+        parts.append(f"No encuentro {_speak_list(outcome.not_found)} en la lista")
     if not parts:
-        return "I didn't catch any items — try again."
+        return "No he entendido nada — inténtalo otra vez."
     return ". ".join(parts) + "."
 
 
 def build_query_speech(df: pd.DataFrame) -> str:
     shopping = df[df[COLUMNS["comprar"]] > 0]
     if shopping.empty:
-        return "The shopping list is clear — nothing to buy."
-    per_store = shopping[COLUMNS["super"]].fillna("").replace("", "unassigned").value_counts()
-    stores = _speak_list([f"{count} at {store}" for store, count in per_store.items()])
+        return "La lista está vacía — no hay nada que comprar."
+    per_store = shopping[COLUMNS["super"]].fillna("").replace("", "sin súper").value_counts()
+    stores = _speak_list([f"{count} en {store}" for store, count in per_store.items()])
     names = [str(n).strip().lower() for n in shopping[COLUMNS["comida"]].tolist()]
     named = _speak_list(names[:_QUERY_NAME_CAP])
     more = len(names) - _QUERY_NAME_CAP
-    tail = f", and {more} more" if more > 0 else ""
-    return f"{len(shopping)} items to buy — {stores}: {named}{tail}."
+    tail = f", y {more} más" if more > 0 else ""
+    return f"{len(shopping)} cosas por comprar — {stores}: {named}{tail}."

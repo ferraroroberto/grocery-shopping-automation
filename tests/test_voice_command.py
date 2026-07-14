@@ -122,11 +122,11 @@ def test_build_add_speech_variants():
         AddOutcome(bumped=[("leche", 1), ("huevos", 2)], created=[("aguacates", 1)]),
         [{"phrase": "algunos yogures"}],
     )
-    assert "leche and 2 huevos" in speech
-    assert "aguacates as new" in speech
-    assert "algunos yogures" in speech
+    assert "leche y 2 huevos" in speech
+    assert "he creado aguacates como nuevo" in speech
+    assert "No he entendido la cantidad de algunos yogures" in speech
 
-    assert build_add_speech(AddOutcome(), []) == "I didn't catch any items to add — try again."
+    assert build_add_speech(AddOutcome(), []) == "No he entendido qué añadir — inténtalo otra vez."
 
 
 def test_build_set_speech_variants():
@@ -136,11 +136,14 @@ def test_build_set_speech_variants():
         SetOutcome(set_items=[("leche", 4)], not_found=["flurbos"], no_value=["pan"]),
         "target",
     )
-    assert "Target for leche is now 4" in speech
-    assert "I need a number for pan" in speech
-    assert "I couldn't find flurbos on the list" in speech
+    assert "El objetivo de leche es ahora 4" in speech
+    assert "Necesito un número para pan" in speech
+    assert "No encuentro flurbos en la lista" in speech
 
-    assert build_set_speech(SetOutcome(), "stock") == "I didn't catch any items — try again."
+    speech = build_set_speech(SetOutcome(set_items=[("aceite", 0)]), "stock")
+    assert "El stock de aceite es ahora 0" in speech
+
+    assert build_set_speech(SetOutcome(), "stock") == "No he entendido nada — inténtalo otra vez."
 
 
 def test_build_query_speech_counts_and_caps():
@@ -149,12 +152,12 @@ def test_build_query_speech_counts_and_caps():
         + [_row("stocked", cantidad=1, tenemos=1)]
     )
     speech = build_query_speech(df)
-    assert speech.startswith("10 items to buy")
-    assert "10 at mercadona" in speech
-    assert "and 2 more" in speech
+    assert speech.startswith("10 cosas por comprar")
+    assert "10 en mercadona" in speech
+    assert "y 2 más" in speech
     assert "stocked" not in speech
 
-    assert build_query_speech(_frame([_row("leche", 1, 1)])).startswith("The shopping list is clear")
+    assert build_query_speech(_frame([_row("leche", 1, 1)])).startswith("La lista está vacía")
 
 
 # --------------------------------------------------------------------------- #
@@ -185,7 +188,7 @@ def test_voice_add_bumps_existing_and_creates_new(client, monkeypatch):
     resp = client.post("/api/voice/command", json={"intent": "add", "text": "dorada y aguacates"})
     assert resp.status_code == 200
     body = resp.json()
-    assert "2 dorada" in body["speech"] and "aguacates as new" in body["speech"]
+    assert "2 dorada" in body["speech"] and "aguacates como nuevo" in body["speech"]
     assert {"name": "dorada", "qty": 2, "action": "bumped"} in body["applied"]
 
     after = _item_by_name(client, "dorada")
@@ -201,7 +204,7 @@ def test_voice_target_sets_value(client, monkeypatch):
     )
     resp = client.post("/api/voice/command", json={"intent": "target", "text": "pon el hielo a tres"})
     assert resp.status_code == 200
-    assert "Target for hielo is now 3" in resp.json()["speech"]
+    assert "El objetivo de hielo es ahora 3" in resp.json()["speech"]
     assert _item_by_name(client, "hielo")[COLUMNS["cantidad"]] == 3
 
 
@@ -212,7 +215,7 @@ def test_voice_stock_sets_value(client, monkeypatch):
     )
     resp = client.post("/api/voice/command", json={"intent": "stock", "text": "no quedan nuggets"})
     assert resp.status_code == 200
-    assert "Stock for nuggets is now 0" in resp.json()["speech"]
+    assert "El stock de nuggets es ahora 0" in resp.json()["speech"]
     after = _item_by_name(client, "nuggets")
     assert after[COLUMNS["tenemos"]] == 0
     assert after[COLUMNS["comprar"]] == after[COLUMNS["cantidad"]]
@@ -227,7 +230,7 @@ def test_voice_query_needs_no_llm(client, monkeypatch):
     monkeypatch.setattr(api, "parse_voice_items", boom)
     resp = client.post("/api/voice/command", json={"intent": "query"})
     assert resp.status_code == 200
-    assert "items to buy" in resp.json()["speech"]
+    assert "cosas por comprar" in resp.json()["speech"]
 
 
 def test_voice_empty_text_400_and_bad_intent_422(client):
