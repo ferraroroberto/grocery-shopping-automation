@@ -9,14 +9,16 @@
 flowchart TB
   subgraph frontend["Primary surface — FastAPI + vanilla-JS PWA (:8502)"]
     STATIC["app/static/\nindex.html · app.js · styles.css\n_vendored/ (fleet nav, icons, card, disclosure, modal, switch, empty-state)"]
-    API["app/api.py\nroutes: inventory, items, export, automation, version,\naudio/* (session, chunk, events, finish, retranscribe, match, apply),\nemail-monitor/* (status, config, check), voice/command (HA Voice PE bridge)"]
+    API["app/api.py\nroutes: inventory, items, export, automation, version,\naudio/* (session, chunk, events, finish, retranscribe, match, apply),\nemail-monitor/* (status, config, check), voice/command (HA Voice PE bridge),\nproduct-search/* (transcribe, start, status, cancel, select)"]
     MW["app/middleware.py\nBearerTokenMiddleware"]
     RUNNER["app/automation_runner.py\nstreams automation.run_automation subprocess into the app"]
+    PSRUNNER["app/product_search_runner.py\nspawns automation.product_search, captures its JSON stdout"]
     POLLER["app/email_poller.py\nbackground confirmation-email poll loop + check log"]
     VERSIONING["src/static_versioning.py\nCachingStaticFiles: JS import hash-stamping, build identity"]
     STATIC --> API
     MW --> API
     API --> RUNNER
+    API --> PSRUNNER
     API --> POLLER
     API --> VERSIONING
   end
@@ -35,6 +37,7 @@ flowchart TB
     AUDIOCORE["src/audio_audit_core.py\ntranscript cleaning, audit-log writer"]
     EXTRACT["src/inventory_extract.py\nLLM match against inventory"]
     VOICECMD["src/voice_command.py\nSpanish voice-command parse (LLM) +\napply + speech replies (home-automation#315)"]
+    PRODMATCH["src/product_match.py\nranks store search hits vs the spoken term (display aid, #87)"]
     TRANSCRIBE["src/transcribe_client.py\nwhisper-server client + ffmpeg transcode"]
     NET["src/net.py\nLAN-IP / port-probe helpers"]
     WEBCFG["src/webapp_config.py\ntoken/password remote-access config"]
@@ -71,6 +74,7 @@ flowchart TB
     EMAILCHECK["email_check.py\nconfirmation-email check seam:\nsubject similarity, processed-state idempotency"]
     EMAILPARSERS["email_parsers/ametller.py\ndeterministic per-store item-list parser"]
     ITEMMATCH["item_matching.py\nalias/exact/fuzzy matching vs latest purchase log"]
+    PRODSEARCH["product_search.py\nstore product search (Mercadona Algolia +\nAmetller SCAPI), reuses browser.py (#87)"]
     RUNAUTO --> STOREMODS
     STOREMODS --> BROWSER
     BOOTSTRAP --> BROWSER
@@ -79,8 +83,12 @@ flowchart TB
     RUNAUTO --> PURCHASELOG
     EMAILCHECK --> EMAILPARSERS
     EMAILCHECK --> ITEMMATCH
+    PRODSEARCH --> BROWSER
+    PRODSEARCH -.->|reuses SCAPI auth| STOREMODS
   end
   RUNNER --> RUNAUTO
+  PSRUNNER --> PRODSEARCH
+  PRODSEARCH --> PRODMATCH
   POLLER --> EMAILCHECK
   EMAILCHECK --> GMAILCFG
   EMAILCHECK --> NOTIFYCFG

@@ -3,10 +3,12 @@
 import asyncio
 import csv
 import hmac
+import logging
 import os
 import platform
 import subprocess
 import threading
+import time
 import uuid
 from contextlib import asynccontextmanager
 from io import StringIO
@@ -20,7 +22,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response, StreamingRes
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from app import automation_runner, email_poller
+from app import automation_runner, email_poller, product_search_runner
 from app.middleware import BearerTokenMiddleware
 from src.data import (
     COLUMNS,
@@ -56,6 +58,9 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 _AUTOMATION_RUN: dict[str, Any] = {}
+# In-flight on-demand product search (issue #87). Single-flight: one search runs
+# at a time (it drives the shared Chrome profile), tracked here like the cart run.
+_SEARCH_RUN: dict[str, Any] = {}
 
 # Build identity, computed once at import — the app restarts on every code
 # edit, so a fresh process always reflects the deployed code.
@@ -324,6 +329,24 @@ class ApplyPayload(BaseModel):
     matches: dict[str, Any] | None = None
     audio_sha: str = ""
     audio_bytes: int = 0
+
+
+class ProductSearchStartPayload(BaseModel):
+    # Free Spanish text (spoken transcript or typed) — parsed into item term(s)
+    # via the same LLM path as the HA voice bridge, then searched (issue #87).
+    text: str = ""
+    model: str | None = None
+    limit: int = 6
+
+
+class ProductSearchSelectPayload(BaseModel):
+    # Which product the user validated for which item. `inventory_idx` is the
+    # existing row to fill (or null → create a new row named `term`).
+    term: str
+    store: str
+    product_url: str
+    name: str = ""
+    inventory_idx: int | None = None
 
 
 @app.get("/", include_in_schema=False)
@@ -616,6 +639,199 @@ def automation_status() -> dict[str, Any]:
         "cart_mode": _AUTOMATION_RUN.get("cart_mode", "keep"),
         "lines": lines,
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# On-demand product search (issue #87) — speak/type an item, search both stores,
+# validate a candidate card to fill its `buscador`. No automated decision.
+# ─────────────────────────────────────────────────────────────────────────────
+def _search_status() -> dict[str, Any]:
+    """Build the current search run's status, merging term metadata with results."""
+    run = _SEARCH_RUN
+    process = run.get("process")
+    running = product_search_runner.is_running(process)
+    started = run.get("started_at")
+    if not running and started and "finished_at" not in run:
+        run["finished_at"] = time.time()  # freeze elapsed on first observed completion
+    end = run.get("finished_at") or time.time()
+    elapsed = round(end - started, 1) if started else 0.0
+
+    state, error = "idle", None
+    progress = None
+    results_by_term: dict[str, dict] = {}
+    if run.get("id"):
+        progress = product_search_runner.latest_progress(run.get("chunks") or [])
+        if running:
+            state = "running"
+        else:
+            parsed = product_search_runner.parse_result(run.get("chunks") or [])
+            if parsed is None:
+                state, error = "error", "the search did not return any result"
+            elif parsed.get("error"):
+                # e.g. the stores aren't logged in — surface the reason.
+                state, error = "error", parsed["error"]
+            else:
+                state = "done"
+                for entry in parsed.get("results", []):
+                    results_by_term[entry.get("query", "")] = entry
+
+    merged = []
+    for meta in run.get("items") or []:
+        entry = results_by_term.get(meta["term"], {})
+        merged.append({
+            "term": meta["term"],
+            "inventory_idx": meta.get("inventory_idx"),
+            "existing_super": meta.get("existing_super", ""),
+            "candidates": entry.get("candidates", []),
+            "store_errors": entry.get("errors", {}),
+        })
+    return {"id": run.get("id"), "state": state, "elapsed_s": elapsed,
+            "items": merged, "error": error, "progress": progress}
+
+
+@app.post("/api/product-search/transcribe")
+async def product_search_transcribe(file: UploadFile = File(...)) -> dict[str, str]:
+    """Transcribe a short spoken product query — whisper with language auto-detect.
+
+    Unlike the audio-audit transcribe, this passes no forced language and no
+    Spanish audit prompt: the user speaks a product name (usually Spanish, but
+    auto-detect is friendlier) and we want the bare term.
+    """
+    cfg = CONFIG["audio_audit"]
+    audio_bytes = await file.read()
+    if not audio_bytes:
+        raise _inventory_error(400, "empty audio file")
+    filename, mime = "audio.wav", "audio/wav"
+    try:
+        audio_bytes = transcode_to_wav(audio_bytes)
+    except FfmpegMissingError:
+        logging.getLogger(__name__).warning(
+            "ffmpeg missing — posting raw audio to whisper (works only for WAV uploads)"
+        )
+        filename = file.filename or "audio.webm"
+        mime = file.content_type or "audio/webm"
+    except TranscriptionError as exc:
+        raise _inventory_error(502, str(exc)) from exc
+    try:
+        transcript = transcribe(
+            audio_bytes,
+            whisper_url=cfg["whisper_url"],
+            model=cfg["whisper_model"],
+            # Force Spanish: with no language, whisper-large-v3-turbo sometimes
+            # *translates* a Spanish clip to English. The stores are Spanish, so
+            # we always want the Spanish term. (Same language the audio-audit uses.)
+            language=cfg.get("language", "es"),
+            filename=filename,
+            mime=mime,
+            timeout=600,
+            temperature=0.0,
+        )
+    except TranscriptionError as exc:
+        raise _inventory_error(502, str(exc)) from exc
+    return {"transcript": transcript}
+
+
+@app.post("/api/product-search/start")
+def product_search_start(payload: ProductSearchStartPayload) -> dict[str, Any]:
+    """Parse the spoken/typed text into item term(s) and start the store search."""
+    if product_search_runner.is_running(_SEARCH_RUN.get("process")):
+        raise _inventory_error(409, "a product search is already running")
+    text = payload.text.strip()
+    if not text:
+        raise _inventory_error(400, "text is required")
+
+    df = _load_inventory_or_error()
+    cfg = CONFIG["audio_audit"]
+    model = payload.model or cfg["llm_model"]
+
+    # Same LLM parse as the HA voice bridge — strips "añade"/quantities and maps
+    # to an existing row when possible. If the hub is down, fall back to the raw
+    # text as a single term so a typed query still works.
+    items_meta: list[dict[str, Any]] = []
+    try:
+        parsed = parse_voice_items(
+            text, df, base_url=cfg["llm_base_url"], model=model,
+            max_tokens=cfg["llm_max_tokens"], timeout=cfg.get("llm_timeout", 600),
+        )
+        raw_items = [(it.name, it.idx) for it in parsed.items]
+    except ExtractionError:
+        logging.getLogger(__name__).warning("voice parse failed; searching raw text %r", text)
+        raw_items = [(text, None)]
+
+    seen: set[str] = set()
+    for name, idx in raw_items:
+        term = (name or "").strip()
+        if not term or term.lower() in seen:
+            continue
+        seen.add(term.lower())
+        existing_super = ""
+        if idx is not None and idx in df.index:
+            existing_super = str(df.at[idx, COLUMNS["super"]] or "").strip()
+        items_meta.append({"term": term, "inventory_idx": idx, "existing_super": existing_super})
+
+    if not items_meta:
+        raise _inventory_error(422, "could not find an item to search in what you said")
+
+    terms = [m["term"] for m in items_meta]
+    process, chunks, reader = product_search_runner.start(terms, max(1, payload.limit))
+    _SEARCH_RUN.clear()
+    _SEARCH_RUN.update({
+        "id": str(uuid.uuid4()), "process": process, "chunks": chunks,
+        "reader": reader, "items": items_meta, "started_at": time.time(),
+    })
+    return _search_status()
+
+
+@app.get("/api/product-search/status")
+def product_search_status() -> dict[str, Any]:
+    return _search_status()
+
+
+@app.post("/api/product-search/cancel")
+def product_search_cancel() -> dict[str, Any]:
+    product_search_runner.stop(_SEARCH_RUN.get("process"))
+    return _search_status()
+
+
+@app.post("/api/product-search/select")
+def product_search_select(payload: ProductSearchSelectPayload) -> dict[str, Any]:
+    """Fill `buscador` (+ `super`) from the validated card — the human's pick.
+
+    Updates the existing row when `inventory_idx` is given, else creates a new
+    row named `term` (target 1, so it lands on the shopping list).
+    """
+    store = payload.store.strip().lower()
+    url = payload.product_url.strip()
+    if not url:
+        raise _inventory_error(400, "product_url is required")
+
+    df = _load_inventory_or_error()
+    idx = payload.inventory_idx
+    if idx is not None and idx in df.index:
+        row = df.loc[idx]
+        # The chosen card's store is authoritative (the user picked *that*
+        # product). Ensure the item is actually on a shopping list: a target of
+        # 0 leaves it unbuyable, so raise it to 1 — never lower an existing one.
+        df = apply_item_edit(
+            df, idx,
+            super_value=store or str(row[COLUMNS["super"]] or ""),
+            lugar=str(row[COLUMNS["lugar"]] if pd.notna(row[COLUMNS["lugar"]]) else ""),
+            comida=str(row[COLUMNS["comida"]] or ""),
+            cantidad=max(int(row[COLUMNS["cantidad"]]), 1),
+            tenemos=int(row[COLUMNS["tenemos"]]),
+            buscador=url,
+        )
+    else:
+        term = payload.term.strip() or payload.name.strip()
+        if not term:
+            raise _inventory_error(400, "term or name is required to create an item")
+        new_row = build_new_item_row(
+            super_value=store, lugar="", comida=term, cantidad=1, tenemos=0, buscador=url,
+        )
+        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+
+    _save_or_error(df)
+    return _inventory_payload(_load_inventory_or_error())
 
 
 @app.get("/api/email-monitor/status")

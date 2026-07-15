@@ -65,7 +65,7 @@ webapp.bat
 
 The FastAPI app on `:8502` covers the inventory dashboard, audit, target editing, item editing, item creation, shopping mode, automation controls, and the audio-audit workflow against the Excel-backed `src/data.py` layer. Open `http://127.0.0.1:8502` when no local cert exists, or `https://127.0.0.1:8502` after running `& .\.venv\Scripts\python.exe src\gen_ssl_cert.py`. Either launcher binds to `0.0.0.0`, so the same port is reachable over LAN or Tailscale from devices that can reach this PC.
 
-The PWA follows the fleet design system (`~/.claude/design.md` + `design.dark.md`): a floating bottom-tab pill on the phone (inline top tabs on desktop) with six tabs — **Inventory · Shopping · Audit · Items · Auto · Settings** (Audio Audit lives as a sub-pill under Audit; Targets / Edit Item / Add Item under Items) — vendored fleet components under `app/static/_vendored/`, and a light/dark **theme toggle in the top bar** (moon/sun icon) that remembers your choice. The utility actions (Open Spreadsheet, Copy Link, Export CSV, Close App) live in the ⚙️ **Settings tab**; heavy cards (the dashboard item list, the per-store shopping panels, the audio zone checklist) are collapsible and folded by default; the search box appears only on the modes that filter the item list. A footer line shows the running build (`Build: <git sha> · <time>`, from `/api/version`) so you always know which deploy the app is serving, and the shell auto-reloads once when it detects a newer build.
+The PWA follows the fleet design system (`~/.claude/design.md` + `design.dark.md`): a floating bottom-tab pill on the phone (inline top tabs on desktop) with seven tabs — **Inventory · Shopping · Audit · Items · Search · Auto · Settings** (Audio Audit lives as a sub-pill under Audit; Targets / Edit Item / Add Item under Items) — vendored fleet components under `app/static/_vendored/`, and a light/dark **theme toggle in the top bar** (moon/sun icon) that remembers your choice. The utility actions (Open Spreadsheet, Copy Link, Export CSV, Close App) live in the ⚙️ **Settings tab**; heavy cards (the dashboard item list, the per-store shopping panels, the audio zone checklist) are collapsible and folded by default; the search box appears only on the modes that filter the item list. A footer line shows the running build (`Build: <git sha> · <time>`, from `/api/version`) so you always know which deploy the app is serving, and the shell auto-reloads once when it detects a newer build.
 
 ### Legacy Streamlit app
 
@@ -255,6 +255,27 @@ Search for any item and edit all its fields (name, supermarket, zone, URL, quant
 
 ### ➕ Add Item
 Add new items to the inventory via a form.
+
+### 🔎 Search
+Find the store product that fills an item's `buscador` so the cart automation
+can buy it. **Speak or type a product in Spanish** (e.g. *"añade sandía"*); the
+spoken clip is transcribed by whisper (language auto-detect) and parsed into the
+search term the same way the HA voice bridge parses commands. The app then
+searches **both stores at once** — Mercadona (its Algolia search endpoint) and
+Ametller (Salesforce Commerce Cloud SCAPI Shopper Search) — driving the
+logged-in Chrome profile, and shows the candidates as **cards you validate**:
+each card has the product name, store, price and a **link to open the product
+and check it yourself**. Tapping **Usar** writes that product's URL to the item's
+`buscador` (and sets its store, raising the target to 1 so it lands on the
+shopping list) — **nothing is auto-picked**; you always choose. A term the
+stores don't carry (e.g. *"añade flurbos"*) simply returns no cards. The search
+runs on demand with a live elapsed timer and a Cancel button (it drives a real
+browser, so it takes seconds-to-minutes) and reuses the same `automation/`
+launch helpers and shared-profile serialization as the cart automation.
+
+> **Pre-requisites:** the stores must be logged in
+> (`python -m automation.bootstrap_session`), and the LLM hub (`:8000`) +
+> whisper-server (`:8090`) running for the spoken-term parse/transcription.
 
 ### 🛒 Shopping List
 View items that need to be purchased, grouped by supermarket.
