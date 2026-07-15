@@ -549,5 +549,57 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 }
 .zone-item:last-child { border-bottom: 0; }
 
+/* ------------------------------------------------------ product search (#87) */
+.search-bar { display: flex; align-items: center; gap: var(--space-sm); margin-top: var(--space-sm); }
+.search-term {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--control-h);
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--input-bg);
+  color: var(--ink);
+  font-size: var(--font-label);
+}
+.search-bar .big-btn { flex: 0 0 auto; width: auto; padding: 0 var(--space-md); }
+.icon-btn.recording { color: var(--deficit); border-color: var(--deficit); background: color-mix(in srgb, var(--deficit) 12%, transparent); }
+@media (prefers-reduced-motion: no-preference) {
+  .icon-btn.recording { animation: search-pulse 1.4s ease-in-out infinite; }
+}
+@keyframes search-pulse { 50% { opacity: 0.55; } }
+
+.search-group { margin-top: var(--space-sm); }
+.search-group-head {
+  display: flex; align-items: center; gap: var(--space-sm);
+  padding-bottom: var(--space-sm); margin-bottom: var(--space-xs);
+  border-bottom: 1px solid var(--line-muted);
+}
+.search-group-term { font-weight: 700; font-size: var(--font-body); }
+.candidate-list { display: grid; gap: 0; }
+.candidate {
+  display: flex; align-items: center; gap: var(--space-sm);
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line-muted);
+}
+.candidate:last-child { border-bottom: 0; }
+.candidate-thumb {
+  flex: 0 0 auto; width: 48px; height: 48px;
+  border-radius: var(--radius-md); object-fit: cover;
+  background: var(--card-off); border: 1px solid var(--line-muted);
+}
+.candidate-main { flex: 1 1 auto; min-width: 0; }
+.candidate-name {
+  display: flex; align-items: center; gap: var(--space-xs); flex-wrap: wrap;
+  font-weight: 600; font-size: var(--font-label);
+}
+.candidate-actions { flex: 0 0 auto; display: flex; align-items: center; gap: var(--space-xs); }
+.chip {
+  display: inline-block; padding: 1px 8px; border-radius: var(--radius-pill);
+  font-size: var(--font-caption); font-weight: 600; line-height: 1.4;
+}
+.chip-match { background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent-border-soft); }
+.chip-new { background: color-mix(in srgb, var(--attention) 16%, transparent); color: var(--attention); }
+
 /* ------------------------------------------------------------ login dialog */
 .login-error { min-height: 20px; color: var(--deficit); font-size: var(--font-label); }
