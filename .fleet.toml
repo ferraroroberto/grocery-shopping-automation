@@ -5,7 +5,7 @@
 layer        = "working-web"
 icon         = "🛒"
 display_name = "grocery"
-description  = "Inventory + shopping PWA, voice audit + HA voice commands."
+description  = "Inventory + shopping PWA, voice audit, HA voice commands + product search."
 tag          = ["uses", "hub + whisper"]
 port         = 8502
 
