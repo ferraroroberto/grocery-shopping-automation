@@ -114,14 +114,26 @@ def human_delay(min_s: float = 0.5, max_s: float = 2.0) -> None:
     time.sleep(random.uniform(min_s, max_s))
 
 
+# Wait-with-backoff schedule (seconds) when the shared profile is busy — a live
+# sibling job (cart automation ↔ product search) holds it. The fleet rule is
+# *wait, never kill the holder*; a >~4-min holder is treated as genuinely hung.
+_PROFILE_WAIT_BACKOFF_S = (5, 15, 30, 60, 120)
+
+
 def launch_context(
-    *, headless: bool = False
+    *, headless: bool = False, wait_for_profile: bool = False
 ) -> tuple[Playwright, BrowserContext, Page]:
     """Launch real Chrome on the shared persistent profile.
 
     Args:
         headless: Run without a visible window. Defaults to ``False`` — the
             store sites are best driven headed.
+        wait_for_profile: When True, a launch that fails because the shared
+            profile is already held by a live sibling job (cart automation ↔
+            product search) is retried with exponential backoff
+            (:data:`_PROFILE_WAIT_BACKOFF_S`) rather than raising immediately —
+            the fleet "serialize access, never kill a live holder" rule. Off by
+            default so the cart automation's behaviour is unchanged.
 
     Returns:
         ``(playwright, context, page)``. The caller owns cleanup: call
@@ -136,14 +148,31 @@ def launch_context(
             f"Run `python -m automation.bootstrap_session` first."
         )
 
-    playwright = sync_playwright().start()
-    context, page = _open_context(playwright, headless=headless)
-    logger.info(
-        "🌐 Chrome context started (channel=chrome, headless=%s, profile=%s)",
-        headless,
-        USER_DATA_DIR,
-    )
-    return playwright, context, page
+    schedule = _PROFILE_WAIT_BACKOFF_S if wait_for_profile else ()
+    attempt = 0
+    while True:
+        playwright = sync_playwright().start()
+        try:
+            context, page = _open_context(playwright, headless=headless)
+        except Exception as err:  # noqa: BLE001 — a locked profile surfaces here
+            playwright.stop()
+            if attempt >= len(schedule):
+                raise
+            delay = schedule[attempt]
+            attempt += 1
+            logger.warning(
+                "⚠️ Chrome profile busy (%s) — waiting %ds before retry %d/%d "
+                "(a live sibling job holds it; never killed)",
+                type(err).__name__, delay, attempt, len(schedule),
+            )
+            time.sleep(delay)
+            continue
+        logger.info(
+            "🌐 Chrome context started (channel=chrome, headless=%s, profile=%s)",
+            headless,
+            USER_DATA_DIR,
+        )
+        return playwright, context, page
 
 
 def goto_with_login_check(

@@ -40,6 +40,7 @@ TAB_FOR_MODE = {
     "targets": "items",
     "edit": "items",
     "add": "items",
+    "search": "search",
     "automation": "automation",
     "settings": "settings",
 }
@@ -134,10 +135,19 @@ def page(browser, server):
 
 @pytest.mark.e2e
 def test_all_tabs_render_without_js_errors(page):
-    for mode in ["dashboard", "audit", "targets", "edit", "add", "shopping", "audio", "automation", "settings"]:
+    for mode in ["dashboard", "audit", "targets", "edit", "add", "shopping", "audio", "search", "automation", "settings"]:
         goto_mode(page, mode)
         page.wait_for_timeout(150)
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
+
+
+@pytest.mark.e2e
+def test_search_tab_renders_shell(page):
+    """The Search tab renders its input + Buscar button (no live search run)."""
+    goto_mode(page, "search")
+    page.wait_for_selector("#search-term")
+    assert page.locator("#search-run").is_visible()
+    assert page.locator("#search-record").is_visible()
 
 
 @pytest.mark.e2e
