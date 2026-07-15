@@ -100,6 +100,50 @@ def test_select_creates_new_row(client):
     assert new[cols["comprar"]] == 1  # target 1 → lands on the shopping list
 
 
+def test_select_creates_new_row_with_zone_and_quantities(client):
+    """Issue #92: the staged confirm row sends zone + present/target explicitly."""
+    resp = client.post("/api/product-search/select", json={
+        "term": "mango de prueba", "store": "mercadona",
+        "product_url": "https://tienda.mercadona.es/product/2/mango",
+        "name": "Mango", "inventory_idx": None,
+        "lugar": "nevera", "tenemos": 1, "cantidad": 3,
+    })
+    assert resp.status_code == 200
+    body = resp.json()
+    cols = body["columns"]
+    new = [it for it in body["items"] if it[cols["comida"]] == "mango de prueba"][0]
+    assert new[cols["lugar"]] == "nevera"
+    assert new[cols["tenemos"]] == 1
+    assert new[cols["cantidad"]] == 3
+    assert new[cols["comprar"]] == 2  # need = target − present
+
+
+def test_select_existing_row_applies_zone_and_quantities(client):
+    """Issue #92: explicit add-time parameters override the keep-existing defaults."""
+    inv = client.get("/api/inventory").json()
+    cols = inv["columns"]
+    idx = inv["items"][0]["id"]
+    resp = client.post("/api/product-search/select", json={
+        "term": inv["items"][0][cols["comida"]], "store": "mercadona",
+        "product_url": "https://tienda.mercadona.es/product/3/x",
+        "name": "X", "inventory_idx": idx,
+        "lugar": "despensa de prueba", "tenemos": 2, "cantidad": 4,
+    })
+    assert resp.status_code == 200
+    updated = [it for it in resp.json()["items"] if it["id"] == idx][0]
+    assert updated[cols["lugar"]] == "despensa de prueba"
+    assert updated[cols["tenemos"]] == 2
+    assert updated[cols["cantidad"]] == 4
+
+
+def test_select_rejects_negative_quantities(client):
+    resp = client.post("/api/product-search/select", json={
+        "term": "x", "store": "mercadona", "product_url": "https://x/1",
+        "inventory_idx": None, "tenemos": -1,
+    })
+    assert resp.status_code == 422
+
+
 def test_select_updates_existing_row(client):
     inv = client.get("/api/inventory").json()
     cols = inv["columns"]

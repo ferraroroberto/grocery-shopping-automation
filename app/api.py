@@ -342,11 +342,16 @@ class ProductSearchStartPayload(BaseModel):
 class ProductSearchSelectPayload(BaseModel):
     # Which product the user validated for which item. `inventory_idx` is the
     # existing row to fill (or null → create a new row named `term`).
+    # `lugar` / `tenemos` / `cantidad` are the staged add-time parameters
+    # (issue #92); None keeps the pre-#92 behavior so older clients still work.
     term: str
     store: str
     product_url: str
     name: str = ""
     inventory_idx: int | None = None
+    lugar: str | None = None
+    tenemos: int | None = Field(None, ge=0)
+    cantidad: int | None = Field(None, ge=0)
 
 
 @app.get("/", include_in_schema=False)
@@ -798,7 +803,10 @@ def product_search_select(payload: ProductSearchSelectPayload) -> dict[str, Any]
     """Fill `buscador` (+ `super`) from the validated card — the human's pick.
 
     Updates the existing row when `inventory_idx` is given, else creates a new
-    row named `term` (target 1, so it lands on the shopping list).
+    row named `term`. The staged add-time parameters (`lugar` / `tenemos` /
+    `cantidad`, issue #92) apply when sent; when omitted the pre-#92 defaults
+    hold (keep the existing row's values with target raised to at least 1, or
+    zone-less present 0 / target 1 for a new row).
     """
     store = payload.store.strip().lower()
     url = payload.product_url.strip()
@@ -810,15 +818,19 @@ def product_search_select(payload: ProductSearchSelectPayload) -> dict[str, Any]
     if idx is not None and idx in df.index:
         row = df.loc[idx]
         # The chosen card's store is authoritative (the user picked *that*
-        # product). Ensure the item is actually on a shopping list: a target of
-        # 0 leaves it unbuyable, so raise it to 1 — never lower an existing one.
+        # product). Without an explicit target, ensure the item is actually on
+        # a shopping list: a target of 0 leaves it unbuyable, so raise it to 1
+        # — never lower an existing one. An explicit choice always wins.
         df = apply_item_edit(
             df, idx,
             super_value=store or str(row[COLUMNS["super"]] or ""),
-            lugar=str(row[COLUMNS["lugar"]] if pd.notna(row[COLUMNS["lugar"]]) else ""),
+            lugar=payload.lugar if payload.lugar is not None
+            else str(row[COLUMNS["lugar"]] if pd.notna(row[COLUMNS["lugar"]]) else ""),
             comida=str(row[COLUMNS["comida"]] or ""),
-            cantidad=max(int(row[COLUMNS["cantidad"]]), 1),
-            tenemos=int(row[COLUMNS["tenemos"]]),
+            cantidad=payload.cantidad if payload.cantidad is not None
+            else max(int(row[COLUMNS["cantidad"]]), 1),
+            tenemos=payload.tenemos if payload.tenemos is not None
+            else int(row[COLUMNS["tenemos"]]),
             buscador=url,
         )
     else:
@@ -826,7 +838,12 @@ def product_search_select(payload: ProductSearchSelectPayload) -> dict[str, Any]
         if not term:
             raise _inventory_error(400, "term or name is required to create an item")
         new_row = build_new_item_row(
-            super_value=store, lugar="", comida=term, cantidad=1, tenemos=0, buscador=url,
+            super_value=store,
+            lugar=payload.lugar or "",
+            comida=term,
+            cantidad=1 if payload.cantidad is None else payload.cantidad,
+            tenemos=payload.tenemos or 0,
+            buscador=url,
         )
         df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
 
