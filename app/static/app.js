@@ -68,7 +68,7 @@ const state = {
   search: {
     term: "", running: false, items: [], error: "", startedAt: 0,
     pollTimer: null, recorder: null, chunks: [], recording: false, notice: "",
-    resolved: {}, progress: "",
+    resolved: {}, progress: "", pendingStart: false, confirming: "", draft: null,
   },
 };
 
@@ -1193,13 +1193,40 @@ function searchItemGroup(item) {
     <div class="candidate-list">${cands.map((c) => candidateRow(c, item)).join("")}</div>${errNote}</section>`;
 }
 
+function candidateKey(term, productUrl) {
+  return `${term}::${productUrl}`;
+}
+
+// The staged confirm row under a tapped candidate: zone combo + present/target
+// quantities (issue #92) — supermarket and URL come from the candidate itself.
+function candidateConfirmPanel() {
+  const d = state.search.draft || { lugar: "", tenemos: 0, cantidad: 1 };
+  const zones = state.payload?.summary?.zones || [];
+  const zoneField = zones.length
+    ? `<select class="field" data-confirm="lugar" aria-label="Zona">${zones.map((z) =>
+        `<option value="${html(z)}"${z === d.lugar ? " selected" : ""}>${html(z)}</option>`).join("")}</select>`
+    : `<input class="field" data-confirm="lugar" value="${html(d.lugar)}" placeholder="Zona" aria-label="Zona" />`;
+  return `<div class="candidate-confirm">
+    <label class="field-label">Zona ${zoneField}</label>
+    <label class="field-label">Tengo
+      <input class="field" data-confirm="tenemos" type="number" min="0" inputmode="numeric" value="${html(d.tenemos)}" />
+    </label>
+    <label class="field-label">Objetivo
+      <input class="field" data-confirm="cantidad" type="number" min="0" inputmode="numeric" value="${html(d.cantidad)}" />
+    </label>
+    <button class="big-btn candidate-confirm-add" type="button" data-action="search-confirm">Añadir</button>
+  </div>`;
+}
+
 function candidateRow(c, item) {
-  const done = state.search.resolved[`${item.term}::${c.product_url}`];
+  const key = candidateKey(item.term, c.product_url);
+  const done = state.search.resolved[key];
+  const open = state.search.confirming === key;
   const chip = c.match === "strong" ? '<span class="chip chip-match">coincide</span>' : "";
   const thumb = c.thumbnail
     ? `<img class="candidate-thumb" src="${html(c.thumbnail)}" alt="" loading="lazy" />`
     : `<div class="candidate-thumb candidate-thumb-empty" aria-hidden="true"></div>`;
-  return `<article class="candidate" data-term="${html(item.term)}" data-idx="${item.inventory_idx == null ? "" : item.inventory_idx}"
+  return `<article class="candidate${open ? " confirming" : ""}" data-term="${html(item.term)}" data-idx="${item.inventory_idx == null ? "" : item.inventory_idx}"
       data-store="${html(c.store)}" data-url="${html(c.product_url)}" data-name="${html(c.name)}">
     ${thumb}
     <div class="candidate-main">
@@ -1210,8 +1237,9 @@ function candidateRow(c, item) {
       <a class="icon-btn hit-target" href="${html(c.product_url)}" target="_blank" rel="noopener" aria-label="Ver producto" title="Ver">
         <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-external-link"></use></svg>
       </a>
-      <button class="secondary candidate-use" type="button" data-action="search-use"${done ? " disabled" : ""}>${done ? "Añadido ✓" : "Usar"}</button>
+      <button class="secondary candidate-use" type="button" data-action="search-use" aria-expanded="${open}"${done ? " disabled" : ""}>${done ? "Añadido ✓" : "Usar"}</button>
     </div>
+    ${open ? candidateConfirmPanel() : ""}
   </article>`;
 }
 
@@ -1267,15 +1295,21 @@ async function startProductSearch() {
   const s = state.search;
   const term = (document.querySelector("#search-term")?.value ?? s.term).trim();
   if (!term) { s.error = "Di o escribe un producto"; renderSearchStatus(); return; }
-  Object.assign(s, { term, error: "", notice: "", items: [], resolved: {}, running: true, startedAt: Date.now(), progress: "" });
+  Object.assign(s, {
+    term, error: "", notice: "", items: [], resolved: {}, running: true,
+    startedAt: Date.now(), progress: "", pendingStart: true, confirming: "", draft: null,
+  });
   renderSearch();
   startSearchPoll();
   try {
-    applySearchStatus(await fetchJson("/api/product-search/start", {
+    const status = await fetchJson("/api/product-search/start", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: term }),
-    }));
+    });
+    s.pendingStart = false;
+    applySearchStatus(status);
   } catch (err) {
+    s.pendingStart = false;
     s.running = false; stopSearchPoll(); s.error = err.message; renderSearch();
   }
 }
@@ -1284,6 +1318,9 @@ function startSearchPoll() {
   stopSearchPoll();
   const tick = async () => {
     renderSearchStatus();
+    // Until /start returns, /status still describes the PREVIOUS run — applying
+    // it would resurrect the old term's results under the new search (issue #92).
+    if (state.search.pendingStart) return;
     const status = await fetchJson("/api/product-search/status").catch(() => null);
     if (status) applySearchStatus(status);
   };
@@ -1316,29 +1353,60 @@ async function cancelProductSearch() {
   renderSearch();
 }
 
+// "Usar" stages the add: it opens (or closes) the confirm row, prefilled from
+// the existing inventory row when there is one, else zone guess + 0/1 defaults.
+function toggleCandidateConfirm(cardEl) {
+  if (!cardEl) return;
+  const s = state.search;
+  const key = candidateKey(cardEl.dataset.term, cardEl.dataset.url);
+  if (s.confirming === key) {
+    s.confirming = "";
+    s.draft = null;
+  } else {
+    const cols = c();
+    const idxRaw = cardEl.dataset.idx;
+    const existing = idxRaw === "" ? null : items().find((it) => it.id === Number(idxRaw));
+    s.confirming = key;
+    s.draft = existing
+      ? {
+          lugar: text(existing[cols.lugar]) === "-" ? defaultZone() : existing[cols.lugar],
+          tenemos: Number(existing[cols.tenemos]) || 0,
+          cantidad: Math.max(Number(existing[cols.cantidad]) || 0, 1),
+        }
+      : { lugar: defaultZone(), tenemos: 0, cantidad: 1 };
+  }
+  renderSearchResults();
+}
+
 async function useCandidate(cardEl) {
   if (!cardEl) return;
   const s = state.search;
   const idxRaw = cardEl.dataset.idx;
+  const d = s.draft || { lugar: defaultZone(), tenemos: 0, cantidad: 1 };
   const payload = {
     term: cardEl.dataset.term,
     store: cardEl.dataset.store,
     product_url: cardEl.dataset.url,
     name: cardEl.dataset.name,
     inventory_idx: idxRaw === "" ? null : Number(idxRaw),
+    lugar: String(d.lugar ?? ""),
+    tenemos: Math.max(Number(d.tenemos) || 0, 0),
+    cantidad: Math.max(Number(d.cantidad) || 0, 0),
   };
-  const btn = cardEl.querySelector(".candidate-use");
+  const btn = cardEl.querySelector(".candidate-confirm-add");
   if (btn) { btn.disabled = true; btn.textContent = "Guardando…"; }
   try {
     state.payload = await fetchJson("/api/product-search/select", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
     });
-    s.resolved[`${payload.term}::${payload.product_url}`] = true;
-    s.notice = `Añadido: ${payload.name} (${payload.store})`;
+    s.resolved[candidateKey(payload.term, payload.product_url)] = true;
+    s.confirming = "";
+    s.draft = null;
+    s.notice = `Añadido: ${payload.name} (${payload.store}) → ${payload.lugar || "sin zona"} · ${payload.tenemos}/${payload.cantidad}`;
     renderSearch();
   } catch (err) {
     s.error = `No se pudo guardar: ${err.message}`;
-    if (btn) { btn.disabled = false; btn.textContent = "Usar"; }
+    if (btn) { btn.disabled = false; btn.textContent = "Añadir"; }
     renderSearchStatus();
   }
 }
@@ -1514,12 +1582,16 @@ el.app.addEventListener("click", async (event) => {
   if (id === "search-record") await toggleSearchRecording(button);
   if (id === "search-run") await startProductSearch();
   if (id === "search-cancel") await cancelProductSearch();
-  if (button?.dataset.action === "search-use") await useCandidate(button.closest(".candidate"));
+  if (button?.dataset.action === "search-use") toggleCandidateConfirm(button.closest(".candidate"));
+  if (button?.dataset.action === "search-confirm") await useCandidate(button.closest(".candidate"));
 });
 
 // Product-search term box: keep state in sync while typing; Enter runs the search.
+// The confirm-row fields persist into the draft so a poll re-render keeps them.
 el.app.addEventListener("input", (event) => {
   if (event.target.id === "search-term") state.search.term = event.target.value;
+  const field = event.target.dataset?.confirm;
+  if (field && state.search.draft) state.search.draft[field] = event.target.value;
 });
 el.app.addEventListener("keydown", (event) => {
   if (event.target.id === "search-term" && event.key === "Enter") {
