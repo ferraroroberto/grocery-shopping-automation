@@ -562,7 +562,19 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
   color: var(--ink);
   font-size: var(--font-label);
 }
-.search-bar .big-btn { flex: 0 0 auto; width: auto; padding: 0 var(--space-md); }
+/* Compact tint action at the control height — Buscar sits in line with the
+   term box and reads the same size as the Usar buttons (issue #92 feedback). */
+.search-bar .big-btn {
+  flex: 0 0 auto;
+  width: auto;
+  min-height: var(--control-h);
+  padding: 0 var(--space-md);
+  font-size: var(--font-label);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45em; /* breathing room between the magnifier and the label */
+}
 .icon-btn.recording { color: var(--deficit); border-color: var(--deficit); background: color-mix(in srgb, var(--deficit) 12%, transparent); }
 @media (prefers-reduced-motion: no-preference) {
   .icon-btn.recording { animation: search-pulse 1.4s ease-in-out infinite; }
@@ -579,10 +591,42 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 .candidate-list { display: grid; gap: 0; }
 .candidate {
   display: flex; align-items: center; gap: var(--space-sm);
+  flex-wrap: wrap; /* lets the confirm row break onto its own full-width line */
   padding: 12px 0;
   border-bottom: 1px solid var(--line-muted);
 }
 .candidate:last-child { border-bottom: 0; }
+/* Staged add controls (issue #92): zone combo + present/target quantities. */
+.candidate-confirm {
+  flex: 1 1 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-sm);
+  align-items: end;
+  padding-top: var(--space-xs);
+}
+/* Añadir: compact tint at the control height, spanning the full row so its
+   edges align with the zone/quantity controls above. */
+.candidate-confirm .candidate-confirm-add {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: var(--control-h);
+  padding: 0 var(--space-md);
+  font-size: var(--font-label);
+}
+/* The zone combo matches the quantity inputs exactly: same 36px box, radius,
+   and font (kills the taller native menulist look). Custom chevron replaces
+   the native indicator; #6e7681 reads as muted in both themes. */
+.candidate-confirm select.field {
+  appearance: none;
+  height: var(--control-h);
+  padding: 0 28px 0 10px;
+  font-size: inherit;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236e7681' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 14px;
+}
 .candidate-thumb {
   flex: 0 0 auto; width: 48px; height: 48px;
   border-radius: var(--radius-md); object-fit: cover;
