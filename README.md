@@ -265,9 +265,12 @@ searches **both stores at once** — Mercadona (its Algolia search endpoint) and
 Ametller (Salesforce Commerce Cloud SCAPI Shopper Search) — driving the
 logged-in Chrome profile, and shows the candidates as **cards you validate**:
 each card has the product name, store, price and a **link to open the product
-and check it yourself**. Tapping **Usar** writes that product's URL to the item's
-`buscador` (and sets its store, raising the target to 1 so it lands on the
-shopping list) — **nothing is auto-picked**; you always choose. A term the
+and check it yourself**. Tapping **Usar** opens a compact confirm row on the
+card — a **zone** combo (the inventory's existing zones) plus **present**
+(default 0) and **target** (default 1) quantities; for an item already on the
+list they prefill from its current row. Tapping **Añadir** writes the product's
+URL to the item's `buscador` and applies the store, zone, and quantities —
+**nothing is auto-picked**; you always choose. A term the
 stores don't carry (e.g. *"añade flurbos"*) simply returns no cards. The search
 runs on demand with a live elapsed timer and a Cancel button (it drives a real
 browser, so it takes seconds-to-minutes) and reuses the same `automation/`
