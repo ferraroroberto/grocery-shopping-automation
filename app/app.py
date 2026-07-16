@@ -44,6 +44,7 @@ def _render_sidebar() -> str:
             "📂 Open spreadsheet",
             help="Opens the Excel file in the default app (e.g. Excel). Useful when OneDrive has not refreshed yet.",
             width="stretch",
+            key="sidebar_open_spreadsheet_btn",
         ):
             open_inventory_spreadsheet()
 
@@ -52,11 +53,17 @@ def _render_sidebar() -> str:
             "📋 Copy link",
             help=f"Copies {local_url} to clipboard — paste in Telegram to open on mobile.",
             width="stretch",
+            key="sidebar_copy_link_btn",
         ):
             copy_to_clipboard(local_url)
             st.success("✓ Copied!")
 
-        if st.button("🔴 Close app", help="Stop the Streamlit server.", width="stretch"):
+        if st.button(
+            "🔴 Close app",
+            help="Stop the Streamlit server.",
+            width="stretch",
+            key="sidebar_close_app_btn",
+        ):
             os._exit(0)
 
         if st.session_state.inventory_data is not None:

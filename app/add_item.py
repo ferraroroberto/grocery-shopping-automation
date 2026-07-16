@@ -25,12 +25,12 @@ def main(df: pd.DataFrame) -> pd.DataFrame:
         with col1:
             new_super = st.selectbox("🏪 Supermarket", options=existing_supermarkets, key="add_item_supermarket")
             new_lugar = st.selectbox("🏠 Zone", options=existing_zones, key="add_item_zone")
-            new_comida = st.text_input("🥘 Item Name")
+            new_comida = st.text_input("🥘 Item Name", key="add_item_comida")
 
         with col2:
-            new_cantidad = st.number_input("🎯 Target", value=0, min_value=0, step=1)
-            new_tenemos = st.number_input("📦 Current", value=0, min_value=0, step=1)
-            new_buscador = st.text_input("🔗 URL")
+            new_cantidad = st.number_input("🎯 Target", value=0, min_value=0, step=1, key="add_item_cantidad")
+            new_tenemos = st.number_input("📦 Current", value=0, min_value=0, step=1, key="add_item_tenemos")
+            new_buscador = st.text_input("🔗 URL", key="add_item_buscador")
 
         if st.form_submit_button("➕ Add Item", type="primary", width="stretch"):
             if not new_comida.strip():
