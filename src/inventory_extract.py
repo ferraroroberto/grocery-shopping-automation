@@ -14,7 +14,9 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
-from anthropic import Anthropic, APIError
+from anthropic import APIError
+
+from src.hub_client import call_hub_llm
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +121,6 @@ def extract(
     if not transcript.strip():
         raise ExtractionError("transcript is empty")
 
-    client = Anthropic(api_key="local-dummy", base_url=base_url, timeout=timeout)
     candidates = _candidates_payload(candidates_df)
 
     user_text = (
@@ -133,18 +134,17 @@ def extract(
         f"transcript_chars={len(transcript)}"
     )
     try:
-        message = client.messages.create(
+        raw_text = call_hub_llm(
+            base_url=base_url,
             model=model,
+            system_prompt=SYSTEM_PROMPT,
+            user_text=user_text,
             max_tokens=max_tokens,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_text}],
+            timeout=timeout,
         )
     except APIError as exc:
         raise ExtractionError(f"Hub call failed: {exc}") from exc
 
-    raw_text = "".join(
-        block.text for block in message.content if getattr(block, "type", None) == "text"
-    )
     logger.debug(f"raw LLM text ({len(raw_text)} chars): {raw_text[:300]}…")
 
     parsed = _parse_strict_json(raw_text)
