@@ -14,12 +14,13 @@ going through a UI framework's (thread-unsafe) state API.
 
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 import threading
 from collections import deque
 from pathlib import Path
+
+from app import subprocess_plumbing
 
 # The automation package and config.json resolve relative to the repo root;
 # the subprocess must run from there so relative paths behave like a terminal run.
@@ -28,8 +29,9 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 # Keep only the most recent lines — a long run can print thousands.
 MAX_OUTPUT_LINES = 500
 
-# How long to wait after terminate() before escalating to kill().
-_STOP_GRACE_S = 5.0
+# Re-exported so existing callers (app/api.py, app/app.py, app/shopping.py)
+# keep working unchanged.
+is_running = subprocess_plumbing.is_running
 
 
 def build_command(store: str, dry_run: bool, cart_mode: str = "keep") -> list[str]:
@@ -63,48 +65,17 @@ def start_run(
     ``deque`` bounded to :data:`MAX_OUTPUT_LINES`; the reader thread appends to
     it line by line and exits when the process closes its stdout.
     """
-    # Force UTF-8 on both sides: PYTHONUTF8 makes the child encode its emoji
-    # output as UTF-8 even though stdout is a pipe (not a console), and reading
-    # with encoding="utf-8" lets the reader thread decode it without mojibake.
-    # errors="replace" keeps a stray byte from ever killing the drain thread.
-    child_env = {**os.environ, "PYTHONUTF8": "1"}
-    process = subprocess.Popen(
+    output_lines: "deque[str]" = deque(maxlen=MAX_OUTPUT_LINES)
+    process, reader_thread = subprocess_plumbing.spawn_and_drain(
         build_command(store, dry_run, cart_mode),
         cwd=str(_REPO_ROOT),
-        stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
         bufsize=1,
-        env=child_env,
+        on_line=lambda line: output_lines.append(line.rstrip("\n")),
     )
-    output_lines: "deque[str]" = deque(maxlen=MAX_OUTPUT_LINES)
-
-    def _drain() -> None:
-        assert process.stdout is not None
-        for line in process.stdout:
-            output_lines.append(line.rstrip("\n"))
-        process.stdout.close()
-
-    reader_thread = threading.Thread(target=_drain, daemon=True)
-    reader_thread.start()
     return process, output_lines, reader_thread
-
-
-def is_running(process: "subprocess.Popen | None") -> bool:
-    """True when `process` exists and has not exited yet."""
-    return process is not None and process.poll() is None
 
 
 def stop_run(process: "subprocess.Popen | None") -> None:
     """Terminate a run, escalating to kill() after a short grace period."""
-    if not is_running(process):
-        return
-    assert process is not None
-    process.terminate()
-    try:
-        process.wait(timeout=_STOP_GRACE_S)
-    except subprocess.TimeoutExpired:
-        process.kill()
-        process.wait()
+    subprocess_plumbing.stop(process)

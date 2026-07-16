@@ -14,17 +14,19 @@ subprocess also serialises cleanly against the cart automation via
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
 import threading
 from pathlib import Path
 from typing import Any, Optional
 
+from app import subprocess_plumbing
+
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 
-# How long to wait after terminate() before escalating to kill().
-_STOP_GRACE_S = 5.0
+# Re-exported so existing callers (app/api.py) keep working unchanged.
+is_running = subprocess_plumbing.is_running
+stop = subprocess_plumbing.stop
 
 
 def build_command(queries: list[str], limit: int) -> list[str]:
@@ -42,33 +44,14 @@ def start(queries: list[str], limit: int) -> tuple[subprocess.Popen, list[str], 
     plain list the reader thread appends to; join it to recover the full JSON
     document once the process exits.
     """
-    child_env = {**os.environ, "PYTHONUTF8": "1"}
-    process = subprocess.Popen(
+    chunks: list[str] = []
+    process, reader = subprocess_plumbing.spawn_and_drain(
         build_command(queries, limit),
         cwd=str(_REPO_ROOT),
-        stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,  # logs go to the child's stderr; stdout is pure JSON
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        env=child_env,
+        on_line=chunks.append,
     )
-    chunks: list[str] = []
-
-    def _drain() -> None:
-        assert process.stdout is not None
-        for line in process.stdout:
-            chunks.append(line)
-        process.stdout.close()
-
-    reader = threading.Thread(target=_drain, daemon=True)
-    reader.start()
     return process, chunks, reader
-
-
-def is_running(process: "subprocess.Popen | None") -> bool:
-    """True when `process` exists and has not exited yet."""
-    return process is not None and process.poll() is None
 
 
 def _events(chunks: list[str]):
@@ -105,16 +88,3 @@ def latest_progress(chunks: list[str]) -> Optional[str]:
         if event.get("event") == "progress":
             message = event.get("message")
     return message
-
-
-def stop(process: "subprocess.Popen | None") -> None:
-    """Terminate a run, escalating to kill() after a short grace period."""
-    if not is_running(process):
-        return
-    assert process is not None
-    process.terminate()
-    try:
-        process.wait(timeout=_STOP_GRACE_S)
-    except subprocess.TimeoutExpired:
-        process.kill()
-        process.wait()
