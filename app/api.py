@@ -694,18 +694,23 @@ def _search_status() -> dict[str, Any]:
             "items": merged, "error": error, "progress": progress}
 
 
-@app.post("/api/product-search/transcribe")
-async def product_search_transcribe(file: UploadFile = File(...)) -> dict[str, str]:
-    """Transcribe a short spoken product query — whisper with language auto-detect.
+async def _transcode_and_transcribe(file: UploadFile, *, prompt: str | None = None) -> str:
+    """Read `file`, transcode to WAV, and transcribe it via the whisper hub.
 
-    Unlike the audio-audit transcribe, this passes no forced language and no
-    Spanish audit prompt: the user speaks a product name (usually Spanish, but
-    auto-detect is friendlier) and we want the bare term.
+    Shared by ``/api/product-search/transcribe`` and ``/api/audio/transcribe``
+    (issue #95): both read the upload, transcode with an ffmpeg-missing
+    fallback to the raw bytes, call ``transcribe()``, and translate a
+    ``TranscriptionError`` into a 502. ``prompt`` (and the Spanish-forcing
+    ``language``, always taken from config) is the only thing the two call
+    sites differ on.
     """
     cfg = CONFIG["audio_audit"]
     audio_bytes = await file.read()
     if not audio_bytes:
         raise _inventory_error(400, "empty audio file")
+    # whisper-server only decodes WAV/PCM and 400s on the webm/mp4 that browser
+    # MediaRecorder produces — transcode first. Fall back to the raw bytes only
+    # if ffmpeg is unavailable (still correct for a genuine WAV upload).
     filename, mime = "audio.wav", "audio/wav"
     try:
         audio_bytes = transcode_to_wav(audio_bytes)
@@ -718,7 +723,7 @@ async def product_search_transcribe(file: UploadFile = File(...)) -> dict[str, s
     except TranscriptionError as exc:
         raise _inventory_error(502, str(exc)) from exc
     try:
-        transcript = transcribe(
+        return transcribe(
             audio_bytes,
             whisper_url=cfg["whisper_url"],
             model=cfg["whisper_model"],
@@ -730,9 +735,20 @@ async def product_search_transcribe(file: UploadFile = File(...)) -> dict[str, s
             mime=mime,
             timeout=600,
             temperature=0.0,
+            prompt=prompt,
         )
     except TranscriptionError as exc:
         raise _inventory_error(502, str(exc)) from exc
+
+
+@app.post("/api/product-search/transcribe")
+async def product_search_transcribe(file: UploadFile = File(...)) -> dict[str, str]:
+    """Transcribe a short spoken product query — whisper with no audit prompt.
+
+    Unlike the audio-audit transcribe, this passes no Spanish audit prompt:
+    the user speaks a bare product name and we want the raw term.
+    """
+    transcript = await _transcode_and_transcribe(file)
     return {"transcript": transcript}
 
 
@@ -899,40 +915,7 @@ def json_dumps(payload: Any) -> str:
 
 @app.post("/api/audio/transcribe")
 async def audio_transcribe(file: UploadFile = File(...)) -> dict[str, str]:
-    cfg = CONFIG["audio_audit"]
-    audio_bytes = await file.read()
-    if not audio_bytes:
-        raise _inventory_error(400, "empty audio file")
-    # whisper-server only decodes WAV/PCM and 400s on the webm/mp4 that browser
-    # MediaRecorder produces — transcode first. Fall back to the raw bytes only
-    # if ffmpeg is unavailable (still correct for a genuine WAV upload).
-    filename, mime = "audio.wav", "audio/wav"
-    try:
-        audio_bytes = transcode_to_wav(audio_bytes)
-    except FfmpegMissingError:
-        import logging
-
-        logging.getLogger(__name__).warning(
-            "ffmpeg missing — posting raw audio to whisper (works only for WAV uploads)"
-        )
-        filename = file.filename or "audio.webm"
-        mime = file.content_type or "audio/webm"
-    except TranscriptionError as exc:
-        raise _inventory_error(502, str(exc)) from exc
-    try:
-        transcript = transcribe(
-            audio_bytes,
-            whisper_url=cfg["whisper_url"],
-            model=cfg["whisper_model"],
-            language=cfg.get("language", "es"),
-            filename=filename,
-            mime=mime,
-            timeout=600,
-            temperature=0.0,
-            prompt=WHISPER_PROMPT_ES,
-        )
-    except TranscriptionError as exc:
-        raise _inventory_error(502, str(exc)) from exc
+    transcript = await _transcode_and_transcribe(file, prompt=WHISPER_PROMPT_ES)
     return {"transcript": transcript}
 
 

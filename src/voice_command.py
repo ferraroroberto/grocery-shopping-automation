@@ -13,9 +13,10 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
-from anthropic import Anthropic, APIError
+from anthropic import APIError
 
 from src.data import COLUMNS, build_new_item_row
+from src.hub_client import call_hub_llm
 from src.inventory_extract import ExtractionError, _parse_strict_json
 
 logger = logging.getLogger(__name__)
@@ -135,7 +136,6 @@ def parse_voice_items(
     if not text.strip():
         raise ExtractionError("command text is empty")
 
-    client = Anthropic(api_key="local-dummy", base_url=base_url, timeout=timeout)
     candidates = [
         {"idx": int(idx), "comida": str(row[COLUMNS["comida"]])}
         for idx, row in candidates_df.iterrows()
@@ -148,18 +148,17 @@ def parse_voice_items(
 
     logger.info(f"📡 voice parse hub={base_url} model={model} candidates={len(candidates)}")
     try:
-        message = client.messages.create(
+        raw_text = call_hub_llm(
+            base_url=base_url,
             model=model,
+            system_prompt=SYSTEM_PROMPT,
+            user_text=user_text,
             max_tokens=max_tokens,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_text}],
+            timeout=timeout,
         )
     except APIError as exc:
         raise ExtractionError(f"Hub call failed: {exc}") from exc
 
-    raw_text = "".join(
-        block.text for block in message.content if getattr(block, "type", None) == "text"
-    )
     parsed = _parse_strict_json(raw_text)
     items, ambiguous = clean_parsed(parsed, set(candidates_df.index.tolist()))
     return VoiceParseResult(items=items, ambiguous=ambiguous, raw_text=raw_text)
