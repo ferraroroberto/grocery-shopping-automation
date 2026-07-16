@@ -18,6 +18,7 @@ def main(df: pd.DataFrame) -> pd.DataFrame:
     search_term = st.text_input(
         "🔍 Search",
         placeholder="Type item name...",
+        key="edit_item_search",
     ).strip().lower()
 
     if search_term:
@@ -44,31 +45,47 @@ def main(df: pd.DataFrame) -> pd.DataFrame:
                     new_super = st.text_input(
                         "🏪 Supermarket",
                         value=current_super if pd.notna(current_super) else "",
+                        key=f"edit_super_{idx}",
                     )
 
                     current_lugar = filtered_df.at[idx, COLUMNS["lugar"]]
                     new_lugar = st.text_input(
                         "🏠 Zone",
                         value=current_lugar if pd.notna(current_lugar) else "",
+                        key=f"edit_lugar_{idx}",
                     )
 
                     current_comida = filtered_df.at[idx, COLUMNS["comida"]]
                     new_comida = st.text_input(
                         "🥘 Item Name",
                         value=current_comida if pd.notna(current_comida) else "",
+                        key=f"edit_comida_{idx}",
                     )
 
                 with col2:
                     current_cantidad = int(filtered_df.at[idx, COLUMNS["cantidad"]])
-                    new_cantidad = st.number_input("🎯 Target", value=current_cantidad, min_value=0, step=1)
+                    new_cantidad = st.number_input(
+                        "🎯 Target",
+                        value=current_cantidad,
+                        min_value=0,
+                        step=1,
+                        key=f"edit_cantidad_{idx}",
+                    )
 
                     current_tenemos = int(filtered_df.at[idx, COLUMNS["tenemos"]])
-                    new_tenemos = st.number_input("📦 Current", value=current_tenemos, min_value=0, step=1)
+                    new_tenemos = st.number_input(
+                        "📦 Current",
+                        value=current_tenemos,
+                        min_value=0,
+                        step=1,
+                        key=f"edit_tenemos_{idx}",
+                    )
 
                     current_buscador = filtered_df.at[idx, COLUMNS["buscador"]]
                     new_buscador = st.text_input(
                         "🔗 URL",
                         value=current_buscador if pd.notna(current_buscador) else "",
+                        key=f"edit_buscador_{idx}",
                     )
 
                 col_btn1, col_btn2 = st.columns(2)

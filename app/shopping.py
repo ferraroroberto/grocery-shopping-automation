@@ -313,9 +313,21 @@ def main(df: pd.DataFrame) -> None:
             with st.form(key=f"qa_form_{supermarket}", clear_on_submit=True):
                 qa1, qa2, qa3 = st.columns([5, 1, 2])
                 with qa1:
-                    new_name = st.text_input("Item", placeholder="Item name…", label_visibility="collapsed")
+                    new_name = st.text_input(
+                        "Item",
+                        placeholder="Item name…",
+                        label_visibility="collapsed",
+                        key=f"qa_item_{supermarket}",
+                    )
                 with qa2:
-                    new_qty = st.number_input("Qty", value=1, min_value=1, step=1, label_visibility="collapsed")
+                    new_qty = st.number_input(
+                        "Qty",
+                        value=1,
+                        min_value=1,
+                        step=1,
+                        label_visibility="collapsed",
+                        key=f"qa_qty_{supermarket}",
+                    )
                 with qa3:
                     if st.form_submit_button("➕ Add", width="stretch"):
                         if new_name.strip():
