@@ -378,7 +378,7 @@ def version() -> JSONResponse:
 
 @app.get("/manifest.json", include_in_schema=False)
 def manifest() -> JSONResponse:
-    """Return the install metadata without adding another static file yet."""
+    """Return install metadata for the generated fleet-standard icon family."""
     return JSONResponse(
         {
             "name": CONFIG["app"]["title"],
@@ -391,27 +391,26 @@ def manifest() -> JSONResponse:
             "theme_color": "#ffffff",
             "icons": [
                 {
-                    "src": "/app-icon.svg",
-                    "sizes": "any",
-                    "type": "image/svg+xml",
-                    "purpose": "any maskable",
-                }
+                    "src": "/static/icon-192.png",
+                    "sizes": "192x192",
+                    "type": "image/png",
+                    "purpose": "any",
+                },
+                {
+                    "src": "/static/icon-512.png",
+                    "sizes": "512x512",
+                    "type": "image/png",
+                    "purpose": "any",
+                },
+                {
+                    "src": "/static/icon-512-maskable.png",
+                    "sizes": "512x512",
+                    "type": "image/png",
+                    "purpose": "maskable",
+                },
             ],
         }
     )
-
-
-@app.get("/app-icon.svg", include_in_schema=False)
-def app_icon() -> Response:
-    """Small generated PWA icon for install previews."""
-    svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-<rect width="128" height="128" rx="24" fill="#0f766e"/>
-<path d="M35 42h65l-9 39H46z" fill="#f8fafc"/>
-<path d="M28 32h14l6 49" fill="none" stroke="#f8fafc" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-<circle cx="52" cy="98" r="8" fill="#f8fafc"/>
-<circle cx="86" cy="98" r="8" fill="#f8fafc"/>
-</svg>"""
-    return Response(content=svg, media_type="image/svg+xml")
 
 
 @app.post("/api/login")

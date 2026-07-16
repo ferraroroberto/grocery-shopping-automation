@@ -32,10 +32,23 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 def _build_icon():
-    """Lazy import pystray + Pillow so plain CLI use doesn't drag them in."""
+    """Load the generated Grocery icon with defensive fallbacks."""
     from PIL import Image
-    # No dedicated tray asset ships in this repo yet — fall back straight to
-    # the app's brand color (matches the generated /app-icon.svg teal).
+
+    candidates = (
+        PROJECT_ROOT / "assets" / "tray" / "grocery-shopping-automation.ico",
+        PROJECT_ROOT / "app" / "static" / "icon-512.png",
+    )
+    for path in candidates:
+        if not path.exists():
+            continue
+        try:
+            with Image.open(path) as image:
+                return image.convert("RGBA")
+        except OSError as exc:
+            logger.warning("⚠️ Could not load tray icon %s: %s", path, exc)
+
+    logger.warning("⚠️ Generated Grocery icons are unavailable; using solid fallback")
     return Image.new("RGB", (32, 32), (15, 118, 110))
 
 

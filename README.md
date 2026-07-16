@@ -30,7 +30,8 @@ Comprehensive household inventory management across multiple operational modes. 
   - `webapp_config.py` — remote-access (token/password) config loader.
   - `config.example.json` — committed template; copied to `src/config.json` (gitignored) on first run.
 - **`automation/`** — Playwright + real-Chrome browser cart automation (see `automation/README.md`).
-- **`scripts/`** — `gen_token.py`, `set_password.py` (remote auth), `run_named_tunnel.py` (Cloudflare).
+- **`scripts/`** — `gen_token.py`, `set_password.py` (remote auth), `run_named_tunnel.py` (Cloudflare), `gen_icons.py` (canonical PWA/tray/Stream Deck icon generation).
+- **`assets/`** — generated external application surfaces: `tray/grocery-shopping-automation.ico` and `stream-deck/grocery-shopping-automation-144.png`.
 - **`webapp/`** — `cloudflared.sample.yml` and the gitignored `certificates/`.
 - **`config/`** — `webapp_config.sample.json` template.
 - **`data/`** — `list.example.xlsx` sample inventory.
@@ -66,6 +67,16 @@ webapp.bat
 The FastAPI app on `:8502` covers the inventory dashboard, audit, target editing, item editing, item creation, shopping mode, automation controls, and the audio-audit workflow against the Excel-backed `src/data.py` layer. Open `http://127.0.0.1:8502` when no local cert exists, or `https://127.0.0.1:8502` after running `& .\.venv\Scripts\python.exe src\gen_ssl_cert.py`. Either launcher binds to `0.0.0.0`, so the same port is reachable over LAN or Tailscale from devices that can reach this PC.
 
 The PWA follows the fleet design system (`~/.claude/design.md` + `design.dark.md`): a floating bottom-tab pill on the phone (inline top tabs on desktop) with seven tabs — **Inventory · Shopping · Audit · Items · Search · Auto · Settings** (Audio Audit lives as a sub-pill under Audit; Targets / Edit Item / Add Item under Items) — vendored fleet components under `app/static/_vendored/`, and a light/dark **theme toggle in the top bar** (moon/sun icon) that remembers your choice. The utility actions (Open Spreadsheet, Copy Link, Export CSV, Close App) live in the ⚙️ **Settings tab**; heavy cards (the dashboard item list, the per-store shopping panels, the audio zone checklist) are collapsible and folded by default; the search box appears only on the modes that filter the item list. A footer line shows the running build (`Build: <git sha> · <time>`, from `/api/version`) so you always know which deploy the app is serving, and the shell auto-reloads once when it detects a newer build.
+
+### Regenerate application icons
+
+All external icon surfaces derive from the canonical Lucide `shopping-basket` master in the sibling `project-scaffolding` repository. The generated files are committed and used by the PWA, Windows tray, shortcuts, and Stream Deck:
+
+```powershell
+& .\.venv\Scripts\python.exe scripts\gen_icons.py
+```
+
+The command writes the PWA files under `app/static/`, `assets/tray/grocery-shopping-automation.ico`, and `assets/stream-deck/grocery-shopping-automation-144.png`. Set `PROJECT_SCAFFOLDING_ROOT` if the sibling repository is checked out somewhere other than `E:\automation\project-scaffolding`.
 
 ### Legacy Streamlit app
 
