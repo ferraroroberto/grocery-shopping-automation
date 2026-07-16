@@ -8,7 +8,7 @@ import json
 
 import pytest
 
-import app.api as api
+import app.routers.product_search as search_api
 from src.voice_command import VoiceItem, VoiceParseResult
 
 
@@ -25,14 +25,14 @@ class FakeProc:
 
 @pytest.fixture(autouse=True)
 def _clear_search_run():
-    api._SEARCH_RUN.clear()
+    search_api._SEARCH_RUN.clear()
     yield
-    api._SEARCH_RUN.clear()
+    search_api._SEARCH_RUN.clear()
 
 
 def test_start_parses_utterance_and_launches(client, monkeypatch):
     monkeypatch.setattr(
-        api, "parse_voice_items",
+        search_api, "parse_voice_items",
         lambda *a, **k: VoiceParseResult(items=[VoiceItem(idx=None, name="sandia", qty=None)]),
     )
     seen = {}
@@ -41,7 +41,7 @@ def test_start_parses_utterance_and_launches(client, monkeypatch):
         seen["terms"] = terms
         return FakeProc(alive=True), [], None
 
-    monkeypatch.setattr(api.product_search_runner, "start", fake_start)
+    monkeypatch.setattr(search_api.product_search_runner, "start", fake_start)
     resp = client.post("/api/product-search/start", json={"text": "añade sandia"})
     assert resp.status_code == 200
     body = resp.json()
@@ -55,12 +55,12 @@ def test_start_rejects_empty_text(client):
 
 
 def test_start_conflicts_when_already_running(client):
-    api._SEARCH_RUN.update({"id": "x", "process": FakeProc(alive=True)})
+    search_api._SEARCH_RUN.update({"id": "x", "process": FakeProc(alive=True)})
     assert client.post("/api/product-search/start", json={"text": "sandia"}).status_code == 409
 
 
 def test_status_done_merges_results(client):
-    api._SEARCH_RUN.update({
+    search_api._SEARCH_RUN.update({
         "id": "r1",
         "process": FakeProc(alive=False, returncode=0),
         "chunks": [

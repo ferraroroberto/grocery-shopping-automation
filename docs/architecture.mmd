@@ -8,22 +8,36 @@
 
 flowchart TB
   subgraph frontend["Primary surface — FastAPI + vanilla-JS PWA (:8502)"]
-    STATIC["app/static/\nindex.html · app.js · styles.css · generated PWA icons\n_vendored/ (fleet nav, icons, card, disclosure, modal, switch, empty-state)"]
-    API["app/api.py\nroutes: inventory, items, export, automation, version,\naudio/* (session, chunk, events, finish, retranscribe, match, apply),\nemail-monitor/* (status, config, check), voice/command (HA Voice PE bridge),\nproduct-search/* (transcribe, start, status, cancel, select)"]
+    STATIC["app/static/\nindex.html · styles.css · generated PWA icons\n_vendored/ (fleet nav, icons, card, disclosure, modal, switch, empty-state)"]
+    APPJS["app/static/app.js\norchestrator: render() mode routing, delegated listeners, boot"]
+    JSMODULES["app/static/modules/ (ES modules, no bundler)\ncore (state + render mediator) · dom · media · api\ninventory · shopping · automation · email · audio · search"]
+    API["app/api.py\ncomposition root: lifespan, middleware, static mount, router includes"]
+    ROUTERS["app/routers/ — one APIRouter per concern\nsystem (shell, version, manifest, login, access, actions)\ninventory · automation · product_search · audio · voice · email"]
+    APICOMMON["app/api_common.py\ndata-layer → HTTP translation (lock/file errors → status codes),\ninventory payload builder shared by every router"]
+    AUDIOHUB["app/audio_hub.py\nvoice-transcriber session proxy + whisper transcode/transcribe"]
+    STATICFILES["app/static_files.py\nCachingStaticFiles (per-suffix cache policy, JS import stamping) + BUILD_INFO"]
     MW["app/middleware.py\nBearerTokenMiddleware"]
     RUNNER["app/automation_runner.py\nstreams automation.run_automation subprocess into the app"]
     PSRUNNER["app/product_search_runner.py\nspawns automation.product_search, captures its JSON stdout"]
     SUBPROC["app/subprocess_plumbing.py\nshared spawn/drain/stop plumbing (#95)"]
     POLLER["app/email_poller.py\nbackground confirmation-email poll loop + check log"]
-    VERSIONING["src/static_versioning.py\nCachingStaticFiles: JS import hash-stamping, build identity"]
-    STATIC --> API
+    VERSIONING["src/static_versioning.py\nBuildInfo: fleet asset hash, JS/HTML import stamping, git SHA"]
+    APPJS --> JSMODULES
+    STATIC --> APPJS
+    APPJS --> API
+    JSMODULES --> API
     MW --> API
-    API --> RUNNER
-    API --> PSRUNNER
+    API --> ROUTERS
+    API --> STATICFILES
+    STATICFILES --> VERSIONING
+    ROUTERS --> APICOMMON
+    ROUTERS --> AUDIOHUB
+    AUDIOHUB --> APICOMMON
+    ROUTERS --> RUNNER
+    ROUTERS --> PSRUNNER
     RUNNER --> SUBPROC
     PSRUNNER --> SUBPROC
-    API --> POLLER
-    API --> VERSIONING
+    ROUTERS --> POLLER
   end
 
   subgraph legacy["Legacy surface — Streamlit (:8501)"]
@@ -49,16 +63,17 @@ flowchart TB
     NOTIFYCFG["src/notify_config.py + src/notify/\nvendored Telegram notifier (from whatsapp-radar)"]
     SSL["src/gen_ssl_cert.py\nlocal CA + server cert"]
   end
-  API --> DATA
-  API --> AUDIOCORE
-  API --> EXTRACT
-  API --> VOICECMD
+  APICOMMON --> DATA
+  ROUTERS --> DATA
+  ROUTERS --> AUDIOCORE
+  ROUTERS --> EXTRACT
+  ROUTERS --> VOICECMD
   EXTRACT --> HUBCLIENT
   VOICECMD --> HUBCLIENT
   VOICECMD --> DATA
-  API --> TRANSCRIBE
-  API --> NET
-  API --> WEBCFG
+  AUDIOHUB --> TRANSCRIBE
+  ROUTERS --> NET
+  ROUTERS --> WEBCFG
   MODES --> DATA
   MODES --> AUDIOCORE
   MODES --> EXTRACT
@@ -113,7 +128,7 @@ flowchart TB
   end
   HUBCLIENT -->|Anthropic SDK, base_url| HUB
   TRANSCRIBE -->|POST /v1/audio/transcriptions| WHISPER
-  API -->|proxies recording lifecycle| VOICET
+  AUDIOHUB -->|proxies recording lifecycle| VOICET
   BROWSER --> CHROME
   API -.->|optional public access| CLOUDFLARE
   GMAILCFG -->|gmail_readonly client| GMAILAPI
@@ -135,6 +150,7 @@ flowchart TB
     TESTFILES["test_api.py · test_e2e_pwa.py (Playwright e2e) ·\ntest_inventory_extract.py · test_transcribe_client.py ·\ntest_audio_audit_core.py · smoke_*.py · automation_smoke_*.py"]
   end
   TESTFILES --> API
+  TESTFILES --> ROUTERS
   TESTFILES --> DATA
   TESTFILES --> EXTRACT
   TESTFILES --> TRANSCRIBE

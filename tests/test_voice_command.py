@@ -11,7 +11,8 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-import app.api as api
+import app.api_common as api_common
+import app.routers.voice as voice_api
 from src.data import COLUMNS, SpreadsheetLockedError
 from src.voice_command import (
     SPEECH_BUSY,
@@ -179,7 +180,7 @@ def _item_by_name(client, name):
 def test_voice_add_bumps_existing_and_creates_new(client, monkeypatch):
     before = _item_by_name(client, "dorada")
     monkeypatch.setattr(
-        api,
+        voice_api,
         "parse_voice_items",
         _stub_parse(
             [VoiceItem(idx=before["id"], name="dorada", qty=2), VoiceItem(idx=None, name="aguacates", qty=None)]
@@ -200,7 +201,7 @@ def test_voice_add_bumps_existing_and_creates_new(client, monkeypatch):
 def test_voice_target_sets_value(client, monkeypatch):
     row = _item_by_name(client, "hielo")
     monkeypatch.setattr(
-        api, "parse_voice_items", _stub_parse([VoiceItem(idx=row["id"], name="hielo", qty=3)])
+        voice_api, "parse_voice_items", _stub_parse([VoiceItem(idx=row["id"], name="hielo", qty=3)])
     )
     resp = client.post("/api/voice/command", json={"intent": "target", "text": "pon el hielo a tres"})
     assert resp.status_code == 200
@@ -211,7 +212,7 @@ def test_voice_target_sets_value(client, monkeypatch):
 def test_voice_stock_sets_value(client, monkeypatch):
     row = _item_by_name(client, "nuggets")
     monkeypatch.setattr(
-        api, "parse_voice_items", _stub_parse([VoiceItem(idx=row["id"], name="nuggets", qty=0)])
+        voice_api, "parse_voice_items", _stub_parse([VoiceItem(idx=row["id"], name="nuggets", qty=0)])
     )
     resp = client.post("/api/voice/command", json={"intent": "stock", "text": "no quedan nuggets"})
     assert resp.status_code == 200
@@ -222,12 +223,12 @@ def test_voice_stock_sets_value(client, monkeypatch):
 
 
 def test_voice_query_needs_no_llm(client, monkeypatch):
-    monkeypatch.setattr(api, "parse_voice_items", _stub_parse([]))  # must not be called
+    monkeypatch.setattr(voice_api, "parse_voice_items", _stub_parse([]))  # must not be called
 
     def boom(*args, **kwargs):
         raise AssertionError("query must not call the LLM")
 
-    monkeypatch.setattr(api, "parse_voice_items", boom)
+    monkeypatch.setattr(voice_api, "parse_voice_items", boom)
     resp = client.post("/api/voice/command", json={"intent": "query"})
     assert resp.status_code == 200
     assert "cosas por comprar" in resp.json()["speech"]
@@ -242,7 +243,7 @@ def test_voice_locked_spreadsheet_speaks_busy(client, monkeypatch):
     def locked():
         raise SpreadsheetLockedError("locked")
 
-    monkeypatch.setattr(api, "load_inventory_data", locked)
+    monkeypatch.setattr(api_common, "load_inventory_data", locked)
     resp = client.post("/api/voice/command", json={"intent": "query"})
     assert resp.status_code == 200
     assert resp.json()["speech"] == SPEECH_BUSY
