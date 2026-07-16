@@ -10,7 +10,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
 _AUTH_EXEMPT_PREFIXES = ("/static/",)
 _AUTH_EXEMPT_EXACT = frozenset(
-    {"/", "/manifest.json", "/app-icon.svg", "/healthz", "/api/health", "/api/login"}
+    {"/", "/manifest.json", "/healthz", "/api/health", "/api/login"}
 )
 
 # Cloudflare's edge stamps these on every request it proxies through a
