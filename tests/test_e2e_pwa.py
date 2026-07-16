@@ -17,7 +17,7 @@ from types import SimpleNamespace
 
 import pytest
 
-import app.api as api
+import app.routers.audio as audio_router
 import src.data as data
 from app.api import app
 from src.inventory_extract import ExtractionResult
@@ -84,12 +84,12 @@ def server(tmp_path_factory):
     orig = (
         data.CONFIG["data"]["xlsx_file"],
         data.CONFIG["audio_audit"]["logs_dir"],
-        api.extract,
+        audio_router.extract,
     )
     data.CONFIG["data"]["xlsx_file"] = str(xlsx)
     data.CONFIG["audio_audit"]["logs_dir"] = str(logs_dir)
     if not LIVE:
-        api.extract = _stub_extract
+        audio_router.extract = _stub_extract
 
     cfg = app.state.webapp_config
     orig_auth = (cfg.auth_token, cfg.auth_password)
@@ -108,7 +108,7 @@ def server(tmp_path_factory):
     finally:
         srv.should_exit = True
         thread.join(timeout=5)
-        data.CONFIG["data"]["xlsx_file"], data.CONFIG["audio_audit"]["logs_dir"], api.extract = orig
+        data.CONFIG["data"]["xlsx_file"], data.CONFIG["audio_audit"]["logs_dir"], audio_router.extract = orig
         cfg.auth_token, cfg.auth_password = orig_auth
 
 
