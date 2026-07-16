@@ -16,6 +16,7 @@ from __future__ import annotations
 import difflib
 import json
 import logging
+import os
 import re
 import unicodedata
 from dataclasses import dataclass, field
@@ -95,8 +96,17 @@ def _load_processed_state(path: Path) -> dict[str, str]:
 
 
 def _write_processed_state(path: Path, state: dict[str, str]) -> None:
+    """Persist the processed-message state, atomically (tmp file + os.replace).
+
+    Mirrors the sibling JSON-state writers in this subtree
+    (`src/gmail_config.py:save_gmail_monitor_config`,
+    `src/webapp_config.py:save_webapp_config`) so a crash mid-write can never
+    leave `gmail_processed_state.json` truncated or corrupt.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(tmp, path)
 
 
 def has_problem(match: MatchResult) -> bool:
