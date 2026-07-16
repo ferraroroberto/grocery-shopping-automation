@@ -3,7 +3,7 @@
 import pandas as pd
 import pytest
 
-import src.inventory_extract as ie
+import src.hub_client as hub_client
 from src.inventory_extract import ExtractionError, _parse_strict_json, extract
 
 
@@ -53,7 +53,7 @@ def test_extract_validates_idx_and_clamps_negative(monkeypatch):
         def create(self, *a, **k):
             return _FakeMessage(payload)
 
-    monkeypatch.setattr(ie, "Anthropic", _FakeClient)
+    monkeypatch.setattr(hub_client, "Anthropic", _FakeClient)
     result = extract("tres yogures", df, base_url="http://x", model="gemini_pro")
 
     idxs = {it["idx"]: it for it in result.items}

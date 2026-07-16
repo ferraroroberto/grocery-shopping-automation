@@ -192,6 +192,7 @@ def test_index_shell_is_no_cache_and_hash_stamped(client):
     carry the build content hash so iOS Safari can't serve a stale module."""
     resp = client.get("/")
     assert resp.status_code == 200
+    assert "Inventory Helper" in resp.text
     assert "no-cache" in resp.headers.get("cache-control", "")
     # Every asset URL is stamped with the fleet hash at serve time —
     # app.js and the vendored component CSS alike.
@@ -263,3 +264,113 @@ def test_tunnel_traffic_still_requires_token_despite_loopback_client(temp_env):
             assert genuine_loopback.status_code == 200
     finally:
         cfg.auth_token = orig_token
+
+
+# --------------------------------------------------------------------------- #
+# Routes formerly only exercised by the standalone tests/smoke_fastapi_pwa.py
+# script (issue #95: folded into pytest so they share the client/temp_env
+# fixtures instead of hand-rolling their own config-swap dance).
+# --------------------------------------------------------------------------- #
+def test_manifest_route(client):
+    resp = client.get("/manifest.json")
+    assert resp.status_code == 200
+    assert resp.json()["display"] == "standalone"
+
+
+def test_access_metadata_route(client):
+    body = client.get("/api/access").json()
+    assert body["local"].startswith("http")
+    assert body["lan"].startswith("http")
+
+
+def test_csv_export_route(client):
+    payload = client.get("/api/inventory").json()
+    resp = client.get("/api/export.csv")
+    assert resp.status_code == 200
+    assert "text/csv" in resp.headers["content-type"]
+    assert payload["columns"]["comida"] in resp.text
+
+
+def test_item_quantity_delta_and_set_routes(client):
+    payload = client.get("/api/inventory").json()
+    cols = payload["columns"]
+    first = payload["items"][0]
+    item_id = first["id"]
+
+    current_delta = client.post(f"/api/items/{item_id}/current-delta", json={"delta": 1})
+    assert current_delta.status_code == 200
+    changed = next(item for item in current_delta.json()["items"] if item["id"] == item_id)
+    assert changed[cols["tenemos"]] == first[cols["tenemos"]] + 1
+
+    target_delta = client.post(f"/api/items/{item_id}/target-delta", json={"delta": 1})
+    assert target_delta.status_code == 200
+    changed = next(item for item in target_delta.json()["items"] if item["id"] == item_id)
+    assert changed[cols["cantidad"]] == first[cols["cantidad"]] + 1
+
+    set_current = client.post(f"/api/items/{item_id}/current", json={"value": 0})
+    assert set_current.status_code == 200
+    changed = next(item for item in set_current.json()["items"] if item["id"] == item_id)
+    assert changed[cols["tenemos"]] == 0
+
+
+def test_item_edit_route(client):
+    payload = client.get("/api/inventory").json()
+    cols = payload["columns"]
+    first = payload["items"][0]
+    item_id = first["id"]
+    edited_payload = {
+        "super": first[cols["super"]],
+        "lugar": first[cols["lugar"]],
+        "comida": f"{first[cols['comida']]} smoke",
+        "cantidad": first[cols["cantidad"]],
+        "tenemos": first[cols["tenemos"]],
+        "buscador": first[cols["buscador"]] or "",
+    }
+    resp = client.put(f"/api/items/{item_id}", json=edited_payload)
+    assert resp.status_code == 200
+    changed = next(item for item in resp.json()["items"] if item["id"] == item_id)
+    assert changed[cols["comida"]].endswith(" smoke")
+
+
+def test_item_add_and_delete_routes(client):
+    payload = client.get("/api/inventory").json()
+    cols = payload["columns"]
+    first = payload["items"][0]
+    new_payload = {
+        "super": first[cols["super"]],
+        "lugar": first[cols["lugar"]],
+        "comida": "smoke test item",
+        "cantidad": 2,
+        "tenemos": 1,
+        "buscador": "smoke test search",
+    }
+    added = client.post("/api/items", json=new_payload)
+    assert added.status_code == 200
+    added_item = next(item for item in added.json()["items"] if item[cols["comida"]] == "smoke test item")
+    deleted = client.delete(f"/api/items/{added_item['id']}")
+    assert deleted.status_code == 200
+    assert all(item[cols["comida"]] != "smoke test item" for item in deleted.json()["items"])
+
+
+def test_automation_status_route(client):
+    resp = client.get("/api/automation/status")
+    assert resp.status_code == 200
+    assert resp.json()["running"] is False
+
+
+def test_password_and_query_token_auth(client):
+    cfg = api.app.state.webapp_config
+    orig_token, orig_password = cfg.auth_token, cfg.auth_password
+    cfg.auth_token = "test-token"
+    cfg.auth_password = "test-password"
+    try:
+        locked = client.get("/api/inventory")
+        assert locked.status_code == 401
+        query_auth = client.get("/api/inventory?token=test-token")
+        assert query_auth.status_code == 200
+        login = client.post("/api/login", json={"password": "test-password"})
+        assert login.status_code == 200
+        assert login.json() == {"token": "test-token"}
+    finally:
+        cfg.auth_token = orig_token
+        cfg.auth_password = orig_password
