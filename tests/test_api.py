@@ -274,7 +274,41 @@ def test_tunnel_traffic_still_requires_token_despite_loopback_client(temp_env):
 def test_manifest_route(client):
     resp = client.get("/manifest.json")
     assert resp.status_code == 200
-    assert resp.json()["display"] == "standalone"
+    body = resp.json()
+    assert body["display"] == "standalone"
+    assert body["icons"] == [
+        {
+            "src": "/static/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any",
+        },
+        {
+            "src": "/static/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any",
+        },
+        {
+            "src": "/static/icon-512-maskable.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable",
+        },
+    ]
+
+
+def test_index_references_generated_icon_family(client):
+    resp = client.get("/")
+    assert resp.status_code == 200
+    assert 'rel="apple-touch-icon" href="/static/icon-180.png' in resp.text
+    assert 'rel="icon" href="/static/favicon.ico" sizes="any"' in resp.text
+    assert 'rel="icon" type="image/png" href="/static/icon-512.png"' in resp.text
+    assert 'rel="manifest" href="/manifest.json"' in resp.text
+
+
+def test_legacy_app_icon_route_is_removed(client):
+    assert client.get("/app-icon.svg").status_code == 404
 
 
 def test_access_metadata_route(client):
