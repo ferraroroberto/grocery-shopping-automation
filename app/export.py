@@ -17,7 +17,7 @@ def main(df: pd.DataFrame) -> None:
     col1, col2 = st.columns(2)
 
     with col1:
-        if st.button("💾 Save to File", type="primary", width="stretch"):
+        if st.button("💾 Save to File", type="primary", width="stretch", key="export_save_btn"):
             try:
                 save_inventory_data(df)
             except (SpreadsheetLockedError, InventoryFileError) as e:
@@ -32,6 +32,7 @@ def main(df: pd.DataFrame) -> None:
             "inventory_updated.csv",
             "text/csv",
             width="stretch",
+            key="export_download_csv_btn",
         )
 
     st.subheader("📊 Summary")
