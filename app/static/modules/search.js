@@ -138,7 +138,7 @@ function candidateRow(cand, item) {
       <a class="icon-btn hit-target" href="${html(cand.product_url)}" target="_blank" rel="noopener" aria-label="Ver producto" title="Ver">
         <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-external-link"></use></svg>
       </a>
-      <button class="secondary candidate-use" type="button" data-action="search-use" aria-expanded="${open}"${done ? " disabled" : ""}>${done ? "Añadido ✓" : "Usar"}</button>
+      <button class="secondary candidate-use" type="button" data-action="search-use" aria-expanded="${open}"${done ? " disabled" : ""}>${done ? `Añadido <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-check"></use></svg>` : "Usar"}</button>
     </div>
     ${open ? candidateConfirmPanel() : ""}
   </article>`;
