@@ -4,6 +4,7 @@ import logging
 import os
 import platform
 import subprocess
+import sys
 from pathlib import Path
 
 import streamlit as st
@@ -131,7 +132,11 @@ def buy_html(qty: int) -> str:
 
 def copy_to_clipboard(text: str) -> None:
     """Copy text to Windows clipboard via clip.exe."""
-    subprocess.Popen(["clip"], stdin=subprocess.PIPE).communicate(input=text.encode("utf-8"))
+    subprocess.Popen(
+        ["clip"],
+        stdin=subprocess.PIPE,
+        creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+    ).communicate(input=text.encode("utf-8"))
 
 
 def open_inventory_spreadsheet() -> None:

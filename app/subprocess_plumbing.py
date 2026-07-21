@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 import threading
 from typing import Callable
 
@@ -53,6 +54,7 @@ def spawn_and_drain(
         errors="replace",
         bufsize=bufsize,
         env=child_env,
+        creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
     )
 
     def _drain() -> None:
