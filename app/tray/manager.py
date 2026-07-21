@@ -90,6 +90,7 @@ def _renew_tailscale_cert() -> None:
             capture_output=True,
             text=True,
             timeout=60,
+            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
         )
     except (OSError, subprocess.SubprocessError) as exc:
         logger.warning(f"⚠️  Tailscale cert renew check failed: {exc}")
