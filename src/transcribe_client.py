@@ -1,7 +1,11 @@
-"""Whisper client — POSTs audio to the local whisper-server (claude-local-calls).
+"""Audio transcription client — POSTs audio to an OpenAI-shaped endpoint.
 
-The whisper-server is OpenAI-compatible. The hub at :8000 does NOT proxy audio
-endpoints; clients must hit :8090 directly. See claude-local-calls/README.md.
+Production transcription goes through the local-llm-hub on `:8000`: with no
+`model` field, the hub applies its `roles.audio.transcribe` chain (parakeet
+primary + whisper failover) and records the request in its observability ring.
+Pass a concrete `model` to target one model directly (what the audio-audit
+diagnostic does against whisper-server on `:8090`). Both speak the same
+OpenAI `/v1/audio/transcriptions` shape.
 """
 
 import logging
@@ -62,7 +66,7 @@ def transcribe(
     audio_bytes: bytes,
     *,
     whisper_url: str,
-    model: str,
+    model: Optional[str] = None,
     language: Optional[str] = "es",
     filename: str = "audio.wav",
     mime: str = "audio/wav",
@@ -70,24 +74,29 @@ def transcribe(
     temperature: float = 0.0,
     prompt: Optional[str] = None,
 ) -> str:
-    """Transcribe audio via the local whisper-server.
+    """Transcribe audio via an OpenAI-shaped `/v1/audio/transcriptions` endpoint.
 
+    Omit ``model`` (the default) to address the hub's transcribe **role**
+    (parakeet + whisper failover); pass a concrete id to target one model.
     Returns the plain text transcript. Raises TranscriptionError on failure.
     """
     endpoint = whisper_url.rstrip("/") + "/v1/audio/transcriptions"
     files = {"file": (filename, audio_bytes, mime)}
     data = {
-        "model": model,
         "response_format": "json",
         "temperature": str(temperature),
     }
+    # Only send `model` when explicitly targeting one — an absent model lets the
+    # hub apply its role chain rather than pinning a single backend.
+    if model:
+        data["model"] = model
     if language:
         data["language"] = language
     if prompt:
         data["prompt"] = prompt
 
     logger.info(
-        f"📡 POST {endpoint} (bytes={len(audio_bytes)}, model={model}, "
+        f"📡 POST {endpoint} (bytes={len(audio_bytes)}, model={model or 'role'}, "
         f"lang={language}, temp={temperature}, prompt={'yes' if prompt else 'no'})"
     )
     try:
