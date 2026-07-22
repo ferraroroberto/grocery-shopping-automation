@@ -56,7 +56,7 @@ flowchart TB
     VOICECMD["src/voice_command.py\nSpanish voice-command parse (LLM) +\napply + speech replies (home-automation#315)"]
     HUBCLIENT["src/hub_client.py\nshared call_hub_llm() helper (#95)"]
     PRODMATCH["src/product_match.py\nranks store search hits vs the spoken term (display aid, #87)"]
-    TRANSCRIBE["src/transcribe_client.py\nwhisper-server client + ffmpeg transcode"]
+    TRANSCRIBE["src/transcribe_client.py\nhub transcribe-role client (audit → whisper) + ffmpeg transcode"]
     NET["src/net.py\nLAN-IP / port-probe helpers"]
     WEBCFG["src/webapp_config.py\ntoken/password remote-access config"]
     GMAILCFG["src/gmail_config.py\nsender whitelist + store mapping + poller settings"]
@@ -117,7 +117,7 @@ flowchart TB
   READER --> XLSX
 
   subgraph external["External dependencies (sibling projects, same machine)"]
-    HUB["claude-local-calls hub\n127.0.0.1:8000 — Anthropic-shape LLM proxy"]
+    HUB["claude-local-calls hub\n127.0.0.1:8000 — LLM proxy + audio transcribe role\n(parakeet + whisper failover)"]
     WHISPER["whisper-server\n127.0.0.1:8090 — OpenAI-compatible transcription"]
     VOICET["voice-transcriber webapp\n127.0.0.1:8443 — chunked recording/session API"]
     CHROME["Real installed Chrome\n(not bundled Chromium)"]
@@ -127,7 +127,8 @@ flowchart TB
     SCAFFOLD["project-scaffolding\nLucide master + brand_gen icon renderer"]
   end
   HUBCLIENT -->|Anthropic SDK, base_url| HUB
-  TRANSCRIBE -->|POST /v1/audio/transcriptions| WHISPER
+  TRANSCRIBE -->|POST /v1/audio/transcriptions :8000, role| HUB
+  TRANSCRIBE -.->|audio-audit diagnostic, concrete model :8090| WHISPER
   AUDIOHUB -->|proxies recording lifecycle| VOICET
   BROWSER --> CHROME
   API -.->|optional public access| CLOUDFLARE
