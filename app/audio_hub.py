@@ -11,8 +11,8 @@ Two things live here, both shared by more than one router:
   bypasses loopback callers, so no token is needed; verify=False because it
   serves a self-signed cert. The phone only ever talks to grocery's own origin
   — no CORS, no second tunnel.
-* **one-shot transcription** via the whisper hub, used by both the audio-audit
-  and product-search routers.
+* **one-shot transcription** via the local-llm-hub's transcribe role (parakeet
+  + whisper failover), used by the audio-transcribe and product-search routers.
 """
 
 import logging
@@ -65,7 +65,7 @@ async def vt_request(method: str, path: str, **kwargs: Any) -> httpx.Response:
 
 
 async def transcode_and_transcribe(file: UploadFile, *, prompt: str | None = None) -> str:
-    """Read `file`, transcode to WAV, and transcribe it via the whisper hub.
+    """Read `file`, transcode to WAV, and transcribe it via the hub transcribe role.
 
     Shared by ``/api/product-search/transcribe`` and ``/api/audio/transcribe``
     (issue #95): both read the upload, transcode with an ffmpeg-missing
@@ -95,8 +95,9 @@ async def transcode_and_transcribe(file: UploadFile, *, prompt: str | None = Non
     try:
         return transcribe(
             audio_bytes,
-            whisper_url=cfg["whisper_url"],
-            model=cfg["whisper_model"],
+            whisper_url=cfg.get("transcribe_url", "http://127.0.0.1:8000"),
+            # No model → the hub applies roles.audio.transcribe (parakeet primary
+            # + whisper failover) rather than pinning a single backend.
             # Force Spanish: with no language, whisper-large-v3-turbo sometimes
             # *translates* a Spanish clip to English. The stores are Spanish, so
             # we always want the Spanish term. (Same language the audio-audit uses.)
