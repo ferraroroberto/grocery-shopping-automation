@@ -20,14 +20,22 @@ shared Chrome profile (``automation/browser.py``):
 * **Ametller** — Salesforce Commerce Cloud's SCAPI Shopper Search
   ``product-search`` endpoint, riding the same SLAS token the basket code reads
   (:func:`automation.ametller._read_auth`). ``total == 0`` means the store
-  genuinely carries no match (e.g. it has no watermelon). Names come back in
-  **Catalan** ("Alvocat" for aguacate), but the store's own engine already
-  matched the Spanish query — so we **preserve its relevance order** rather than
-  re-ranking by string similarity, which would be wrong for Catalan. The
-  product URL is ``https://www.ametllerorigen.com/es/{slug}/{productId}.html``
-  where the slug is slugified from the (Catalan) name — the site 301-redirects
-  it to the canonical Spanish-slug URL. Do **not** pass ``locale`` to SCAPI
-  (``es-ES`` → 400 "Unsupported Locale"); omitting it works.
+  genuinely carries no match (e.g. it has no watermelon). We pass
+  ``locale=es`` (:data:`_AMETLLER_LOCALE`) so names come back in **Spanish**;
+  omitting it makes SCAPI fall back to the storefront default, which is Catalan
+  ("Alvocat" for aguacate). Only the *region-qualified* spellings are rejected —
+  ``es-ES`` → 400 "Unsupported Locale", ``es_ES`` → 400 "Malformed Locale" —
+  plain ``es`` works (verified live 2026-07-29, issue #111). The product URL is
+  ``https://www.ametllerorigen.com/es/{slug}/{productId}.html`` where the slug
+  is slugified from that Spanish name, so it matches the site's own canonical
+  URL rather than relying on a redirect.
+
+  We still **preserve the store's own relevance order** rather than re-ranking
+  by :func:`src.product_match.score`. That ordering is the store's engine
+  matching the query against its full catalogue, which beats string similarity
+  against a name alone; the score is kept as a display aid. (Before #111 this
+  was additionally forced by the names being Catalan — that reason is gone, but
+  the ordering choice stands on its own merit.)
 """
 
 from __future__ import annotations
@@ -72,6 +80,12 @@ _AMETLLER_SEARCH = (
     f"{ametller._SCAPI_ORG}/product-search"
 )
 _AMETLLER_PRODUCT = "https://www.ametllerorigen.com/es/{slug}/{pid}.html"
+
+# SCAPI locale for Spanish product names. Plain ``es`` only — the
+# region-qualified spellings 400 (``es-ES`` "Unsupported Locale", ``es_ES``
+# "Malformed Locale"). Omitting it falls back to the storefront default
+# (Catalan). See the module docstring and issue #111.
+_AMETLLER_LOCALE = "es"
 
 # Loading the storefront search page authorises the SLAS token for the SCAPI
 # Shopper-Search scope — a direct call after only visiting the home page 401s
@@ -158,6 +172,9 @@ def search_ametller(page: Page, query: str, limit: int) -> list[Candidate]:
     is load-bearing: it authorises the SLAS token for the Shopper-Search scope,
     so the direct SCAPI call below returns 200 instead of a 401 (verified live
     2026-07-15 — home-only navigation 401s intermittently as the token ages).
+
+    ``locale=es`` is what makes the hit names Spanish rather than Catalan; see
+    :data:`_AMETLLER_LOCALE`.
     """
     goto_with_login_check(page, "ametller", f"{_AMETLLER_SEARCH_PAGE}?q={quote(query)}")
     time.sleep(_AMETLLER_SEARCH_SETTLE_S)  # let the search component prime the SCAPI session
@@ -166,7 +183,12 @@ def search_ametller(page: Page, query: str, limit: int) -> list[Candidate]:
         raise SessionExpiredError("ametller")
     resp = page.request.get(
         _AMETLLER_SEARCH,
-        params={"siteId": ametller._SCAPI_SITE, "q": query, "limit": limit},
+        params={
+            "siteId": ametller._SCAPI_SITE,
+            "q": query,
+            "limit": limit,
+            "locale": _AMETLLER_LOCALE,
+        },
         headers={"Authorization": f"Bearer {auth['token']}"},
         timeout=20000,
     )

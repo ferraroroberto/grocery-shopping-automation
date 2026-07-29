@@ -83,8 +83,9 @@ def test_search_ametller_parses_hits(monkeypatch):
         product_search.ametller, "_read_auth",
         lambda page: {"token": "tok", "customer_id": "c", "customer_type": "registered"},
     )
+    # Spanish name: the SCAPI call asks for locale=es (issue #111).
     hit = {
-        "productId": "14200", "productName": "Alvocat caixa 1kg",
+        "productId": "14200", "productName": "Aguacate caja 1kg",
         "price": 4.99, "image": {"disBaseLink": "http://img/a.jpg"},
     }
     page = FakePage(FakeResp({"hits": [hit], "total": 24}))
@@ -92,10 +93,23 @@ def test_search_ametller_parses_hits(monkeypatch):
     assert len(out) == 1
     c = out[0]
     assert c.store == "ametller"
-    assert c.product_url == "https://www.ametllerorigen.com/es/alvocat-caixa-1kg/14200.html"
+    assert c.product_url == "https://www.ametllerorigen.com/es/aguacate-caja-1kg/14200.html"
     assert c.price_text == "4,99 €"
     # the SCAPI call carries the bearer token
     assert page.request.calls[0]["headers"]["Authorization"] == "Bearer tok"
+
+
+def test_search_ametller_requests_spanish_locale(monkeypatch):
+    """SCAPI must be asked for ``locale=es`` — without it names come back in
+    Catalan ("Alvocat" for aguacate). Only the plain form is accepted; the
+    region-qualified ``es-ES`` / ``es_ES`` spellings 400. See issue #111."""
+    monkeypatch.setattr(
+        product_search.ametller, "_read_auth",
+        lambda page: {"token": "t", "customer_id": "c", "customer_type": "registered"},
+    )
+    page = FakePage(FakeResp({"hits": [], "total": 0}))
+    product_search.search_ametller(page, "aguacate", 8)
+    assert page.request.calls[0]["params"]["locale"] == "es"
 
 
 def test_search_ametller_no_match_returns_empty(monkeypatch):

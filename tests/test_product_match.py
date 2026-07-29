@@ -21,9 +21,12 @@ def test_score_unrelated_name_scores_weak():
     assert label(s) == "weak"
 
 
-def test_score_catalan_name_is_low_by_design():
-    # Ametller returns Catalan names; string similarity is unreliable there —
-    # this documents that the caller must not lean on the score for Ametller.
+def test_score_cross_language_name_is_low_by_design():
+    # The score is pure string similarity, so a correct hit in another language
+    # still scores low. Ametller is now queried with locale=es (issue #111) so
+    # this no longer describes its normal output — it documents the scorer's
+    # inherent limit, and why the caller keeps the store's own relevance order
+    # instead of re-sorting by this score.
     assert score("aguacate", "Alvocat caixa 1kg") < STRONG_MATCH
 
 
