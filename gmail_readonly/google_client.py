@@ -111,7 +111,10 @@ def build_google_read_client(
 
     credentials = credential_loader(str(token_path), [GMAIL_READONLY_SCOPE])
     if credentials.expired and credentials.refresh_token:
-        credentials.refresh(request_factory())
+        try:
+            credentials.refresh(request_factory())
+        except Exception as exc:  # e.g. google.auth.exceptions.RefreshError
+            raise RuntimeError(f"Gmail OAuth token refresh failed: {exc}") from exc
         write_token_atomically(token_path, credentials.to_json())
     if not credentials.valid:
         raise RuntimeError("Gmail OAuth token is invalid or has been revoked")

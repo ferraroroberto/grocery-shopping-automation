@@ -141,6 +141,44 @@ def test_run_checks_logs_and_is_forceable(config_path, monkeypatch):
     assert email_poller._load_log()[-1]["outcome"] == entries[0]["outcome"]
 
 
+def test_run_checks_logs_distinct_entry_when_check_raises(config_path, monkeypatch):
+    """#109: a per-store failure (e.g. an unrefreshable Gmail token) must still
+    produce a log entry and advance `_last_run_at`, instead of aborting the
+    whole `run_checks` call before `_append_log` ever runs — the bug that made
+    both the "Check now" button 500 and the scheduled poll's log go silently
+    stale for 11 days."""
+
+    def fake_check(store, *, ignore_processed=False, notify_only_on_problem=False):
+        raise RuntimeError("Gmail connection failed: token refresh failed")
+
+    monkeypatch.setattr(email_poller, "check_latest_confirmation", fake_check)
+    entries = email_poller.run_checks(force=False, trigger="scheduled")
+    assert len(entries) == 1
+    assert entries[0]["ok"] is False
+    assert "Check errored" in entries[0]["outcome"]
+    # Distinct from "no new email" / a clean confirmation — never folded into
+    # a passing-looking state.
+    assert "No new email" not in entries[0]["outcome"]
+    assert email_poller._last_run_at is not None
+    assert email_poller._load_log()[-1]["outcome"] == entries[0]["outcome"]
+
+
+def test_api_check_returns_200_when_check_raises(client, config_path, monkeypatch):
+    """#109: the manual "Check now" endpoint must never 500 on a Gmail-side
+    failure — it should report the error inside the normal 200 response
+    shape the Auto tab already knows how to render."""
+
+    def fake_check(store, *, ignore_processed=False, notify_only_on_problem=False):
+        raise RuntimeError("invalid_grant: Token has been expired or revoked.")
+
+    monkeypatch.setattr(email_poller, "check_latest_confirmation", fake_check)
+    resp = client.post("/api/email-monitor/check", json={"force": False})
+    assert resp.status_code == 200
+    checks = resp.json()["checks"]
+    assert checks[0]["ok"] is False
+    assert "Check errored" in checks[0]["outcome"]
+
+
 def test_run_checks_without_enabled_senders(config_path, monkeypatch):
     email_poller.update_config(
         enabled=False, interval_minutes=60,

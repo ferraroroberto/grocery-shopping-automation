@@ -328,6 +328,36 @@ def test_token_absence_refresh_and_exact_scope(tmp_path: Path) -> None:
     assert not token_path.with_suffix(".json.tmp").exists()
 
 
+def test_refresh_failure_raises_runtime_error(tmp_path: Path) -> None:
+    """#109: an unrefreshable token (expired/revoked grant) must surface as a
+    RuntimeError — the type callers already translate into a safe status
+    reason — not the raw provider exception (e.g. RefreshError), which would
+    propagate uncaught all the way to an HTTP 500."""
+    token_path = tmp_path / "token.json"
+    token_path.write_text("{}", encoding="utf-8")
+
+    class _Credentials:
+        expired = True
+        refresh_token = "present"
+        valid = True
+
+        def refresh(self, request: object) -> None:
+            raise RuntimeError("invalid_grant: Token has been expired or revoked.")
+
+    def load_credentials(path: str, scopes: list[str]) -> _Credentials:
+        return _Credentials()
+
+    with pytest.raises(RuntimeError, match="Gmail OAuth token refresh failed"):
+        build_google_read_client(
+            token_path,
+            credential_loader=load_credentials,
+            request_factory=lambda: "request",
+            service_builder=lambda *args, **kwargs: None,
+        )
+    # A failed refresh must never overwrite the (still possibly valid) token file.
+    assert token_path.read_text(encoding="utf-8") == "{}"
+
+
 def test_oauth_uses_explicit_paths_readonly_scope_and_atomic_write(tmp_path: Path) -> None:
     credentials_path = tmp_path / "credentials.json"
     token_path = tmp_path / "auth" / "token.json"
