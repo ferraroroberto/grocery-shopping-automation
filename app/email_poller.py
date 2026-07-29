@@ -105,9 +105,28 @@ def run_checks(*, force: bool = False, trigger: str = "manual") -> list[dict[str
         for store in stores:
             # Scheduled/normal checks keep a clean order silent (issue #73);
             # a forced test run always sends, to prove the loop end to end.
-            result = check_latest_confirmation(
-                store, ignore_processed=force, notify_only_on_problem=not force
-            )
+            try:
+                result = check_latest_confirmation(
+                    store, ignore_processed=force, notify_only_on_problem=not force
+                )
+            except Exception as exc:
+                # A per-store failure (e.g. an unrefreshable Gmail token, #109)
+                # must still produce its own log entry — never silently drop
+                # out of the loop before _append_log/_last_run_at run below,
+                # or the Auto tab's log and next-check ETA go stale with no
+                # trace of what happened.
+                logger.exception("❌ Email check errored (%s, %s)", store, trigger)
+                entries.append(
+                    {
+                        "ts": now.isoformat(timespec="seconds"),
+                        "store": store,
+                        "trigger": trigger,
+                        "ok": False,
+                        "outcome": f"Check errored: {exc}",
+                        "notified": False,
+                    }
+                )
+                continue
             entries.append(
                 {
                     "ts": now.isoformat(timespec="seconds"),
