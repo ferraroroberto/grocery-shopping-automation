@@ -94,7 +94,7 @@ flowchart TB
     PURCHASELOG["purchase_log.py\nwrites per-store purchase_logs/ JSON after a live run"]
     EMAILCHECK["email_check.py\nconfirmation-email check seam:\nsubject similarity, processed-state idempotency"]
     EMAILPARSERS["email_parsers/ametller.py\ndeterministic per-store item-list parser"]
-    ITEMMATCH["item_matching.py\nalias/exact/fuzzy matching vs latest purchase log"]
+    ITEMMATCH["item_matching.py\nalias/exact/contains/fuzzy matching vs latest purchase log"]
     PRODSEARCH["product_search.py\nstore product search (Mercadona Algolia +\nAmetller SCAPI), reuses browser.py (#87)"]
     RUNAUTO --> STOREMODS
     STOREMODS --> BROWSER

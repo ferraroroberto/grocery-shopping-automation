@@ -8,6 +8,14 @@ correspondence table (`config/item_name_aliases.json`, keyed by store) is
 the primary match path; a fuzzy fallback only covers minor future drift in
 an *already-aliased* website name (e.g. a wording or emoji tweak), not the
 first-time internal-name gap, per issue #72.
+
+Between those two sits a containment tier (issue #116): when the short
+`comida` name survives verbatim inside the longer catalogue line — "pulpo
+cocido" in "Pulpo cocido Gilmar 300g" — the brand/pack suffix drags the
+fuzzy ratio far below threshold even though the pair is obviously the same
+product. Containment matches only on whole-token boundaries and only for
+names of at least `CONTAINMENT_MIN_LENGTH` characters, so a short generic
+name cannot swallow an unrelated line.
 """
 
 from __future__ import annotations
@@ -30,6 +38,11 @@ DEFAULT_ALIASES_PATH = _REPO_ROOT / "config" / "item_name_aliases.json"
 
 FUZZY_THRESHOLD = 0.9
 
+# Shortest normalized name allowed to match by containment. Below this a
+# generic fragment ("ajo", "sal", "pan") would happily swallow an unrelated
+# catalogue line, so those names stay on the alias/exact/fuzzy paths only.
+CONTAINMENT_MIN_LENGTH = 5
+
 
 @dataclass(frozen=True)
 class MatchedItem:
@@ -38,7 +51,7 @@ class MatchedItem:
     website_name: str
     comida: str
     confidence: float
-    method: str  # "alias" | "exact" | "fuzzy"
+    method: str  # "alias" | "exact" | "contains" | "fuzzy"
 
 
 @dataclass
@@ -108,8 +121,9 @@ def match_items(
     """Match confirmed email items against the purchase-log catalog.
 
     Match order per website name: alias-table lookup, then exact normalized
-    match against `comida`, then fuzzy fallback (``difflib`` ratio) against
-    both alias-table keys and `comida` values. Whatever `comida` values are
+    match against `comida`, then whole-token containment against `comida`
+    (issue #116), then fuzzy fallback (``difflib`` ratio) against both
+    alias-table keys and `comida` values. Whatever `comida` values are
     never matched are returned as `dropped_comida` — the signal #73 alerts
     on.
     """
@@ -132,6 +146,13 @@ def match_items(
             matched_comida.add(comida)
             continue
 
+        contained = _best_containment_match(norm, comida_by_norm)
+        if contained is not None:
+            comida, confidence = contained
+            result.matched.append(MatchedItem(website_name, comida, confidence, "contains"))
+            matched_comida.add(comida)
+            continue
+
         best_comida, best_ratio = _best_fuzzy_match(norm, aliases, comida_by_norm)
         if best_comida is not None and best_ratio >= fuzzy_threshold:
             result.matched.append(MatchedItem(website_name, best_comida, best_ratio, "fuzzy"))
@@ -144,6 +165,56 @@ def match_items(
         item.comida for item in catalog if item.comida not in matched_comida
     ]
     return result
+
+
+def _contains_whole_tokens(haystack: str, needle: str) -> bool:
+    """True when `needle` sits inside `haystack` on whole-token boundaries.
+
+    Both arguments must already be :func:`normalize`d — tokens are then
+    separated by single spaces, so padding both sides turns the check into a
+    plain substring test that cannot match a partial word ("calabacin" does
+    not match "calabacins extra").
+    """
+    if not needle or not haystack:
+        return False
+    return f" {needle} " in f" {haystack} "
+
+
+def _best_containment_match(
+    norm_website_name: str,
+    comida_by_norm: dict[str, str],
+    *,
+    min_length: int = CONTAINMENT_MIN_LENGTH,
+) -> Optional[tuple[str, float]]:
+    """Return ``(comida, confidence)`` for the best whole-token containment.
+
+    Both directions are checked: normally the short `comida` sits inside the
+    longer catalogue line, but a `comida` carrying its own descriptor can be
+    the longer of the two. Only names of at least `min_length` characters
+    qualify, and when several `comida` values are contained in the same line
+    the longest (most specific) one wins — so "tomate cherry" beats a bare
+    "tomate" on "Tomate Cherry bandeja Essencials 500g". Confidence is the
+    length ratio of the shorter name to the longer one, i.e. how much of the
+    catalogue line the `comida` actually accounts for.
+    """
+    best_norm: Optional[str] = None
+    best_comida: Optional[str] = None
+    for candidate_norm, comida in comida_by_norm.items():
+        if min(len(candidate_norm), len(norm_website_name)) < min_length:
+            continue
+        if not (
+            _contains_whole_tokens(norm_website_name, candidate_norm)
+            or _contains_whole_tokens(candidate_norm, norm_website_name)
+        ):
+            continue
+        if best_norm is None or len(candidate_norm) > len(best_norm):
+            best_norm, best_comida = candidate_norm, comida
+
+    if best_norm is None or best_comida is None:
+        return None
+    longer = max(len(best_norm), len(norm_website_name))
+    shorter = min(len(best_norm), len(norm_website_name))
+    return best_comida, shorter / longer
 
 
 def _best_fuzzy_match(
