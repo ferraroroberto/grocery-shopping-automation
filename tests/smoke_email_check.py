@@ -32,7 +32,7 @@ print(f"reason:             {result.reason}")
 if result.match is not None:
     print(f"\nmatched ({len(result.match.matched)}):")
     for item in result.match.matched:
-        print(f"  [{item.method:5s} {item.confidence:.2f}] {item.website_name!r} -> {item.comida!r}")
+        print(f"  [{item.method:8s} {item.confidence:.2f}] {item.website_name!r} -> {item.comida!r}")
     if result.match.dropped_comida:
         print(f"\ndropped (in purchase log, not in email): {result.match.dropped_comida}")
     if result.match.unmatched_website_names:
