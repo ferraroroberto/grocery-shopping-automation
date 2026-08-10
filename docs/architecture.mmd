@@ -109,6 +109,7 @@ flowchart TB
   end
   RUNNER --> RUNAUTO
   PSRUNNER --> PRODSEARCH
+  ROUTERS -->|bootstrap-session action, in-process| BOOTSTRAP
   PRODSEARCH --> PRODMATCH
   POLLER --> EMAILCHECK
   EMAILCHECK --> GMAILCFG
