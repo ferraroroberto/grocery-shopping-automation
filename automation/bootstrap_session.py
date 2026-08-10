@@ -71,6 +71,31 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def launch_bootstrap_chrome(chrome_path: str | Path | None = None) -> subprocess.Popen:
+    """Spawn the plain, uninstrumented Chrome window used to (re)log into each store.
+
+    Returns as soon as the process is spawned — it does not wait for the user
+    to log in or close the window. Shared by the CLI ``main()`` (which adds an
+    interactive confirmation pause) and the PWA's bootstrap-session endpoint
+    (which has no terminal to prompt on).
+    """
+    resolved = Path(chrome_path) if chrome_path else _find_chrome()
+    if not resolved.is_file():
+        raise FileNotFoundError(f"Chrome not found at {resolved}")
+
+    USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    logger.info("🚀 Grocery-store session bootstrap")
+    logger.info("🌐 Chrome: %s", resolved)
+    logger.info("📁 Dedicated profile: %s", USER_DATA_DIR)
+    logger.info("   (this is SEPARATE from your normal Chrome profile)")
+
+    # Plain Chrome — only --user-data-dir, no automation flags. This is what
+    # makes the reCAPTCHA-protected login pages behave normally.
+    return subprocess.Popen(
+        [str(resolved), f"--user-data-dir={USER_DATA_DIR}", *_BOOTSTRAP_URLS]
+    )
+
+
 def main() -> int:
     args = parse_args()
     logging.basicConfig(
@@ -78,22 +103,11 @@ def main() -> int:
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
-    chrome_path = Path(args.chrome_path) if args.chrome_path else _find_chrome()
-    if not chrome_path.is_file():
-        logger.error("❌ Chrome not found at %s", chrome_path)
+    try:
+        proc = launch_bootstrap_chrome(args.chrome_path)
+    except FileNotFoundError as exc:
+        logger.error("❌ %s", exc)
         return 2
-
-    USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
-    logger.info("🚀 Grocery-store session bootstrap")
-    logger.info("🌐 Chrome: %s", chrome_path)
-    logger.info("📁 Dedicated profile: %s", USER_DATA_DIR)
-    logger.info("   (this is SEPARATE from your normal Chrome profile)")
-
-    # Plain Chrome — only --user-data-dir, no automation flags. This is what
-    # makes the reCAPTCHA-protected login pages behave normally.
-    proc = subprocess.Popen(
-        [str(chrome_path), f"--user-data-dir={USER_DATA_DIR}", *_BOOTSTRAP_URLS]
-    )
 
     # Intentional print + input: this is the one interactive pause.
     print(

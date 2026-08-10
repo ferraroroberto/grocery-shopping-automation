@@ -1,13 +1,11 @@
 """App shell + local-machine actions: the PWA document, build identity,
-install manifest, auth handshake, health, access URLs, and the two desktop
-actions (open the spreadsheet, close the server)."""
+install manifest, auth handshake, health, access URLs, and desktop actions
+(open the spreadsheet, bootstrap a fresh store login session)."""
 
 import hmac
 import os
 import platform
 import subprocess
-import threading
-import time
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +14,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 
 from app.api_common import REPO_ROOT, STATIC_DIR, inventory_error
 from app.static_files import BUILD_INFO
+from automation.bootstrap_session import launch_bootstrap_chrome
 from src.data import CONFIG
 from src.net import local_ip
 from src.webapp_config import WebappConfig, append_auth_token
@@ -150,11 +149,16 @@ def open_spreadsheet() -> dict[str, str]:
     return {"status": "opened"}
 
 
-@router.post("/api/actions/close")
-def close_app() -> dict[str, str]:
-    def _exit_later() -> None:
-        time.sleep(0.3)
-        os._exit(0)
+@router.post("/api/actions/bootstrap-session")
+def bootstrap_session() -> dict[str, str]:
+    """Launch the plain Chrome window used to (re)log into each store.
 
-    threading.Thread(target=_exit_later, daemon=True).start()
-    return {"status": "closing"}
+    Non-blocking — returns as soon as the process is spawned. The frontend
+    tells the user to log in and close the window; there's no terminal here
+    to run the CLI script's interactive confirmation pause.
+    """
+    try:
+        launch_bootstrap_chrome()
+    except FileNotFoundError as exc:
+        raise inventory_error(404, str(exc)) from exc
+    return {"status": "opened"}
