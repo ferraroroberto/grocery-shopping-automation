@@ -59,7 +59,7 @@ export const el = {
   openSheet: document.querySelector("#open-sheet"),
   copyLink: document.querySelector("#copy-link"),
   exportCsv: document.querySelector("#export-csv"),
-  closeApp: document.querySelector("#close-app"),
+  bootstrapSession: document.querySelector("#bootstrap-session"),
   loginDialog: document.querySelector("#login-dialog"),
   loginForm: document.querySelector("#login-form"),
   loginPassword: document.querySelector("#login-password"),

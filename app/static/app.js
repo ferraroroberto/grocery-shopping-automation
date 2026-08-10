@@ -251,7 +251,11 @@ el.copyLink.addEventListener("click", async () => {
   setStatus("Link copied");
 });
 el.exportCsv.addEventListener("click", () => { window.location.href = "/api/export.csv"; });
-el.closeApp.addEventListener("click", () => { if (confirm("Close the FastAPI app?")) fetchJson("/api/actions/close", { method: "POST" }); });
+el.bootstrapSession.addEventListener("click", () => {
+  fetchJson("/api/actions/bootstrap-session", { method: "POST" })
+    .then(() => setStatus("Chrome window opened — log into each store, then close it completely."))
+    .catch((error) => setStatus(error.message));
+});
 
 el.themeToggle.addEventListener("click", toggleTheme);
 el.loginForm.addEventListener("submit", onLoginSubmit);
