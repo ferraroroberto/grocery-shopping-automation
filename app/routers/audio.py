@@ -40,7 +40,6 @@ class ApplyPayload(BaseModel):
     transcript: str = ""
     model: str = ""
     matches: dict[str, Any] | None = None
-    audio_sha: str = ""
     audio_bytes: int = 0
 
 
@@ -207,7 +206,11 @@ def audio_apply(payload: ApplyPayload) -> dict[str, Any]:
                 model=payload.model or cfg["llm_model"],
                 whisper_model=cfg["whisper_model"],
                 result=payload.matches,
-                audio_sha=payload.audio_sha,
+                # The PWA proxies audio to voice-transcriber and never holds the
+                # bytes itself, so it has no content hash to offer (see
+                # app/audio_hub.py). Only the legacy Streamlit flow, which reads
+                # the file directly, can compute a real audio_sha256.
+                audio_sha="",
                 audio_bytes_len=payload.audio_bytes,
                 logs_dir=REPO_ROOT / cfg["logs_dir"],
             )

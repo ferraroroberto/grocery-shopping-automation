@@ -2,7 +2,7 @@
 transcribe it via the local whisper-server, match phrases to candidates via
 the local LLM hub, review and apply.
 
-Pre-requisites (see README.md and the claude-local-calls sibling project):
+Pre-requisites (see README.md and the local-llm-hub sibling project):
   - LLM hub running on :8000
   - whisper-server running on :8090
 """
@@ -114,7 +114,7 @@ def _service_status_banner(cfg: Dict) -> bool:
         msgs.append(f"❌ Whisper server unreachable at `{cfg['whisper_url']}`")
     msgs.append(
         "Start the local LLM hub on :8000 and whisper-server on :8090. See the "
-        "[`claude-local-calls`](https://github.com/ferraroroberto/claude-local-calls) "
+        "[`local-llm-hub`](https://github.com/ferraroroberto/local-llm-hub) "
         "sibling project for setup."
     )
     st.error("\n\n".join(msgs))

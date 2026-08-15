@@ -1,7 +1,7 @@
 """Shared "call the hub LLM" helper (issue #95).
 
 `inventory_extract.extract()` and `voice_command.parse_voice_items()` each
-build an `Anthropic` client pointed at the local hub (`claude-local-calls` on
+build an `Anthropic` client pointed at the local hub (`local-llm-hub` on
 `:8000`, `api_key="local-dummy"`), call `messages.create()`, and concatenate
 the response's text blocks into one string — near-verbatim in both. This
 module factors that shared request/extraction shape into one function; the
