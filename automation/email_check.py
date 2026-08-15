@@ -17,8 +17,6 @@ import difflib
 import json
 import logging
 import os
-import re
-import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
@@ -30,6 +28,7 @@ from automation.item_matching import (
     load_latest_purchase_log,
     match_items,
 )
+from automation.item_matching import normalize as _normalize_text
 from gmail_readonly import GmailReadError
 from src.gmail_config import build_gmail_mailbox, load_gmail_senders
 from src.notify_config import build_notify_notifier
@@ -66,10 +65,7 @@ class ConfirmationCheckResult:
 
 
 def _normalize_subject(subject: str) -> str:
-    decomposed = unicodedata.normalize("NFKD", subject)
-    without_accents = "".join(ch for ch in decomposed if not unicodedata.combining(ch))
-    cleaned = re.sub(r"[^a-z0-9 ]+", " ", without_accents.lower())
-    return re.sub(r"\s+", " ", cleaned).strip()
+    return _normalize_text(subject, keep="")
 
 
 def subject_matches(subject: str, canonical: str, *, threshold: float = SUBJECT_SIMILARITY_THRESHOLD) -> bool:

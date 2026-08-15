@@ -7,7 +7,10 @@ appropriate messages.
 
 import json
 import logging
+import os
+import platform
 import shutil
+import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -116,13 +119,32 @@ class InventoryFileError(RuntimeError):
     """Raised for non-lock errors loading or saving the inventory file."""
 
 
-def _resolve_xlsx_path(xlsx_path: Optional[str] = None) -> Path:
+def resolve_xlsx_path(xlsx_path: Optional[str] = None) -> Path:
     """Return an absolute Path for the configured xlsx (or override)."""
     raw = xlsx_path or CONFIG["data"]["xlsx_file"]
-    p = Path(raw)
+    p = Path(raw).expanduser()
     if not p.is_absolute():
         p = (REPO_ROOT / p).resolve()
     return p
+
+
+def open_spreadsheet(xlsx_path: Optional[str] = None) -> Path:
+    """Open the configured (or given) xlsx in the OS default application.
+
+    Returns the resolved Path on success. Raises FileNotFoundError if the
+    file does not exist — callers translate that into their own UI/HTTP
+    error shape (Streamlit `st.sidebar.error`, FastAPI 404).
+    """
+    path = resolve_xlsx_path(xlsx_path)
+    if not path.exists():
+        raise FileNotFoundError(f"file not found: {path}")
+    if platform.system() == "Windows":
+        os.startfile(str(path))  # noqa: S606
+    elif platform.system() == "Darwin":
+        subprocess.run(["open", str(path)], check=False)
+    else:
+        subprocess.run(["xdg-open", str(path)], check=False)
+    return path
 
 
 def _is_spreadsheet_lock_error(exc: BaseException) -> bool:
@@ -151,7 +173,7 @@ def load_inventory_data() -> Optional[pd.DataFrame]:
     columns. Raises SpreadsheetLockedError if the file is locked,
     InventoryFileError for other I/O errors.
     """
-    xlsx_path = _resolve_xlsx_path()
+    xlsx_path = resolve_xlsx_path()
     if not xlsx_path.exists():
         logger.error(f"Inventory file not found: {xlsx_path}")
         return None
@@ -184,7 +206,7 @@ def save_inventory_data(df: pd.DataFrame, xlsx_path: Optional[str] = None) -> No
     Raises SpreadsheetLockedError if the file is locked, InventoryFileError
     for other I/O errors.
     """
-    target = _resolve_xlsx_path(xlsx_path)
+    target = resolve_xlsx_path(xlsx_path)
     try:
         df.to_excel(target, index=False, engine="openpyxl")
         logger.info(f"✅ Inventory data saved to {target}")

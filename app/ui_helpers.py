@@ -1,14 +1,12 @@
 """UI-only helpers: CSS, inline HTML formatters, and sidebar utility actions."""
 
 import logging
-import os
-import platform
 import subprocess
-from pathlib import Path
 
 import streamlit as st
 
-from src.data import CONFIG, InventoryFileError, SpreadsheetLockedError
+from src.data import InventoryFileError, SpreadsheetLockedError
+from src.data import open_spreadsheet as open_spreadsheet_file
 from src.no_window import NO_WINDOW
 
 logger = logging.getLogger(__name__)
@@ -141,22 +139,12 @@ def copy_to_clipboard(text: str) -> None:
 
 def open_inventory_spreadsheet() -> None:
     """Open the configured XLSX in the default application (e.g. Excel)."""
-    raw = Path(CONFIG["data"]["xlsx_file"]).expanduser()
-    if not raw.is_absolute():
-        raw = (Path(__file__).resolve().parent.parent / raw).resolve()
-    path = raw
-    if not path.exists():
-        st.sidebar.error(f"File not found:\n`{path}`")
-        logger.error("Open spreadsheet: file missing at %s", path)
-        return
     try:
-        if platform.system() == "Windows":
-            os.startfile(str(path))  # noqa: S606
-        elif platform.system() == "Darwin":
-            subprocess.run(["open", str(path)], check=False)
-        else:
-            subprocess.run(["xdg-open", str(path)], check=False)
+        open_spreadsheet_file()
         st.sidebar.success("Opened. Close the workbook before saving changes from this app.")
+    except FileNotFoundError as e:
+        st.sidebar.error(f"File not found:\n`{e}`")
+        logger.error("Open spreadsheet: %s", e)
     except OSError as e:
         st.sidebar.error(f"Could not open file: {e}")
         logger.error("Open spreadsheet failed: %s", e)

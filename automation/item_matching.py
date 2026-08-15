@@ -61,12 +61,18 @@ class MatchResult:
     dropped_comida: list[str] = field(default_factory=list)
 
 
-def normalize(name: str) -> str:
-    """Lowercase, strip accents/punctuation, collapse whitespace."""
+def normalize(name: str, *, keep: str = "%") -> str:
+    """Lowercase, strip accents/punctuation, collapse whitespace.
+
+    `keep` lists extra characters (besides a-z0-9) to retain before the
+    final whitespace collapse — item names keep the default `%` (pack-size
+    suffixes like "150g" vs "10%"); callers matching plain email subjects
+    (`email_check.subject_matches`) pass `keep=""`.
+    """
     decomposed = unicodedata.normalize("NFKD", name)
     without_accents = "".join(ch for ch in decomposed if not unicodedata.combining(ch))
     lowered = without_accents.lower()
-    cleaned = re.sub(r"[^a-z0-9%]+", " ", lowered)
+    cleaned = re.sub(rf"[^a-z0-9{re.escape(keep)}]+", " ", lowered)
     return re.sub(r"\s+", " ", cleaned).strip()
 
 
