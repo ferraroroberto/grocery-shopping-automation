@@ -398,6 +398,7 @@ def _render_record(df: pd.DataFrame, cfg: Dict) -> None:
         type="primary",
         width="stretch",
         disabled=run_disabled,
+        key="audio_audit_transcribe_btn",
     ):
         _run_transcribe(cfg)
         st.rerun()
@@ -414,7 +415,13 @@ def _render_review(df: pd.DataFrame, cfg: Dict) -> pd.DataFrame:
     )
 
     with st.expander("📜 Transcript", expanded=False):
-        st.text_area("Transcript", value=transcript, height=160, label_visibility="collapsed")
+        st.text_area(
+            "Transcript",
+            value=transcript,
+            height=160,
+            label_visibility="collapsed",
+            key="audio_audit_review_transcript",
+        )
 
     detected_idxs = {it["idx"]: it for it in result.items}
     detected_zones = {z.lower().strip() for z in result.zones_mentioned}
@@ -501,6 +508,7 @@ def _render_review(df: pd.DataFrame, cfg: Dict) -> pd.DataFrame:
         "💾 Apply changes to inventory",
         type="primary",
         width="stretch",
+        key="audio_audit_apply_btn",
     ):
         accepted = _collect_accepted(df, result, unseen)
         if not accepted:
@@ -518,7 +526,7 @@ def _render_review(df: pd.DataFrame, cfg: Dict) -> pd.DataFrame:
                 st.session_state.audio_audit_log_path = str(log_path)
                 st.session_state.audio_audit_stage = "done"
                 st.rerun()  # full rerun — inventory changed, sidebar must update
-    if bcol2.button("🔄 Cancel and start over", width="stretch"):
+    if bcol2.button("🔄 Cancel and start over", width="stretch", key="audio_audit_cancel_btn"):
         _reset_state()
         st.rerun()
 
@@ -548,7 +556,7 @@ def _render_done() -> None:
     st.success("✅ Inventory updated.")
     if log_path:
         st.caption(f"📝 Log: `{log_path}`")
-    if st.button("🆕 New audit", type="primary"):
+    if st.button("🆕 New audit", type="primary", key="audio_audit_new_audit_btn"):
         _reset_state()
         st.rerun()
 

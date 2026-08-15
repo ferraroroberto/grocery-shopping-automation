@@ -24,6 +24,7 @@ from pathlib import Path
 
 from app.tray.manager import WebappManager, load_config
 from app.tray.single_instance import SingleInstance
+from src.no_window import NO_WINDOW
 from src.webapp_config import append_auth_token, load_webapp_config
 
 logger = logging.getLogger(__name__)
@@ -62,7 +63,7 @@ def _clipboard_copy(text: str) -> bool:
                 text=True,
                 check=False,
                 encoding="utf-8",
-                creationflags=subprocess.CREATE_NO_WINDOW,
+                creationflags=NO_WINDOW,
             )
             return p.returncode == 0
         except OSError as exc:

@@ -18,12 +18,19 @@ import ipaddress
 import platform
 import socket
 import subprocess
+import sys
 from pathlib import Path
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
+
+from src.no_window import NO_WINDOW  # noqa: E402
 
 _NOW = lambda: datetime.datetime.now(datetime.timezone.utc)  # noqa: E731
 
@@ -127,6 +134,7 @@ def trust_on_windows(ca_path: Path) -> None:
         ],
         capture_output=True,
         text=True,
+        creationflags=NO_WINDOW,
     )
     if result.returncode == 0:
         print("[OK] CA trusted -- Chrome/Edge will show no security warning.")

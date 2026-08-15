@@ -192,7 +192,7 @@ def main(df: pd.DataFrame) -> None:
         progress = f" · ✅ {bought_count}/{total_items} unique · {bought_qty}/{total_qty} units" if bought_count > 0 else ""
         st.caption(f"🛒 {total_items} unique · {total_qty} units · {len(all_supermarkets)} store(s){progress}")
     with c2:
-        if bought_count > 0 and st.button("🗑️", help="Unmark all"):
+        if bought_count > 0 and st.button("🗑️", help="Unmark all", key="shopping_unmark_all_btn"):
             st.session_state.bought_items.clear()
             st.session_state.extra_bought_items.clear()
             st.rerun()

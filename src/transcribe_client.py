@@ -17,6 +17,8 @@ from typing import Optional
 
 import requests
 
+from src.no_window import NO_WINDOW
+
 logger = logging.getLogger(__name__)
 
 
@@ -53,6 +55,7 @@ def transcode_to_wav(audio_bytes: bytes, *, sample_rate: int = 16000, timeout: i
                  "-i", str(src), "-ar", str(sample_rate), "-ac", "1", str(out)],
                 capture_output=True,
                 timeout=timeout,
+                creationflags=NO_WINDOW,
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise TranscriptionError(f"ffmpeg transcode failed: {exc}") from exc
