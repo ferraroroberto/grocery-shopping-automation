@@ -1,8 +1,8 @@
-"""Phase 2 smoke test: hits the running claude-local-calls hub + whisper-server.
+"""Phase 2 smoke test: hits the running local-llm-hub hub + whisper-server.
 
 Pre-conditions:
-    - claude-local-calls hub running on :8000  (run_hub.bat)
-    - whisper-server running on :8090         (launchers/run_whisper.bat)
+    - local-llm-hub hub running on :8000  (run_hub.bat)
+    - whisper-server running on :8090     (launchers/run_whisper.bat)
 """
 
 import json

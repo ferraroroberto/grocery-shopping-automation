@@ -18,7 +18,6 @@ const audio = {
   transcript: "",
   model: "",
   health: null,
-  sha: "",
   bytes: 0,
   stream: null,
   sessionId: "",
@@ -121,7 +120,7 @@ function renderAudioHealth() {
     banner.innerHTML = `${okIcon}Voice recorder, hub and whisper-server reachable`;
   } else {
     banner.className = "panel-status error";
-    banner.innerHTML = `${problems.join("<br>")}<br>Voice recorder is the voice-transcriber app; hub :8000 + whisper :8090 are claude-local-calls.`;
+    banner.innerHTML = `${problems.join("<br>")}<br>Voice recorder is the voice-transcriber app; hub :8000 + whisper :8090 are local-llm-hub.`;
   }
   const matchBtn = document.querySelector("#match-transcript");
   if (matchBtn && !audioAbort) matchBtn.disabled = !h.hub_ok;
@@ -278,7 +277,6 @@ export function clearAudio() {
   closeAudioPartialStream();
   audio.transcript = "";
   audio.matches = null;
-  audio.sha = "";
   audio.bytes = 0;
   audio.sessionId = "";
   audio.bytesSent = 0;
@@ -321,7 +319,6 @@ export async function toggleRecording(button) {
   audio.uploadChain = Promise.resolve();
   audio.pendingUploads = 0;
   audio.bytesSent = 0;
-  audio.sha = "";
   audio.bytes = 0;
   audio.recordStartedAt = Date.now();
 
@@ -547,7 +544,6 @@ export async function applyAudio() {
         transcript: audio.transcript,
         model: audio.model,
         matches: audio.matches,
-        audio_sha: audio.sha || "",
         audio_bytes: audio.bytes || 0,
       }),
     });

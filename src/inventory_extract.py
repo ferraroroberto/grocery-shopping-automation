@@ -1,7 +1,7 @@
 """LLM client — turns a Spanish narration transcript into structured inventory
 updates by matching against the candidates list.
 
-Uses the Anthropic SDK pointed at the local hub (claude-local-calls on :8000)
+Uses the Anthropic SDK pointed at the local hub (local-llm-hub on :8000)
 with `api_key="local-dummy"`. Routes to `claude -p` against the user's
 subscription when `model` starts with `claude-`, or to a local llama.cpp
 backend (qwen / gemma / glm) otherwise — same hub, same shape.
