@@ -91,13 +91,14 @@ filled cart itself persists in your store account regardless.
 
 ### From the web app
 
-The FastAPI/PWA app drives automation from the **🛒 Shopping** view: pick a store
-(or "All stores"), choose a cart mode, optionally tick *Dry run*, and start the
-run. The automation endpoints in `app/api.py` spawn this same CLI as a
-subprocess and stream its output live to the page (`app/static/app.js`); a
-**🛑 Stop** control terminates an in-progress run. The legacy Streamlit app
-offers the same controls in its Shopping List mode (`app/shopping.py`). Both
-surfaces share the subprocess plumbing in `app/automation_runner.py`.
+The FastAPI/PWA app drives automation from the dedicated **🤖 Auto** tab: pick a
+store (or "All stores"), choose a cart mode, optionally tick *Dry run*, and
+start the run. The automation endpoints in `app/routers/automation.py` spawn
+this same CLI as a subprocess and stream its output live to the page
+(`app/static/modules/automation.js`); a **🛑 Stop** control terminates an
+in-progress run. The legacy Streamlit app offers the same controls in its
+Shopping List mode (`app/shopping.py`). Both surfaces share the subprocess
+plumbing in `app/automation_runner.py`.
 
 ### Store-specific notes
 
@@ -208,14 +209,15 @@ send if a match is found):
 | `run_automation.py` | CLI runner — reads the list, dispatches to handlers, prints a summary. |
 | `report.py` | `RunReport` — per-run summary with `print_summary()`. |
 | `purchase_log.py` | `write_purchase_logs()` — persists what was ordered, per store, after a live run. |
+| `product_search.py` | `search_all()` — searches Mercadona + Ametller for a spoken product term and ranks candidates for display; the engine behind the PWA's **Search** tab (issue #87). |
+| `email_parsers/__init__.py` | Deterministic (non-LLM) per-store order-confirmation email parsers — package marker. |
 | `email_parsers/ametller.py` | Deterministic order-confirmation item-list parser for Ametller. |
 | `item_matching.py` | `match_items()` — resolves confirmed email items to purchase-log `comida` values (alias table + fuzzy fallback). |
 | `email_check.py` | `check_latest_confirmation()` — the Gmail-fetch → parse → match → notify orchestration entrypoint (issue #72). |
 
-The app-side glue lives under `app/`, not here: `app/automation_runner.py`
-(shared subprocess plumbing), the automation endpoints in `app/api.py` wired to
-`app/static/app.js` (FastAPI/PWA), and the **🤖 Run Automation** section in
-`app/shopping.py` (legacy Streamlit).
+The app-side glue lives under `app/`, not here — see "From the web app" above
+for the FastAPI/PWA **🤖 Auto** tab and the legacy Streamlit **🤖 Run
+Automation** section.
 
 Smoke tests live in `tests/automation_smoke_*.py` — run them manually (they are
 live, not CI tests; see each file's docstring).
