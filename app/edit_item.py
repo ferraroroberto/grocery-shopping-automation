@@ -90,9 +90,13 @@ def main(df: pd.DataFrame) -> pd.DataFrame:
 
                 col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:
-                    save_clicked = st.form_submit_button("💾 Save", type="primary", width="stretch")
+                    save_clicked = st.form_submit_button(
+                        "💾 Save", type="primary", width="stretch", key=f"edit_save_{idx}"
+                    )
                 with col_btn2:
-                    delete_clicked = st.form_submit_button("🗑️ Delete", type="secondary", width="stretch")
+                    delete_clicked = st.form_submit_button(
+                        "🗑️ Delete", type="secondary", width="stretch", key=f"edit_delete_{idx}"
+                    )
 
                 if save_clicked:
                     snap = df.loc[idx].copy()

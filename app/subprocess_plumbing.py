@@ -14,9 +14,10 @@ from __future__ import annotations
 
 import os
 import subprocess
-import sys
 import threading
 from typing import Callable
+
+from src.no_window import NO_WINDOW
 
 # How long to wait after terminate() before escalating to kill().
 _STOP_GRACE_S = 5.0
@@ -54,7 +55,7 @@ def spawn_and_drain(
         errors="replace",
         bufsize=bufsize,
         env=child_env,
-        creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+        creationflags=NO_WINDOW,
     )
 
     def _drain() -> None:

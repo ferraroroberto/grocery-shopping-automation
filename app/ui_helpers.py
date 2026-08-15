@@ -4,12 +4,12 @@ import logging
 import os
 import platform
 import subprocess
-import sys
 from pathlib import Path
 
 import streamlit as st
 
 from src.data import CONFIG, InventoryFileError, SpreadsheetLockedError
+from src.no_window import NO_WINDOW
 
 logger = logging.getLogger(__name__)
 
@@ -135,7 +135,7 @@ def copy_to_clipboard(text: str) -> None:
     subprocess.Popen(
         ["clip"],
         stdin=subprocess.PIPE,
-        creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+        creationflags=NO_WINDOW,
     ).communicate(input=text.encode("utf-8"))
 
 

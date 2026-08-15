@@ -26,6 +26,7 @@ from typing import Any, Dict, List, Optional
 import requests
 
 from app.tray.single_instance import cross_process_lock
+from src.no_window import NEW_PROCESS_GROUP_NO_WINDOW, NO_WINDOW
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +91,7 @@ def _renew_tailscale_cert() -> None:
             capture_output=True,
             text=True,
             timeout=60,
-            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+            creationflags=NO_WINDOW,
         )
     except (OSError, subprocess.SubprocessError) as exc:
         logger.warning(f"⚠️  Tailscale cert renew check failed: {exc}")
@@ -218,11 +219,8 @@ class WebappManager:
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                     env=env,
+                    creationflags=NEW_PROCESS_GROUP_NO_WINDOW,
                 )
-                if sys.platform == "win32":
-                    popen_kwargs["creationflags"] = (
-                        subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
-                    )
                 self._proc = subprocess.Popen(cmd, **popen_kwargs)
             except FileNotFoundError as exc:
                 raise RuntimeError(f"❌ python launcher not found: {exc}") from exc
