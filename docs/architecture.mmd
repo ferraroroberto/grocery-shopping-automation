@@ -118,7 +118,7 @@ flowchart TB
   READER --> XLSX
 
   subgraph external["External dependencies (sibling projects, same machine)"]
-    HUB["claude-local-calls hub\n127.0.0.1:8000 — LLM proxy + audio transcribe role\n(parakeet + whisper failover)"]
+    HUB["local-llm-hub\n127.0.0.1:8000 — LLM proxy + audio transcribe role\n(parakeet + whisper failover)"]
     WHISPER["whisper-server\n127.0.0.1:8090 — OpenAI-compatible transcription"]
     VOICET["voice-transcriber webapp\n127.0.0.1:8443 — chunked recording/session API"]
     CHROME["Real installed Chrome\n(not bundled Chromium)"]
