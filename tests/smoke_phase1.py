@@ -59,7 +59,7 @@ fixture_hash_after = hashlib.sha256(fixture.read_bytes()).hexdigest()
 assert fixture_hash_before == fixture_hash_after, "fixture was modified!"
 print(f"[OK] fixture unchanged (sha256 prefix {fixture_hash_after[:12]})")
 
-live = data._resolve_xlsx_path()
+live = data.resolve_xlsx_path()
 if live.exists():
     print(f"[OK] live file size {live.stat().st_size} (untouched by this test)")
 else:

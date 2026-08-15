@@ -3,10 +3,6 @@ install manifest, auth handshake, health, access URLs, and desktop actions
 (open the spreadsheet, bootstrap a fresh store login session)."""
 
 import hmac
-import os
-import platform
-import subprocess
-from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -16,6 +12,7 @@ from app.api_common import REPO_ROOT, STATIC_DIR, inventory_error
 from app.static_files import BUILD_INFO
 from automation.bootstrap_session import launch_bootstrap_chrome
 from src.data import CONFIG
+from src.data import open_spreadsheet as open_spreadsheet_file
 from src.net import local_ip
 from src.webapp_config import WebappConfig, append_auth_token
 
@@ -134,18 +131,11 @@ def access_urls(request: Request) -> dict[str, Any]:
 
 
 @router.post("/api/actions/open-spreadsheet")
-def open_spreadsheet() -> dict[str, str]:
-    path = Path(CONFIG["data"]["xlsx_file"]).expanduser()
-    if not path.is_absolute():
-        path = (REPO_ROOT / path).resolve()
-    if not path.exists():
-        raise inventory_error(404, f"file not found: {path}")
-    if platform.system() == "Windows":
-        os.startfile(str(path))  # noqa: S606
-    elif platform.system() == "Darwin":
-        subprocess.run(["open", str(path)], check=False)
-    else:
-        subprocess.run(["xdg-open", str(path)], check=False)
+def open_spreadsheet_route() -> dict[str, str]:
+    try:
+        open_spreadsheet_file()
+    except FileNotFoundError as exc:
+        raise inventory_error(404, str(exc)) from exc
     return {"status": "opened"}
 
 
