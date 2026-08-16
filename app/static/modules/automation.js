@@ -2,7 +2,7 @@
 // preview), the elapsed timer, and the SSE log stream. Run state is local to
 // this module — nothing else in the app reads it.
 import { fetchJson } from "./api.js";
-import { activePaneBody, state } from "./core.js";
+import { activePaneBody, state, storedToken } from "./core.js";
 import { formatElapsed, html, switchMarkup, switchOn } from "./dom.js";
 import { emailMonitorCard, refreshEmailMonitor } from "./email.js";
 
@@ -119,7 +119,10 @@ function stopAutomationTimer() {
 
 function connectAutomationEvents() {
   if (run.source) run.source.close();
-  run.source = new EventSource("/api/automation/events");
+  let url = "/api/automation/events";
+  const token = storedToken();
+  if (token) url += `?token=${encodeURIComponent(token)}`;
+  run.source = new EventSource(url);
   run.source.onmessage = async (event) => {
     const status = JSON.parse(event.data);
     applyAutomationStatus(status);
