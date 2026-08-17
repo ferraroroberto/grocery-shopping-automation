@@ -506,6 +506,9 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 .panel-status.error { color: var(--deficit); }
 .panel-status.ok { color: var(--on); }
 .match-figures { display: inline-flex; align-items: center; gap: var(--space-sm); white-space: nowrap; }
+/* Count box for the "Mentioned — count missing" rows — a .field sized to sit on
+   a row instead of filling it. .hit-target supplies the 44px effective square. */
+.count-input { width: 68px; text-align: center; font-weight: 700; }
 
 /* Terminal-class log surface — theme-aware (canvas-subtle inset + hairline). */
 .log {

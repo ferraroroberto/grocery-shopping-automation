@@ -53,6 +53,7 @@ flowchart TB
     DATA["src/data.py\nconfig load, XLSX read/write,\nsupermarket stats, quantity mutators"]
     AUDIOCORE["src/audio_audit_core.py\ntranscript cleaning, audit-log writer"]
     EXTRACT["src/inventory_extract.py\nLLM match against inventory"]
+    AUDITRESOLVE["src/audit_resolve.py\ndeterministic fuzzy fallback for mentions\nthe LLM left unresolved (#132)"]
     VOICECMD["src/voice_command.py\nSpanish voice-command parse (LLM) +\napply + speech replies (home-automation#315)"]
     HUBCLIENT["src/hub_client.py\nshared call_hub_llm() helper (#95)"]
     PRODMATCH["src/product_match.py\nranks store search hits vs the spoken term (display aid, #87)"]
@@ -69,6 +70,8 @@ flowchart TB
   ROUTERS --> EXTRACT
   ROUTERS --> VOICECMD
   EXTRACT --> HUBCLIENT
+  EXTRACT --> AUDITRESOLVE
+  AUDITRESOLVE --> PRODMATCH
   VOICECMD --> HUBCLIENT
   VOICECMD --> DATA
   AUDIOHUB --> TRANSCRIBE
@@ -149,7 +152,7 @@ flowchart TB
   SCAFFOLD --> GENICONS
 
   subgraph tests["tests/ — pytest suite + smoke scripts"]
-    TESTFILES["test_api.py · test_e2e_pwa.py (Playwright e2e) ·\ntest_inventory_extract.py · test_transcribe_client.py ·\ntest_audio_audit_core.py · smoke_*.py · automation_smoke_*.py"]
+    TESTFILES["test_api.py · test_e2e_pwa.py (Playwright e2e) ·\ntest_inventory_extract.py · test_audit_resolve.py ·\ntest_transcribe_client.py · test_audio_audit_core.py ·\nsmoke_*.py · automation_smoke_*.py"]
   end
   TESTFILES --> API
   TESTFILES --> ROUTERS

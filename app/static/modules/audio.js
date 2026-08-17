@@ -243,12 +243,22 @@ function renderMatches() {
     `<h3>${html(zone)}</h3><div class="grid">${byZone[zone].map(detectedRow).join("")}</div>`,
   ).join("");
 
+  // Mentions the speaker made that resolved to a row but carried no count —
+  // either the LLM named the row or src/audit_resolve.py did (issue #132). These
+  // are *named* items: they get their own "type the count" bucket, and they must
+  // never reach the zero-list below, which would zero what was just dictated.
+  const matchedIdx = new Set(matched.map((m) => m.idx));
+  const mentions = audio.matches.unmatched_mentions || [];
+  const needCount = mentions.filter((m) =>
+    Number.isInteger(m.idx) && byId.has(m.idx) && !matchedIdx.has(m.idx),
+  );
+  const namedIdx = new Set([...matchedIdx, ...needCount.map((m) => m.idx)]);
+
   // "Not mentioned in audited zones" — items in a walked zone with target>0 and
   // current>0 that the speaker didn't name. Tick to zero them.
-  const matchedIdx = new Set(matched.map((m) => m.idx));
   const zonesMentioned = new Set((audio.matches.zones_mentioned || []).map((z) => String(z).toLowerCase().trim()));
   const unseen = items().filter((item) =>
-    !matchedIdx.has(item.id)
+    !namedIdx.has(item.id)
     && zonesMentioned.has(String(item[cols.lugar]).toLowerCase().trim())
     && Number(item[cols.cantidad]) > 0
     && Number(item[cols.tenemos]) > 0,
@@ -263,12 +273,36 @@ function renderMatches() {
       ).join("")}</div></section>`
     : "";
 
+  // Typing a number *is* the accept action here — an empty box leaves the row
+  // untouched, so a mention we resolved wrongly costs nothing.
+  const needCountSection = needCount.length
+    ? `<section class="panel"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-mic"></use></svg>Mentioned — count missing</h2>
+      <div class="hint">${needCount.length} item(s) you named without a number we could read. Type the count to apply it; leave blank to skip.</div>
+      <div class="grid">${needCount.map((m) => {
+        const item = byId.get(m.idx);
+        const current = Number(item[cols.tenemos]) || 0;
+        const heard = m.phrase && m.phrase.toLowerCase() !== String(item[cols.comida]).toLowerCase()
+          ? ` <span class="meta">heard “${html(m.phrase)}”</span>` : "";
+        return `<div class="item">
+          <span><strong>${html(item[cols.comida])}</strong> <span class="meta">(list: ${html(item[cols.lugar])})</span>${heard}</span>
+          <span class="match-figures"><span class="meta">${current} →</span>
+            <input class="field count-input hit-target" type="number" inputmode="numeric" min="0" step="1"
+              value="${Number.isInteger(m.approx_count) ? m.approx_count : ""}"
+              placeholder="?" aria-label="Count for ${text(item[cols.comida])}" data-audio-count-idx="${m.idx}"></span>
+        </div>`;
+      }).join("")}</div></section>`
+    : "";
+
+  // Whatever is left really is unmatched — no row, nothing to apply.
+  const stillUnmatched = mentions.filter((m) => !Number.isInteger(m.idx) || !byId.has(m.idx));
+
   target.innerHTML = `<section class="panel"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-circle-check"></use></svg>Detected Items</h2>${
     zoneSections || emptyStateEl("mic", "No recognised items.").outerHTML
   }</section>
+  ${needCountSection}
   ${unseenSection}
-  ${audio.matches.unmatched_mentions?.length ? `<section class="panel"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-circle-alert"></use></svg>Unmatched Mentions</h2>${audio.matches.unmatched_mentions.map((m) => `<div class="meta">${html(m.phrase)} · ${html(m.note)}</div>`).join("")}</section>` : ""}`;
-  if (apply) apply.disabled = !matched.length && !unseen.length;
+  ${stillUnmatched.length ? `<section class="panel"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-circle-alert"></use></svg>Unmatched Mentions</h2>${stillUnmatched.map((m) => `<div class="meta">${html(m.phrase)} · ${html(m.note)}</div>`).join("")}</section>` : ""}`;
+  if (apply) apply.disabled = !matched.length && !unseen.length && !needCount.length;
 }
 
 // Wipe the transcript + match results so the next audit starts from scratch.
@@ -527,6 +561,13 @@ export async function applyAudio() {
   });
   document.querySelectorAll('[data-audio-zero][aria-checked="true"]').forEach((box) => {
     updates[box.dataset.audioZero] = 0;
+  });
+  // "Mentioned — count missing": a typed number is the accept; blank means skip.
+  document.querySelectorAll("[data-audio-count-idx]").forEach((field) => {
+    const value = field.value.trim();
+    if (value === "") return;
+    const count = Number(value);
+    if (Number.isFinite(count) && count >= 0) updates[field.dataset.audioCountIdx] = Math.round(count);
   });
   if (!Object.keys(updates).length) {
     setAudioStatus("Nothing accepted to apply", "error");
