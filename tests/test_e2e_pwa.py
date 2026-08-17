@@ -73,6 +73,34 @@ def _stub_extract(transcript, df, *, base_url, model, max_tokens, timeout):
     )
 
 
+def _stub_extract_named_but_uncounted(transcript, df, *, base_url, model, max_tokens, timeout):
+    """One counted row plus one row the speaker *named* without a readable count,
+    both in the same walked zone — the exact shape of issue #132, where the named
+    row was also offered for zeroing."""
+    zone = "congelador"
+    zone_rows = df[df["lugar"] == zone]
+    counted = int(zone_rows.index[0])
+    # A row that would otherwise land in the zero-list: targeted and in stock.
+    uncounted = int(next(
+        i for i, row in zone_rows.iterrows()
+        if int(i) != counted and int(row["cantidad"]) > 0 and int(row["tenemos"]) > 0
+    ))
+    return ExtractionResult(
+        items=[{"idx": counted, "count": 2, "zone": zone, "evidence": "dos"}],
+        zones_mentioned=[zone],
+        unmatched_mentions=[{
+            "phrase": "algo que suena parecido",
+            "idx": uncounted,
+            "approx_count": None,
+            "note": "matches but no count dictated",
+            "comida": str(df.loc[uncounted, "comida"]),
+            "resolved_by": "llm",
+            "match_score": None,
+        }],
+        raw_text="{}",
+    )
+
+
 @pytest.fixture(scope="module")
 def server(tmp_path_factory):
     import uvicorn
@@ -207,6 +235,33 @@ def test_audio_match_and_apply_writes_log(page, server):
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
     logs = list(server.logs_dir.glob("*.json"))
     assert logs, "apply should have written an audit log"
+
+
+@pytest.mark.e2e
+def test_named_item_is_never_offered_for_zeroing(page, monkeypatch):
+    """Regression for issue #132 — a mention that resolved to a row gets a count
+    box, and must NOT also appear under "set to 0". It did, and zeroed actimel."""
+    monkeypatch.setattr(audio_router, "extract", _stub_extract_named_but_uncounted)
+    goto_mode(page, "audio")
+    page.fill("#transcript", TRANSCRIPT)
+    page.click("#match-transcript")
+    page.wait_for_selector("[data-audio-count-idx]", timeout=120000)
+
+    box = page.locator("[data-audio-count-idx]")
+    assert box.count() == 1, "the named-but-uncounted row should offer a count box"
+    idx = box.first.get_attribute("data-audio-count-idx")
+    assert page.locator(f"[data-audio-zero='{idx}']").count() == 0, (
+        f"idx {idx} was named out loud — offering it for zeroing is the bug"
+    )
+
+    # And the typed count actually applies.
+    box.first.fill("4")
+    page.click("#apply-audio")
+    page.wait_for_function(
+        "document.querySelector('#audio-status')?.textContent?.includes('Inventory updated')",
+        timeout=30000,
+    )
+    assert page._js_errors == [], f"JS errors: {page._js_errors}"
 
 
 @pytest.mark.e2e

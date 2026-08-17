@@ -57,6 +57,11 @@ def stub_extract_result() -> ExtractionResult:
     return ExtractionResult(
         items=[{"idx": 0, "count": 2, "zone": "nevera", "evidence": "dos yogures"}],
         zones_mentioned=["nevera"],
-        unmatched_mentions=[{"phrase": "algo raro", "note": "ambiguous"}],
+        # Full post-#132 mention shape — a stub that omits the resolved-row
+        # fields would hide exactly the plumbing bug that issue was about.
+        unmatched_mentions=[{
+            "phrase": "algo raro", "idx": None, "approx_count": None,
+            "note": "ambiguous", "comida": "", "resolved_by": "", "match_score": None,
+        }],
         raw_text="{}",
     )

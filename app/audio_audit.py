@@ -466,10 +466,19 @@ def _render_review(df: pd.DataFrame, cfg: Dict) -> pd.DataFrame:
                 label_visibility="collapsed",
             )
 
+    # Mentions that resolved to a row were *named* by the speaker — they only
+    # lack a count. Offering them for zeroing would wipe what was just dictated
+    # (issue #132), so they are excluded here exactly as in the PWA.
+    named_idxs = set(detected_idxs) | {
+        mention["idx"]
+        for mention in result.unmatched_mentions
+        if isinstance(mention.get("idx"), int) and mention["idx"] in df.index
+    }
+
     unseen = [
         idx
         for idx in df.index
-        if idx not in detected_idxs
+        if idx not in named_idxs
         and str(df.at[idx, COLUMNS["lugar"]]).lower() in detected_zones
         and int(df.at[idx, COLUMNS["cantidad"]]) > 0
         and int(df.at[idx, COLUMNS["tenemos"]]) > 0
@@ -496,11 +505,22 @@ def _render_review(df: pd.DataFrame, cfg: Dict) -> pd.DataFrame:
             )
 
     if result.unmatched_mentions:
-        st.markdown("### ❓ Unmatched mentions")
+        st.markdown("### ❓ Mentions without a count")
+        st.caption(
+            "Heard, but no usable number. Rows that resolved to an item are left "
+            "out of the zero list above — set them from Audit mode. Editing counts "
+            "here is PWA-only (`:8502`)."
+        )
         for mention in result.unmatched_mentions:
             phrase = mention.get("phrase", "")
             note = mention.get("note", "")
-            st.markdown(f"- *{phrase}* — {note}")
+            idx = mention.get("idx")
+            if isinstance(idx, int) and idx in df.index:
+                row = f"→ **{df.at[idx, COLUMNS['comida']]}**"
+                how = mention.get("resolved_by") or "?"
+                st.markdown(f"- *{phrase}* {row} ({how}) — {note}")
+            else:
+                st.markdown(f"- *{phrase}* — {note}")
 
     st.divider()
     bcol1, bcol2 = st.columns([1, 1])
