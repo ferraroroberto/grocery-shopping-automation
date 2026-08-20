@@ -29,7 +29,7 @@ from automation.item_matching import (
     match_items,
 )
 from automation.item_matching import normalize as _normalize_text
-from gmail_readonly import GmailReadError
+from gmail_readonly import GmailReadError, NormalizedEmail
 from src.gmail_config import build_gmail_mailbox, load_gmail_senders
 from src.notify_config import build_notify_notifier
 
@@ -62,6 +62,31 @@ class ConfirmationCheckResult:
     match: Optional[MatchResult] = None
     notified: bool = False
     reason: Optional[str] = None
+    # The newest email Gmail returned is *older* than the one already
+    # processed — its own state, never folded into `already_processed`
+    # (issue #134). Means the mailbox changed under us, not "nothing new".
+    regressed: bool = False
+
+
+@dataclass(frozen=True)
+class ProcessedEntry:
+    """The last confirmation email processed for a store, and when it was sent.
+
+    `timestamp` is the watermark that stops the check walking backwards in
+    time when the newest email leaves the Gmail search window (issue #134).
+    It never decreases, so after a forced re-run of an older email it can
+    belong to a later message than `message_id`. `None` only for a state file
+    written before the watermark existed; it is filled in on the first check
+    that can observe that message id.
+
+    It is `NormalizedEmail.timestamp` verbatim — always a UTC-normalized ISO
+    string (`gmail_readonly.core._message_timestamp`), so it orders
+    lexicographically, exactly as the `max()` over candidates already relies
+    on. Comparing it against any other clock would need parsing first.
+    """
+
+    message_id: str
+    timestamp: Optional[str] = None
 
 
 def _normalize_subject(subject: str) -> str:
@@ -80,7 +105,13 @@ def subject_matches(subject: str, canonical: str, *, threshold: float = SUBJECT_
     return ratio >= threshold
 
 
-def _load_processed_state(path: Path) -> dict[str, str]:
+def _load_processed_state(path: Path) -> dict[str, ProcessedEntry]:
+    """Read the per-store processed-message state, tolerating the legacy shape.
+
+    Accepts both the current `{"store": {"message_id": ..., "timestamp": ...}}`
+    form and the pre-#134 `{"store": "<message id>"}` form, which loads as an
+    entry with no watermark.
+    """
     if not path.exists():
         return {}
     try:
@@ -88,10 +119,22 @@ def _load_processed_state(path: Path) -> dict[str, str]:
     except (OSError, json.JSONDecodeError) as exc:
         logger.warning("⚠️ Could not read %s (%s); treating state as empty", path, exc)
         return {}
-    return raw if isinstance(raw, dict) else {}
+    if not isinstance(raw, dict):
+        return {}
+    state: dict[str, ProcessedEntry] = {}
+    for store, value in raw.items():
+        if isinstance(value, str) and value:
+            state[store] = ProcessedEntry(value)
+        elif isinstance(value, dict) and value.get("message_id"):
+            timestamp = value.get("timestamp")
+            state[store] = ProcessedEntry(
+                str(value["message_id"]),
+                str(timestamp) if timestamp else None,
+            )
+    return state
 
 
-def _write_processed_state(path: Path, state: dict[str, str]) -> None:
+def _write_processed_state(path: Path, state: dict[str, ProcessedEntry]) -> None:
     """Persist the processed-message state, atomically (tmp file + os.replace).
 
     Mirrors the sibling JSON-state writers in this subtree
@@ -100,9 +143,45 @@ def _write_processed_state(path: Path, state: dict[str, str]) -> None:
     leave `gmail_processed_state.json` truncated or corrupt.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        store: {"message_id": entry.message_id, "timestamp": entry.timestamp}
+        for store, entry in state.items()
+    }
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     os.replace(tmp, path)
+
+
+def _backfill_watermark(
+    state: dict[str, ProcessedEntry],
+    store: str,
+    matching: list[NormalizedEmail],
+    state_path: Path,
+) -> Optional[ProcessedEntry]:
+    """Return this store's entry, learning its timestamp from the fetched mail.
+
+    A state file written before #134 records only a message id, so it carries
+    no watermark to compare against. Whenever that id is still among the
+    fetched confirmations its timestamp is knowable for free — adopt it and
+    persist the upgraded entry, so the guard is armed from the first check
+    instead of only after the next new email.
+    """
+    entry = state.get(store)
+    if entry is None or entry.timestamp:
+        return entry
+    known = next((m for m in matching if m.message_id == entry.message_id), None)
+    if known is None:
+        return entry
+    entry = ProcessedEntry(entry.message_id, known.timestamp)
+    state[store] = entry
+    _write_processed_state(state_path, state)
+    logger.info(
+        "ℹ️ Adopted watermark %s for the last processed %s confirmation (%s)",
+        entry.timestamp,
+        store,
+        entry.message_id,
+    )
+    return entry
 
 
 def has_problem(match: MatchResult) -> bool:
@@ -135,6 +214,11 @@ def check_latest_confirmation(
     Idempotent across repeated calls: once a message id has been processed
     it is skipped on subsequent runs (`already_processed=True`), so the
     Auto-tab poller (#73) can call this safely without double-notifying.
+    A confirmation older than the last processed one is never re-processed
+    either (`regressed=True`): when the newest email leaves the Gmail search
+    window — trashed, spammed, or aged past the lookback — `latest` falls
+    back to a stale one, and alerting on it matches a weeks-old confirmation
+    against the current purchase log (issue #134).
     `ignore_processed=True` re-processes the latest email even if already
     seen — the Auto tab's end-to-end test path. `notify_only_on_problem=True`
     keeps a fully-matched order silent (issue #73: don't spam Telegram for a
@@ -176,8 +260,30 @@ def check_latest_confirmation(
 
     latest = max(matching, key=lambda email: email.timestamp)
     state = _load_processed_state(state_path)
-    if not ignore_processed and state.get(store) == latest.message_id:
-        return ConfirmationCheckResult(store, checked=True, message_id=latest.message_id, already_processed=True)
+    previous = _backfill_watermark(state, store, matching, state_path)
+    if not ignore_processed and previous is not None:
+        if previous.message_id == latest.message_id:
+            return ConfirmationCheckResult(
+                store, checked=True, message_id=latest.message_id, already_processed=True
+            )
+        if previous.timestamp and latest.timestamp < previous.timestamp:
+            # The email we already processed is gone from the search window
+            # (trashed, spammed, or aged past the lookback), so `latest` has
+            # fallen back to an older one. Alerting on it would match a stale
+            # confirmation against the current purchase log — issue #134.
+            reason = (
+                f"newest confirmation {latest.message_id} ({latest.timestamp}) is older than "
+                f"the last processed {previous.message_id} ({previous.timestamp}); the newer "
+                "email left the Gmail search window (trashed/archived?)"
+            )
+            logger.info("ℹ️ Skipping stale confirmation (%s): %s", store, reason)
+            return ConfirmationCheckResult(
+                store,
+                checked=True,
+                message_id=latest.message_id,
+                regressed=True,
+                reason=reason,
+            )
 
     website_names = STORE_PARSERS[store].parse_confirmed_items(latest.body_text or "")
     catalog = load_latest_purchase_log(store, logs_dir)
@@ -191,7 +297,14 @@ def check_latest_confirmation(
             notifier.send_text(_summary_message(store, result))
             notified = True
 
-    state[store] = latest.message_id
+    # The watermark only ever moves forward. `ignore_processed=True` can
+    # deliberately re-process an older email (the Auto tab's "Test last
+    # email" while the newest one is trashed); letting that lower the
+    # watermark would disarm the guard for the next disappearance.
+    watermark = latest.timestamp
+    if previous is not None and previous.timestamp and previous.timestamp > watermark:
+        watermark = previous.timestamp
+    state[store] = ProcessedEntry(latest.message_id, watermark)
     _write_processed_state(state_path, state)
 
     return ConfirmationCheckResult(
