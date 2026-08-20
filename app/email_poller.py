@@ -68,6 +68,10 @@ def outcome_text(result: ConfirmationCheckResult) -> str:
 
     if not result.checked:
         return f"Check skipped: {result.reason}"
+    if result.regressed:
+        # Its own state, not "nothing new" — the mailbox lost the email we
+        # already handled and Gmail is now offering an older one (#134).
+        return f"Stale email ignored: {result.reason}"
     if result.already_processed:
         return "No new email — latest already processed"
     if result.match is not None:

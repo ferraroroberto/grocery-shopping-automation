@@ -172,8 +172,15 @@ and matches it against the latest purchase log so a dropped item is visible.
   matched, `check_latest_confirmation()` sends a plain Telegram summary via
   the `src/notify/` component (issue #71) — e.g. which items matched and
   which purchase-log item didn't show up in the confirmation. It records the
-  processed Gmail message id in gitignored `config/gmail_processed_state.json`
-  so a repeat call is a no-op.
+  processed Gmail message id **and its timestamp** in gitignored
+  `config/gmail_processed_state.json` so a repeat call is a no-op. The
+  timestamp is a watermark: a confirmation *older* than the last processed
+  one is never re-processed either. Without it, trashing or archiving the
+  email just handled made the newest *remaining* one — potentially weeks old
+  — look brand new, re-alerting with a stale confirmation matched against the
+  current purchase log (issue #134). A pre-#134 state file holding a bare
+  message id still loads, and adopts its watermark on the first check that
+  can still see that message.
 - **Auto-tab poller (issue #73)**: `app/email_poller.py` calls that seam on a
   schedule. The PWA's Auto tab carries an **Email Watch** card (folded by
   default) that selects which whitelisted senders are monitored (each mapped
@@ -186,7 +193,9 @@ and matches it against the latest purchase log so a dropped item is visible.
   Scheduled / *Check now* runs alert **only on a problem** (a dropped or
   unrecognized item) — a fully-matched order stays silent, per issue #73 —
   and are idempotent: an already-processed message logs "no new email" and
-  never re-notifies.
+  never re-notifies. A confirmation older than the last processed one gets
+  its own line, `Stale email ignored: …`, rather than the routine "no new
+  email" one.
 
 Manual smoke check (runs the real pipeline once, including a real Telegram
 send if a match is found):

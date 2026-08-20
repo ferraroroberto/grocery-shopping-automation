@@ -114,6 +114,22 @@ def test_outcome_text_variants():
     assert "fresas" in text
 
 
+def test_outcome_text_reports_a_stale_email_as_its_own_state():
+    # #134: a regression must not read as the routine "nothing new" line.
+    text = email_poller.outcome_text(
+        ConfirmationCheckResult(
+            "ametller",
+            checked=True,
+            message_id="old1",
+            regressed=True,
+            reason="newest confirmation old1 is older than the last processed new1",
+        )
+    )
+    assert "Stale email ignored" in text
+    assert "old1" in text and "new1" in text
+    assert "already processed" not in text
+
+
 def test_append_log_trims_to_limit(tmp_path):
     path = tmp_path / "log.json"
     for i in range(email_poller.CHECK_LOG_LIMIT + 5):
