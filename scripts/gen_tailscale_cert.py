@@ -1,7 +1,7 @@
 """Provision a Tailscale HTTPS certificate for this machine.
 
 Use this instead of (or to replace) src/gen_ssl_cert.py when you want browsers
-to trust https://<machine>.tail*.ts.net:8502 without any manual certificate
+to trust https://<host>.ts.net:8502 without any manual certificate
 installation on any device.
 
 Prerequisites:
@@ -12,7 +12,7 @@ Prerequisites:
 Usage:
     # Provision or force-renew:
     & .venv/Scripts/python.exe scripts/gen_tailscale_cert.py
-    & .venv/Scripts/python.exe scripts/gen_tailscale_cert.py tower.tail1121fd.ts.net
+    & .venv/Scripts/python.exe scripts/gen_tailscale_cert.py <host>.ts.net
 
     # Check and auto-renew if expiring within 30 days (called by webapp.bat on startup):
     & .venv/Scripts/python.exe scripts/gen_tailscale_cert.py --check
