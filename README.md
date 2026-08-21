@@ -155,7 +155,7 @@ If you access the app over Tailscale, provision a real Let's Encrypt certificate
 
 The script auto-detects your Tailscale hostname and writes `certificates/cert.pem` and `certificates/key.pem`. Restart `webapp.bat`, then open:
 ```
-https://tower.tail1121fd.ts.net:8502
+https://<host>.ts.net:8502
 ```
 
 **Renewal:** Tailscale certs expire after 90 days. Re-run the script when they expire (the script is idempotent — it renews if needed).
@@ -385,7 +385,7 @@ is in [`docs/browser-automation-build.md`](docs/browser-automation-build.md).
 | Browser says "Your connection is not private" on desktop | Re-run `& .\.venv\Scripts\python.exe src\gen_ssl_cert.py` — it installs the cert into Windows trust store |
 | Browser says "Your connection is not private" on mobile | Self-signed cert warning — tap **Advanced → Proceed** once per device |
 | HTTPS cert missing / app won't start | Run `& .\.venv\Scripts\python.exe src\gen_ssl_cert.py` (or `scripts\gen_tailscale_cert.py`) from the repo root, then restart |
-| `https://localhost:8502` shows cert mismatch after running `gen_tailscale_cert.py` | Expected — the Tailscale cert is issued for the Tailscale hostname, not `localhost`. Use `http://localhost:8502` locally or `https://tower.tail1121fd.ts.net:8502` over Tailscale |
+| `https://localhost:8502` shows cert mismatch after running `gen_tailscale_cert.py` | Expected — the Tailscale cert is issued for the Tailscale hostname, not `localhost`. Use `http://localhost:8502` locally or `https://<host>.ts.net:8502` over Tailscale |
 | `tailscale cert` fails with permission error | Enable HTTPS Certificates in the Tailscale admin console: **DNS → HTTPS Certificates** |
 
 ---
