@@ -114,7 +114,10 @@ function renderAudioHealth() {
   const problems = [];
   if (!h.voice_ok) problems.push(`${badIcon}Voice recorder unreachable at <code>${html(h.voice_url)}</code> — start the voice-transcriber tray`);
   if (!h.hub_ok) problems.push(`${badIcon}LLM hub unreachable at <code>${html(h.hub_url)}</code>`);
-  if (!h.whisper_ok) problems.push(`${badIcon}Whisper server unreachable at <code>${html(h.whisper_url)}</code>`);
+  if (!h.whisper_ok) {
+    const hint = h.whisper_host ? ` — local-llm-hub currently has it running on <code>${html(h.whisper_host)}</code> instead` : "";
+    problems.push(`${badIcon}Whisper server unreachable at <code>${html(h.whisper_url)}</code>${hint}`);
+  }
   if (!problems.length) {
     banner.className = "panel-status ok";
     banner.innerHTML = `${okIcon}Voice recorder, hub and whisper-server reachable`;

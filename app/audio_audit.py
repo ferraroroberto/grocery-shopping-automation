@@ -33,7 +33,7 @@ from src.data import (
     bulk_apply_tenemos,
 )
 from src.inventory_extract import ExtractionError, ExtractionResult, extract
-from src.net import is_port_open
+from src.net import is_port_open, whisper_host_hint
 from src.transcribe_client import TranscriptionError, transcribe
 
 logger = logging.getLogger(__name__)
@@ -111,7 +111,12 @@ def _service_status_banner(cfg: Dict) -> bool:
     if not hub_ok:
         msgs.append(f"❌ LLM hub unreachable at `{cfg['llm_base_url']}`")
     if not whisper_ok:
-        msgs.append(f"❌ Whisper server unreachable at `{cfg['whisper_url']}`")
+        hint = ""
+        if hub_ok:
+            host = whisper_host_hint(cfg["llm_base_url"], cfg["whisper_model"])
+            if host:
+                hint = f" — local-llm-hub currently has it running on `{host}` instead"
+        msgs.append(f"❌ Whisper server unreachable at `{cfg['whisper_url']}`{hint}")
     msgs.append(
         "Start the local LLM hub on :8000 and whisper-server on :8090. See the "
         "[`local-llm-hub`](https://github.com/ferraroroberto/local-llm-hub) "
