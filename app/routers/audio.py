@@ -22,7 +22,7 @@ from app.api_common import (
 from src.audio_audit_core import WHISPER_PROMPT_ES, clean_transcript, write_audit_log
 from src.data import COLUMNS, CONFIG, bulk_apply_tenemos
 from src.inventory_extract import ExtractionError, extract
-from src.net import is_port_open
+from src.net import is_port_open, whisper_host_hint
 
 router = APIRouter()
 
@@ -55,13 +55,23 @@ def audio_health() -> dict[str, Any]:
     service-status banner. Mirrors the Streamlit `_service_status_banner` probe."""
     cfg = CONFIG["audio_audit"]
     url = audio_hub.voice_url()
+    hub_ok = is_port_open(cfg["llm_base_url"])
+    whisper_ok = is_port_open(cfg["whisper_url"])
     return {
-        "hub_ok": is_port_open(cfg["llm_base_url"]),
-        "whisper_ok": is_port_open(cfg["whisper_url"]),
+        "hub_ok": hub_ok,
+        "whisper_ok": whisper_ok,
         "voice_ok": is_port_open(url),
         "hub_url": cfg["llm_base_url"],
         "whisper_url": cfg["whisper_url"],
         "voice_url": url,
+        # Best-effort: which host local-llm-hub actually has whisper running on
+        # right now, only worth asking when the hub itself is up but the direct
+        # port isn't — see whisper_host_hint's docstring (#138).
+        "whisper_host": (
+            whisper_host_hint(cfg["llm_base_url"], cfg["whisper_model"])
+            if hub_ok and not whisper_ok
+            else None
+        ),
     }
 
 

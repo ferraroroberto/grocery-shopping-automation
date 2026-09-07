@@ -36,7 +36,12 @@ def test_inventory_audio_block(client):
 
 def test_audio_health_shape(client):
     body = client.get("/api/audio/health").json()
-    assert set(body) >= {"hub_ok", "whisper_ok", "voice_ok", "hub_url", "whisper_url", "voice_url"}
+    assert set(body) >= {
+        "hub_ok", "whisper_ok", "voice_ok", "hub_url", "whisper_url", "voice_url", "whisper_host",
+    }
+    # Neither service is up in the test environment, so the host-hint lookup
+    # (only fired when hub_ok and not whisper_ok) never gets a hub to query.
+    assert body["whisper_host"] is None
 
 
 def test_audio_session_create_requests_incognito(client, monkeypatch):
