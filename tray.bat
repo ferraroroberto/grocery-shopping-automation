@@ -98,7 +98,7 @@ set "OWNED_PORTS=8502"
 REM Optional override for the restart-verification probe. Leave blank and the
 REM helper probes https:// then http:// on 127.0.0.1:<first-owned-port>/api/version
 REM (HTTPS first because fleet PWAs are HTTPS; loopback so an auth-gated endpoint
-REM takes its bypass and a public-name leaf's cert is skipped — #147). Set this
+REM takes its bypass and a public-name leaf's cert is skipped - #147). Set this
 REM only for a non-standard path, e.g. http://127.0.0.1:8000/admin/api/version.
 set "VERSION_URL="
 
