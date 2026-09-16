@@ -77,6 +77,11 @@ SELECTORS = {
     "stepper_input": "input.chakra-numberinput__field",
     "stepper_plus": "button[aria-label='quantity-selector.add']",
     "stepper_minus": "button[aria-label='quantity-selector.remove']",
+    # Didomi cookie-consent notice (issue #143) — its backdrop intercepts every
+    # click until answered. Didomi re-prompts when stored consent expires, so
+    # the persistent profile cannot be relied on to carry it. Verified live
+    # 2026-09-16.
+    "consent_agree": "#didomi-notice-agree-button",
 }
 
 # The main "AÑADIR" button is the first one in DOM order — the product-detail
@@ -260,6 +265,22 @@ def _read_product_name(page: Page) -> str:
         return ""
 
 
+def _dismiss_consent_notice(page: Page) -> None:
+    """Accept the Didomi cookie-consent notice if it is showing.
+
+    Best-effort: a notice that is absent (the usual case once consent is
+    stored) costs one visibility check and nothing else.
+    """
+    loc = page.locator(SELECTORS["consent_agree"])
+    try:
+        if loc.count() > 0 and loc.first.is_visible():
+            loc.first.click()
+            logger.info("ℹ️ [ametller] accepted the Didomi cookie-consent notice")
+            human_delay(0.5, 1.0)
+    except Exception:  # noqa: BLE001 — consent handling is strictly best-effort
+        logger.warning("⚠️ [ametller] could not dismiss the cookie-consent notice", exc_info=True)
+
+
 def _set_stepper(page: Page, value: int, item: CartItem) -> None:
     """Set the product-page quantity stepper to `value` (>= 1)."""
     inp = page.locator(SELECTORS["stepper_input"]).first
@@ -315,6 +336,7 @@ def add_to_cart(page: Page, item: CartItem) -> None:
     logger.info("🛒 [ametller] %s ×%d", item.comida, item.comprar)
     goto_with_login_check(page, "ametller", item.buscador)
     human_delay(*_NAV_SETW)
+    _dismiss_consent_notice(page)
 
     auth = _read_auth(page)
     if auth["customer_type"] != "registered":
