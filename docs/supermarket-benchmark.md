@@ -84,7 +84,7 @@ The baseline store's own items are never researched: the scorer uses `basket.jso
   - Re-recording a run replaces its rows, so recording is idempotent.
 - `python -m benchmark.report <run>` renders `report.html` from the scored run and the history. The page has an **Over time** table with one row per run, and lists the biggest price moves since the previous run.
 - Judgment the code can't derive lives in the run's `report_notes.json` (findings and caveats), written by the orchestrator.
-- The report is published as **one living Artifact**: its URL is kept in `_state/report.json`, and each run republishes to the same link.
+- The report is published as **one living Artifact**: its URL is kept in `_state/report.json`, and each run republishes to the same link. A copy of the last published page is kept in `_state/report_published.html` (with the run and Artifact version in `report.json`), and every run keeps its own `report.html`, so the history of reports stays local and uncommitted.
 
 ## Store access
 
