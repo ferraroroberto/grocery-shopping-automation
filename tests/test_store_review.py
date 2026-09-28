@@ -74,6 +74,23 @@ def test_override_at_a_store_without_an_offer_is_priced(seeded_copy, runs_copy):
     assert res["picks"]["unpriced"] == []
 
 
+def test_price_only_override_on_an_unverified_match_is_priced(seeded_copy, runs_copy):
+    """Regression (#174): Mercadona's burger match is unverified (not a priced offer),
+    so a price-only override takes its pack from that match (0.3 kg) and is priced."""
+    store_links.set_override(seeded_copy, BURGUER, "mercadona", pack_price=3.5)
+    res = store_links.simulate(seeded_copy, {str(BURGUER): "mercadona"}, 1.0)
+    assert res["item_prices"][str(BURGUER)]["mercadona"] == 14.0  # 1.2 / 0.3 × 3.5
+    merc = _store(store_links.item_detail(seeded_copy, BURGUER), "mercadona")
+    assert (merc["pack_size"], merc["monthly_cost"], merc["priced"]) == (0.3, 14.0, True)
+
+
+def test_override_with_no_pack_anywhere_is_rejected(seeded_copy, runs_copy):
+    # Carrefour has no filete-pavo at all (not_found): a price alone can't be priced.
+    with pytest.raises(store_links.StoreLinkError, match="pack size"):
+        store_links.set_override(seeded_copy, PAVO, "carrefour", pack_price=10.0)
+    assert not (runs_copy / "_state" / "overrides.json").exists()
+
+
 def test_override_pack_drives_apply_preview(seeded_copy, runs_copy):
     _write_overrides(runs_copy, {"items": {"burguer-ternera": {"carrefour": {
         "name": "Burger 900 g", "pack_size": 0.9, "pack_price": 9.0}}}})

@@ -249,6 +249,12 @@ def _candidate(rec: Optional[dict], url: str) -> Optional[dict]:
     return None
 
 
+def _best_candidate(rec: Optional[dict]) -> Optional[dict]:
+    """The cheapest-per-unit matched candidate of a record (priced or not, e.g. unverified)."""
+    cands = bscore.record_candidates(rec)
+    return min(cands, key=lambda c: float(c["pack_price"]) / float(c["pack_size"])) if cands else None
+
+
 def _override_offer(key: str, store: str, ov: dict, base: Optional[bscore.Offer]) -> Optional[bscore.Offer]:
     """``ov`` merged over the benchmark's offer; None when it still lacks a pack or a price."""
     size = _num(ov.get("pack_size")) or (base.pack_size if base else None)
@@ -302,17 +308,32 @@ class _RunContext:
             return bscore.baseline_offer(item)
         return self.offers.get(key, {}).get(store)
 
+    def override_base(self, key: str, store: str) -> Optional[bscore.Offer]:
+        """What an override at ``store`` falls back to for the fields it leaves out.
+
+        The benchmark's priced offer; else its matched-but-unpriced candidate
+        (e.g. an unverified match — the "benchmark" values the review dialog
+        shows), since saving your own values over it is your acceptance of it.
+        """
+        base = self.benchmark_offer(key, store)
+        if base is not None:
+            return base
+        cand = _best_candidate(self.record(key, store))
+        if cand is None:
+            return None
+        return bscore.Offer(store, key, cell_text(cand.get("name")), cell_text(cand.get("url")),
+                            float(cand["pack_size"]), float(cand["pack_price"]), cell_text(cand.get("status")))
+
     def offer(self, key: str, store: str) -> Optional[bscore.Offer]:
         """What ``key`` costs at ``store``: the household's override when there is one, else the benchmark's.
 
         The single pricing hook — the simulator, the per-item prices and the
         apply pack conversion all price through it.
         """
-        base = self.benchmark_offer(key, store)
         ov = self.override(key, store)
         if ov is None or key not in self.priced:
-            return base
-        return _override_offer(key, store, ov, base)
+            return self.benchmark_offer(key, store)
+        return _override_offer(key, store, ov, self.override_base(key, store))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -886,8 +907,7 @@ def _benchmark_view(ctx: _RunContext, key: str, store: str) -> Optional[dict[str
         values = {"name": cur.get("name"), "pack_size": _num(cur.get("pack_size")), "unit": cur.get("unit"),
                   "pack_price": _num(cur.get("pack_price")), "url": cur.get("url")}
         status, priced, meta = "baseline", False, {}
-    elif cands := bscore.record_candidates(rec):
-        best = min(cands, key=lambda c: float(c["pack_price"]) / float(c["pack_size"]))
+    elif best := _best_candidate(rec):
         values = {"name": best.get("name"), "pack_size": float(best["pack_size"]), "unit": best.get("unit"),
                   "pack_price": float(best["pack_price"]), "url": best.get("url")}
         status = "unverified" if bscore.is_unverified(item, best) else best.get("status")
@@ -1168,6 +1188,11 @@ def set_override(df: pd.DataFrame, item_id: int, store: str, *, name: Optional[s
     ctx = _RunContext(run)
     key = _basket_key(df, item_id, ctx)
     bench = _benchmark_view(ctx, key, store)
+    base = ctx.override_base(key, store)
+    if pack_size is None and base is None:
+        raise StoreLinkError(f"give the pack size: the benchmark has no {store} product to take it from")
+    if pack_price is None and base is None:
+        raise StoreLinkError(f"give the pack price: the benchmark has no {store} price to take it from")
     entry = {
         "name": name, "pack_size": pack_size, "unit": unit, "pack_price": pack_price, "note": note,
         "updated": datetime.now().isoformat(timespec="seconds"),
