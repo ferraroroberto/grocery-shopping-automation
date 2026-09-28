@@ -70,7 +70,7 @@ def test_api_stores_registry(api):
     assert body["run_date"] == "2026-01-15"
     stores = {s["key"]: s for s in body["stores"]}
     assert stores["mercadona"]["has_handler"] and stores["ametller"]["has_handler"]
-    assert not stores["carrefour"]["has_handler"]
+    assert stores["carrefour"]["has_handler"] and not stores["dia"]["has_handler"]
     assert body["default_frequency"] == "weekly" and "2-weekly" in body["frequencies"]
 
 

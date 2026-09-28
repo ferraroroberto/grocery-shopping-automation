@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Used only when the cart-automation package can't be imported here.
-_FALLBACK_HANDLERS = frozenset({"mercadona", "ametller"})
+_FALLBACK_HANDLERS = frozenset({"mercadona", "ametller", "carrefour"})
 
 
 class StoreUrlPayload(BaseModel):
