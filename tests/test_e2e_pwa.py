@@ -358,6 +358,19 @@ def test_stores_plan_simulate_and_apply(page, server):
     page.click(store_pill.format("ametller"))
     assert page.locator(".store-row").count() == all_rows
 
+    # Only items I buy (#172): a target-0 row hides and the Store counts follow; off → it returns.
+    bought = [i for i in page.request.get(f"{server.url}/api/inventory").json()["items"] if i["cantidad"] > 0]
+    zero_row = page.locator(".store-row", has_text="amoniaco")  # target 0 in the fixture
+    assert zero_row.count() == 1
+    page.click("[data-stores-targetonly]")
+    page.wait_for_function(f"document.querySelectorAll('.store-row').length === {len(bought)}")
+    assert zero_row.count() == 0
+    mercadona = sum(i["super"] == "mercadona" for i in bought)
+    assert page.locator(f"{store_pill.format('mercadona')} .pill-count").inner_text() == str(mercadona)
+    page.click("[data-stores-targetonly]")
+    page.wait_for_function(f"document.querySelectorAll('.store-row').length === {all_rows}")
+    assert zero_row.count() == 1
+
     # ── Per-item review (#165) ──
     count = "(key) => document.querySelector(`[data-stores-filter='${key}'] .pill-count`)?.textContent"
     page.wait_for_function(f"({count})('needs') === '1'")

@@ -18,6 +18,7 @@ const FREQ_KEY = "grocery.storeFrequency";
 const SHOW_ALL_KEY = "grocery.storesShowAll";
 const FILTER_KEY = "grocery.storesFilter";
 const STORE_FILTER_KEY = "grocery.storesStoreFilter";
+const TARGET_ONLY_KEY = "grocery.storesTargetOnly";
 const SIM_DEBOUNCE_MS = 350;
 const DETAIL_ID = "stores-detail-dialog";
 const FREQ_LABELS = { weekly: "Weekly", "2-weekly": "2-weekly", monthly: "Monthly" };
@@ -68,6 +69,7 @@ const local = {
   showAll: readStored(SHOW_ALL_KEY, false), // chips/picker for every benchmarked store
   filter: storedFilter(),                   // all | needs | checked
   stores: storedStores(),                   // list stores the rows are narrowed to; none = every store
+  targetOnly: readStored(TARGET_ONLY_KEY, false) === true, // only rows with a target (cantidad) above 0
   note: null,         // { kind: "ok" | "error", text, warning? } — header feedback
   actionNote: null,   // { kind, text } — actions card feedback
   timer: 0,
@@ -263,7 +265,10 @@ export function renderStores() {
         <span class="card-head-meta" id="stores-list-count"></span>
       </div>
       <div id="stores-filter"></div>
-      <div class="flag-row stores-showall">${switchMarkup(local.showAll, "Show all stores", { "data-stores-showall": "" })}<span>Show all stores, not only the ones in your list</span></div>
+      <div class="stores-switches">
+        <div class="flag-row">${switchMarkup(local.targetOnly, "Only items I buy", { "data-stores-targetonly": "" })}<span>Only items I buy (target above 0)</span></div>
+        <div class="flag-row">${switchMarkup(local.showAll, "Show all stores", { "data-stores-showall": "" })}<span>Show all stores, not only the ones in your list</span></div>
+      </div>
       <ul id="stores-list" class="store-rows"></ul>
     </section>`;
   paintSim();
@@ -410,6 +415,12 @@ function storesInUse() {
   return new Set((state.payload?.items || []).map(currentStore).filter(Boolean));
 }
 
+// "Only items I buy" (#172): a target of 0 keeps the item in the list but it
+// is never ordered, so it is noise when reviewing where things are bought.
+function inScope(item) {
+  return !local.targetOnly || Number(item[c().cantidad]) > 0;
+}
+
 // The Store filter's selection, minus any store the list no longer buys from
 // (an Apply moved its last item away) — a stale pick must not hide every row.
 function selectedStores(inUse = storesInUse()) {
@@ -500,11 +511,12 @@ function filterMarkup() {
 }
 
 // Store (#170): one toggle per store the list buys from, with its item count
-// over the whole list (like the status counts). Several can be on at once;
-// none on = every store. Composes with the status pills and the search box.
+// over the whole list — or, with "Only items I buy" on, over the items bought
+// (#172), so the count matches the rows. Several can be on at once; none on =
+// every store. Composes with the status pills and the search box.
 function storeFilterMarkup(inUse = storesInUse()) {
   const counts = {};
-  for (const item of state.payload?.items || []) {
+  for (const item of (state.payload?.items || []).filter(inScope)) {
     const key = currentStore(item);
     if (key) counts[key] = (counts[key] || 0) + 1;
   }
@@ -513,7 +525,7 @@ function storeFilterMarkup(inUse = storesInUse()) {
   if (!keys.length) return "";
   return `<div class="pills stores-filter" role="group" aria-labelledby="stores-store-label"><span class="stores-filter-label" id="stores-store-label">Store</span>${keys.map((key) => {
     const on = selected.includes(key);
-    return `<button type="button" class="pill${on ? " active" : ""}" aria-pressed="${on}" data-stores-store="${esc(key)}">${esc(storeName(key))} <span class="pill-count">${counts[key]}</span></button>`;
+    return `<button type="button" class="pill${on ? " active" : ""}" aria-pressed="${on}" data-stores-store="${esc(key)}">${esc(storeName(key))} <span class="pill-count">${counts[key] || 0}</span></button>`;
   }).join("")}</div>`;
 }
 
@@ -528,7 +540,8 @@ function paintFilter() {
   if (refocus) host.querySelector(refocus)?.focus();
 }
 
-// Why the list is empty; a store selection is named after it ("… at Ametller.").
+// Why the list is empty; a store selection is named after it ("… at Ametller."),
+// and "Only items I buy" when it hid rows the other filters would show.
 const FILTER_EMPTY = {
   all: ["search", "No matching items"],
   needs: ["circle-check", "Nothing needs checking"],
@@ -543,16 +556,18 @@ function paintList() {
   const filter = local.checks ? local.filter : "all";
   const inUse = storesInUse();
   const stores = selectedStores(inUse);
-  const source = filteredItems()
+  const matched = filteredItems()
     .filter((item) => filter === "all" || reviewState(item) === filter)
-    .filter((item) => !stores.length || stores.includes(currentStore(item)))
+    .filter((item) => !stores.length || stores.includes(currentStore(item)));
+  const source = matched.filter(inScope)
     .sort((a, b) => String(a[cols.comida] ?? "").localeCompare(String(b[cols.comida] ?? "")));
   const linked = source.filter((item) => Object.keys(item.urls || {}).length).length;
   document.querySelector("#stores-list-count").textContent = `${plural(source.length, "item")} · ${linked} with links`;
   const [glyph, message] = FILTER_EMPTY[state.query ? "all" : filter] || FILTER_EMPTY.all;
   const at = stores.length ? ` at ${storeList.format(stores.map(storeName))}` : "";
+  const bought = matched.length ? " that you buy (target above 0)" : "";
   list.innerHTML = source.map((item) => rowMarkup(item, inUse)).join("")
-    || `<li>${emptyStateEl(glyph, `${message}${at}.`).outerHTML}</li>`;
+    || `<li>${emptyStateEl(glyph, `${message}${at}${bought}.`).outerHTML}</li>`;
 }
 
 function repaintRow(id) {
@@ -1300,6 +1315,14 @@ async function submitApply(dialog) {
 }
 
 // ------------------------------------------------------ event delegation
+// app.js's delegated switch handler has already flipped a tapped switch, and
+// setSwitch rebuilds its knob: a tap on the knob (it sits on top once the
+// switch is on) leaves event.target detached, so closest() finds nothing and
+// the switch could never be turned off. The dispatch path still holds it.
+function switchHit(event, selector) {
+  return event.composedPath().find((node) => node instanceof Element && node.matches(selector));
+}
+
 // Wired from app.js on .app; only acts on this view's own data-* hooks. The
 // dialogs live at <body> level and carry their own listeners.
 export async function onStoresClick(event) {
@@ -1339,9 +1362,16 @@ export async function onStoresClick(event) {
     paintList();
     return;
   }
-  const showAll = event.target.closest("[data-stores-showall]");
+  const targetOnly = switchHit(event, "[data-stores-targetonly]");
+  if (targetOnly) {
+    local.targetOnly = targetOnly.getAttribute("aria-checked") === "true";
+    writeStored(TARGET_ONLY_KEY, local.targetOnly);
+    paintFilter();
+    paintList();
+    return;
+  }
+  const showAll = switchHit(event, "[data-stores-showall]");
   if (showAll) {
-    // app.js's delegated switch handler has already flipped it.
     local.showAll = showAll.getAttribute("aria-checked") === "true";
     writeStored(SHOW_ALL_KEY, local.showAll);
     paintList();
