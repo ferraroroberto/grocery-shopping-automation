@@ -197,6 +197,19 @@ def test_simulate_prices_picks_against_today(seeded):
     assert str(AMONIACO) not in res["item_prices"]
 
 
+def test_simulate_today_stays_at_the_benchmark_status_quo(seeded):
+    # After a switch is applied, `super` holds the new store — but "today" is
+    # the setup the benchmark measured, so the saving stays visible.
+    store_links.pick_store(seeded, BURGUER, "carrefour")
+    df = load_inventory_data()
+    res = store_links.simulate(df, {}, store_links.FREQUENCIES["weekly"])
+    assert res["today"]["items"]["burguer-ternera"] == "ametller"
+    assert res["today"]["goods"] == 49.6
+    # The what-if starts from the list as it is now.
+    assert res["picks"]["items"]["burguer-ternera"] == "carrefour"
+    assert res["delta"]["goods"] == round(14.4 - 20.0, 2)
+
+
 def test_simulate_low_confidence_offer_is_unpriced_not_free(seeded):
     res = store_links.simulate(seeded, {str(BURGUER): "mercadona"}, 1.0)
     assert res["picks"]["unpriced"] == [{"key": "burguer-ternera", "store": "mercadona", "reason": "no_offer",
