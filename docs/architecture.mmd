@@ -10,7 +10,7 @@ flowchart TB
   subgraph frontend["Primary surface — FastAPI + vanilla-JS PWA (:8502)"]
     STATIC["app/static/\nindex.html · styles.css · generated PWA icons\n_vendored/ (fleet nav, icons, card, disclosure, modal, switch, empty-state)"]
     APPJS["app/static/app.js\norchestrator: render() mode routing, delegated listeners, boot"]
-    JSMODULES["app/static/modules/ (ES modules, no bundler)\ncore (state + render mediator) · dom · media · api\ninventory · shopping · automation · email · audio · search"]
+    JSMODULES["app/static/modules/ (ES modules, no bundler)\ncore (state + render mediator) · dom · media · api\ninventory · shopping · stores · automation · email · audio · search"]
     API["app/api.py\ncomposition root: lifespan, middleware, static mount, router includes"]
     ROUTERS["app/routers/ — one APIRouter per concern\nsystem (shell, version, manifest, login, access, actions)\ninventory · stores · automation · product_search · audio · voice · email"]
     APICOMMON["app/api_common.py\ndata-layer → HTTP translation (lock/file errors → status codes),\ninventory payload builder shared by every router"]
@@ -26,6 +26,7 @@ flowchart TB
     STATIC --> APPJS
     APPJS --> API
     JSMODULES --> API
+    JSMODULES -->|stores.js: /api/stores/* + store-url, what-if picks| ROUTERS
     MW --> API
     API --> ROUTERS
     API --> STATICFILES
