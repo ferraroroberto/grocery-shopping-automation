@@ -1,0 +1,619 @@
+{
+  "run_date": "2026-01-15",
+  "orders_per_month": 4.0,
+  "items_scored": 4,
+  "unpriced_items": [],
+  "stores": [
+    "ametller",
+    "carrefour",
+    "mercadona"
+  ],
+  "deliveries": {
+    "ametller": {
+      "delivers": "yes",
+      "fee_tiers": [
+        {
+          "min_order": 0.0,
+          "fee": 5.0
+        },
+        {
+          "min_order": 60.0,
+          "fee": 0.0
+        }
+      ],
+      "min_order": null
+    },
+    "carrefour": {
+      "delivers": "yes",
+      "fee_tiers": [
+        {
+          "min_order": 0.0,
+          "fee": 4.0
+        },
+        {
+          "min_order": 100.0,
+          "fee": 0.0
+        }
+      ],
+      "min_order": null
+    },
+    "mercadona": {
+      "delivers": "yes",
+      "fee_tiers": [
+        {
+          "min_order": 0.0,
+          "fee": 8.0
+        }
+      ],
+      "min_order": null
+    }
+  },
+  "status_quo": {
+    "goods": 49.6,
+    "delivery": 52.0,
+    "total": 101.6,
+    "delivery_optimised": 26.0,
+    "total_optimised": 75.6,
+    "per_store": {
+      "ametller": {
+        "goods": 38.0,
+        "orders": 4.0,
+        "order_value": 9.5,
+        "fee_per_order": 5.0,
+        "monthly_fee": 20.0,
+        "flags": [],
+        "optimised_orders": 2,
+        "optimised_fee": 10.0
+      },
+      "mercadona": {
+        "goods": 11.6,
+        "orders": 4.0,
+        "order_value": 2.9,
+        "fee_per_order": 8.0,
+        "monthly_fee": 32.0,
+        "flags": [],
+        "optimised_orders": 2,
+        "optimised_fee": 16.0
+      }
+    },
+    "items": {
+      "burguer-ternera": "ametller",
+      "dorada": "mercadona",
+      "filete-pavo": "ametller",
+      "guisantes-congelados": "mercadona"
+    }
+  },
+  "single_store": [
+    {
+      "store": "ametller",
+      "coverage_pct": 75.0,
+      "covered": 3,
+      "missing": [
+        "guisantes-congelados"
+      ],
+      "common_subset": {
+        "store_goods": 50.0,
+        "status_quo_goods": 46.0,
+        "delta_pct": 8.7
+      },
+      "alone": {
+        "goods": 50.0,
+        "delivery": 20.0,
+        "total": 70.0,
+        "delivery_optimised": 10.0,
+        "total_optimised": 60.0,
+        "per_store": {
+          "ametller": {
+            "goods": 50.0,
+            "orders": 4.0,
+            "order_value": 12.5,
+            "fee_per_order": 5.0,
+            "monthly_fee": 20.0,
+            "flags": [],
+            "optimised_orders": 2,
+            "optimised_fee": 10.0
+          }
+        },
+        "items": {
+          "burguer-ternera": "ametller",
+          "dorada": "ametller",
+          "filete-pavo": "ametller"
+        }
+      },
+      "filled_in": {
+        "goods": 53.6,
+        "delivery": 52.0,
+        "total": 105.6,
+        "delivery_optimised": 26.0,
+        "total_optimised": 79.6,
+        "per_store": {
+          "ametller": {
+            "goods": 50.0,
+            "orders": 4.0,
+            "order_value": 12.5,
+            "fee_per_order": 5.0,
+            "monthly_fee": 20.0,
+            "flags": [],
+            "optimised_orders": 2,
+            "optimised_fee": 10.0
+          },
+          "mercadona": {
+            "goods": 3.6,
+            "orders": 4.0,
+            "order_value": 0.9,
+            "fee_per_order": 8.0,
+            "monthly_fee": 32.0,
+            "flags": [],
+            "optimised_orders": 2,
+            "optimised_fee": 16.0
+          }
+        },
+        "items": {
+          "burguer-ternera": "ametller",
+          "dorada": "ametller",
+          "filete-pavo": "ametller",
+          "guisantes-congelados": "mercadona"
+        }
+      }
+    },
+    {
+      "store": "carrefour",
+      "coverage_pct": 75.0,
+      "covered": 3,
+      "missing": [
+        "filete-pavo"
+      ],
+      "common_subset": {
+        "store_goods": 21.1,
+        "status_quo_goods": 31.6,
+        "delta_pct": -33.2
+      },
+      "alone": {
+        "goods": 21.1,
+        "delivery": 16.0,
+        "total": 37.1,
+        "delivery_optimised": 8.0,
+        "total_optimised": 29.1,
+        "per_store": {
+          "carrefour": {
+            "goods": 21.1,
+            "orders": 4.0,
+            "order_value": 5.27,
+            "fee_per_order": 4.0,
+            "monthly_fee": 16.0,
+            "flags": [],
+            "optimised_orders": 2,
+            "optimised_fee": 8.0
+          }
+        },
+        "items": {
+          "burguer-ternera": "carrefour",
+          "dorada": "carrefour",
+          "guisantes-congelados": "carrefour"
+        }
+      },
+      "filled_in": {
+        "goods": 39.1,
+        "delivery": 36.0,
+        "total": 75.1,
+        "delivery_optimised": 18.0,
+        "total_optimised": 57.1,
+        "per_store": {
+          "ametller": {
+            "goods": 18.0,
+            "orders": 4.0,
+            "order_value": 4.5,
+            "fee_per_order": 5.0,
+            "monthly_fee": 20.0,
+            "flags": [],
+            "optimised_orders": 2,
+            "optimised_fee": 10.0
+          },
+          "carrefour": {
+            "goods": 21.1,
+            "orders": 4.0,
+            "order_value": 5.27,
+            "fee_per_order": 4.0,
+            "monthly_fee": 16.0,
+            "flags": [],
+            "optimised_orders": 2,
+            "optimised_fee": 8.0
+          }
+        },
+        "items": {
+          "burguer-ternera": "carrefour",
+          "dorada": "carrefour",
+          "filete-pavo": "ametller",
+          "guisantes-congelados": "carrefour"
+        }
+      }
+    },
+    {
+      "store": "mercadona",
+      "coverage_pct": 75.0,
+      "covered": 3,
+      "missing": [
+        "burguer-ternera"
+      ],
+      "common_subset": {
+        "store_goods": 28.1,
+        "status_quo_goods": 29.6,
+        "delta_pct": -5.1
+      },
+      "alone": {
+        "goods": 28.1,
+        "delivery": 32.0,
+        "total": 60.1,
+        "delivery_optimised": 16.0,
+        "total_optimised": 44.1,
+        "per_store": {
+          "mercadona": {
+            "goods": 28.1,
+            "orders": 4.0,
+            "order_value": 7.03,
+            "fee_per_order": 8.0,
+            "monthly_fee": 32.0,
+            "flags": [],
+            "optimised_orders": 2,
+            "optimised_fee": 16.0
+          }
+        },
+        "items": {
+          "dorada": "mercadona",
+          "filete-pavo": "mercadona",
+          "guisantes-congelados": "mercadona"
+        }
+      },
+      "filled_in": {
+        "goods": 48.1,
+        "delivery": 52.0,
+        "total": 100.1,
+        "delivery_optimised": 26.0,
+        "total_optimised": 74.1,
+        "per_store": {
+          "ametller": {
+            "goods": 20.0,
+            "orders": 4.0,
+            "order_value": 5.0,
+            "fee_per_order": 5.0,
+            "monthly_fee": 20.0,
+            "flags": [],
+            "optimised_orders": 2,
+            "optimised_fee": 10.0
+          },
+          "mercadona": {
+            "goods": 28.1,
+            "orders": 4.0,
+            "order_value": 7.03,
+            "fee_per_order": 8.0,
+            "monthly_fee": 32.0,
+            "flags": [],
+            "optimised_orders": 2,
+            "optimised_fee": 16.0
+          }
+        },
+        "items": {
+          "burguer-ternera": "ametller",
+          "dorada": "mercadona",
+          "filete-pavo": "mercadona",
+          "guisantes-congelados": "mercadona"
+        }
+      }
+    }
+  ],
+  "best": {
+    "1": [],
+    "2": [
+      {
+        "stores": [
+          "ametller",
+          "carrefour"
+        ],
+        "goods": 39.1,
+        "delivery": 36.0,
+        "total": 75.1,
+        "delivery_optimised": 18.0,
+        "total_optimised": 57.1,
+        "per_store": {
+          "ametller": {
+            "goods": 18.0,
+            "orders": 4.0,
+            "order_value": 4.5,
+            "fee_per_order": 5.0,
+            "monthly_fee": 20.0,
+            "flags": [],
+            "optimised_orders": 2,
+            "optimised_fee": 10.0
+          },
+          "carrefour": {
+            "goods": 21.1,
+            "orders": 4.0,
+            "order_value": 5.27,
+            "fee_per_order": 4.0,
+            "monthly_fee": 16.0,
+            "flags": [],
+            "optimised_orders": 2,
+            "optimised_fee": 8.0
+          }
+        },
+        "items": {
+          "burguer-ternera": "carrefour",
+          "dorada": "carrefour",
+          "filete-pavo": "ametller",
+          "guisantes-congelados": "carrefour"
+        }
+      },
+      {
+        "stores": [
+          "carrefour",
+          "mercadona"
+        ],
+        "goods": 37.6,
+        "delivery": 48.0,
+        "total": 85.6,
+        "delivery_optimised": 24.0,
+        "total_optimised": 61.6,
+        "per_store": {
+          "carrefour": {
+            "goods": 21.1,
+            "orders": 4.0,
+            "order_value": 5.27,
+            "fee_per_order": 4.0,
+            "monthly_fee": 16.0,
+            "flags": [],
+            "optimised_orders": 2,
+            "optimised_fee": 8.0
+          },
+          "mercadona": {
+            "goods": 16.5,
+            "orders": 4.0,
+            "order_value": 4.12,
+            "fee_per_order": 8.0,
+            "monthly_fee": 32.0,
+            "flags": [],
+            "optimised_orders": 2,
+            "optimised_fee": 16.0
+          }
+        },
+        "items": {
+          "burguer-ternera": "carrefour",
+          "dorada": "carrefour",
+          "filete-pavo": "mercadona",
+          "guisantes-congelados": "carrefour"
+        }
+      },
+      {
+        "stores": [
+          "ametller",
+          "mercadona"
+        ],
+        "goods": 48.1,
+        "delivery": 52.0,
+        "total": 100.1,
+        "delivery_optimised": 26.0,
+        "total_optimised": 74.1,
+        "per_store": {
+          "ametller": {
+            "goods": 20.0,
+            "orders": 4.0,
+            "order_value": 5.0,
+            "fee_per_order": 5.0,
+            "monthly_fee": 20.0,
+            "flags": [],
+            "optimised_orders": 2,
+            "optimised_fee": 10.0
+          },
+          "mercadona": {
+            "goods": 28.1,
+            "orders": 4.0,
+            "order_value": 7.03,
+            "fee_per_order": 8.0,
+            "monthly_fee": 32.0,
+            "flags": [],
+            "optimised_orders": 2,
+            "optimised_fee": 16.0
+          }
+        },
+        "items": {
+          "burguer-ternera": "ametller",
+          "dorada": "mercadona",
+          "filete-pavo": "mercadona",
+          "guisantes-congelados": "mercadona"
+        }
+      }
+    ],
+    "3": [
+      {
+        "stores": [
+          "ametller",
+          "carrefour",
+          "mercadona"
+        ],
+        "goods": 37.6,
+        "delivery": 48.0,
+        "total": 85.6,
+        "delivery_optimised": 24.0,
+        "total_optimised": 61.6,
+        "per_store": {
+          "carrefour": {
+            "goods": 21.1,
+            "orders": 4.0,
+            "order_value": 5.27,
+            "fee_per_order": 4.0,
+            "monthly_fee": 16.0,
+            "flags": [],
+            "optimised_orders": 2,
+            "optimised_fee": 8.0
+          },
+          "mercadona": {
+            "goods": 16.5,
+            "orders": 4.0,
+            "order_value": 4.12,
+            "fee_per_order": 8.0,
+            "monthly_fee": 32.0,
+            "flags": [],
+            "optimised_orders": 2,
+            "optimised_fee": 16.0
+          }
+        },
+        "items": {
+          "burguer-ternera": "carrefour",
+          "dorada": "carrefour",
+          "filete-pavo": "mercadona",
+          "guisantes-congelados": "carrefour"
+        }
+      }
+    ],
+    "4": [],
+    "5": []
+  },
+  "max_savings": {
+    "stores": [
+      "ametller",
+      "carrefour"
+    ],
+    "goods": 39.1,
+    "delivery": 36.0,
+    "total": 75.1,
+    "delivery_optimised": 18.0,
+    "total_optimised": 57.1,
+    "per_store": {
+      "ametller": {
+        "goods": 18.0,
+        "orders": 4.0,
+        "order_value": 4.5,
+        "fee_per_order": 5.0,
+        "monthly_fee": 20.0,
+        "flags": [],
+        "optimised_orders": 2,
+        "optimised_fee": 10.0
+      },
+      "carrefour": {
+        "goods": 21.1,
+        "orders": 4.0,
+        "order_value": 5.27,
+        "fee_per_order": 4.0,
+        "monthly_fee": 16.0,
+        "flags": [],
+        "optimised_orders": 2,
+        "optimised_fee": 8.0
+      }
+    },
+    "items": {
+      "burguer-ternera": "carrefour",
+      "dorada": "carrefour",
+      "filete-pavo": "ametller",
+      "guisantes-congelados": "carrefour"
+    }
+  },
+  "recommended": {
+    "stores": [
+      "ametller",
+      "carrefour"
+    ],
+    "goods": 39.1,
+    "delivery": 36.0,
+    "total": 75.1,
+    "delivery_optimised": 18.0,
+    "total_optimised": 57.1,
+    "per_store": {
+      "ametller": {
+        "goods": 18.0,
+        "orders": 4.0,
+        "order_value": 4.5,
+        "fee_per_order": 5.0,
+        "monthly_fee": 20.0,
+        "flags": [],
+        "optimised_orders": 2,
+        "optimised_fee": 10.0
+      },
+      "carrefour": {
+        "goods": 21.1,
+        "orders": 4.0,
+        "order_value": 5.27,
+        "fee_per_order": 4.0,
+        "monthly_fee": 16.0,
+        "flags": [],
+        "optimised_orders": 2,
+        "optimised_fee": 8.0
+      }
+    },
+    "items": {
+      "burguer-ternera": "carrefour",
+      "dorada": "carrefour",
+      "filete-pavo": "ametller",
+      "guisantes-congelados": "carrefour"
+    }
+  },
+  "resplit_current": {
+    "stores": [
+      "ametller",
+      "mercadona"
+    ],
+    "goods": 48.1,
+    "delivery": 52.0,
+    "total": 100.1,
+    "delivery_optimised": 26.0,
+    "total_optimised": 74.1,
+    "per_store": {
+      "ametller": {
+        "goods": 20.0,
+        "orders": 4.0,
+        "order_value": 5.0,
+        "fee_per_order": 5.0,
+        "monthly_fee": 20.0,
+        "flags": [],
+        "optimised_orders": 2,
+        "optimised_fee": 10.0
+      },
+      "mercadona": {
+        "goods": 28.1,
+        "orders": 4.0,
+        "order_value": 7.03,
+        "fee_per_order": 8.0,
+        "monthly_fee": 32.0,
+        "flags": [],
+        "optimised_orders": 2,
+        "optimised_fee": 16.0
+      }
+    },
+    "items": {
+      "burguer-ternera": "ametller",
+      "dorada": "mercadona",
+      "filete-pavo": "mercadona",
+      "guisantes-congelados": "mercadona"
+    }
+  },
+  "lower_bound_goods": 37.6,
+  "outliers": [],
+  "unverified": {
+    "mercadona": [
+      "burguer-ternera"
+    ]
+  },
+  "upgrades": [],
+  "unit_prices": {
+    "burguer-ternera": {
+      "ametller": 16.6667,
+      "carrefour": 12.0
+    },
+    "dorada": {
+      "mercadona": 10.0,
+      "ametller": 15.0,
+      "carrefour": 5.0
+    },
+    "filete-pavo": {
+      "ametller": 12.0,
+      "mercadona": 11.0
+    },
+    "guisantes-congelados": {
+      "mercadona": 4.0,
+      "carrefour": 3.0
+    }
+  },
+  "diff": {
+    "previous_run": "2025-12-01",
+    "price_moves": [],
+    "no_longer_offered": []
+  }
+}

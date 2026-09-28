@@ -1,0 +1,30 @@
+{
+  "store": "ametller",
+  "delivery": {
+    "delivers": "yes",
+    "fee_tiers": [
+      {
+        "min_order": 0.0,
+        "fee": 5.0
+      },
+      {
+        "min_order": 60.0,
+        "fee": 0.0
+      }
+    ],
+    "min_order": null
+  },
+  "items": {
+    "dorada": {
+      "status": "equivalent",
+      "confidence": "high",
+      "name": "Fixture fixture-dorada",
+      "url": "https://www.ametllerorigen.com/es/fixture-dorada/p",
+      "pack_size": 0.4,
+      "unit": "kg",
+      "pack_price": 6.0,
+      "evidence": "invented fixture record"
+    }
+  },
+  "updated_at": "2026-01-15T10:00:00"
+}

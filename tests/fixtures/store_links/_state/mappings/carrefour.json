@@ -1,0 +1,48 @@
+{
+  "burguer-ternera": {
+    "status": "equivalent",
+    "confidence": "high",
+    "name": "Fixture fixture-burger-300",
+    "url": "https://www.carrefour.es/supermercado/fixture-burger-300/p",
+    "pack_size": 0.3,
+    "unit": "kg",
+    "alternatives": [
+      {
+        "status": "equivalent",
+        "confidence": "high",
+        "name": "Fixture fixture-burger-600",
+        "url": "https://www.carrefour.es/supermercado/fixture-burger-600/p",
+        "pack_size": 0.6,
+        "unit": "kg"
+      }
+    ],
+    "verified_run": "2026-01-15"
+  },
+  "dorada": {
+    "status": "equivalent",
+    "confidence": "high",
+    "name": "Fixture fixture-dorada",
+    "url": "https://www.carrefour.es/supermercado/fixture-dorada/p",
+    "pack_size": 1,
+    "unit": "ud",
+    "verified_run": "2026-01-15"
+  },
+  "guisantes-congelados": {
+    "status": "equivalent",
+    "confidence": "high",
+    "name": "Fixture fixture-guisantes-1kg",
+    "url": "https://www.carrefour.es/supermercado/fixture-guisantes-1kg/p",
+    "pack_size": 1.0,
+    "unit": "kg",
+    "verified_run": "2026-01-15"
+  },
+  "producto-inexistente": {
+    "status": "exact",
+    "confidence": "high",
+    "name": "Fixture ghost",
+    "url": "https://www.carrefour.es/supermercado/fixture-ghost/p",
+    "pack_size": 1.0,
+    "unit": "kg",
+    "verified_run": "2026-01-15"
+  }
+}

@@ -60,6 +60,9 @@
   "automation": {
     "purchase_logs_dir": "purchase_logs"
   },
+  "benchmark": {
+    "runs_dir": "benchmark_runs"
+  },
   "logging": {
     "level": "INFO",
     "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

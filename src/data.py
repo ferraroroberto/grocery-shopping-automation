@@ -105,6 +105,11 @@ _suppress_known_log_noise()
 COLUMNS = CONFIG["data"]["columns"]
 MODES = CONFIG["ui"]["modes"]
 
+# Optional per-store product-URL columns (issue #148): `url_<store>`, one per
+# store key in `benchmark/stores.json`. Never required — a sheet without any
+# loads unchanged; `super` + `buscador` stay the chosen store and its URL.
+STORE_URL_PREFIX = "url_"
+
 SPREADSHEET_LOCKED_HINT = (
     "The spreadsheet is open in Excel or locked by OneDrive. "
     "Close it in Excel, wait for sync, then try again."
@@ -186,6 +191,8 @@ def load_inventory_data() -> Optional[pd.DataFrame]:
             raise SpreadsheetLockedError(SPREADSHEET_LOCKED_HINT) from e
         raise InventoryFileError(str(e)) from e
 
+    # Only the configured columns are required; optional `url_<store>`
+    # columns (#148) and any hand-added ones ride along untouched.
     required_columns = list(COLUMNS.values())
     missing_cols = [col for col in required_columns if col not in df.columns]
     if missing_cols:
@@ -215,6 +222,27 @@ def save_inventory_data(df: pd.DataFrame, xlsx_path: Optional[str] = None) -> No
         if _is_spreadsheet_lock_error(e):
             raise SpreadsheetLockedError(SPREADSHEET_LOCKED_HINT) from e
         raise InventoryFileError(str(e)) from e
+
+
+def store_url_column(store: str) -> str:
+    """Column holding one store's product URL, e.g. ``url_carrefour``."""
+    return f"{STORE_URL_PREFIX}{store.strip().lower()}"
+
+
+def store_url_columns(df: pd.DataFrame) -> Dict[str, str]:
+    """Store key → its `url_<store>` column, for the ones this sheet has."""
+    return {
+        col[len(STORE_URL_PREFIX):]: col
+        for col in df.columns
+        if isinstance(col, str) and col.startswith(STORE_URL_PREFIX) and len(col) > len(STORE_URL_PREFIX)
+    }
+
+
+def cell_text(value: object) -> str:
+    """A cell as trimmed text; NaN/None (empty Excel cells) become ``""``."""
+    if value is None or (not isinstance(value, str) and pd.isna(value)):
+        return ""
+    return str(value).strip()
 
 
 def get_unique_zones(df: pd.DataFrame) -> List[str]:

@@ -1,0 +1,79 @@
+{
+  "run_date": "2026-01-15",
+  "frequency": {
+    "orders_per_month": {
+      "ametller": 4.0,
+      "mercadona": 4.0
+    }
+  },
+  "items": [
+    {
+      "key": "burguer-ternera",
+      "comida": "burguer ternera",
+      "store": "ametller",
+      "tier": "B",
+      "target": 2,
+      "monthly_packs": 4,
+      "current": {
+        "url": "https://ametller.example/burguer-ternera",
+        "name": "Fixture burguer ternera",
+        "pack_size": 0.3,
+        "unit": "kg",
+        "pack_price": 5.0,
+        "unit_price": 16.67
+      },
+      "monthly_base_qty": 1.2
+    },
+    {
+      "key": "dorada",
+      "comida": "dorada",
+      "store": "mercadona",
+      "tier": "B",
+      "target": 2,
+      "monthly_packs": 2,
+      "current": {
+        "url": "https://mercadona.example/dorada",
+        "name": "Fixture dorada",
+        "pack_size": 0.4,
+        "unit": "kg",
+        "pack_price": 4.0,
+        "unit_price": 10.0
+      },
+      "monthly_base_qty": 0.8
+    },
+    {
+      "key": "filete-pavo",
+      "comida": "filete pavo",
+      "store": "ametller",
+      "tier": "B",
+      "target": 2,
+      "monthly_packs": 3,
+      "current": {
+        "url": "https://ametller.example/filete-pavo",
+        "name": "Fixture filete pavo",
+        "pack_size": 0.5,
+        "unit": "kg",
+        "pack_price": 6.0,
+        "unit_price": 12.0
+      },
+      "monthly_base_qty": 1.5
+    },
+    {
+      "key": "guisantes-congelados",
+      "comida": "guisantes congelados",
+      "store": "mercadona",
+      "tier": "C",
+      "target": 2,
+      "monthly_packs": 3,
+      "current": {
+        "url": "https://mercadona.example/guisantes-congelados",
+        "name": "Fixture guisantes congelados",
+        "pack_size": 0.3,
+        "unit": "kg",
+        "pack_price": 1.2,
+        "unit_price": 4.0
+      },
+      "monthly_base_qty": 0.9
+    }
+  ]
+}
