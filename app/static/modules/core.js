@@ -14,9 +14,9 @@ export const SUB_KEY_PREFIX = "grocery.sub.";
 export const THEME_KEY = "grocery.theme";
 
 // Modes whose content the search box filters — it hides everywhere else.
-export const SEARCHABLE_MODES = new Set(["dashboard", "audit", "targets", "edit"]);
+export const SEARCHABLE_MODES = new Set(["dashboard", "audit", "targets", "edit", "stores"]);
 
-// The 8 modes group into the fleet nav's 5 tabs; audit/items tabs re-home
+// The 9 modes group into the fleet nav's 5 tabs; audit/items tabs re-home
 // their modes as sub-pills (static markup in index.html).
 export const MODE_TO_TAB = {
   dashboard: "inventory",
@@ -26,6 +26,7 @@ export const MODE_TO_TAB = {
   targets: "items",
   edit: "items",
   add: "items",
+  stores: "items",
   search: "search",
   automation: "automation",
   settings: "settings",

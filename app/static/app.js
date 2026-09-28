@@ -48,6 +48,7 @@ import {
   useCandidate,
 } from "./modules/search.js";
 import { renderShopping } from "./modules/shopping.js";
+import { onStoresChange, onStoresClick, renderStores } from "./modules/stores.js";
 
 function render() {
   if (!state.payload) return;
@@ -69,6 +70,7 @@ function render() {
   if (state.mode === "automation") renderAutomation();
   if (state.mode === "audio") renderAudio();
   if (state.mode === "search") renderSearch();
+  if (state.mode === "stores") renderStores();
 }
 
 setRenderer(render);
@@ -231,6 +233,10 @@ el.app.addEventListener("click", async (event) => {
   if (button?.dataset.action === "search-use") toggleCandidateConfirm(button.closest(".candidate"));
   if (button?.dataset.action === "search-confirm") await useCandidate(button.closest(".candidate"));
 });
+
+// Items → Stores: the view owns its data-stores-* hooks (store_links, #148).
+el.app.addEventListener("click", onStoresClick);
+el.app.addEventListener("change", onStoresChange);
 
 // Product-search term box: keep state in sync while typing; Enter runs the search.
 // The confirm-row fields persist into the draft so a poll re-render keeps them.

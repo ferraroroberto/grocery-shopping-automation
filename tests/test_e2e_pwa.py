@@ -27,10 +27,12 @@ from playwright.sync_api import sync_playwright  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE = REPO_ROOT / "tests" / "list_test_fixture.xlsx"
+# Invented benchmark run the Items → Stores view prices from (#148).
+BENCHMARK_RUNS = REPO_ROOT / "tests" / "fixtures" / "store_links"
 LIVE = os.environ.get("GROCERY_E2E_LIVE") == "1"
 TRANSCRIPT = "en la nevera, tengo dos yogures y un litro de leche. en el congelador, tres salmones."
 
-# The 8 modes group into the fleet nav's 5 tabs (mirrors MODE_TO_TAB in app.js);
+# The 9 modes group into the fleet nav's tabs (mirrors MODE_TO_TAB in app.js);
 # grouped modes are reached via a sub-pill inside their tab's pane.
 TAB_FOR_MODE = {
     "dashboard": "inventory",
@@ -40,6 +42,7 @@ TAB_FOR_MODE = {
     "targets": "items",
     "edit": "items",
     "add": "items",
+    "stores": "items",
     "search": "search",
     "automation": "automation",
     "settings": "settings",
@@ -114,6 +117,8 @@ def server(tmp_path_factory):
         data.CONFIG["audio_audit"]["logs_dir"],
         audio_router.extract,
     )
+    orig_benchmark = data.CONFIG.get("benchmark")
+    data.CONFIG["benchmark"] = {"runs_dir": str(BENCHMARK_RUNS)}
     data.CONFIG["data"]["xlsx_file"] = str(xlsx)
     data.CONFIG["audio_audit"]["logs_dir"] = str(logs_dir)
     if not LIVE:
@@ -137,6 +142,10 @@ def server(tmp_path_factory):
         srv.should_exit = True
         thread.join(timeout=5)
         data.CONFIG["data"]["xlsx_file"], data.CONFIG["audio_audit"]["logs_dir"], audio_router.extract = orig
+        if orig_benchmark is None:
+            data.CONFIG.pop("benchmark", None)
+        else:
+            data.CONFIG["benchmark"] = orig_benchmark
         cfg.auth_token, cfg.auth_password = orig_auth
 
 
@@ -163,7 +172,8 @@ def page(browser, server):
 
 @pytest.mark.e2e
 def test_all_tabs_render_without_js_errors(page):
-    for mode in ["dashboard", "audit", "targets", "edit", "add", "shopping", "audio", "search", "automation", "settings"]:
+    for mode in ["dashboard", "audit", "targets", "edit", "add", "stores", "shopping", "audio", "search",
+                 "automation", "settings"]:
         goto_mode(page, mode)
         page.wait_for_timeout(150)
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
@@ -271,6 +281,52 @@ def test_named_item_is_never_offered_for_zeroing(page, monkeypatch):
         "document.querySelector('#audio-status')?.textContent?.includes('Inventory updated')",
         timeout=30000,
     )
+    assert page._js_errors == [], f"JS errors: {page._js_errors}"
+
+
+@pytest.mark.e2e
+def test_stores_plan_simulate_and_apply(page, server):
+    """Items → Stores (#148): import the fixture run, load the recommended plan
+    and see the simulated total move, then review and apply one store change —
+    the burger to Carrefour, its target converted by pack size (3 × 0.3 kg →
+    2 × 0.6 kg)."""
+    goto_mode(page, "stores")
+    page.click("[data-stores-action='import']")
+    page.wait_for_selector(".stores-head .panel-status.ok")
+    page.wait_for_selector("#stores-sim[data-state='ready']")
+    today_total = page.locator(".stores-total strong").inner_text()
+
+    page.click("[data-stores-action='recommended']")
+    page.wait_for_function(
+        "(before) => document.querySelector('.stores-total strong')?.textContent !== before", arg=today_total,
+    )
+    assert "Saves" in page.locator(".stores-delta").inner_text()
+
+    # Back to today, then one what-if pick: nothing is written until Apply.
+    page.click("[data-stores-action='reset']")
+    page.wait_for_function(
+        "(before) => document.querySelector('.stores-total strong')?.textContent === before", arg=today_total,
+    )
+    burger = page.locator(".store-row", has_text="burguer ternera").first
+    burger.locator("[data-stores-pick]").select_option("carrefour")
+    page.wait_for_function(
+        "(before) => document.querySelector('.stores-total strong')?.textContent !== before", arg=today_total,
+    )
+    assert burger.locator(".store-chip.is-picked").inner_text().startswith("Carrefour")
+
+    page.click("[data-stores-action='review']")
+    row = page.locator("#stores-apply-dialog .apply-row")
+    row.first.wait_for()
+    assert row.count() == 1
+    assert row.first.locator(".apply-qty").input_value() == "2"
+    page.click("#stores-apply-dialog .detail-save-btn")
+    page.wait_for_selector("#stores-action-status.ok")
+    assert not page.locator("#stores-apply-dialog").is_visible()
+
+    item = next(i for i in page.request.get(f"{server.url}/api/inventory").json()["items"]
+                if i["comida"] == "burguer ternera")
+    assert (item["super"], item["cantidad"]) == ("carrefour", 2)
+    assert item["buscador"] == item["urls"]["carrefour"]
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
 
 
