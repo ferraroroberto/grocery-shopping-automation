@@ -17,14 +17,15 @@
   /* colors — accent + status (status colors signal state only, never decoration) */
   --accent: #0969da;
   --accent-fg: #ffffff;     /* text/icon on an accent fill */
+  --accent-fill: #0969da;   /* solid primary fill (button-primary) */
+  --accent-text: #0550ae;   /* accent text on an accent-soft tint (nav-tab-active) */
+  --control-border: #818b98; /* control boundary + switch off-track (3:1+ vs card) */
   --on: #1a7f37;            /* success */
   --deficit: #cf222e;       /* danger */
   --attention: #9a6700;     /* attention */
   /* derived surface roles (mapped onto the neutral tokens above) */
   --input-bg: var(--card-off);
-  --toggle-track: var(--line);
   --toggle-knob: #ffffff;
-  --toggle-label: var(--muted);
   --close-bg: var(--card-off);
   --scrim: rgba(0, 0, 0, 0.5);
   --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
@@ -47,6 +48,11 @@
   --space-xl: 32px;
   /* uniform gutter between cards/tiles and from the page edges */
   --gap: 12px;
+  /* layout (design.md layout.*): read by _vendored/nav for the column width
+     and the wide-layout left rail. .app keeps a literal 772px because
+     design_lint's desktop-measure contract matches the literal only. */
+  --layout-measure: 772px;
+  --layout-rail: 80px;
   /* shared height for inline controls (switch / select / input) */
   --control-h: 36px;
   /* repeated-list row heights (flat separator-row canon, app-launcher#365) */
@@ -91,13 +97,14 @@
   --line-muted: #21262d;    /* border-muted */
   --accent: #2f81f7;
   --accent-fg: #ffffff;
+  --accent-fill: #1f6feb;   /* one step below accent so white text holds AA */
+  --accent-text: #58a6ff;
+  --control-border: #6e7681;
   --on: #3fb950;            /* success */
   --deficit: #f85149;       /* danger */
   --attention: #d29922;     /* attention */
   --input-bg: var(--bg);
-  --toggle-track: var(--line);
   --toggle-knob: var(--ink);
-  --toggle-label: var(--muted);
   --close-bg: var(--line);
   /* Depth on a near-black canvas comes from surface lightness, not shadow. */
   --shadow: 0 8px 24px rgba(1, 4, 9, 0.6);
@@ -109,12 +116,14 @@
 @media (color-gamut: p3) {
   :root {
     --accent: oklch(0.52 0.18 256);
+    --accent-fill: oklch(0.52 0.18 256);
     --on: oklch(0.55 0.14 150);
     --deficit: oklch(0.55 0.20 25);
     --attention: oklch(0.55 0.11 80);
   }
   [data-theme="dark"] {
     --accent: oklch(0.64 0.18 256);
+    --accent-fill: oklch(0.57 0.21 260);
     --on: oklch(0.72 0.18 150);
     --deficit: oklch(0.68 0.20 25);
     --attention: oklch(0.77 0.13 85);
