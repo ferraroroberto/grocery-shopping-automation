@@ -3,7 +3,9 @@
 Thin HTTP layer over :mod:`src.store_links`: its ``StoreLinkError`` becomes
 400, ``NoBenchmarkRunError`` 404, and the spreadsheet lock/file errors go
 through :func:`app.api_common.mutate_or_error` like every other mutator.
-Mutating routes echo the full inventory payload, as the inventory routes do.
+Mutating routes that write the inventory echo the full inventory payload, as
+the inventory routes do; the per-item review routes (#165), which write only
+``_state/overrides.json``, echo the item's store detail (or its checked state).
 """
 
 import logging
@@ -54,10 +56,26 @@ class ChangePayload(BaseModel):
     id: int
     store: str
     cantidad: int = Field(..., ge=0)
+    # The stock converted by pack size (#160); left out → `tenemos` unchanged.
+    tenemos: Optional[int] = Field(default=None, ge=0)
 
 
 class ApplyPayload(BaseModel):
     changes: list[ChangePayload]
+
+
+class StoreOverridePayload(BaseModel):
+    # Ranges are checked by store_links (400 with its message), not here (422).
+    store: str
+    name: Optional[str] = None
+    pack_size: Optional[float] = None
+    unit: Optional[str] = None
+    pack_price: Optional[float] = None
+    note: Optional[str] = None
+
+
+class CheckedPayload(BaseModel):
+    checked: bool
 
 
 def _call(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
@@ -110,13 +128,49 @@ def import_latest() -> dict[str, Any]:
     return {**inventory_payload(load_inventory_or_error()), "import": counts}
 
 
+@router.get("/api/items/{item_id}/store-detail")
+def store_detail(item_id: int) -> dict[str, Any]:
+    df = load_inventory_or_error()
+    get_row(df, item_id)
+    return _call(store_links.item_detail, df, item_id)
+
+
+@router.put("/api/items/{item_id}/store-override")
+def set_store_override(item_id: int, payload: StoreOverridePayload) -> dict[str, Any]:
+    df = load_inventory_or_error()
+    get_row(df, item_id)
+    return _call(store_links.set_override, df, item_id, payload.store, name=payload.name,
+                 pack_size=payload.pack_size, unit=payload.unit, pack_price=payload.pack_price,
+                 note=payload.note)
+
+
+@router.delete("/api/items/{item_id}/store-override")
+def reset_store_override(item_id: int, store: str) -> dict[str, Any]:
+    df = load_inventory_or_error()
+    get_row(df, item_id)
+    return _call(store_links.reset_override, df, item_id, store)
+
+
+@router.put("/api/items/{item_id}/checked")
+def set_checked(item_id: int, payload: CheckedPayload) -> dict[str, Any]:
+    df = load_inventory_or_error()
+    get_row(df, item_id)
+    return _call(store_links.set_item_checked, df, item_id, payload.checked)
+
+
+@router.get("/api/stores/checks")
+def checks() -> dict[str, Any]:
+    df = load_inventory_or_error()
+    return _call(store_links.checks, df)
+
+
 @router.get("/api/stores")
 def stores() -> dict[str, Any]:
     registry = store_links.load_registry()
     handlers = _handler_stores()
-    run = store_links.latest_run_dir()
     return {
-        "run_date": run.name if run else None,
+        # run_date, age_days, next_due, stores_covered, overrides (#165)
+        **store_links.run_status(),
         "stores": [
             {"key": key, "name": entry.get("name", key), "shop_url": entry.get("shop_url", ""),
              "has_handler": key in handlers}
@@ -150,6 +204,7 @@ def apply_preview(payload: PicksPayload) -> dict[str, Any]:
 @router.post("/api/stores/apply")
 def apply(payload: ApplyPayload) -> dict[str, Any]:
     df = load_inventory_or_error()
-    changes = [{"row": c.id, "store": c.store, "cantidad": c.cantidad} for c in payload.changes]
+    changes = [{"row": c.id, "store": c.store, "cantidad": c.cantidad, "tenemos": c.tenemos}
+               for c in payload.changes]
     _call(store_links.apply_changes, df, changes)
     return {**inventory_payload(load_inventory_or_error()), "applied": len(changes)}
