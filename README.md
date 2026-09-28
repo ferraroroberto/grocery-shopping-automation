@@ -18,10 +18,11 @@ Comprehensive household inventory management across multiple operational modes. 
 ## 🏗️ Project Structure
 
 - **`app/`** — UI layers.
-  - *Primary (FastAPI/PWA on `:8502`):* `api.py` (composition root only — builds the app, wires middleware and the static mount, and includes one router per concern; every route lives in `routers/`, not here), `routers/` (`system.py` / `inventory.py` / `automation.py` / `product_search.py` / `audio.py` / `voice.py` / `email.py` — one `APIRouter` per concern), `api_common.py` (data-layer → HTTP translation and the shared inventory payload builder), `audio_hub.py` (voice-transcriber session proxy + whisper transcode/transcribe), `middleware.py` (bearer-token auth for non-loopback requests), `static_files.py` (`CachingStaticFiles` cache policy + JS import stamping), `automation_runner.py` / `product_search_runner.py` / `subprocess_plumbing.py` (shared subprocess plumbing that streams the cart-automation and product-search CLIs into the app), `email_poller.py` (background confirmation-email poll loop), `static/` (PWA front end: `index.html`, `app.js` orchestrator, `styles.css`, `modules/` ES modules — `core` / `dom` / `media` / `api` / `inventory` / `shopping` / `automation` / `email` / `audio` / `search`, `_vendored/` fleet components).
+  - *Primary (FastAPI/PWA on `:8502`):* `api.py` (composition root only — builds the app, wires middleware and the static mount, and includes one router per concern; every route lives in `routers/`, not here), `routers/` (`system.py` / `inventory.py` / `stores.py` / `automation.py` / `product_search.py` / `audio.py` / `voice.py` / `email.py` — one `APIRouter` per concern), `api_common.py` (data-layer → HTTP translation and the shared inventory payload builder), `audio_hub.py` (voice-transcriber session proxy + whisper transcode/transcribe), `middleware.py` (bearer-token auth for non-loopback requests), `static_files.py` (`CachingStaticFiles` cache policy + JS import stamping), `automation_runner.py` / `product_search_runner.py` / `subprocess_plumbing.py` (shared subprocess plumbing that streams the cart-automation and product-search CLIs into the app), `email_poller.py` (background confirmation-email poll loop), `static/` (PWA front end: `index.html`, `app.js` orchestrator, `styles.css`, `modules/` ES modules — `core` / `dom` / `media` / `api` / `inventory` / `shopping` / `automation` / `email` / `audio` / `search`, `_vendored/` fleet components).
   - *Legacy (Streamlit fallback on `:8501`):* `app.py` (entrypoint — page config, session state, sidebar, mode routing), `audit.py` / `audio_audit.py` / `edit_targets.py` / `edit_item.py` / `add_item.py` / `shopping.py` / `export.py` / `ui_helpers.py` (per-mode modules, each exposing `main(df)`).
 - **`src/`** — UI-free data/business layer.
-  - `data.py` — config loading, XLSX load/save, supermarket stats, quantity mutators.
+  - `data.py` — config loading, XLSX load/save, supermarket stats, quantity mutators, optional per-store `url_<store>` column helpers.
+  - `store_links.py` — per-store product links, store picks and the cost simulator (#148): imports URLs from the benchmark mappings, picks a row's store (`super` + `buscador`), prices any store split with `benchmark.score` against the latest scored run, and applies picks with pack-size conversion.
   - `gen_ssl_cert.py` — generate a local CA + server cert for HTTPS.
   - `inventory_extract.py` / `transcribe_client.py` — audio-audit transcription + LLM extraction (via the `local-llm-hub` hub).
   - `audit_resolve.py` — deterministic fuzzy resolver mapping a dictated phrase back to one inventory row when the LLM leaves it unresolved (#132); declines on a weak or ambiguous match rather than guessing.
@@ -189,6 +190,7 @@ Edit `src/config.json` to customize:
 - **Data Paths** — Excel file location and column mappings
 - **UI Settings** — Page config, mode labels, layout
 - **Logging** — Log level and format
+- **Benchmark runs** *(optional)* — `benchmark.runs_dir`, where the store-links simulator reads benchmark runs (default `benchmark_runs/` in the repo)
 
 ### Telegram notifications
 
@@ -393,6 +395,28 @@ publishes a recommendation. The building blocks run standalone too:
 `benchmark_runs/` is gitignored (prices, basket and product mappings stay
 local). Methodology, quality tiers and schemas:
 [`docs/supermarket-benchmark.md`](docs/supermarket-benchmark.md).
+
+### Per-store links, store picks and the cost simulator
+
+Each inventory row can hold one product URL per supermarket in optional
+`url_<store>` columns of `list.xlsx` (store keys from `benchmark/stores.json`;
+a sheet without them loads unchanged). `super` + `buscador` stay the chosen
+store and its URL, so the cart automation keeps working. `src/store_links.py`
+does the work; the API (`app/routers/stores.py`) exposes it:
+
+| Route | Does |
+|---|---|
+| `POST /api/stores/import-latest` | Seeds `url_<store>` from `benchmark_runs/_state/mappings/` (and each row's own `buscador`), matched by `item_key(comida)`. Never overwrites a non-empty cell; returns `seeded` / `skipped_existing` / `unmatched`. Re-run after every benchmark. |
+| `PUT /api/items/{id}/store-url` | Sets or clears one store's URL for one item. |
+| `POST /api/items/{id}/pick` | Makes a store the item's chosen one (`super` + `buscador` together). |
+| `GET /api/stores` | Store registry, which stores have a cart handler, latest run date, frequency presets. |
+| `GET /api/stores/recommended` | The latest run's recommended plan as item → store picks. |
+| `POST /api/stores/simulate` | Monthly goods + delivery (normal and fee-optimised) per store and overall for a set of picks vs today's stores, at a chosen frequency (weekly default). Unpriced picks are listed and excluded, never counted as 0 €. |
+| `POST /api/stores/apply-preview` | Per changed item: from/to store, old/new pack and the converted target `cantidad`. |
+| `POST /api/stores/apply` | Writes `super`, `buscador` and `cantidad` for the given changes in one save. |
+
+Prices come from the newest *scored* run (one with `scenarios.json`); the fee
+maths is `benchmark.score`'s own.
 
 ## 🖥️ Typical Workflow
 

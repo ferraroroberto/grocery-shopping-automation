@@ -12,7 +12,7 @@ flowchart TB
     APPJS["app/static/app.js\norchestrator: render() mode routing, delegated listeners, boot"]
     JSMODULES["app/static/modules/ (ES modules, no bundler)\ncore (state + render mediator) · dom · media · api\ninventory · shopping · automation · email · audio · search"]
     API["app/api.py\ncomposition root: lifespan, middleware, static mount, router includes"]
-    ROUTERS["app/routers/ — one APIRouter per concern\nsystem (shell, version, manifest, login, access, actions)\ninventory · automation · product_search · audio · voice · email"]
+    ROUTERS["app/routers/ — one APIRouter per concern\nsystem (shell, version, manifest, login, access, actions)\ninventory · stores · automation · product_search · audio · voice · email"]
     APICOMMON["app/api_common.py\ndata-layer → HTTP translation (lock/file errors → status codes),\ninventory payload builder shared by every router"]
     AUDIOHUB["app/audio_hub.py\nvoice-transcriber session proxy + whisper transcode/transcribe"]
     STATICFILES["app/static_files.py\nCachingStaticFiles (per-suffix cache policy, JS import stamping) + BUILD_INFO"]
@@ -50,7 +50,8 @@ flowchart TB
   end
 
   subgraph datalayer["src/ — UI-free data & business layer"]
-    DATA["src/data.py\nconfig load, XLSX read/write,\nsupermarket stats, quantity mutators"]
+    DATA["src/data.py\nconfig load, XLSX read/write,\nsupermarket stats, quantity mutators,\noptional per-store url_* columns"]
+    STORELINKS["src/store_links.py\nper-store URL import, store pick,\ncost simulator + apply with pack conversion (#148)"]
     AUDIOCORE["src/audio_audit_core.py\ntranscript cleaning, audit-log writer"]
     EXTRACT["src/inventory_extract.py\nLLM match against inventory"]
     AUDITRESOLVE["src/audit_resolve.py\ndeterministic fuzzy fallback for mentions\nthe LLM left unresolved (#132)"]
@@ -65,6 +66,8 @@ flowchart TB
     SSL["src/gen_ssl_cert.py\nlocal CA + server cert"]
   end
   APICOMMON --> DATA
+  ROUTERS --> STORELINKS
+  STORELINKS --> DATA
   ROUTERS --> DATA
   ROUTERS --> AUDIOCORE
   ROUTERS --> EXTRACT
@@ -151,6 +154,8 @@ orchestration recipe + Sonnet research-agent prompt"]
     BSCORE --> BRESULTS
   end
   BBASKET --> DATA
+  STORELINKS -->|build_offers + price_assignment, latest scored run| BSCORE
+  STORELINKS -->|item_key| BBASKET
   BBASKET -.->|reads| PURCHASELOG
   BFETCH -->|_open_context, own profile| BROWSER
 
@@ -186,7 +191,7 @@ orchestration recipe + Sonnet research-agent prompt"]
   SCAFFOLD --> GENICONS
 
   subgraph tests["tests/ — pytest suite + smoke scripts"]
-    TESTFILES["test_api.py · test_e2e_pwa.py (Playwright e2e) ·\ntest_inventory_extract.py · test_audit_resolve.py ·\ntest_transcribe_client.py · test_audio_audit_core.py ·\ntest_benchmark_*.py · smoke_*.py · automation_smoke_*.py"]
+    TESTFILES["test_api.py · test_e2e_pwa.py (Playwright e2e) ·\ntest_inventory_extract.py · test_audit_resolve.py ·\ntest_transcribe_client.py · test_audio_audit_core.py ·\ntest_benchmark_*.py · test_store_links.py · smoke_*.py · automation_smoke_*.py"]
   end
   TESTFILES --> API
   TESTFILES --> ROUTERS
@@ -196,3 +201,4 @@ orchestration recipe + Sonnet research-agent prompt"]
   TESTFILES --> AUDIOCORE
   TESTFILES --> RUNAUTO
   TESTFILES --> BSCORE
+  TESTFILES --> STORELINKS
