@@ -75,9 +75,11 @@ def test_override_at_a_store_without_an_offer_is_priced(seeded_copy, runs_copy):
 
 
 def test_override_pack_drives_apply_preview(seeded_copy, runs_copy):
-    _write_overrides(runs_copy, {"items": {"burguer-ternera": {"carrefour": {"pack_size": 0.9, "pack_price": 9.0}}}})
+    _write_overrides(runs_copy, {"items": {"burguer-ternera": {"carrefour": {
+        "name": "Burger 900 g", "pack_size": 0.9, "pack_price": 9.0}}}})
     [change] = store_links.apply_preview(seeded_copy, {str(BURGUER): "carrefour"})
     assert change["new_pack"] == {"size": 0.9, "unit": "kg"}  # unit falls back to the benchmark's
+    assert change["new_name"] == "Burger 900 g"  # your name wins over the link's
     assert (change["old_cantidad"], change["cantidad"]) == (3, 1)  # ceil(3 × 0.3 / 0.9)
     assert (change["tenemos_from"], change["tenemos"]) == (2, 1)  # round(2 × 0.3 / 0.9 = 0.67)
 
@@ -89,6 +91,9 @@ def test_apply_preview_converts_stock(seeded_copy):
     preview = {c["id"]: c for c in store_links.apply_preview(
         seeded_copy, {str(BURGUER): "carrefour", str(DORADA): "carrefour"})}
     assert (preview[BURGUER]["tenemos_from"], preview[BURGUER]["tenemos"]) == (2, 1)  # 2 × 0.3 / 0.6
+    # The products behind the old and new links, for the review dialog.
+    assert (preview[BURGUER]["old_name"], preview[BURGUER]["new_name"]) == (
+        "Fixture burguer ternera", "Fixture R-FIX-burger-600")
     # No conversion when the target isn't converted (kg → ud).
     assert preview[DORADA]["flags"] == ["unit_mismatch"]
     assert preview[DORADA]["tenemos"] == preview[DORADA]["tenemos_from"]

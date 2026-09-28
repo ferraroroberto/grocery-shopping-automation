@@ -118,7 +118,10 @@ def server(tmp_path_factory):
         audio_router.extract,
     )
     orig_benchmark = data.CONFIG.get("benchmark")
-    data.CONFIG["benchmark"] = {"runs_dir": str(BENCHMARK_RUNS)}
+    # A copy: the review writes _state/overrides.json, never into tests/fixtures/.
+    runs = tmp / "runs"
+    shutil.copytree(BENCHMARK_RUNS, runs)
+    data.CONFIG["benchmark"] = {"runs_dir": str(runs)}
     data.CONFIG["data"]["xlsx_file"] = str(xlsx)
     data.CONFIG["audio_audit"]["logs_dir"] = str(logs_dir)
     if not LIVE:
@@ -290,11 +293,17 @@ def test_stores_plan_simulate_and_apply(page, server):
     and see the simulated total move, reveal every store with the Show-all
     switch (#163), then review and apply one store change —
     the burger to Carrefour, its target converted by pack size (3 × 0.3 kg →
-    2 × 0.6 kg)."""
+    2 × 0.6 kg). Then the per-item review (#165): the moved burger needs
+    checking; its detail shows the quantity maths, a price override moves the
+    simulator and the chip until it is reset, and Checked clears it."""
     goto_mode(page, "stores")
     page.click("[data-stores-action='import']")
     page.wait_for_selector(".stores-head .panel-status.ok")
     page.wait_for_selector("#stores-sim[data-state='ready']")
+    # Benchmark status: run date and the review due 90 days later, plus the copyable steps.
+    status = page.locator(".stores-status").inner_text()
+    assert "2026-01-15" in status and "2026-04-15" in status
+    assert page.locator("[data-stores-action='copy-steps']").count() == 1
     today_total = page.locator(".stores-total strong").inner_text()
 
     page.click("[data-stores-action='recommended']")
@@ -331,8 +340,66 @@ def test_stores_plan_simulate_and_apply(page, server):
 
     item = next(i for i in page.request.get(f"{server.url}/api/inventory").json()["items"]
                 if i["comida"] == "burguer ternera")
-    assert (item["super"], item["cantidad"]) == ("carrefour", 2)
+    assert (item["super"], item["cantidad"], item["tenemos"]) == ("carrefour", 2, 1)  # stock 2 × 0.3 / 0.6
     assert item["buscador"] == item["urls"]["carrefour"]
+
+    # ── Per-item review (#165) ──
+    count = "(key) => document.querySelector(`[data-stores-filter='${key}'] .pill-count`)?.textContent"
+    page.wait_for_function(f"({count})('needs') === '1'")
+    page.click("[data-stores-filter='needs']")
+    burger = page.locator(".store-row", has_text="burguer ternera").first
+    assert page.locator(".store-row").count() == 1
+    assert burger.locator(".review-badge").inner_text().startswith("Moved store")
+    total = page.locator(".stores-total strong").inner_text()
+
+    burger.locator("[data-stores-action='detail']").click()
+    dialog = page.locator("#stores-detail-dialog")
+    dialog.locator(".review-qty-lines").wait_for()
+    qty = dialog.locator(".review-qty-lines").inner_text()
+    assert "Ametller Origen 2 × 0.3 kg = 0.6 kg" in qty
+    assert "Carrefour 2 × 0.6 kg = 1.2 kg (+100%)" in qty
+    # Wide on a desktop, no sideways scroll on a phone.
+    page.set_viewport_size({"width": 1280, "height": 900})
+    assert dialog.bounding_box()["width"] >= 900
+    page.set_viewport_size({"width": 390, "height": 844})
+    assert dialog.evaluate("d => d.scrollWidth <= d.clientWidth"), "detail dialog scrolls sideways at 390px"
+    page.set_viewport_size({"width": 1100, "height": 950})
+
+    # Your pack price at Carrefour prices the simulator and the chip, until reset.
+    carrefour_chip = burger.locator(".store-chip", has_text="Carrefour")
+    assert "€14.40/mo" in carrefour_chip.inner_text()
+    dialog.locator("[data-review-edit='carrefour']").click()
+    dialog.locator("[data-review-form='carrefour'] [name='pack_price']").fill("6")
+    dialog.locator("[data-review-form='carrefour'] button[type='submit']").click()
+    dialog.locator("tr[data-review-store='carrefour'] .chip:has-text('yours')").wait_for()
+    page.wait_for_function(
+        "(before) => document.querySelector('.stores-total strong')?.textContent !== before", arg=total,
+    )
+    assert "€12.00/mo" in carrefour_chip.inner_text()  # 1.2 kg a month / 0.6 kg × €6
+    dialog.locator("[data-review-edit='carrefour']").click()
+    dialog.locator("[data-review-reset='carrefour']").click()
+    page.wait_for_function(
+        "(before) => document.querySelector('.stores-total strong')?.textContent === before", arg=total,
+    )
+    assert dialog.locator(".chip:has-text('yours')").count() == 0
+
+    # Target and stock are saved to the list from the detail; the rest of the row is untouched.
+    dialog.locator("[data-review-qty='cantidad']").fill("3")
+    dialog.locator("[data-review-qty='tenemos']").fill("2")
+    with page.expect_response(lambda r: r.request.method == "PUT" and r.url.endswith(f"/api/items/{item['id']}")) as resp:
+        dialog.locator(".detail-save-btn").click()
+    assert resp.value.ok
+    saved = next(i for i in page.request.get(f"{server.url}/api/inventory").json()["items"]
+                 if i["comida"] == "burguer ternera")
+    assert (saved["cantidad"], saved["tenemos"]) == (3, 2)
+    assert (saved["super"], saved["buscador"]) == ("carrefour", item["buscador"])
+
+    # Checked is stored server-side and empties the Needs-checking filter.
+    dialog.locator("[data-review-checked]").click()
+    page.wait_for_function(f"({count})('needs') === '0' && ({count})('checked') === '1'")
+    assert dialog.locator("[data-review-checked]").get_attribute("aria-checked") == "true"
+    dialog.locator("[data-dialog-close]").click()
+    assert page.locator(".store-row").count() == 0
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
 
 

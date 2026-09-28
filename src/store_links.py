@@ -733,6 +733,22 @@ def _pack(ctx: _RunContext, mappings: dict[str, dict[str, dict]], key: str, stor
     return {"size": float(size), "unit": unit} if size and size > 0 else None
 
 
+def _product_name(ctx: _RunContext, mappings: dict[str, dict[str, dict]], key: str, store: str,
+                  url: str) -> Optional[str]:
+    """Display name of the product ``url`` points to at ``store`` (your override's name wins), if known.
+
+    Same lookup as :func:`_pack`: the basket's current product at its own
+    store, else the mapping candidate whose URL is ``url``.
+    """
+    ov = ctx.override(key, store)
+    if ov and cell_text(ov.get("name")):
+        return cell_text(ov.get("name"))
+    item = ctx.all_items.get(key)
+    if item and store == item["store"]:
+        return cell_text((item.get("current") or {}).get("name")) or None
+    return cell_text((_candidate(mappings.get(store, {}).get(key), url) or {}).get("name")) or None
+
+
 def _round_half_up(value: float) -> int:
     """Nearest whole number, halves up (the epsilon absorbs float noise like 1.4999999)."""
     return math.floor(value + 0.5 + 1e-9)
@@ -748,7 +764,8 @@ def apply_preview(df: pd.DataFrame, picks: Mapping[Union[int, str], str],
     URL for the new store, so it can't be applied yet). ``tenemos`` is the
     stock converted by the same factor, rounded to the nearest pack (#160),
     next to ``tenemos_from``; unconverted when the target isn't. Packs use
-    the household's overrides where set.
+    the household's overrides where set. ``old_name`` / ``new_name`` are the
+    products the old and new links point to, for display (None when unknown).
     """
     run = latest_run_dir() if run_dir is None else run_dir
     ctx = _RunContext(run) if run else None
@@ -763,7 +780,8 @@ def apply_preview(df: pd.DataFrame, picks: Mapping[Union[int, str], str],
         comida = cell_text(df.at[row, COLUMNS["comida"]])
         key = item_key(comida)
         new_url = store_url(df, row, to)
-        old_pack = _pack(ctx, mappings, key, frm, cell_text(df.at[row, COLUMNS["buscador"]])) if ctx else None
+        old_url = cell_text(df.at[row, COLUMNS["buscador"]])
+        old_pack = _pack(ctx, mappings, key, frm, old_url) if ctx else None
         new_pack = _pack(ctx, mappings, key, to, new_url) if ctx else None
         old_qty = int(df.at[row, COLUMNS["cantidad"]])
         old_stock = int(df.at[row, COLUMNS["tenemos"]])
@@ -782,6 +800,8 @@ def apply_preview(df: pd.DataFrame, picks: Mapping[Union[int, str], str],
         out.append({
             "id": row, "comida": comida, "key": key, "from": frm, "to": to,
             "old_pack": old_pack, "new_pack": new_pack,
+            "old_name": _product_name(ctx, mappings, key, frm, old_url) if ctx else None,
+            "new_name": _product_name(ctx, mappings, key, to, new_url) if ctx else None,
             "old_cantidad": old_qty, "cantidad": max(0, qty),
             "tenemos_from": old_stock, "tenemos": max(0, stock),
             "url": new_url or None, "flags": flags,
