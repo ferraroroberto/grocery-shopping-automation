@@ -89,7 +89,7 @@ flowchart TB
 
   subgraph cartauto["automation/ — Playwright cart automation"]
     RUNAUTO["run_automation.py\nCLI entrypoint"]
-    STOREMODS["mercadona.py · ametller.py\nper-store cart handlers"]
+    STOREMODS["mercadona.py · ametller.py · carrefour.py\nper-store cart handlers"]
     BROWSER["browser.py\nreal-Chrome launch, dedicated chrome_user_data/ profile"]
     BOOTSTRAP["bootstrap_session.py\none-time interactive store login"]
     READER["grocery_reader.py\nreads shopping-list rows from the inventory"]
