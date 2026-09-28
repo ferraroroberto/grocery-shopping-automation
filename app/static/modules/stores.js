@@ -17,6 +17,7 @@ const PICKS_KEY = "grocery.storePicks";
 const FREQ_KEY = "grocery.storeFrequency";
 const SHOW_ALL_KEY = "grocery.storesShowAll";
 const FILTER_KEY = "grocery.storesFilter";
+const STORE_FILTER_KEY = "grocery.storesStoreFilter";
 const SIM_DEBOUNCE_MS = 350;
 const DETAIL_ID = "stores-detail-dialog";
 const FREQ_LABELS = { weekly: "Weekly", "2-weekly": "2-weekly", monthly: "Monthly" };
@@ -66,6 +67,7 @@ const local = {
   frequency: readStored(FREQ_KEY, ""),
   showAll: readStored(SHOW_ALL_KEY, false), // chips/picker for every benchmarked store
   filter: storedFilter(),                   // all | needs | checked
+  stores: storedStores(),                   // list stores the rows are narrowed to; none = every store
   note: null,         // { kind: "ok" | "error", text, warning? } — header feedback
   actionNote: null,   // { kind, text } — actions card feedback
   timer: 0,
@@ -99,6 +101,11 @@ function writeStored(key, value) {
 function storedFilter() {
   const value = readStored(FILTER_KEY, "all");
   return FILTERS.some(([key]) => key === value) ? value : "all";
+}
+
+function storedStores() {
+  const value = readStored(STORE_FILTER_KEY, []);
+  return Array.isArray(value) ? value.filter((key) => typeof key === "string") : [];
 }
 
 // --------------------------------------------------------------- helpers
@@ -403,6 +410,18 @@ function storesInUse() {
   return new Set((state.payload?.items || []).map(currentStore).filter(Boolean));
 }
 
+// The Store filter's selection, minus any store the list no longer buys from
+// (an Apply moved its last item away) — a stale pick must not hide every row.
+function selectedStores(inUse = storesInUse()) {
+  if (!state.payload) return local.stores;
+  const kept = local.stores.filter((key) => inUse.has(key));
+  if (kept.length !== local.stores.length) {
+    local.stores = kept;
+    writeStored(STORE_FILTER_KEY, kept);
+  }
+  return kept;
+}
+
 const LINK_NOTE = {
   search: "opens a search page, not the product",
   suspect: "link may not open the product page",
@@ -480,33 +499,60 @@ function filterMarkup() {
   }).join("")}</div>`;
 }
 
+// Store (#170): one toggle per store the list buys from, with its item count
+// over the whole list (like the status counts). Several can be on at once;
+// none on = every store. Composes with the status pills and the search box.
+function storeFilterMarkup(inUse = storesInUse()) {
+  const counts = {};
+  for (const item of state.payload?.items || []) {
+    const key = currentStore(item);
+    if (key) counts[key] = (counts[key] || 0) + 1;
+  }
+  const selected = selectedStores(inUse);
+  const keys = [...inUse].sort((a, b) => storeName(a).localeCompare(storeName(b)));
+  if (!keys.length) return "";
+  return `<div class="pills stores-filter" role="group" aria-labelledby="stores-store-label"><span class="stores-filter-label" id="stores-store-label">Store</span>${keys.map((key) => {
+    const on = selected.includes(key);
+    return `<button type="button" class="pill${on ? " active" : ""}" aria-pressed="${on}" data-stores-store="${esc(key)}">${esc(storeName(key))} <span class="pill-count">${counts[key]}</span></button>`;
+  }).join("")}</div>`;
+}
+
 function paintFilter() {
   const host = document.querySelector("#stores-filter");
   if (!host) return;
-  const focused = document.activeElement?.closest?.("[data-stores-filter]")?.dataset.storesFilter;
-  host.innerHTML = filterMarkup();
-  if (focused) host.querySelector(`[data-stores-filter="${focused}"]`)?.focus();
+  const focused = document.activeElement?.closest?.("[data-stores-filter], [data-stores-store]");
+  const refocus = focused?.dataset.storesFilter !== undefined
+    ? `[data-stores-filter="${focused.dataset.storesFilter}"]`
+    : focused ? `[data-stores-store="${CSS.escape(focused.dataset.storesStore)}"]` : "";
+  host.innerHTML = filterMarkup() + storeFilterMarkup();
+  if (refocus) host.querySelector(refocus)?.focus();
 }
 
+// Why the list is empty; a store selection is named after it ("… at Ametller.").
 const FILTER_EMPTY = {
-  all: ["search", "No matching items."],
-  needs: ["circle-check", "Nothing needs checking."],
-  checked: ["list-checks", "No items checked yet."],
+  all: ["search", "No matching items"],
+  needs: ["circle-check", "Nothing needs checking"],
+  checked: ["list-checks", "No items checked yet"],
 };
+const storeList = new Intl.ListFormat("en", { type: "disjunction" });
 
 function paintList() {
   const list = document.querySelector("#stores-list");
   if (!list) return;
   const cols = c();
   const filter = local.checks ? local.filter : "all";
+  const inUse = storesInUse();
+  const stores = selectedStores(inUse);
   const source = filteredItems()
     .filter((item) => filter === "all" || reviewState(item) === filter)
+    .filter((item) => !stores.length || stores.includes(currentStore(item)))
     .sort((a, b) => String(a[cols.comida] ?? "").localeCompare(String(b[cols.comida] ?? "")));
   const linked = source.filter((item) => Object.keys(item.urls || {}).length).length;
   document.querySelector("#stores-list-count").textContent = `${plural(source.length, "item")} · ${linked} with links`;
-  const inUse = storesInUse();
   const [glyph, message] = FILTER_EMPTY[state.query ? "all" : filter] || FILTER_EMPTY.all;
-  list.innerHTML = source.map((item) => rowMarkup(item, inUse)).join("") || `<li>${emptyStateEl(glyph, message).outerHTML}</li>`;
+  const at = stores.length ? ` at ${storeList.format(stores.map(storeName))}` : "";
+  list.innerHTML = source.map((item) => rowMarkup(item, inUse)).join("")
+    || `<li>${emptyStateEl(glyph, `${message}${at}.`).outerHTML}</li>`;
 }
 
 function repaintRow(id) {
@@ -1279,6 +1325,17 @@ export async function onStoresClick(event) {
       b.classList.toggle("active", on);
       b.setAttribute("aria-checked", String(on));
     });
+    paintList();
+    return;
+  }
+  const store = event.target.closest("[data-stores-store]");
+  if (store) {
+    const key = store.dataset.storesStore;
+    const on = !local.stores.includes(key);
+    local.stores = on ? [...local.stores, key] : local.stores.filter((k) => k !== key);
+    writeStored(STORE_FILTER_KEY, local.stores);
+    store.classList.toggle("active", on);
+    store.setAttribute("aria-pressed", String(on));
     paintList();
     return;
   }
