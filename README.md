@@ -31,6 +31,7 @@ Comprehensive household inventory management across multiple operational modes. 
   - `webapp_config.py` — remote-access (token/password) config loader.
   - `config.example.json` — committed template; copied to `src/config.json` (gitignored) on first run.
 - **`automation/`** — Playwright + real-Chrome browser cart automation (see `automation/README.md`).
+- **`benchmark/`** — quality-locked supermarket price benchmark: `build_basket.py` (monthly basket), `ametller_guest.py` (Ametller API via guest token), `results.py` (validated per-store research writer), `browser_fetch.py` (real Chrome for bot-protected stores), `score.py` (split scenarios, max-savings and recommended plan), `history.py` (run history), `report.py` (HTML report), `stores.json` (store registry). Driven by the `/supermarket-benchmark` project skill; see [📊 Supermarket Benchmark](#-supermarket-benchmark).
 - **`scripts/`** — `gen_token.py`, `set_password.py` (remote auth), `run_named_tunnel.py` (Cloudflare), `gen_icons.py` (canonical PWA/tray/Stream Deck icon generation).
 - **`assets/`** — generated external application surfaces: `tray/grocery-shopping-automation.ico` and `stream-deck/grocery-shopping-automation-144.png`.
 - **`webapp/`** — `cloudflared.sample.yml` and the gitignored `certificates/`.
@@ -364,6 +365,34 @@ the cart changed by the expected amount.
 
 A walk-through of how this automation was built, store quirk by store quirk,
 is in [`docs/browser-automation-build.md`](docs/browser-automation-build.md).
+
+## 📊 Supermarket Benchmark
+
+The `benchmark/` package answers *"is our Mercadona + Ametller split still the
+cheapest way to buy this basket without dropping quality?"* It prices the
+household's **average monthly basket** (from `purchase_logs/`) at every online
+supermarket in `benchmark/stores.json`, with quality locked per item (brand,
+meat %, ingredients) and every product compared per kg, litre or piece, and scores status
+quo vs single-store vs the best 1–5-store splits including delivery fees. Each
+run is recorded in a history (`benchmark_runs/_state/`), so the report shows
+how prices and the recommendation move over time.
+
+Re-run it with the project skill **`/supermarket-benchmark`** (Claude Code) —
+it rebuilds the basket, fans out one research agent per store, scores and
+publishes a recommendation. The building blocks run standalone too:
+
+```powershell
+& .\.venv\Scripts\python.exe -m benchmark.build_basket                 # benchmark_runs/<today>/basket.json
+& .\.venv\Scripts\python.exe -m benchmark.results status --run benchmark_runs/<date> --store dia
+& .\.venv\Scripts\python.exe -m benchmark.score benchmark_runs/<date>   # scenarios.json + report.md
+& .\.venv\Scripts\python.exe -m benchmark.score benchmark_runs/<date> --promote   # finalise: mappings + history
+& .\.venv\Scripts\python.exe -m benchmark.report benchmark_runs/<date>  # report.html (history included)
+& .\.venv\Scripts\python.exe -m benchmark.history show                 # one line per past run
+```
+
+`benchmark_runs/` is gitignored (prices, basket and product mappings stay
+local). Methodology, quality tiers and schemas:
+[`docs/supermarket-benchmark.md`](docs/supermarket-benchmark.md).
 
 ## 🖥️ Typical Workflow
 

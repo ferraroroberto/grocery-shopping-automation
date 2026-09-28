@@ -1,0 +1,95 @@
+{
+  "_doc": "Store registry for the supermarket benchmark (issue #145). Public info only. 'hints' are starting points verified on the date noted — research agents must re-verify and append what they learn to 'notes' via the orchestrator.",
+  "stores": {
+    "mercadona": {
+      "name": "Mercadona",
+      "baseline": true,
+      "shop_url": "https://tienda.mercadona.es/",
+      "hints": [
+        "Public product API, no login: GET https://tienda.mercadona.es/api/products/{id}/?lang=es&wh={warehouse} (warehouse is basket.json 'mercadona_warehouse'; without wh some products 404). Returns price_instructions + nutrition_information.ingredients + ean. (verified 2026-09-27)",
+        "Full catalogue via public category API: GET https://tienda.mercadona.es/api/categories/?lang=es&wh={wh} then /api/categories/{id}/?lang=es&wh={wh} lists every product with price_instructions. Crawl it once, then match locally. (verified 2026-09-27)",
+        "tornillos.mercadona.es search answers plain HTTP with an HTML challenge — use the category crawl instead.",
+        "Category crawl field names: price_instructions.unit_price = pack price charged; bulk_price = EUR per kg/l/ud. Count packs carry total_units + unit_name (40 bolsas, 8 rollos). (2026-09-27)",
+        "Delivery info: info.mercadona.es 403s plain HTTP; the Zendesk help site ayuda.tienda.mercadona.es works. 2026-09-27: 8.20 EUR/order, minimum order 60 EUR, no free tier."
+      ],
+      "delivery_hints": "Home delivery fee is flat per order; check https://info.mercadona.es/es/compra-online or the FAQ for the current fee and minimum order."
+    },
+    "ametller": {
+      "name": "Ametller Origen",
+      "baseline": true,
+      "shop_url": "https://www.ametllerorigen.com/es/",
+      "hints": [
+        "BEST: plain-HTTP SCAPI with a guest token — `python -m benchmark.ametller_guest search <term>` / `products <id> ...` (public storefront client, PKCE guest flow). Returns c_ao_ingredientes, unitQuantity/unitMeasure, pricePerUnit, EAN. (verified 2026-09-27)",
+        "No frozen section at all and only ~29 household SKUs (eco brands; no Fairy/Finish, toilet paper, bin bags, cling film). Expect those as not_found.",
+        "Delivery: 5.95 EUR, free from 60 EUR (mobify-data appProps.shippingCosts). (2026-09-27)"
+      ],
+      "delivery_hints": "shippingCosts in mobify-data JSON."
+    },
+    "carrefour": {
+      "name": "Carrefour",
+      "shop_url": "https://www.carrefour.es/supermercado",
+      "hints": [
+        "Cloudflare blocks curl and in-page API fetch. Real Chrome works but the postcode must be set EVERY session (session-only 'salepoint' cookie): click [aria-label=\"Envío a domicilio\"] → Modificar → fill input[name=\"postal-code\"] → Empezar a comprar. benchmark.browser_fetch can't click, so drive Playwright directly on benchmark_runs/_state/chrome/carrefour. (2026-09-27)",
+        "Search: https://www.carrefour.es/?query=<term> (not q=); cards [data-test=\"search-grid-result\"]; product pages list 'Ingredientes' in body text.",
+        "Delivery to the home postcode (2026-09-27): 3.99 EUR, free from 140 EUR, minimum order 50 EUR."
+      ],
+      "delivery_hints": "Supermarket online delivery fee depends on order value and slot; free-delivery thresholds change with promos."
+    },
+    "alcampo": {
+      "name": "Alcampo",
+      "shop_url": "https://www.compraonline.alcampo.es/",
+      "hints": [
+        "React SPA on Ocado (GraphQL /graphql). Set postcode once via the address-picker modal. Direct /search?q= navigation hits AWS WAF captcha after ~20 requests; UI-typed searches with 6-11 s human delays work. Product links: a[data-test=\"fop-product-link\"]. (2026-09-27)",
+        "Delivery to the home postcode (2026-09-27): 'Nacional' tier 7.00 EUR flat next-day, no minimum, no free threshold found; same-day 9.90."
+      ],
+      "delivery_hints": "Check the postal-code/slot page for fees and minimum order."
+    },
+    "bonpreu": {
+      "name": "Bonpreu / Esclat",
+      "shop_url": "https://www.compraonline.bonpreuesclat.cat/",
+      "hints": [
+        "CloudFront + AWS WAF Bot Control. API /api/webproductpagews/v6/product-pages/search works for a few calls then 202/405. Real Chrome on /products/search?q=<term> works but silently rate-limits after ~35-40 navigations/session — budget ~35 items per session with 5+ min cooldowns. Spanish terms work. (2026-09-27)",
+        "Delivery to the home postcode (2026-09-27): 4.50-7.95 EUR by slot, no free tier, minimum 35 EUR."
+      ],
+      "delivery_hints": "Check the delivery/FAQ page for fee tiers and minimum order."
+    },
+    "condis": {
+      "name": "Condis",
+      "shop_url": "https://compraonline.condis.es/",
+      "hints": [
+        "Shop domain is compraonline.condis.es (condisline.com redirects). Needs a cookie jar (anonymous NextAuth session via /api/proxy/signin?provider=anonymous). Search = Empathy.co public API: GET https://api.empathy.co/search/v1/query/condis/search?query=<term>&lang=es&store=718. Ingredients are client-rendered (not in HTML) — expect low confidence on tier B. FAQ via Prismic CMS API condis-compraonline-pro.cdn.prismic.io/api/v2. (2026-09-27)",
+        "Delivery (2026-09-27): 7 EUR <90, 4.50 EUR 90-140, free >=140; minimum 40 EUR. Home-postcode coverage inferred (local stores), not confirmed by the widget."
+      ],
+      "delivery_hints": "Check the delivery conditions page."
+    },
+    "caprabo": {
+      "name": "Caprabo",
+      "shop_url": "https://www.capraboacasa.com/",
+      "hints": [
+        "Plain HTTP: GET /es/search/results/?q=<term> — listing cards embed data-metrics JSON (id/brand/price/name) + quantity-text unit-price line; detail pages /es/productdetail/<id>-<slug>/ expose .feature-text-ingredients. Setting a postcode needs login. (2026-09-27)",
+        "Delivery (2026-09-27, /es/statics/footer/purchaseconditions/): 6 EUR, free from 110 EUR; two stores inside the home postcode."
+      ],
+      "delivery_hints": "Check the delivery conditions page."
+    },
+    "consum": {
+      "name": "Consum",
+      "shop_url": "https://tienda.consum.es/",
+      "hints": [
+        "Public JSON search, plain HTTP: GET https://tienda.consum.es/api/rest/V1.0/catalog/product?q={term}&limit=20&offset=0 → products[].productData {name, brand, ...}, ean, priceData. (verified 2026-09-27)",
+        "priceData.prices[0].value.centAmount is the price PER PIECE for loose produce; centUnitAmount is EUR/kg — use the EUR/kg for weight-sold items. No ingredient lists are published at all (tier B/C matches cap at low/medium confidence). (2026-09-27)",
+        "Postcode: 'Indica zona de compra' → #form-input-zip-field → Confirmar. Delivery (2026-09-27): 7 EUR <60, 4 EUR >=60, never free."
+      ],
+      "delivery_hints": "Check whether tienda.consum.es delivers to the basket postal code at all (Consum's Catalan online coverage is limited)."
+    },
+    "dia": {
+      "name": "Dia",
+      "shop_url": "https://www.dia.es/",
+      "hints": [
+        "Plain HTTP to the search API → Akamai 403. Real Chrome works: `python -m benchmark.browser_fetch --store dia --url \"https://www.dia.es/search?q=...\"` returns rendered results with price and €/kg. (verified 2026-09-27)",
+        "Set postcode once in the modal (persists in the profile). Cards: data-test-id=search-product-card-*; detail /<category>/p/<id> has an 'Ingredientes' section; no EAN exposed. Drive Playwright directly for volume rather than one browser_fetch per lookup. (2026-09-27)",
+        "Delivery to the home postcode (2026-09-27): 4.99 EUR, free from 100 EUR, no minimum."
+      ],
+      "delivery_hints": "Check delivery fee and minimum order for the basket postal code."
+    }
+  }
+}
