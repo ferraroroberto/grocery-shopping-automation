@@ -30,7 +30,7 @@ Comprehensive household inventory management across multiple operational modes. 
   - `net.py` — LAN-IP / port-probe helpers shared by the FastAPI and Streamlit front ends.
   - `webapp_config.py` — remote-access (token/password) config loader.
   - `config.example.json` — committed template; copied to `src/config.json` (gitignored) on first run.
-- **`automation/`** — Playwright + real-Chrome browser cart automation (see `automation/README.md`).
+- **`automation/`** — Playwright + real-Chrome browser cart automation for Mercadona, Ametller and Carrefour (see `automation/README.md`).
 - **`benchmark/`** — quality-locked supermarket price benchmark: `build_basket.py` (monthly basket), `ametller_guest.py` (Ametller API via guest token), `results.py` (validated per-store research writer), `browser_fetch.py` (real Chrome for bot-protected stores), `score.py` (split scenarios, max-savings and recommended plan), `history.py` (run history), `report.py` (HTML report), `stores.json` (store registry). Driven by the `/supermarket-benchmark` project skill; see [📊 Supermarket Benchmark](#-supermarket-benchmark).
 - **`scripts/`** — `gen_token.py`, `set_password.py` (remote auth), `run_named_tunnel.py` (Cloudflare), `gen_icons.py` (canonical PWA/tray/Stream Deck icon generation).
 - **`assets/`** — generated external application surfaces: `tray/grocery-shopping-automation.ico` and `stream-deck/grocery-shopping-automation-144.png`.
@@ -239,7 +239,7 @@ Excel file columns:
 
 | Column | Description | Notes |
 |--------|-------------|-------|
-| `super` | Supermarket name (e.g., `mercadona`, `ametller`) | Required |
+| `super` | Supermarket name (e.g., `mercadona`, `ametller`, `carrefour`) | Required |
 | `buscador` | Product URL for online shopping | Optional |
 | `lugar` | Zone in the house (e.g., `fridge`, `pantry`) | Required |
 | `comida` | Item name | Required |

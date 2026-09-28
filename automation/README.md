@@ -10,7 +10,7 @@ We use a single **dedicated, shared** Chrome profile directory:
 
 - It is **gitignored** and **separate** from your normal Chrome profile —
   nothing here ever touches `%LOCALAPPDATA%\Google\Chrome\User Data`.
-- Both store logins (Mercadona + Ametller) live in this one profile.
+- All store logins (Mercadona, Ametller, Carrefour) live in this one profile.
 - **Login** happens in a plain, un-instrumented `chrome.exe` (see the bootstrap
   below). The store login pages are reCAPTCHA-protected and reject Playwright's
   CDP instrumentation outright — a normal Chrome process started with only
@@ -57,6 +57,7 @@ store bounced you to its login page — just re-run the bootstrap.
 # Live run — opens Chrome and fills the cart:
 & .\.venv\Scripts\python.exe -m automation.run_automation --store mercadona
 & .\.venv\Scripts\python.exe -m automation.run_automation --store ametller
+& .\.venv\Scripts\python.exe -m automation.run_automation --store carrefour
 
 # Both stores, capped at N items, headless:
 & .\.venv\Scripts\python.exe -m automation.run_automation --limit 10 --headless
@@ -120,6 +121,22 @@ plumbing in `app/automation_runner.py`.
   failure. Selectors use Chakra component classes, ARIA labels, and visible
   button text only — never the Emotion `css-*` hashes, which are regenerated
   on every deploy and will silently break the handler.
+- **Carrefour** (issue #150) sits behind **Cloudflare**: plain HTTP is
+  blocked, but a real Chrome session works and the storefront's own
+  `/cloud-api/*` endpoints answer an in-page `fetch` riding the session
+  cookies. The logged-in account carries the delivery address and sale point,
+  so no postcode is set per session. Carrefour counts *units* (packs — a
+  variable-weight "1 kg aprox" pack is one unit). Every click is verified
+  against the mini-cart's JSON (`checkout-papi/v1/cart`), and clean mode
+  deletes each line through the same `one-cart-api` call the page's bin
+  button uses. Anonymous browsing still renders product pages (for a default
+  Madrid store), so the session check reads the header API's `user.email`
+  rather than relying on a login redirect. A product URL that redirects away
+  from a `/R-<id>/p` product page — to the home page, a category, or a
+  *different* product — is reported as **🔗 Unavailable (check URL)**, never
+  silently bought as a substitute. The full cart page (`/MiCarrito`) asks for
+  a step-up login, so the handler never navigates there — and never to
+  checkout.
 
 ### Order-confirmation email check (issue #72)
 
@@ -215,6 +232,7 @@ send if a match is found):
 | `bootstrap_session.py` | One-time interactive login (run via `-m`). |
 | `mercadona.py` | Mercadona `add_to_cart(page, item)` handler. |
 | `ametller.py` | Ametller Origen `add_to_cart(page, item)` handler. |
+| `carrefour.py` | Carrefour `add_to_cart(page, item)` handler (issue #150). |
 | `run_automation.py` | CLI runner — reads the list, dispatches to handlers, prints a summary. |
 | `report.py` | `RunReport` — per-run summary with `print_summary()`. |
 | `purchase_log.py` | `write_purchase_logs()` — persists what was ordered, per store, after a live run. |

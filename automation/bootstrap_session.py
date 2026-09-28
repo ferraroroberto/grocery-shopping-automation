@@ -36,6 +36,7 @@ logger = logging.getLogger("automation.bootstrap_session")
 _BOOTSTRAP_URLS: list[str] = [
     "https://tienda.mercadona.es",
     "https://www.ametllerorigen.com/es",
+    "https://www.carrefour.es/supermercado",
 ]
 
 

@@ -52,6 +52,8 @@ _IGNORE_DEFAULT_ARGS = ["--enable-automation", "--enable-blink-features=IdleDete
 _LOGIN_URL_MARKERS: dict[str, tuple[str, ...]] = {
     "mercadona": ("/login", "/signin", "/sign-in"),
     "ametller": ("/login", "/iniciar-sesion", "/account/login"),
+    # /access is the "Identifícate" page (verified 2026-09-28).
+    "carrefour": ("/access", "/login"),
 }
 
 
