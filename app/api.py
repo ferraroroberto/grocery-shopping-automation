@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from app import email_poller
 from app.api_common import STATIC_DIR
 from app.middleware import BearerTokenMiddleware
-from app.routers import audio, automation, email, inventory, product_search, system, voice
+from app.routers import audio, automation, email, inventory, product_search, stores, system, voice
 from app.static_files import BUILD_INFO, CachingStaticFiles
 from src.data import CONFIG
 from src.webapp_config import load_webapp_config
@@ -44,6 +44,7 @@ app.mount("/static", CachingStaticFiles(directory=STATIC_DIR, build_info=BUILD_I
 for _router in (
     system.router,
     inventory.router,
+    stores.router,
     automation.router,
     product_search.router,
     audio.router,
