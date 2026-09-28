@@ -52,8 +52,8 @@ export function renderShopping() {
       </summary>
       <div class="collapse-body">
         <div class="two">
-          <label class="hint">Cart items offset<input class="field" data-action="offset-items" type="number" min="0" value="${Number(offset.items || 0)}"></label>
-          <label class="hint">Cart units offset<input class="field" data-action="offset-units" type="number" min="0" value="${Number(offset.units || 0)}"></label>
+          <label class="hint">Items already in cart<input class="field" data-action="offset-items" type="number" min="0" value="${Number(offset.items || 0)}"></label>
+          <label class="hint">Units already in cart<input class="field" data-action="offset-units" type="number" min="0" value="${Number(offset.units || 0)}"></label>
         </div>
         <div class="grid">
           ${storeItems.map((item) => shoppingRow(item, cols)).join("")}

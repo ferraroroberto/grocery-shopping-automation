@@ -53,8 +53,13 @@
      design_lint's desktop-measure contract matches the literal only. */
   --layout-measure: 772px;
   --layout-rail: 80px;
-  /* shared height for inline controls (switch / select / input) */
-  --control-h: 36px;
+  /* shared height for inline controls (buttons / pills / select / input).
+     44px = components.hit-target.min as real geometry: rows put Buy /
+     Got it side by side, and design.md "Touch targets" requires real
+     geometry (not ::before expansion) for adjacent clusters. */
+  --control-h: 44px;
+  /* components.button-primary.height — a view's primary / submit action */
+  --primary-h: 48px;
   /* repeated-list row heights (flat separator-row canon, app-launcher#365) */
   --row-sm: 44px;
   --row-md: 52px;
@@ -225,7 +230,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   align-items: center;
   justify-content: center;
   min-height: var(--control-h);
-  min-width: 36px;
+  min-width: var(--control-h);
   padding: 6px;
   background: transparent;
   border: 0;
@@ -301,7 +306,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   scrollbar-width: none;
 }
 .zone-pills::-webkit-scrollbar { display: none; }
-.zone-pills .pill { flex: none; min-height: 32px; padding: 0 12px; }
+.zone-pills .pill { flex: none; padding: 0 12px; }
 .pill {
   min-height: var(--control-h);
   border-radius: var(--radius-pill);
@@ -315,7 +320,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .pill.active {
   background: var(--accent-soft);
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 /* ------------------------------------------------------------- surfaces */
@@ -389,8 +394,7 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
 .item:last-child { border-bottom: 0; }
 .item-actions { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; justify-content: flex-end; }
 
-/* Audit/targets rows: ONE line per row — name (super beneath, both
-   ellipsized) left, the whole control strip packed to the right. FIXED
+/* Audit/targets rows: name (up to two lines, super beneath) left, the whole control strip packed to the right. FIXED
    control columns keep buttons, counts and verdicts table-aligned across
    rows; the verdict is the terse need count (−N / OK) so it all fits.
    Rows sit tight (no row-lg minimum) so the separators come close. */
@@ -402,7 +406,17 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
   padding-bottom: var(--space-xs);
 }
 .audit-name { min-width: 0; }
-.audit-name h3, .audit-name .meta {
+/* The 44px stepper cluster leaves little width at phone size, so the name
+   may take two lines (then ellipsis) rather than cut after a few letters. */
+.audit-name h3 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.audit-name .meta {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -443,7 +457,9 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
   font-size: var(--font-label);
   font-weight: 600;
 }
-.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); padding: 0 14px; }
+.primary { background: var(--accent-fill); border-color: var(--accent-fill); color: var(--accent-fg); padding: 0 14px; }
+/* button-primary height for the view's primary action and every form submit */
+.primary, form button[type="submit"] { min-height: var(--primary-h); }
 .danger { background: var(--deficit); border-color: var(--deficit); color: #ffffff; }
 .icon-btn { width: var(--control-h); padding: 0; display: inline-flex; align-items: center; justify-content: center; }
 .icon-btn .icon { width: var(--icon-inline); height: var(--icon-inline); }
@@ -454,11 +470,11 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
    Automation all wear it so the feature buttons read as one family. */
 .big-btn {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
   border: 1px solid var(--accent-border-soft);
   border-radius: var(--radius-md);
   padding: 13px;
-  min-height: 48px;
+  min-height: var(--primary-h);
   font-size: var(--font-body);
   font-weight: 700;
   cursor: pointer;
@@ -487,7 +503,7 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
 .search, .field, textarea, select {
   width: 100%;
   min-height: var(--control-h);
-  border: 1px solid var(--line);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-md);
   padding: 0 10px;
   background: var(--input-bg);
@@ -568,7 +584,7 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
   min-width: 0;
   height: var(--control-h);
   padding: 0 12px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-md);
   background: var(--input-bg);
   color: var(--ink);
@@ -654,7 +670,7 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
   display: inline-block; padding: 1px 8px; border-radius: var(--radius-pill);
   font-size: var(--font-caption); font-weight: 600; line-height: 1.4;
 }
-.chip-match { background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent-border-soft); }
+.chip-match { background: var(--accent-soft); color: var(--accent-text); border: 1px solid var(--accent-border-soft); }
 .chip-new { background: color-mix(in srgb, var(--attention) 16%, transparent); color: var(--attention); }
 
 /* ------------------------------------------------------------ login dialog */

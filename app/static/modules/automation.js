@@ -35,7 +35,7 @@ export function renderAutomation() {
       <button id="automation-dismiss" class="secondary btn-block" type="button" hidden>Dismiss</button>
     </div>
     <div id="automation-elapsed" class="panel-status"></div>
-    <pre id="automation-log" class="log">(not running)</pre>
+    <pre id="automation-log" class="log">Not running. Press Run Automation to fill the store carts; progress appears here.</pre>
   </section>
   ${emailMonitorCard()}`;
   updateAutomationCommand();
@@ -79,7 +79,7 @@ async function refreshAutomation() {
 
 function applyAutomationStatus(status) {
   const log = document.querySelector("#automation-log");
-  if (log) log.textContent = status.lines?.length ? status.lines.join("\n") : (status.running ? "(waiting for output…)" : "(not running)");
+  if (log) log.textContent = status.lines?.length ? status.lines.join("\n") : (status.running ? "(waiting for output…)" : "Not running. Press Run Automation to fill the store carts; progress appears here.");
   const finished = !status.running && status.returncode !== null && status.returncode !== undefined;
   const start = document.querySelector("#automation-start");
   const stop = document.querySelector("#automation-stop");
