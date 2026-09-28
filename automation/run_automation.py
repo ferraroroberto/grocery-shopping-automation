@@ -22,7 +22,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import Optional
 
-from automation import ametller, mercadona
+from automation import ametller, carrefour, mercadona
 from automation.browser import (
     ProfileNotInitializedError,
     SessionExpiredError,
@@ -65,6 +65,7 @@ def _force_utf8_streams() -> None:
 HANDLERS: dict[str, ModuleType] = {
     "mercadona": mercadona,
     "ametller": ametller,
+    "carrefour": carrefour,
 }
 
 
