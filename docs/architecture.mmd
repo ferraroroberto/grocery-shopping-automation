@@ -26,7 +26,8 @@ flowchart TB
     STATIC --> APPJS
     APPJS --> API
     JSMODULES --> API
-    JSMODULES -->|stores.js: /api/stores/* + store-url, what-if picks| ROUTERS
+    JSMODULES -->|stores.js: /api/stores/* + store-url, what-if picks,
+item review dialog: store-detail / store-override / checked| ROUTERS
     MW --> API
     API --> ROUTERS
     API --> STATICFILES

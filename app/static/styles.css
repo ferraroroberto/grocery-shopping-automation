@@ -23,12 +23,16 @@
   --on: #1a7f37;            /* success */
   --deficit: #cf222e;       /* danger */
   --attention: #9a6700;     /* attention */
+  /* status text on its own 16% tint (badges) — sRGB only, AA by design */
+  --success-text: #116329;
+  --attention-text: #7d4e00;
   /* derived surface roles (mapped onto the neutral tokens above) */
   --input-bg: var(--card-off);
   --toggle-knob: #ffffff;
   --close-bg: var(--card-off);
   --scrim: rgba(0, 0, 0, 0.5);
   --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --neutral-soft: color-mix(in srgb, var(--muted) 16%, transparent);
   --accent-border-soft: color-mix(in srgb, var(--accent) 24%, transparent);
   --accent-border-strong: color-mix(in srgb, var(--accent) 28%, transparent);
   /* the transcript/automation log is a terminal-class surface that follows
@@ -108,6 +112,8 @@
   --on: #3fb950;            /* success */
   --deficit: #f85149;       /* danger */
   --attention: #d29922;     /* attention */
+  --success-text: #56d364;
+  --attention-text: #e3b341;
   --input-bg: var(--bg);
   --toggle-knob: var(--ink);
   --close-bg: var(--line);
@@ -221,6 +227,18 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
    to 44px invisibly instead. Co-apply, never re-inline per control. */
 .hit-target { position: relative; }
 .hit-target::before { content: ""; position: absolute; inset: -5px; }
+/* Read by assistive tech, never drawn (a table header, a copy buffer). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
 
 /* ------------------------------------------------------ theme toggle */
 /* Sun/moon ghost button in the top bar. Shows the glyph for the ACTION:
@@ -720,7 +738,9 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 .store-row + .store-row { border-top: 1px solid var(--line-muted); }
 .store-row-head { display: flex; align-items: center; gap: var(--space-sm); min-height: var(--row-sm); }
 .store-row-text { flex: 1; min-width: 0; display: grid; }
+.store-row-line { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; }
 .store-row-title, .store-row-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.store-row-line .store-row-meta { flex: 0 1 auto; min-width: 0; }
 .store-row-title { font-weight: 600; }
 .store-row-meta { color: var(--muted); font-size: var(--font-label); }
 .store-row-head .store-pick { flex: 0 1 auto; width: auto; max-width: 45%; }
@@ -762,10 +782,8 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 .store-chip.is-search, .store-chip.is-suspect { border-style: dashed; }
 .stores-showall { margin: var(--space-sm) 0; }
 
-/* Review & apply / store-link dialogs (vendored modal shell). */
+/* Review & apply / item-detail dialogs (vendored modal shell). */
 .stores-dialog .stores-dialog-status:empty { display: none; }
-/* One input width for every store row, however the store name wraps. */
-.stores-dialog .row .input-native[data-store-key] { width: 60%; flex: none; }
 .stores-dialog .hint { margin: 0 0 var(--space-sm); }
 .apply-rows { list-style: none; margin: 0; padding: 0; }
 .apply-row { display: grid; gap: var(--space-xs); padding: 12px 0; border-top: 1px solid var(--line); }
@@ -773,10 +791,181 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 .apply-row-move { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-xs); color: var(--muted); font-size: var(--font-label); }
 .apply-row-move .icon { width: var(--icon-inline); height: var(--icon-inline); }
 .detail-card .apply-row .row { border-top: 0; padding: var(--space-xs) 0 0; }
-.detail-card .apply-row .row .input-native.apply-qty { min-width: 0; width: 96px; text-align: center; font-weight: 700; }
+.detail-card .apply-row .row .input-native:is(.apply-qty, .apply-stock) { min-width: 0; width: 96px; text-align: center; font-weight: 700; }
 .apply-flag { margin: 0; display: flex; align-items: flex-start; gap: var(--space-xs); color: var(--attention); font-size: var(--font-label); }
 .apply-flag .icon { flex: none; margin-top: 0.2em; }
 .apply-row.is-blocked .apply-row-title { color: var(--muted); }
+.apply-row-names { overflow-wrap: anywhere; }
+
+/* Review badges (#165): the reason an item needs checking, as attention text
+   on its own tint; a checked item wears the success pair instead. */
+.review-badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--attention) 16%, transparent);
+  color: var(--attention-text);
+  font-size: var(--font-caption);
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.review-badge.is-checked { background: color-mix(in srgb, var(--on) 16%, transparent); color: var(--success-text); }
+
+/* Benchmark status + the copyable refresh steps, folded by default so the
+   header stays short on a phone. */
+.stores-status { margin: 0; color: var(--muted); font-size: var(--font-label); }
+.stores-due { color: var(--attention); font-weight: 600; }
+.stores-due .icon { margin-right: var(--space-xs); }
+.stores-howto { border-top: 1px solid var(--line-muted); border-bottom: 1px solid var(--line-muted); }
+.stores-howto[open] { padding-bottom: var(--gap); }
+.stores-howto > * + * { margin-top: var(--space-sm); }
+.stores-howto-steps { margin-bottom: 0; padding-left: 1.4em; display: grid; gap: var(--space-xs); font-size: var(--font-label); }
+.stores-howto code { background: var(--accent-soft); color: var(--accent-text); padding: 0 4px; border-radius: 4px; }
+.stores-howto .panel-status:empty { display: none; }
+/* Inline disclosures (not card-level): a 44px summary row, chevron right. */
+.stores-howto-summary, .review-evidence-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: var(--control-h);
+  font-size: var(--font-label);
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+.stores-howto-summary::-webkit-details-marker, .review-evidence-summary::-webkit-details-marker { display: none; }
+.stores-howto-summary > .icon { width: var(--icon-inline); height: var(--icon-inline); color: var(--muted); }
+.inline-chevron { margin-left: auto; color: var(--muted); font-size: var(--font-heading-lg); line-height: 1; transition: transform 0.15s ease; }
+details[open] > summary .inline-chevron { transform: rotate(90deg); }
+
+/* All · Needs checking · Checked — above the show-all switch. */
+.stores-filter { margin-top: var(--space-sm); }
+.stores-filter .pill { display: inline-flex; align-items: center; gap: var(--space-xs); padding: 0 12px; }
+.pill-count {
+  min-width: 1.6em;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--neutral-soft);
+  font-size: var(--font-caption);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ----------------------------------------- item-detail review dialog (#165)
+   Wide on desktop (every store as a table row), a full-height sheet on a
+   phone (one flat block per store). Only width/height change here — the
+   vendored shell's anchoring and scroll-lock rules stay untouched. */
+.detail-dialog.review-dialog { width: min(960px, calc(100vw - 2 * var(--gap))); }
+@media (max-width: 520px) {
+  /* Clamped by the vendored max-height, so the sheet fills the screen. */
+  .detail-dialog.review-dialog { height: 100dvh; }
+  .review-dialog .detail-card { min-height: 100%; display: flex; flex-direction: column; }
+  .review-dialog .stores-dialog-body { flex: 1; }
+}
+.review-dialog .detail-header { gap: var(--gap); }
+.review-dialog .detail-header h2 { overflow-wrap: anywhere; }
+.review-dialog .stores-dialog-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-lg); align-content: start; }
+.review-dialog .stores-dialog-status { margin-top: var(--gap); }
+.review-section { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
+.review-subtitle { font-weight: 700; }
+.review-head { display: grid; gap: var(--space-sm); }
+.review-head .hint { margin: 0; }
+.review-checked { display: flex; align-items: center; gap: var(--space-sm); min-height: var(--control-h); }
+.review-checked-label { font-weight: 600; cursor: pointer; }
+.review-badges { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
+.review-warn, .review-note { display: flex; align-items: flex-start; gap: var(--space-xs); margin: 0; font-size: var(--font-label); }
+.review-warn { color: var(--attention); }
+.review-note { color: var(--muted); }
+.review-warn .icon, .review-note .icon { flex: none; margin-top: 0.2em; }
+
+/* Quantity check: label / value lines, then target + stock with their pack. */
+.review-qty-lines { margin: 0; display: grid; gap: var(--space-xs); font-variant-numeric: tabular-nums; }
+.review-qty-lines > div { display: grid; grid-template-columns: 5.5em minmax(0, 1fr); gap: var(--space-sm); align-items: baseline; }
+.review-qty-lines dt { color: var(--muted); font-size: var(--font-label); font-weight: 600; }
+.review-qty-lines dd { margin: 0; overflow-wrap: anywhere; }
+.review-qty-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: var(--gap); }
+.review-qty-field { display: grid; gap: var(--space-xs); }
+.review-qty-control { display: flex; align-items: center; gap: var(--space-sm); }
+.review-num { flex: none; width: 96px; text-align: center; font-weight: 700; }
+.review-suggest { flex: 0 1 auto; min-width: 0; }
+
+/* Stores: a fixed-layout table so long URLs wrap inside the product column. */
+.review-stores { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: var(--font-label); font-variant-numeric: tabular-nums; }
+.review-stores col.col-store { width: 14%; }
+.review-stores col.col-num { width: 9%; }
+.review-stores col.col-status { width: 12%; }
+.review-stores col.col-edit { width: calc(var(--control-h) + var(--space-sm)); }
+.review-stores th, .review-stores td {
+  padding: var(--space-sm) var(--space-xs);
+  text-align: left;
+  vertical-align: top;
+  border-top: 1px solid var(--line-muted);
+  overflow-wrap: anywhere;
+}
+.review-stores thead th { border-top: 0; color: var(--muted); font-weight: 600; }
+.review-store-name { display: block; font-weight: 600; }
+.review-cell-store .chip { margin: var(--space-xs) var(--space-xs) 0 0; white-space: nowrap; }
+.review-cell-product > * { display: block; }
+.review-cell-product > * + * { margin-top: var(--space-xs); }
+.review-product-name { font-weight: 600; }
+.review-url { color: var(--accent); overflow-wrap: anywhere; }
+.review-bench { display: block; color: var(--muted); }
+.review-cell-num .chip { margin-top: var(--space-xs); }
+.review-cell-edit { text-align: right; }
+.review-edit-row td { padding: 0 0 var(--space-md); border-top: 0; }
+@media (max-width: 720px) {
+  .review-stores, .review-stores tbody { display: block; }
+  .review-stores colgroup, .review-stores thead { display: none; }
+  .review-stores .review-store {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) var(--control-h);
+    gap: var(--space-sm) var(--gap);
+    padding: var(--gap) 0;
+    border-top: 1px solid var(--line-muted);
+  }
+  .review-stores .review-store:first-child { border-top: 0; padding-top: 0; }
+  .review-stores .review-store > td { display: block; min-width: 0; padding: 0; border: 0; }
+  .review-store > .review-cell-store { grid-column: 1 / 3; }
+  .review-store > .review-cell-edit { grid-column: 3; grid-row: 1; }
+  .review-store > .review-cell-product, .review-store > .review-cell-status { grid-column: 1 / -1; }
+  .review-store > td:nth-child(3), .review-store > td:nth-child(5) { grid-column: 1; }
+  .review-store > td:nth-child(4), .review-store > td:nth-child(6) { grid-column: 2 / -1; }
+  .review-cell-num::before, .review-cell-status::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--muted);
+    font-size: var(--font-caption);
+    font-weight: 600;
+  }
+  .review-stores .review-edit-row, .review-stores .review-edit-row > td { display: block; padding: 0 0 var(--gap); }
+}
+
+/* One store's inline editor: its link, and your override for basket items. */
+.review-edit { display: grid; gap: var(--gap); padding: var(--space-md); border: 1px solid var(--line); border-radius: var(--radius-md); }
+.review-edit .hint { margin: 0; }
+.review-edit .field-label .field { font-weight: 400; }
+.review-edit-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-sm); }
+.review-edit-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-sm); }
+.review-edit-actions > button { min-height: var(--primary-h); }
+.review-edit-actions .big-btn { font-size: var(--font-label); }
+.review-edit-status:empty { display: none; }
+.review-add { display: grid; gap: var(--space-xs); }
+.review-add-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto; gap: var(--space-sm); }
+@media (max-width: 560px) {
+  .review-edit-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .review-edit-grid > :last-child { grid-column: 1 / -1; }
+  .review-add-row { grid-template-columns: minmax(0, 1fr); }
+}
+
+.review-evidence { border-top: 1px solid var(--line-muted); }
+.review-evidence-body { display: grid; gap: var(--space-sm); padding-bottom: var(--space-sm); font-size: var(--font-label); }
+.review-evidence-body p { margin: 0; }
+.review-evidence-list { list-style: none; margin: 0; padding: 0; }
+.review-evidence-list li { display: grid; gap: var(--space-xs); padding: var(--space-sm) 0; border-top: 1px solid var(--line-muted); }
 
 /* ------------------------------------------------------------ login dialog */
 .login-error { min-height: 20px; color: var(--deficit); font-size: var(--font-label); }
