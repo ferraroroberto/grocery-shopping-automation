@@ -207,7 +207,7 @@ function actionsMarkup() {
   const note = local.actionNote;
   return `<div class="stores-buttons">
       <button type="button" class="big-btn" data-stores-action="recommended"${noRun ? " disabled" : ""}>Load recommended plan</button>
-      <button type="button" class="secondary" data-stores-action="reset"${count ? "" : " disabled"}>Reset to today</button>
+      <button type="button" class="secondary" data-stores-action="reset"${count ? "" : " disabled"}>Reset to my list</button>
     </div>
     <button type="button" class="primary btn-block" data-stores-action="review"${count ? "" : " disabled"}>Review &amp; apply… (${count})</button>
     ${note ? `<div id="stores-action-status" class="panel-status ${note.kind}" role="status">${esc(note.text)}</div>` : ""}`;
@@ -269,6 +269,7 @@ function paintSim() {
       <tbody>${rows}</tbody>
     </table>
     <ul class="stores-per-store">${perStore}</ul>
+    <p class="hint">Today = your stores when prices were benchmarked (${esc(local.sim.run_date || "")}).</p>
     ${notComparable}${stale}`;
 }
 
@@ -304,10 +305,10 @@ function rowMarkup(item) {
   const options = [...new Set([today, ...Object.keys(urls)].filter(Boolean))];
   const meta = !options.length || !Object.keys(urls).length
     ? `${today ? `${esc(storeName(today))} · ` : ""}No store links yet`
-    : pick !== today ? `What-if · today ${esc(storeName(today))}` : `Bought at ${esc(storeName(today))}`;
+    : pick !== today ? `What-if · in list ${esc(storeName(today))}` : `Bought at ${esc(storeName(today))}`;
   const select = options.length > 1
     ? `<select class="field store-pick" data-stores-pick aria-label="Buy ${esc(name)} at">${options.map((key) =>
-        `<option value="${esc(key)}"${key === pick ? " selected" : ""}>${esc(storeName(key))}${key === today ? " (today)" : ""}</option>`).join("")}</select>`
+        `<option value="${esc(key)}"${key === pick ? " selected" : ""}>${esc(storeName(key))}${key === today ? " (in list)" : ""}</option>`).join("")}</select>`
     : "";
   // The picked store leads, then the cheapest: with up to nine links on one
   // swipeable line, what matters must not start off-screen.
@@ -392,7 +393,7 @@ async function loadRecommended() {
 function resetPicks() {
   local.picks = {};
   writeStored(PICKS_KEY, local.picks);
-  local.actionNote = { kind: "ok", text: "Back to today's stores" };
+  local.actionNote = { kind: "ok", text: "Back to the stores in your list" };
   render();
   scheduleSimulate(0);
 }

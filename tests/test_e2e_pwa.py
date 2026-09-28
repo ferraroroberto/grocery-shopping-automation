@@ -302,7 +302,7 @@ def test_stores_plan_simulate_and_apply(page, server):
     )
     assert "Saves" in page.locator(".stores-delta").inner_text()
 
-    # Back to today, then one what-if pick: nothing is written until Apply.
+    # Back to the list, then one what-if pick: nothing is written until Apply.
     page.click("[data-stores-action='reset']")
     page.wait_for_function(
         "(before) => document.querySelector('.stores-total strong')?.textContent === before", arg=today_total,

@@ -413,8 +413,8 @@ def resolve_frequency(orders_per_month: Optional[float] = None, frequency: Optio
     return FREQUENCIES[name]
 
 
-def _today_stores(df: pd.DataFrame, ctx: _RunContext, by_key: dict[str, int]) -> dict[str, str]:
-    """Benchmark key → today's store: the row's ``super``, else the basket's store."""
+def _current_stores(df: pd.DataFrame, ctx: _RunContext, by_key: dict[str, int]) -> dict[str, str]:
+    """Benchmark key → the store in the list now: the row's ``super``, else the basket's store."""
     out = {}
     for key, item in ctx.all_items.items():
         row = by_key.get(key)
@@ -462,8 +462,10 @@ def simulate(df: pd.DataFrame, picks: Mapping[Union[int, str], str], orders_per_
     """Monthly cost of ``picks`` vs today's stores, both at ``orders_per_month``.
 
     ``picks`` maps an item id or a benchmark key to a store; items not in it
-    stay at today's store (the row's ``super``). The universe is the latest
-    run's basket. Returns ``{"picks", "today"}`` — each ``goods``,
+    stay at the store in the list now (the row's ``super``). "Today" is the
+    benchmark's status quo — each basket item at the store it was bought
+    from when the run was taken — so it stays the baseline after a switch
+    is applied to ``super``. The universe is the latest run's basket. Returns ``{"picks", "today"}`` — each ``goods``,
     ``delivery``, ``total``, ``delivery_optimised``, ``total_optimised``,
     ``per_store`` and ``items`` from :func:`benchmark.score.price_assignment`
     plus ``unpriced`` (``{key, store, reason, id, comida}`` for items with no
@@ -478,8 +480,8 @@ def simulate(df: pd.DataFrame, picks: Mapping[Union[int, str], str], orders_per_
     ctx = _RunContext(_require_run(run_dir))
     by_key = rows_by_key(df)
     key_by_row = {row: key for key, row in by_key.items()}
-    today = _today_stores(df, ctx, by_key)
-    chosen = dict(today)
+    today = {key: item["store"] for key, item in ctx.all_items.items()}
+    chosen = _current_stores(df, ctx, by_key)
     for ref, store in picks.items():
         row = _resolve_row(df, ref, by_key)
         key = key_by_row.get(row) or item_key(cell_text(df.at[row, COLUMNS["comida"]]))
