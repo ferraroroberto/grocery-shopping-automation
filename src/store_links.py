@@ -439,6 +439,24 @@ def _price(ctx: _RunContext, stores: dict[str, str], orders_per_month: float) ->
     return {**priced, "unpriced": unpriced}
 
 
+def _item_prices(ctx: _RunContext, by_key: dict[str, int]) -> dict[str, dict[str, float]]:
+    """Item id → {store: pro-rata monthly € for that item} at every store that prices it.
+
+    Goods only (no delivery), so it doesn't depend on the ordering frequency.
+    """
+    out: dict[str, dict[str, float]] = {}
+    for key, row in by_key.items():
+        item = ctx.priced.get(key)
+        if item is None:
+            continue
+        stores = {item["store"], *ctx.offers.get(key, {})}
+        prices = {s: round(bscore.cost(item, offer), 2) for s in sorted(stores)
+                  if (offer := ctx.offer(key, s)) is not None}
+        if prices:
+            out[str(row)] = prices
+    return out
+
+
 def simulate(df: pd.DataFrame, picks: Mapping[Union[int, str], str], orders_per_month: float,
              run_dir: Optional[Path] = None) -> dict[str, Any]:
     """Monthly cost of ``picks`` vs today's stores, both at ``orders_per_month``.
@@ -448,11 +466,12 @@ def simulate(df: pd.DataFrame, picks: Mapping[Union[int, str], str], orders_per_
     run's basket. Returns ``{"picks", "today"}`` — each ``goods``,
     ``delivery``, ``total``, ``delivery_optimised``, ``total_optimised``,
     ``per_store`` and ``items`` from :func:`benchmark.score.price_assignment`
-    plus ``unpriced`` (items with no price at their store; excluded from the
-    totals, never counted as 0) — and ``delta`` (picks − today).
-    ``comparable`` is False when the two sides leave out different items, so
-    ``delta`` is not like-for-like. ``not_in_benchmark`` lists inventory rows
-    the run has no item for.
+    plus ``unpriced`` (``{key, store, reason, id, comida}`` for items with no
+    price at their store; excluded from the totals, never counted as 0) — and
+    ``delta`` (picks − today). ``comparable`` is False when the two sides
+    leave out different items, so ``delta`` is not like-for-like.
+    ``not_in_benchmark`` lists inventory rows the run has no item for, and
+    ``item_prices`` maps item id → {store: monthly € for that item}.
     """
     if orders_per_month <= 0:
         raise StoreLinkError("orders_per_month must be > 0")
@@ -468,6 +487,11 @@ def simulate(df: pd.DataFrame, picks: Mapping[Union[int, str], str], orders_per_
             chosen[key] = _norm_store(store)
 
     picked, now = _price(ctx, chosen, orders_per_month), _price(ctx, today, orders_per_month)
+    for side in (picked, now):
+        for entry in side["unpriced"]:
+            row = by_key.get(entry["key"])
+            entry["id"] = row
+            entry["comida"] = cell_text(df.at[row, COLUMNS["comida"]]) if row is not None else entry["key"]
     not_in_benchmark = [
         {"id": int(idx), "comida": cell_text(df.at[idx, COLUMNS["comida"]]),
          "key": item_key(cell_text(df.at[idx, COLUMNS["comida"]])), "store": _row_store(df, int(idx))}
@@ -483,6 +507,7 @@ def simulate(df: pd.DataFrame, picks: Mapping[Union[int, str], str], orders_per_
                                                             "delivery_optimised", "total_optimised")},
         "comparable": {u["key"] for u in picked["unpriced"]} == {u["key"] for u in now["unpriced"]},
         "not_in_benchmark": not_in_benchmark,
+        "item_prices": _item_prices(ctx, by_key),
     }
     logger.info("ℹ️ Simulated %d item(s) at %.2f orders/month: picks %.2f vs today %.2f (fee-optimised)",
                 len(chosen), orders_per_month, picked["total_optimised"], now["total_optimised"])

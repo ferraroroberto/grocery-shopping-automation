@@ -179,7 +179,8 @@ def test_simulate_prices_picks_against_today(seeded):
     # Picks: burger at Carrefour's 12 €/kg bulk pack (1.2 kg → 14.4), dorada
     # 4.0, guisantes stays at Mercadona 3.6; filete pavo has no Carrefour offer.
     assert picked["goods"] == 22.0
-    assert picked["unpriced"] == [{"key": "filete-pavo", "store": "carrefour", "reason": "no_offer"}]
+    assert picked["unpriced"] == [{"key": "filete-pavo", "store": "carrefour", "reason": "no_offer",
+                                   "id": PAVO, "comida": "filete pavo"}]
     assert "filete-pavo" not in picked["items"]
     assert res["comparable"] is False
     assert picked["total"] == round(picked["goods"] + picked["delivery"], 2)
@@ -189,10 +190,17 @@ def test_simulate_prices_picks_against_today(seeded):
     not_in = {r["id"] for r in res["not_in_benchmark"]}
     assert AMONIACO in not_in and not not_in & {BURGUER, DORADA, PAVO, GUISANTES}
 
+    # Per-item monthly goods at every store that prices it (the low-confidence
+    # Mercadona burger match is not a price).
+    assert res["item_prices"][str(BURGUER)] == {"ametller": 20.0, "carrefour": 14.4}
+    assert res["item_prices"][str(PAVO)] == {"ametller": 18.0, "mercadona": 16.5}
+    assert str(AMONIACO) not in res["item_prices"]
+
 
 def test_simulate_low_confidence_offer_is_unpriced_not_free(seeded):
     res = store_links.simulate(seeded, {str(BURGUER): "mercadona"}, 1.0)
-    assert res["picks"]["unpriced"] == [{"key": "burguer-ternera", "store": "mercadona", "reason": "no_offer"}]
+    assert res["picks"]["unpriced"] == [{"key": "burguer-ternera", "store": "mercadona", "reason": "no_offer",
+                                         "id": BURGUER, "comida": "burguer ternera"}]
     assert res["picks"]["per_store"]["ametller"]["orders"] == 1.0
 
 
