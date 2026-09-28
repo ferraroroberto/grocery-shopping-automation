@@ -60,7 +60,7 @@ tray.bat              REM start (no-op if already running)
 tray.bat --restart    REM stop + start, to pick up new code
 ```
 
-Tray menu: **Open grocery** · **Copy local URL** · **Restart webapp** · **Status** · **Quit**. `webapp.bat` remains available as the manual/no-tray alternative — same app, no tray icon, no lifecycle management:
+Tray menu: **Open grocery** · **Copy local URL** · **Restart webapp** · **Status** · **Quit**. **Open grocery** and **Copy local URL** use `https://<host>.ts.net:8502` when the served cert (`certificates/cert.pem`) names a Tailscale host — read straight off that cert's SAN, never hardcoded — falling back to the loopback URL (`http://127.0.0.1:8502`, or `https://` once any cert exists) when it doesn't. Same mechanism as the sibling `facilitation-suite` tray. `webapp.bat` remains available as the manual/no-tray alternative — same app, no tray icon, no lifecycle management:
 
 ```powershell
 & .\.venv\Scripts\pip.exe install -r requirements.txt

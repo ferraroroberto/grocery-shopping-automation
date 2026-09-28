@@ -78,6 +78,29 @@ def cert_paths(project_root: Optional[Path] = None) -> Optional[tuple[Path, Path
     return None
 
 
+def cert_hostname(project_root: Optional[Path] = None) -> Optional[str]:
+    """The ``.ts.net`` DNS SAN of the served cert — the URL other devices use.
+
+    ``None`` when there is no cert pair, no ``.ts.net`` name in it, or the
+    ``cryptography`` package (the generator's own dependency) is unavailable.
+    Mirrors ``facilitation-suite``'s ``src/certs.py::cert_hostname``.
+    """
+    pair = cert_paths(project_root)
+    if pair is None:
+        return None
+    try:
+        from cryptography import x509
+
+        cert = x509.load_pem_x509_certificate(pair[0].read_bytes())
+        san = cert.extensions.get_extension_for_class(x509.SubjectAlternativeName)
+        for name in san.value.get_values_for_type(x509.DNSName):
+            if name.endswith(".ts.net"):
+                return name
+    except Exception as exc:  # noqa: BLE001 — a display convenience, never load-bearing
+        logger.debug(f"cert_hostname: {exc}")
+    return None
+
+
 def _renew_tailscale_cert() -> None:
     """Best-effort auto-renew of the Tailscale (Let's Encrypt) cert before
     spawn. Mirrors ``webapp.bat``'s own ``--check`` call; never raises."""
@@ -141,6 +164,16 @@ class WebappManager:
     def base_url(self) -> str:
         scheme = "https" if cert_paths() else "http"
         return _probe_url(scheme, self.config.host, self.config.port)
+
+    @property
+    def public_url(self) -> str:
+        """The URL to open / share: ``https://<host>.ts.net:<port>`` when the
+        served cert names the tailnet host (no browser warning, reachable from
+        the phone over Tailscale too), else :attr:`base_url` (loopback)."""
+        host = cert_hostname()
+        if host:
+            return f"https://{host}:{self.config.port}"
+        return self.base_url
 
     def is_reachable(self) -> bool:
         for scheme in ("https", "http"):

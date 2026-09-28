@@ -5,8 +5,9 @@ exists so launching ``tray.bat`` brings the webapp up alongside Windows login
 without keeping a console window open.
 
 Menu:
-    Open grocery                — open the local URL in the default browser
-    Copy local URL               — clipboard the local URL (with ?token=…)
+    Open grocery                — open the app (the tailnet HTTPS URL when the
+                                   served cert names it, else the loopback URL)
+    Copy local URL               — clipboard that same URL (with ?token=…)
     Restart webapp                — stop + start so a new pull is picked up
     Status                        — popup with webapp state
     --
@@ -110,7 +111,7 @@ def run_tray() -> int:
 
     def _open_url() -> str:
         webapp_cfg = load_webapp_config()
-        return append_auth_token(manager.base_url, webapp_cfg.auth_token)
+        return append_auth_token(manager.public_url, webapp_cfg.auth_token)
 
     def copy_local(icon, item):  # noqa: ARG001
         url = _open_url()
@@ -124,7 +125,7 @@ def run_tray() -> int:
             try:
                 _notify(icon, "Grocery", "Restarting webapp…")
                 manager.restart(wait=True)
-                _notify(icon, "Grocery webapp restarted", manager.base_url)
+                _notify(icon, "Grocery webapp restarted", manager.public_url)
             except Exception as exc:  # noqa: BLE001
                 logger.error(f"❌ webapp restart failed: {exc}")
                 _notify(icon, "Restart failed", str(exc))
@@ -172,7 +173,7 @@ def run_tray() -> int:
     def _start():
         try:
             manager.start(wait=True)
-            _notify(icon, "Grocery webapp ready", manager.base_url)
+            _notify(icon, "Grocery webapp ready", manager.public_url)
         except Exception as exc:  # noqa: BLE001
             starter_error["exc"] = exc
             logger.error(f"❌ webapp start failed: {exc}")
