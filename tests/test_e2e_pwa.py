@@ -300,6 +300,10 @@ def test_stores_plan_simulate_and_apply(page, server):
     page.click("[data-stores-action='import']")
     page.wait_for_selector(".stores-head .panel-status.ok")
     page.wait_for_selector("#stores-sim[data-state='ready']")
+    # Benchmark status: run date and the review due 90 days later, plus the copyable steps.
+    status = page.locator(".stores-status").inner_text()
+    assert "2026-01-15" in status and "2026-04-15" in status
+    assert page.locator("[data-stores-action='copy-steps']").count() == 1
     today_total = page.locator(".stores-total strong").inner_text()
 
     page.click("[data-stores-action='recommended']")
@@ -378,6 +382,17 @@ def test_stores_plan_simulate_and_apply(page, server):
         "(before) => document.querySelector('.stores-total strong')?.textContent === before", arg=total,
     )
     assert dialog.locator(".chip:has-text('yours')").count() == 0
+
+    # Target and stock are saved to the list from the detail; the rest of the row is untouched.
+    dialog.locator("[data-review-qty='cantidad']").fill("3")
+    dialog.locator("[data-review-qty='tenemos']").fill("2")
+    with page.expect_response(lambda r: r.request.method == "PUT" and r.url.endswith(f"/api/items/{item['id']}")) as resp:
+        dialog.locator(".detail-save-btn").click()
+    assert resp.value.ok
+    saved = next(i for i in page.request.get(f"{server.url}/api/inventory").json()["items"]
+                 if i["comida"] == "burguer ternera")
+    assert (saved["cantidad"], saved["tenemos"]) == (3, 2)
+    assert (saved["super"], saved["buscador"]) == ("carrefour", item["buscador"])
 
     # Checked is stored server-side and empties the Needs-checking filter.
     dialog.locator("[data-review-checked]").click()
