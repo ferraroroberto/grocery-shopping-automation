@@ -20,9 +20,11 @@ from src.data import (
     CONFIG,
     InventoryFileError,
     SpreadsheetLockedError,
+    cell_text,
     get_supermarket_stats,
     load_inventory_data,
     save_inventory_data,
+    store_url_columns,
 )
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -77,7 +79,15 @@ def get_row(df: pd.DataFrame, item_id: int) -> pd.Series:
 def _records_from_frame(df: pd.DataFrame) -> list[dict[str, Any]]:
     indexed_df = df.reset_index(names="id")
     safe_df = indexed_df.astype(object).where(pd.notna(indexed_df), None)
-    return safe_df.to_dict(orient="records")
+    records = safe_df.to_dict(orient="records")
+    # Per-store product links (#148): {store: url} for every non-empty
+    # `url_<store>` cell, so the UI needn't know the column naming.
+    url_cols = store_url_columns(df)
+    for record in records:
+        record["urls"] = {
+            store: url for store, col in url_cols.items() if (url := cell_text(record.get(col)))
+        }
+    return records
 
 
 def inventory_payload(df: pd.DataFrame) -> dict[str, Any]:

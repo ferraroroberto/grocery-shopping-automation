@@ -1,0 +1,68 @@
+{
+  "store": "carrefour",
+  "delivery": {
+    "delivers": "yes",
+    "fee_tiers": [
+      {
+        "min_order": 0.0,
+        "fee": 4.0
+      },
+      {
+        "min_order": 100.0,
+        "fee": 0.0
+      }
+    ],
+    "min_order": null
+  },
+  "items": {
+    "burguer-ternera": {
+      "status": "equivalent",
+      "confidence": "high",
+      "name": "Fixture R-FIX-burger-300",
+      "url": "https://www.carrefour.es/supermercado/fixture-burger-300/R-FIX-burger-300/p",
+      "pack_size": 0.3,
+      "unit": "kg",
+      "pack_price": 4.2,
+      "evidence": "invented fixture record",
+      "alternatives": [
+        {
+          "status": "equivalent",
+          "confidence": "high",
+          "name": "Fixture R-FIX-burger-600",
+          "url": "https://www.carrefour.es/supermercado/fixture-burger-600/R-FIX-burger-600/p",
+          "pack_size": 0.6,
+          "unit": "kg",
+          "pack_price": 7.2,
+          "evidence": "invented fixture record"
+        }
+      ]
+    },
+    "dorada": {
+      "status": "equivalent",
+      "confidence": "high",
+      "name": "Fixture R-FIX-dorada",
+      "url": "https://www.carrefour.es/supermercado/fixture-dorada/R-FIX-dorada/p",
+      "pack_size": 1,
+      "unit": "ud",
+      "pack_price": 5.0,
+      "evidence": "invented fixture record"
+    },
+    "filete-pavo": {
+      "status": "not_found",
+      "confidence": "high",
+      "evidence": "",
+      "notes": "fixture"
+    },
+    "guisantes-congelados": {
+      "status": "equivalent",
+      "confidence": "high",
+      "name": "Fixture R-FIX-guisantes-1kg",
+      "url": "https://www.carrefour.es/supermercado/fixture-guisantes-1kg/R-FIX-guisantes-1kg/p",
+      "pack_size": 1.0,
+      "unit": "kg",
+      "pack_price": 3.0,
+      "evidence": "invented fixture record"
+    }
+  },
+  "updated_at": "2026-01-15T10:00:00"
+}

@@ -1,0 +1,36 @@
+{
+  "store": "mercadona",
+  "delivery": {
+    "delivers": "yes",
+    "fee_tiers": [
+      {
+        "min_order": 0.0,
+        "fee": 8.0
+      }
+    ],
+    "min_order": null
+  },
+  "items": {
+    "burguer-ternera": {
+      "status": "equivalent",
+      "confidence": "low",
+      "name": "Fixture 91",
+      "url": "https://tienda.mercadona.es/product/91/fixture",
+      "pack_size": 0.3,
+      "unit": "kg",
+      "pack_price": 4.0,
+      "evidence": "invented fixture record"
+    },
+    "filete-pavo": {
+      "status": "equivalent",
+      "confidence": "high",
+      "name": "Fixture 93",
+      "url": "https://tienda.mercadona.es/product/93/fixture",
+      "pack_size": 0.5,
+      "unit": "kg",
+      "pack_price": 5.5,
+      "evidence": "invented fixture record"
+    }
+  },
+  "updated_at": "2026-01-15T10:00:00"
+}

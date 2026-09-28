@@ -673,5 +673,106 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 .chip-match { background: var(--accent-soft); color: var(--accent-text); border: 1px solid var(--accent-border-soft); }
 .chip-new { background: color-mix(in srgb, var(--attention) 16%, transparent); color: var(--attention); }
 
+/* ------------------------------------------------- Items → Stores (#148) */
+.stores-head > * + *,
+.stores-sim > * + *,
+.stores-actions > * + * { margin-top: var(--gap); }
+.stores-head p, .stores-sim p { margin-bottom: 0; }
+#stores-unpriced:empty { display: none; }  /* no empty grid slot (double gap) */
+.panel-status.warn { color: var(--attention); display: flex; align-items: center; gap: var(--space-xs); }
+
+/* Frequency segmented control: three equal 44px tracks side by side (real
+   geometry — an adjacent cluster never relies on hit-area expansion). */
+.stores-freq { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-sm); }
+.stores-freq .pill { padding: 0 var(--space-sm); }
+
+.stores-total { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-sm); flex-wrap: wrap; }
+.stores-total strong { display: block; font-size: var(--font-heading-lg); font-variant-numeric: tabular-nums; }
+.stores-delta { font-size: var(--font-label); font-weight: 700; }
+.stores-table { width: 100%; border-collapse: collapse; font-size: var(--font-label); font-variant-numeric: tabular-nums; }
+.stores-table th, .stores-table td { padding: var(--space-xs) 0; text-align: right; border-top: 1px solid var(--line-muted); }
+.stores-table thead th { border-top: 0; color: var(--muted); font-weight: 600; }
+.stores-table th[scope="row"], .stores-table thead th:first-child { text-align: left; font-weight: 600; }
+.stores-per-store, .stores-unpriced-list { list-style: none; margin: 0; padding: 0; }
+.stores-per-store li, .stores-unpriced-list li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-sm);
+  padding: var(--space-sm) 0;
+  border-top: 1px solid var(--line-muted);
+}
+.stores-unpriced-list li { justify-content: space-between; }
+.stores-store-name { font-weight: 600; }
+.stores-store-figures { flex-basis: 100%; color: var(--muted); font-size: var(--font-label); font-variant-numeric: tabular-nums; }
+/* chip on neutral-soft with fg text (design.md colors.neutral-soft) */
+.chip-neutral { background: color-mix(in srgb, var(--muted) 16%, transparent); color: var(--ink); }
+
+.stores-buttons { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-sm); }
+.stores-buttons .big-btn { font-size: var(--font-label); }
+
+/* Item list: flat list-rows on a hairline (design.md list-row / action-row).
+   Head = name + one meta line, then the what-if picker and the 44px edit
+   button; the store links follow on one swipeable line so a row never
+   grows past the phone width. */
+.store-rows { list-style: none; margin: 0; padding: 0; }
+.store-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-sm); padding: 12px 0; }
+.store-row + .store-row { border-top: 1px solid var(--line-muted); }
+.store-row-head { display: flex; align-items: center; gap: var(--space-sm); min-height: var(--row-sm); }
+.store-row-text { flex: 1; min-width: 0; display: grid; }
+.store-row-title, .store-row-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.store-row-title { font-weight: 600; }
+.store-row-meta { color: var(--muted); font-size: var(--font-label); }
+.store-row-head .store-pick { flex: 0 1 auto; width: auto; max-width: 45%; }
+.store-row-head .icon-btn { flex: none; }
+.store-chips {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: var(--space-sm);
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px;          /* room for the focus ring inside the scroller */
+  margin: -2px;
+}
+.store-chips::-webkit-scrollbar { display: none; }
+.store-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: var(--control-h);
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--card);
+  color: var(--ink);
+  font-size: var(--font-label);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.store-chip .icon { width: var(--icon-inline); height: var(--icon-inline); }
+.store-chip-price { color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+/* The picked store: accent tint + accent text, plus a check glyph so the
+   selection doesn't read by hue alone. */
+.store-chip.is-picked { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-text); }
+.store-chip.is-picked .store-chip-price { color: inherit; }
+
+/* Review & apply / store-link dialogs (vendored modal shell). */
+.stores-dialog .stores-dialog-status:empty { display: none; }
+/* One input width for every store row, however the store name wraps. */
+.stores-dialog .row .input-native[data-store-key] { width: 60%; flex: none; }
+.stores-dialog .hint { margin: 0 0 var(--space-sm); }
+.apply-rows { list-style: none; margin: 0; padding: 0; }
+.apply-row { display: grid; gap: var(--space-xs); padding: 12px 0; border-top: 1px solid var(--line); }
+.apply-row-title { font-weight: 600; }
+.apply-row-move { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-xs); color: var(--muted); font-size: var(--font-label); }
+.apply-row-move .icon { width: var(--icon-inline); height: var(--icon-inline); }
+.detail-card .apply-row .row { border-top: 0; padding: var(--space-xs) 0 0; }
+.detail-card .apply-row .row .input-native.apply-qty { min-width: 0; width: 96px; text-align: center; font-weight: 700; }
+.apply-flag { margin: 0; display: flex; align-items: flex-start; gap: var(--space-xs); color: var(--attention); font-size: var(--font-label); }
+.apply-flag .icon { flex: none; margin-top: 0.2em; }
+.apply-row.is-blocked .apply-row-title { color: var(--muted); }
+
 /* ------------------------------------------------------------ login dialog */
 .login-error { min-height: 20px; color: var(--deficit); font-size: var(--font-label); }
