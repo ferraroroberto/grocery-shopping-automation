@@ -54,14 +54,14 @@ The fleet's canonical **editor modal**: a native `<dialog>` with a `heading-lg` 
 | `--ink` | `#1f2328` | text |
 | `--muted` | `#656d76` | close glyph, disabled text |
 | `--line` | `#d1d9e0` | row dividers, control borders |
-| `--accent` | `#0969da` | primary button fill |
+| `--accent-fill` | `#0969da` (dark `#1f6feb`) | primary button fill |
 | `--accent-fg` | `#ffffff` | primary button text |
 | `--accent-border-strong` | `color-mix(in srgb, var(--accent) 28%, transparent)` | primary button border |
 | `--close-bg` | `#f6f8fa` (light) / `#30363d` (dark) | close button fill |
 | `--input-bg` | `#f6f8fa` (light) / `#0d1117` (dark) | control fill |
 | `--radius` | `16px` | dialog/card corners |
 | `--radius-md` | `12px` | close button, controls, primary |
-| `--control-h` | `36px` | control + primary height |
+| `--control-h` | `36px` | inline control height (the primary is a fixed 48px `button-primary`, independent of it) |
 | `--space-lg` | `24px` | mobile top anchor gap |
 | `--gap` | `12px` | mobile max-height reserve |
 | `--font-heading-lg` | `1.5rem` | title |
