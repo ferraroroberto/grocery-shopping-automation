@@ -25,6 +25,9 @@ tests/smoke_phase2_result.json
 # cart-automation purchase logs (what was actually ordered, per run)
 purchase_logs/
 
+# supermarket benchmark runs: prices, basket, product mappings, per-store Chrome profiles (#145)
+benchmark_runs/
+
 # generated SSL certificates (run gen_ssl_cert.py to recreate)
 certificates/
 

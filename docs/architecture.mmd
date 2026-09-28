@@ -120,6 +120,40 @@ flowchart TB
   ITEMMATCH -.->|latest purchase_logs/ JSON| PURCHASELOG
   READER --> XLSX
 
+  subgraph benchmark["benchmark/ — supermarket price benchmark (#145)"]
+    BBASKET["build_basket.py
+monthly basket from xlsx + purchase_logs,
+current product via Mercadona API / Ametller guest SCAPI"]
+    BRESULTS["results.py
+validated per-store research writer (CLI)"]
+    BGUEST["ametller_guest.py
+Ametller SCAPI via guest token (plain HTTP)"]
+    BBASKET --> BGUEST
+    BFETCH["browser_fetch.py
+real Chrome on a per-store throwaway profile"]
+    BSCORE["score.py
+deterministic scenarios: status quo, best 1-5-store splits,
+per-unit comparison, max-savings + recommended plan"]
+    BHIST["history.py
+_state/history.jsonl + prices.csv (every run)"]
+    BREPORT["report.py
+HTML report (plan, evidence, Over time)"]
+    BSCORE -->|--promote| BHIST
+    BREPORT --> BSCORE
+    BREPORT --> BHIST
+    BSKILL --> BREPORT
+    BSKILL[".claude/skills/supermarket-benchmark
+orchestration recipe + Sonnet research-agent prompt"]
+    BSKILL --> BBASKET
+    BSKILL --> BRESULTS
+    BSKILL --> BFETCH
+    BSKILL --> BSCORE
+    BSCORE --> BRESULTS
+  end
+  BBASKET --> DATA
+  BBASKET -.->|reads| PURCHASELOG
+  BFETCH -->|_open_context, own profile| BROWSER
+
   subgraph external["External dependencies (sibling projects, same machine)"]
     HUB["local-llm-hub\n127.0.0.1:8000 — LLM proxy + audio transcribe role\n(parakeet + whisper failover)"]
     WHISPER["whisper-server\n127.0.0.1:8090 — OpenAI-compatible transcription"]
@@ -152,7 +186,7 @@ flowchart TB
   SCAFFOLD --> GENICONS
 
   subgraph tests["tests/ — pytest suite + smoke scripts"]
-    TESTFILES["test_api.py · test_e2e_pwa.py (Playwright e2e) ·\ntest_inventory_extract.py · test_audit_resolve.py ·\ntest_transcribe_client.py · test_audio_audit_core.py ·\nsmoke_*.py · automation_smoke_*.py"]
+    TESTFILES["test_api.py · test_e2e_pwa.py (Playwright e2e) ·\ntest_inventory_extract.py · test_audit_resolve.py ·\ntest_transcribe_client.py · test_audio_audit_core.py ·\ntest_benchmark_*.py · smoke_*.py · automation_smoke_*.py"]
   end
   TESTFILES --> API
   TESTFILES --> ROUTERS
@@ -161,3 +195,4 @@ flowchart TB
   TESTFILES --> TRANSCRIBE
   TESTFILES --> AUDIOCORE
   TESTFILES --> RUNAUTO
+  TESTFILES --> BSCORE

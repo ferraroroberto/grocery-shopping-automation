@@ -77,16 +77,18 @@ def _profile_initialized(user_data_dir: Path) -> bool:
 
 
 def _open_context(
-    playwright: Playwright, *, headless: bool
+    playwright: Playwright, *, headless: bool, user_data_dir: Path = USER_DATA_DIR
 ) -> tuple[BrowserContext, Page]:
     """Launch the persistent Chrome context and return its context + first page.
 
-    Shared by :func:`launch_context` and the bootstrap script. Does **not**
-    check whether the profile is initialized — the bootstrap deliberately runs
-    against an empty profile directory.
+    Shared by :func:`launch_context`, the bootstrap script and
+    :mod:`benchmark.browser_fetch` (which passes its own per-store
+    ``user_data_dir`` so it never touches the shared store-login profile). Does
+    **not** check whether the profile is initialized — the bootstrap
+    deliberately runs against an empty profile directory.
     """
     context = playwright.chromium.launch_persistent_context(
-        user_data_dir=str(USER_DATA_DIR),
+        user_data_dir=str(user_data_dir),
         channel="chrome",
         headless=headless,
         args=_LAUNCH_ARGS,
