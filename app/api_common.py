@@ -26,6 +26,7 @@ from src.data import (
     save_inventory_data,
     store_url_columns,
 )
+from src.store_links import link_kind
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -86,6 +87,13 @@ def _records_from_frame(df: pd.DataFrame) -> list[dict[str, Any]]:
     for record in records:
         record["urls"] = {
             store: url for store, col in url_cols.items() if (url := cell_text(record.get(col)))
+        }
+        # Links that are not a product page (a search page, or a URL missing
+        # the store's product id), so the UI can say so instead of posing
+        # them as product links.
+        record["url_kinds"] = {
+            store: kind for store, url in record["urls"].items()
+            if (kind := link_kind(store, url)) != "product"
         }
     return records
 

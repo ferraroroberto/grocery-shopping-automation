@@ -40,6 +40,8 @@ def test_api_store_url_and_pick(api):
     assert resp.status_code == 200
     assert next(i for i in resp.json()["items"] if i["id"] == PAVO)["urls"] == {
         "carrefour": "https://www.carrefour.es/pavo/p"}
+    # An id-less Carrefour URL is flagged, so the UI won't pose it as a product link.
+    assert next(i for i in resp.json()["items"] if i["id"] == PAVO)["url_kinds"] == {"carrefour": "suspect"}
 
     assert api.put(f"/api/items/{PAVO}/store-url", json={"store": "carrefour", "url": "nope"}).status_code == 400
     assert api.put("/api/items/99999/store-url", json={"store": "carrefour", "url": ""}).status_code == 404

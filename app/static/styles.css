@@ -757,6 +757,10 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
    selection doesn't read by hue alone. */
 .store-chip.is-picked { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-text); }
 .store-chip.is-picked .store-chip-price { color: inherit; }
+/* A link that is not a product page (a store search, or a URL missing its
+   product id): dashed, so it never reads as a verified product link. */
+.store-chip.is-search, .store-chip.is-suspect { border-style: dashed; }
+.stores-showall { margin: var(--space-sm) 0; }
 
 /* Review & apply / store-link dialogs (vendored modal shell). */
 .stores-dialog .stores-dialog-status:empty { display: none; }

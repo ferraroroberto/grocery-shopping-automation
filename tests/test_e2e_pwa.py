@@ -287,7 +287,8 @@ def test_named_item_is_never_offered_for_zeroing(page, monkeypatch):
 @pytest.mark.e2e
 def test_stores_plan_simulate_and_apply(page, server):
     """Items → Stores (#148): import the fixture run, load the recommended plan
-    and see the simulated total move, then review and apply one store change —
+    and see the simulated total move, reveal every store with the Show-all
+    switch (#163), then review and apply one store change —
     the burger to Carrefour, its target converted by pack size (3 × 0.3 kg →
     2 × 0.6 kg)."""
     goto_mode(page, "stores")
@@ -307,6 +308,11 @@ def test_stores_plan_simulate_and_apply(page, server):
     page.wait_for_function(
         "(before) => document.querySelector('.stores-total strong')?.textContent === before", arg=today_total,
     )
+    burger = page.locator(".store-row", has_text="burguer ternera").first
+    # Only the stores the list buys from are shown until "Show all stores".
+    assert burger.locator(".store-chip", has_text="Carrefour").count() == 0
+    page.click("[data-stores-showall]")
+    page.wait_for_selector(".store-row .store-chip:has-text('Carrefour')")
     burger = page.locator(".store-row", has_text="burguer ternera").first
     burger.locator("[data-stores-pick]").select_option("carrefour")
     page.wait_for_function(

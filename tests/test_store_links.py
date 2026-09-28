@@ -268,3 +268,18 @@ def test_apply_changes_validates_the_whole_batch_first(seeded):
             {"row": PAVO, "store": "carrefour", "cantidad": 1},  # no Carrefour URL
         ])
     assert load_inventory_data().at[BURGUER, COLUMNS["super"]] == "ametller"
+
+
+@pytest.mark.parametrize(
+    ("store", "url", "kind"),
+    [
+        ("bonpreu", "https://www.compraonline.bonpreuesclat.cat/products/search?q=oli+oliva+verge+extra", "search"),
+        ("alcampo", "https://www.compraonline.alcampo.es/search?q=aceite%20oliva", "search"),
+        ("carrefour", "https://www.carrefour.es/supermercado/copos-de-avena-carrefour-500-g/p", "suspect"),
+        ("carrefour", "https://www.carrefour.es/supermercado/x/R-VC4AECOMM-081271/p", "product"),
+        ("mercadona", "https://tienda.mercadona.es/product/5507/arandanos-tarrina", "product"),
+        ("condis", "https://compraonline.condis.es/aceite-oliv-condis-virgen-extra-3-l/p/800468/es_ES", "product"),
+    ],
+)
+def test_link_kind(store, url, kind):
+    assert store_links.link_kind(store, url) == kind
