@@ -780,7 +780,11 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 /* A link that is not a product page (a store search, or a URL missing its
    product id): dashed, so it never reads as a verified product link. */
 .store-chip.is-search, .store-chip.is-suspect { border-style: dashed; }
-.stores-showall { margin: var(--space-sm) 0; }
+/* "Only items I buy" (#172) and "Show all stores": each row is a full 44px
+   hit-target tall, so the switches' expanded tap areas (26 + 2x9) stack
+   edge to edge and never reach into each other or the pill rows above. */
+.stores-switches { margin: var(--space-sm) 0; }
+.stores-switches .flag-row { min-height: var(--row-sm); }
 
 /* Review & apply / item-detail dialogs (vendored modal shell). */
 .stores-dialog .stores-dialog-status:empty { display: none; }
