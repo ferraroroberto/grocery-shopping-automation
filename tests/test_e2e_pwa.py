@@ -343,6 +343,21 @@ def test_stores_plan_simulate_and_apply(page, server):
     assert (item["super"], item["cantidad"], item["tenemos"]) == ("carrefour", 2, 1)  # stock 2 × 0.3 / 0.6
     assert item["buscador"] == item["urls"]["carrefour"]
 
+    # Store filter (#170): one store → only its rows; a second adds its rows; none → all.
+    store_pill = "[data-stores-store='{}']"
+    page.wait_for_selector(store_pill.format("carrefour"))
+    all_rows = page.locator(".store-row").count()
+    page.click(store_pill.format("carrefour"))
+    assert page.locator(store_pill.format("carrefour")).get_attribute("aria-pressed") == "true"
+    assert page.locator(".store-row").count() == 1
+    assert "Carrefour" in page.locator(".store-row").first.inner_text()
+    page.click(store_pill.format("ametller"))
+    ametller = int(page.locator(f"{store_pill.format('ametller')} .pill-count").inner_text())
+    assert page.locator(".store-row").count() == 1 + ametller
+    page.click(store_pill.format("carrefour"))
+    page.click(store_pill.format("ametller"))
+    assert page.locator(".store-row").count() == all_rows
+
     # ── Per-item review (#165) ──
     count = "(key) => document.querySelector(`[data-stores-filter='${key}'] .pill-count`)?.textContent"
     page.wait_for_function(f"({count})('needs') === '1'")
