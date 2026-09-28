@@ -52,6 +52,20 @@ _RUN_DIR_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _PRODUCT_URL_PATTERNS: dict[str, re.Pattern[str]] = {
     "carrefour": re.compile(r"/R-[A-Za-z0-9-]+/p"),
 }
+# A store-search results page rather than a product: bot-protected stores
+# (Bonpreu, Alcampo) left the benchmark only their search URL.
+_SEARCH_URL_RE = re.compile(r"/(search|buscar|busqueda)(?:[/?#]|$)|[?&](q|query|search)=", re.IGNORECASE)
+
+
+def link_kind(store: str, url: str) -> str:
+    """``"search"`` (a search-results page), ``"suspect"`` (not shaped like
+    the store's product URL) or ``"product"``."""
+    if _SEARCH_URL_RE.search(url):
+        return "search"
+    pattern = _PRODUCT_URL_PATTERNS.get(store)
+    if pattern is not None and not pattern.search(url):
+        return "suspect"
+    return "product"
 
 # Ordering-frequency presets, in orders per month per store.
 FREQUENCIES: dict[str, float] = {
@@ -306,12 +320,11 @@ def import_latest(df: pd.DataFrame, *, save: bool = True, xlsx_path: Optional[st
         if store not in registry:
             logger.warning("⚠️ Mapping for unknown store %r ignored", store)
             continue
-        pattern = _PRODUCT_URL_PATTERNS.get(store)
         for key, entry in mapping.items():
             url = _mapping_url(key, store, entry, ctx)
             if not _is_url(url):
                 continue
-            if pattern is not None and not pattern.search(url):
+            if link_kind(store, url) == "suspect":
                 suspect[store] = suspect.get(store, 0) + 1
             if key not in by_key:
                 unmatched.add(key)

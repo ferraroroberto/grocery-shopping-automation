@@ -5,9 +5,11 @@
 import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
 import { fetchJson } from "./api.js";
 import { activePaneBody, c, filteredItems, render, state } from "./core.js";
+import { switchMarkup } from "./dom.js";
 
 const PICKS_KEY = "grocery.storePicks";
 const FREQ_KEY = "grocery.storeFrequency";
+const SHOW_ALL_KEY = "grocery.storesShowAll";
 const SIM_DEBOUNCE_MS = 350;
 const FREQ_LABELS = { weekly: "Weekly", "2-weekly": "2-weekly", monthly: "Monthly" };
 const FLAG_TEXT = {
@@ -26,6 +28,7 @@ const local = {
   simUpdated: null,
   picks: readStored(PICKS_KEY, {}),
   frequency: readStored(FREQ_KEY, ""),
+  showAll: readStored(SHOW_ALL_KEY, false), // chips/picker for every benchmarked store
   note: null,         // { kind: "ok" | "error", text, warning? } — header feedback
   actionNote: null,   // { kind, text } — actions card feedback
   timer: 0,
@@ -183,6 +186,7 @@ export function renderStores() {
         <h2 class="card-title">${icon("package")}Items</h2>
         <span class="card-head-meta" id="stores-list-count"></span>
       </div>
+      <div class="flag-row stores-showall">${switchMarkup(local.showAll, "Show all stores", { "data-stores-showall": "" })}<span>Show all stores, not only the ones in your list</span></div>
       <ul id="stores-list" class="store-rows"></ul>
     </section>`;
   paintSim();
@@ -295,15 +299,28 @@ function paintUnpriced() {
   </details>`;
 }
 
-function rowMarkup(item) {
+// Stores the list buys from today; the rest are only shown on request so a
+// row carries its three real options, not nine benchmark ones.
+function storesInUse() {
+  return new Set((state.payload?.items || []).map(currentStore).filter(Boolean));
+}
+
+const LINK_NOTE = {
+  search: "opens a search page, not the product",
+  suspect: "link may not open the product page",
+};
+
+function rowMarkup(item, inUse = storesInUse()) {
   const cols = c();
-  const urls = item.urls || {};
   const today = currentStore(item);
   const pick = pickFor(item);
+  const shown = (key) => local.showAll || inUse.has(key) || key === pick || key === today;
+  const urls = Object.fromEntries(Object.entries(item.urls || {}).filter(([key]) => shown(key)));
+  const kinds = item.url_kinds || {};
   const prices = local.sim?.item_prices?.[String(item.id)] || {};
   const name = item[cols.comida] ?? "";
   const options = [...new Set([today, ...Object.keys(urls)].filter(Boolean))];
-  const meta = !options.length || !Object.keys(urls).length
+  const meta = !options.length || !Object.keys(item.urls || {}).length
     ? `${today ? `${esc(storeName(today))} · ` : ""}No store links yet`
     : pick !== today ? `What-if · in list ${esc(storeName(today))}` : `Bought at ${esc(storeName(today))}`;
   const select = options.length > 1
@@ -316,8 +333,10 @@ function rowMarkup(item) {
   const chips = Object.entries(urls).sort((a, b) => rank(a) - rank(b)).map(([key, url]) => {
     const price = prices[key];
     const picked = key === pick;
-    const label = `Open ${name} at ${storeName(key)}${price !== undefined ? `, ${eur(price)} a month` : ""}`;
-    return `<a class="store-chip${picked ? " is-picked" : ""}" href="${esc(url)}" target="_blank" rel="noopener noreferrer" aria-label="${esc(label)}">${picked ? icon("check") : ""}<span>${esc(storeName(key))}</span>${price !== undefined ? `<span class="store-chip-price">${eur(price)}</span>` : ""}</a>`;
+    const kind = kinds[key];
+    const label = `Open ${name} at ${storeName(key)}${price !== undefined ? `, ${eur(price)} a month` : ""}${kind ? ` (${LINK_NOTE[kind]})` : ""}`;
+    const lead = picked ? icon("check") : kind === "search" ? icon("search") : kind === "suspect" ? icon("circle-alert") : "";
+    return `<a class="store-chip${picked ? " is-picked" : ""}${kind ? ` is-${kind}` : ""}" href="${esc(url)}" target="_blank" rel="noopener noreferrer" aria-label="${esc(label)}"${kind ? ` title="${esc(LINK_NOTE[kind])}"` : ""}>${lead}<span>${esc(storeName(key))}</span>${price !== undefined ? `<span class="store-chip-price">${eur(price)}/mo</span>` : ""}</a>`;
   }).join("");
   return `<li class="store-row" data-item-id="${item.id}">
     <div class="store-row-head">
@@ -336,7 +355,8 @@ function paintList() {
   const source = filteredItems().slice().sort((a, b) => String(a[cols.comida] ?? "").localeCompare(String(b[cols.comida] ?? "")));
   const linked = source.filter((item) => Object.keys(item.urls || {}).length).length;
   document.querySelector("#stores-list-count").textContent = `${source.length} items · ${linked} with links`;
-  list.innerHTML = source.map(rowMarkup).join("") || `<li>${emptyStateEl("search", "No matching items.").outerHTML}</li>`;
+  const inUse = storesInUse();
+  list.innerHTML = source.map((item) => rowMarkup(item, inUse)).join("") || `<li>${emptyStateEl("search", "No matching items.").outerHTML}</li>`;
 }
 
 function repaintRow(id) {
@@ -578,6 +598,14 @@ export async function onStoresClick(event) {
       b.setAttribute("aria-checked", String(on));
     });
     scheduleSimulate();
+    return;
+  }
+  const showAll = event.target.closest("[data-stores-showall]");
+  if (showAll) {
+    // app.js's delegated switch handler has already flipped it.
+    local.showAll = showAll.getAttribute("aria-checked") === "true";
+    writeStored(SHOW_ALL_KEY, local.showAll);
+    paintList();
     return;
   }
   const button = event.target.closest("[data-stores-action]");
