@@ -45,6 +45,13 @@ logger = logging.getLogger(__name__)
 STORES_REGISTRY_PATH = REPO_ROOT / "benchmark" / "stores.json"
 DEFAULT_RUNS_DIR = REPO_ROOT / "benchmark_runs"
 _RUN_DIR_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+# What a real product-page URL looks like, per store. A URL that doesn't
+# match (e.g. a Carrefour slug without its `/R-<id>/p` product id, which
+# redirects to the home page) is still imported, but counted and logged so a
+# bad benchmark run is visible.
+_PRODUCT_URL_PATTERNS: dict[str, re.Pattern[str]] = {
+    "carrefour": re.compile(r"/R-[A-Za-z0-9-]+/p"),
+}
 
 # Ordering-frequency presets, in orders per month per store.
 FREQUENCIES: dict[str, float] = {
@@ -263,8 +270,10 @@ def import_latest(df: pd.DataFrame, *, save: bool = True, xlsx_path: Optional[st
     one URL. Serves both the first seed and every re-import after a run.
 
     Returns ``{"seeded", "skipped_existing", "unmatched", "unmatched_keys",
-    "stores", "run_date"}``: cells written, URLs not written because the cell
-    already had a value, and mapping keys no inventory row matches.
+    "stores", "suspect_urls", "run_date"}``: cells written, URLs not written
+    because the cell already had a value, mapping keys no inventory row
+    matches, and per store the mapping URLs that don't look like a product
+    page (see ``_PRODUCT_URL_PATTERNS``; imported anyway, logged ⚠️).
     """
     base = base or runs_dir()
     registry = load_registry()
@@ -292,14 +301,18 @@ def import_latest(df: pd.DataFrame, *, save: bool = True, xlsx_path: Optional[st
             offer_cell(int(idx), store, url)
 
     unmatched: set[str] = set()
+    suspect: dict[str, int] = {}
     for store, mapping in load_mappings(base).items():
         if store not in registry:
             logger.warning("⚠️ Mapping for unknown store %r ignored", store)
             continue
+        pattern = _PRODUCT_URL_PATTERNS.get(store)
         for key, entry in mapping.items():
             url = _mapping_url(key, store, entry, ctx)
             if not _is_url(url):
                 continue
+            if pattern is not None and not pattern.search(url):
+                suspect[store] = suspect.get(store, 0) + 1
             if key not in by_key:
                 unmatched.add(key)
                 continue
@@ -310,8 +323,11 @@ def import_latest(df: pd.DataFrame, *, save: bool = True, xlsx_path: Optional[st
     counts = {
         "seeded": seeded, "skipped_existing": skipped, "unmatched": len(unmatched),
         "unmatched_keys": sorted(unmatched), "stores": sorted(touched),
-        "run_date": ctx.run_date if ctx else None,
+        "suspect_urls": suspect, "run_date": ctx.run_date if ctx else None,
     }
+    for store, n in sorted(suspect.items()):
+        logger.warning("⚠️ %d %s mapping URL(s) lack a product id (%s) — they may redirect to the home page",
+                       n, store, _PRODUCT_URL_PATTERNS[store].pattern)
     logger.info("ℹ️ Store-URL import: %d seeded, %d skipped (already set), %d unmatched mapping key(s)",
                 seeded, skipped, len(unmatched))
     if seeded:

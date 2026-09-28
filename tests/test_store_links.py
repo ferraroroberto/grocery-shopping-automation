@@ -19,7 +19,8 @@ from automation.grocery_reader import read_cart_items
 from src.data import COLUMNS, SpreadsheetLockedError, load_inventory_data, store_url_columns
 
 RUNS = Path(__file__).resolve().parent / "fixtures" / "store_links"
-CF_BURGER_600 = "https://www.carrefour.es/supermercado/fixture-burger-600/p"
+CF_BURGER_600 = "https://www.carrefour.es/supermercado/fixture-burger-600/R-FIX-burger-600/p"
+CF_GUISANTES_1KG = "https://www.carrefour.es/supermercado/fixture-guisantes-1kg/R-FIX-guisantes-1kg/p"
 BURGUER, DORADA, PAVO, GUISANTES, AMONIACO = 1, 2, 3, 4, 0
 # Mapping URLs that land on a fixture row: carrefour ×3, mercadona ×2, ametller ×1.
 MAPPING_SEEDS = 6
@@ -86,6 +87,8 @@ def test_import_seeds_then_is_idempotent(runs):
     assert first["skipped_existing"] == 0
     assert first["unmatched"] == 1 and first["unmatched_keys"] == ["producto-inexistente"]
     assert first["stores"] == ["ametller", "carrefour", "mercadona"]
+    # The ghost mapping's Carrefour URL has no /R-<id>/p product id.
+    assert first["suspect_urls"] == {"carrefour": 1}
 
     df = load_inventory_data()
     # The bulk pack the benchmark priced wins over the mapping's main URL.
@@ -222,6 +225,7 @@ def test_apply_preview_converts_pack_sizes(seeded):
     assert burger["url"] == CF_BURGER_600 and burger["flags"] == []
 
     assert preview[GUISANTES]["cantidad"] == 1  # ceil(2 × 0.3 / 1.0)
+    assert preview[GUISANTES]["url"] == CF_GUISANTES_1KG
     assert preview[DORADA]["flags"] == ["unit_mismatch"]
     assert preview[DORADA]["cantidad"] == preview[DORADA]["old_cantidad"]
     assert preview[PAVO]["flags"] == ["no_url", "pack_unknown"] and preview[PAVO]["url"] is None
