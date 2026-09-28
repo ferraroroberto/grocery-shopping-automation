@@ -137,6 +137,22 @@ plumbing in `app/automation_runner.py`.
   silently bought as a substitute. The full cart page (`/MiCarrito`) asks for
   a step-up login, so the handler never navigates there — and never to
   checkout.
+- **Product options** (issue #176). Some product pages ask for a choice that
+  is not a different product. Carrefour's fresh fish has a **cut picker**
+  ("Selecciona el tipo de corte": Entero · Entero limpio · Rodajas · …) that
+  opens on *Entero*; the chosen cut travels with the "Añadir" request and comes
+  back on the cart line as `cut_type`. The cut to pick lives in
+  `config/product_options.json`, keyed by store and then by the store's
+  product id (the `R-<id>` of the URL), so it follows that exact product
+  through list edits and store switches:
+  `{"carrefour": {"628108203": {"cut": "Entero limpio", "note": "…"}}}`. The
+  handler selects the cut by its visible label before the first "Añadir" and
+  checks it on the cart line after every click. It never mixes cuts: a cut the
+  page does not offer fails the item before anything is added, a cart that
+  already holds the product in another cut fails it untouched (fix that line
+  by hand), and an add that comes back in another cut is removed and fails.
+  A product whose page offers cuts but has no entry is added in the page's
+  default cut, with a warning in the log.
 
 ### Order-confirmation email check (issue #72)
 
@@ -233,6 +249,7 @@ send if a match is found):
 | `mercadona.py` | Mercadona `add_to_cart(page, item)` handler. |
 | `ametller.py` | Ametller Origen `add_to_cart(page, item)` handler. |
 | `carrefour.py` | Carrefour `add_to_cart(page, item)` handler (issue #150). |
+| `product_options.py` | `preferred_cut(store, product_id)` — per-product page options from `config/product_options.json` (issue #176). |
 | `run_automation.py` | CLI runner — reads the list, dispatches to handlers, prints a summary. |
 | `report.py` | `RunReport` — per-run summary with `print_summary()`. |
 | `purchase_log.py` | `write_purchase_logs()` — persists what was ordered, per store, after a live run. |

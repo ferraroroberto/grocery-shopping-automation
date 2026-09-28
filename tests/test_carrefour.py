@@ -44,7 +44,7 @@ def test_cart_units_sums_lines_per_product():
         }
     }
     lines = carrefour.cart_units(cart)
-    assert lines["VC4AECOMM-081271"] == {"sku": "0812710000", "units": 3, "name": "Pollo"}
+    assert lines["VC4AECOMM-081271"] == {"sku": "0812710000", "units": 3, "name": "Pollo", "cuts": []}
     assert lines["589702176"]["units"] == 1
 
 

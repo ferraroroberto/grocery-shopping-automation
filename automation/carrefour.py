@@ -23,6 +23,17 @@ session. Anonymous browsing still renders product pages (for a default Madrid
 sale point), so a URL-based login check alone would not catch an expired
 session.
 
+Cut picker (issue #176, verified live 2026-09-28): fresh-fish pages such as
+"Dorada de ración" show "Selecciona el tipo de corte" — one
+``li.cut-selector__item`` per cut, titled with its label (Entero · Entero
+limpio · Rodajas · …), the chosen one carrying ``selected``; the page opens on
+"Entero". Picking a cut changes neither the URL nor the product id and fires
+no request: the "Añadir" POST carries it (``…/items/<sku>?…&cut_id=Entero+limpio``)
+and the cart line returns it as ``cut_type``. The cut to pick comes from
+``config/product_options.json`` (:mod:`automation.product_options`); it is
+selected before the first "Añadir" and verified on the cart line after every
+click.
+
 All selectors and endpoints live in module constants so a site change is a
 one-line fix.
 """
@@ -33,9 +44,12 @@ import json
 import logging
 import re
 import time
+from typing import Optional
 
 from playwright.sync_api import Page
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
+from automation import product_options
 from automation.browser import SessionExpiredError, goto_with_login_check, human_delay
 from automation.errors import AddToCartFailed, OutOfStockError, ProductUnavailableError
 from automation.models import CartItem
@@ -56,7 +70,13 @@ SELECTORS = {
     "add_button": "button.add-to-cart-button__full-button",
     "increase": ".add-to-cart-button__more-unit-button",
     "stepper_input": ".add-to-cart-button input",
+    # Cut picker on fresh-fish pages: one item per cut, titled with its label.
+    "cut_item": ".cut-selector__item",
 }
+# Class the cut picker puts on the chosen cut.
+_CUT_SELECTED_CLASS = "selected"
+# How long to wait for the cut picker to render before calling it absent.
+_CUT_PICKER_TIMEOUT_MS = 10000
 
 _FETCH_JS = """async ([url, method]) => {
   const r = await fetch(url, {method, credentials: 'include', headers: {'Accept': 'application/json'}});
@@ -82,10 +102,11 @@ def product_id_from_url(url: str) -> str:
 
 
 def cart_units(cart: dict) -> dict[str, dict]:
-    """Map product id → ``{"sku": …, "units": …, "name": …}`` from the cart JSON.
+    """Map product id → ``{"sku", "units", "name", "cuts"}`` from the cart JSON.
 
-    Reads ``food.items[*].products[*]`` of the ``checkout-papi`` cart. An empty
-    cart (``items: []``) maps to ``{}``.
+    Reads ``food.items[*].products[*]`` of the ``checkout-papi`` cart. ``cuts``
+    lists the distinct ``cut_type`` values of the product's lines (``[]`` for a
+    product sold without a cut). An empty cart (``items: []``) maps to ``{}``.
     """
     lines: dict[str, dict] = {}
     for group in (cart.get("food") or {}).get("items") or []:
@@ -95,10 +116,28 @@ def cart_units(cart: dict) -> dict[str, dict]:
                 continue
             entry = lines.setdefault(
                 pid, {"sku": str(product.get("sku_id") or ""), "units": 0,
-                      "name": str(product.get("name") or "")},
+                      "name": str(product.get("name") or ""), "cuts": []},
             )
             entry["units"] += int(product.get("units") or 0)
+            cut = str(product.get("cut_type") or "").strip()
+            if cut and cut not in entry["cuts"]:
+                entry["cuts"].append(cut)
     return lines
+
+
+def wrong_cuts(line: Optional[dict], cut: str) -> list[str]:
+    """The cuts a cart line holds other than ``cut`` (``[]`` when it is right).
+
+    A line with units but no recorded cut counts as wrong — the add was not
+    made with ``cut``. An absent or empty line holds nothing, so nothing is
+    wrong with it.
+    """
+    if not line or not line.get("units"):
+        return []
+    cuts = line.get("cuts") or []
+    if not cuts:
+        return ["(no cut)"]
+    return [c for c in cuts if c != cut]
 
 
 def _fetch_json(page: Page, url: str, method: str = "GET") -> tuple[int, object]:
@@ -132,19 +171,57 @@ def _read_cart(page: Page) -> dict[str, dict]:
     return cart_units(cart)
 
 
-def _cart_qty(page: Page, product_id: str) -> int:
-    return _read_cart(page).get(product_id, {}).get("units", 0)
+def _cart_line(page: Page, product_id: str) -> dict:
+    """The product's :func:`cart_units` line, or ``{}`` when it is not in the cart."""
+    return _read_cart(page).get(product_id, {})
 
 
-def _cart_qty_settled(page: Page, product_id: str, *, target: int) -> int:
-    """Poll the cart until the product reaches ``target`` (or polling runs out)."""
-    qty = 0
+def _cart_line_settled(page: Page, product_id: str, *, target: int) -> dict:
+    """Poll the cart until the product reaches ``target`` units (or polling runs out)."""
+    line: dict = {}
     for _ in range(_CART_POLL_COUNT):
-        qty = _cart_qty(page, product_id)
-        if qty >= target:
-            return qty
+        line = _cart_line(page, product_id)
+        if line.get("units", 0) >= target:
+            return line
         time.sleep(_CART_POLL_INTERVAL_S)
-    return qty
+    return line
+
+
+def _offered_cuts(page: Page) -> list[str]:
+    """The cut labels the product page offers, waiting for the picker to render."""
+    items = page.locator(SELECTORS["cut_item"])
+    try:
+        items.first.wait_for(state="visible", timeout=_CUT_PICKER_TIMEOUT_MS)
+    except PlaywrightTimeoutError:
+        return []
+    return [str(t or "").strip() for t in items.evaluate_all("els => els.map(e => e.title)")]
+
+
+def _select_cut(page: Page, item: CartItem, cut: str) -> None:
+    """Pick ``cut`` in the product page's cut picker, or raise before any add.
+
+    Raises:
+        AddToCartFailed: the page offers no such cut, or it did not stay
+            selected — the item is never added in the page's default cut.
+    """
+    offered = _offered_cuts(page)
+    if cut not in offered:
+        raise AddToCartFailed(
+            item, f"cut '{cut}' is not offered on the product page "
+            f"(offers: {', '.join(offered) or 'no cut picker'}) — not added",
+        )
+    option = page.locator(f"{SELECTORS['cut_item']}[title={json.dumps(cut)}]").first
+    option.click()
+    human_delay(0.5, 1.0)
+    if _CUT_SELECTED_CLASS not in (option.get_attribute("class") or "").split():
+        raise AddToCartFailed(item, f"cut '{cut}' did not stay selected on the product page — not added")
+    logger.info("✂️ [carrefour] %s — cut '%s' selected", item.comida, cut)
+
+
+def _remove_line(page: Page, line: dict) -> int:
+    """Delete a cart line the way the page's bin button does → HTTP status."""
+    status, _ = _fetch_json(page, _LINE_API.format(sku=line["sku"]), "DELETE")
+    return status
 
 
 def _click_once(page: Page, selector: str) -> bool:
@@ -168,7 +245,10 @@ def add_to_cart(page: Page, item: CartItem) -> None:
         ProductUnavailableError: the URL redirected away from a product page —
             the product is discontinued or not sold at the account's store.
         OutOfStockError: the product page renders but offers no add control.
-        AddToCartFailed: the cart never reached the wanted quantity.
+        AddToCartFailed: the cart never reached the wanted quantity; or, for a
+            product with a preferred cut (:mod:`automation.product_options`),
+            the cut could not be selected, the cart already holds the product
+            in another cut, or the add came back in another cut.
     """
     logger.info("🛒 [carrefour] %s ×%d", item.comida, item.comprar)
     wanted_id = product_id_from_url(item.buscador)
@@ -184,8 +264,25 @@ def add_to_cart(page: Page, item: CartItem) -> None:
             "or not sold at this account's Carrefour store",
         )
 
+    cut = product_options.preferred_cut(STORE, landed_id)
     target = item.comprar
-    qty = _cart_qty(page, landed_id)
+    line = _cart_line(page, landed_id)
+    qty = line.get("units", 0)
+    start_qty = qty
+    if cut:
+        held = wrong_cuts(line, cut)
+        if held:
+            # Never top up a line in another cut — the order would mix cuts.
+            raise AddToCartFailed(
+                item, f"the cart already holds {qty} as {', '.join(held)}, not cut "
+                f"'{cut}' — fix that line in the Carrefour cart by hand",
+            )
+    elif page.locator(SELECTORS["cut_item"]).count():
+        logger.warning(
+            "⚠️ [carrefour] %s — the page offers cuts but config/product_options.json "
+            "names none for product %s; adding the page's default cut",
+            item.comida, landed_id,
+        )
     if qty >= target:
         logger.info(
             "✅ [carrefour] %s — already %d in cart (≥ %d wanted), leaving as is",
@@ -196,6 +293,8 @@ def add_to_cart(page: Page, item: CartItem) -> None:
     attempts = 0
     while qty < target:
         if qty == 0:
+            if cut:
+                _select_cut(page, item, cut)
             clicked = _click_once(page, SELECTORS["add_button"]) or _click_once(
                 page, SELECTORS["increase"]
             )
@@ -204,7 +303,16 @@ def add_to_cart(page: Page, item: CartItem) -> None:
         elif not _click_once(page, SELECTORS["increase"]):
             raise AddToCartFailed(item, "the + control is missing on the product page")
         human_delay(0.8, 1.6)
-        new_qty = _cart_qty_settled(page, landed_id, target=qty + 1)
+        line = _cart_line_settled(page, landed_id, target=qty + 1)
+        new_qty = line.get("units", 0)
+        held = wrong_cuts(line, cut) if cut else []
+        if held:
+            # A line this call created from nothing is entirely ours to undo.
+            removed = start_qty == 0 and _remove_line(page, line) == 200
+            raise AddToCartFailed(
+                item, f"the cart line came back as {', '.join(held)}, not cut '{cut}'"
+                + (" — line removed" if removed else " — fix it in the Carrefour cart by hand"),
+            )
         if new_qty > qty:
             qty = new_qty
             attempts = 0
@@ -221,9 +329,11 @@ def add_to_cart(page: Page, item: CartItem) -> None:
             )
         page.reload(wait_until="domcontentloaded")
         human_delay(*_NAV_SETTLE)
-        qty = _cart_qty(page, landed_id)
+        qty = _cart_line(page, landed_id).get("units", 0)
 
-    logger.info("✅ [carrefour] %s — %d in cart", item.comida, qty)
+    logger.info(
+        "✅ [carrefour] %s — %d in cart%s", item.comida, qty, f" (cut '{cut}')" if cut else "",
+    )
 
 
 def read_cart_total(page: Page) -> int:
@@ -259,7 +369,7 @@ def clear_cart(page: Page) -> int:
 
     removed = 0
     for pid, line in lines.items():
-        status, _ = _fetch_json(page, _LINE_API.format(sku=line["sku"]), "DELETE")
+        status = _remove_line(page, line)
         if status == 200:
             removed += line["units"]
         else:
