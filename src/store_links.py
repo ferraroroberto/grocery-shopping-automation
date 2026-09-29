@@ -658,14 +658,25 @@ def simulate(df: pd.DataFrame, picks: Mapping[Union[int, str], str], orders_per_
     leave out different items, so ``delta`` is not like-for-like.
     ``not_in_benchmark`` lists inventory rows the run has no item for, and
     ``item_prices`` maps item id → {store: monthly € for that item}.
+
+    Basket items whose list row has target (``cantidad``) 0 are not bought,
+    so they are left out of **both** sides — a store kept only by them would
+    otherwise add a delivery fee nobody pays — and listed in ``excluded``
+    (``{id, comida, key, store}``). ``item_prices`` still prices them.
     """
     if orders_per_month <= 0:
         raise StoreLinkError("orders_per_month must be > 0")
     ctx = _RunContext(_require_run(run_dir))
     by_key = rows_by_key(df)
     key_by_row = {row: key for key, row in by_key.items()}
-    today = {key: item["store"] for key, item in ctx.all_items.items()}
-    chosen = _current_stores(df, ctx, by_key)
+    excluded = [
+        {"id": row, "comida": cell_text(df.at[row, COLUMNS["comida"]]), "key": key, "store": _row_store(df, row)}
+        for key, row in sorted(by_key.items(), key=lambda kv: kv[1])
+        if key in ctx.all_items and not (_num(df.at[row, COLUMNS["cantidad"]]) or 0) > 0
+    ]
+    skip = {e["key"] for e in excluded}
+    today = {key: item["store"] for key, item in ctx.all_items.items() if key not in skip}
+    chosen = {key: store for key, store in _current_stores(df, ctx, by_key).items() if key not in skip}
     for ref, store in picks.items():
         row = _resolve_row(df, ref, by_key)
         key = key_by_row.get(row) or item_key(cell_text(df.at[row, COLUMNS["comida"]]))
@@ -693,10 +704,12 @@ def simulate(df: pd.DataFrame, picks: Mapping[Union[int, str], str], orders_per_
                                                             "delivery_optimised", "total_optimised")},
         "comparable": {u["key"] for u in picked["unpriced"]} == {u["key"] for u in now["unpriced"]},
         "not_in_benchmark": not_in_benchmark,
+        "excluded": excluded,
         "item_prices": _item_prices(ctx, by_key),
     }
-    logger.info("ℹ️ Simulated %d item(s) at %.2f orders/month: picks %.2f vs today %.2f (fee-optimised)",
-                len(chosen), orders_per_month, picked["total_optimised"], now["total_optimised"])
+    logger.info("ℹ️ Simulated %d item(s) at %.2f orders/month (%d with target 0 left out): "
+                "picks %.2f vs today %.2f (fee-optimised)", len(chosen), orders_per_month,
+                len(excluded), picked["total_optimised"], now["total_optimised"])
     return result
 
 
