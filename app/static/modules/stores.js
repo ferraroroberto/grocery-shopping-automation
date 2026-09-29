@@ -383,8 +383,14 @@ function paintSim() {
       <tbody>${rows}</tbody>
     </table>
     <ul class="stores-per-store">${perStore}</ul>
-    <p class="hint">Today = your stores when prices were benchmarked (${esc(local.sim.run_date || "")}).</p>
+    <p class="hint">Today = your stores when prices were benchmarked (${esc(local.sim.run_date || "")}).${excludedNote()}</p>
     ${notComparable}${stale}`;
+}
+
+// Target-0 items aren't bought, so the simulator leaves them out of both sides (#178).
+function excludedNote() {
+  const n = (local.sim?.excluded || []).length;
+  return n ? ` ${n} item${n === 1 ? "" : "s"} with target 0 ${n === 1 ? "is" : "are"} left out of both.` : "";
 }
 
 function paintUnpriced() {
@@ -1115,7 +1121,8 @@ async function saveQuantities() {
     local.qtyDraft = {};
     await loadDetail();
     setDialogStatus(dialog, "Target and stock saved.", "ok");
-    loadChecks();
+    // A target moving to or from 0 moves the item in or out of the what-if.
+    afterReviewChange();
   } catch (error) {
     // e.g. 423 — the spreadsheet is open in Excel; the server's hint says so.
     setDialogStatus(dialog, error.message);

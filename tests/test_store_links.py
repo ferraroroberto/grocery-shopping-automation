@@ -210,6 +210,33 @@ def test_simulate_today_stays_at_the_benchmark_status_quo(seeded):
     assert res["delta"]["goods"] == round(14.4 - 20.0, 2)
 
 
+def test_simulate_leaves_target_zero_items_out_of_both_sides(seeded):
+    # #178: an item at target 0 is not bought, so neither side may price it.
+    weekly = store_links.FREQUENCIES["weekly"]
+    before = store_links.simulate(seeded, {}, weekly)
+    assert before["excluded"] == []
+    seeded.loc[GUISANTES, "cantidad"] = 0
+    res = store_links.simulate(seeded, {str(GUISANTES): "carrefour"}, weekly)
+    assert res["excluded"] == [{"id": GUISANTES, "comida": "guisantes congelados",
+                                "key": "guisantes-congelados", "store": "mercadona"}]
+    for side in ("picks", "today"):
+        assert "guisantes-congelados" not in res[side]["items"]
+        assert res[side]["goods"] == round(before[side]["goods"] - 3.6, 2)  # its Mercadona 3.6 €/month
+    assert res["comparable"] is True
+    # Its per-item price is still shown for review.
+    assert str(GUISANTES) in res["item_prices"]
+
+
+def test_simulate_store_kept_only_by_target_zero_items_costs_nothing(seeded):
+    # The live bug: a store whose only basket item has target 0 still got a
+    # delivery fee. Burger and filete pavo are the basket's Ametller items.
+    for row in (BURGUER, PAVO):
+        seeded.loc[row, "cantidad"] = 0
+    res = store_links.simulate(seeded, {}, store_links.FREQUENCIES["weekly"])
+    assert "ametller" not in res["picks"]["per_store"]
+    assert "ametller" not in res["today"]["per_store"]
+
+
 def test_simulate_low_confidence_offer_is_unpriced_not_free(seeded):
     res = store_links.simulate(seeded, {str(BURGUER): "mercadona"}, 1.0)
     assert res["picks"]["unpriced"] == [{"key": "burguer-ternera", "store": "mercadona", "reason": "no_offer",
