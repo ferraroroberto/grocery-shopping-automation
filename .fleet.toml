@@ -11,3 +11,88 @@ port         = 8502
 
 [vendored]
 single_instance = { src = "app/tray/single_instance.py", sha = "c493e1ab36f464be046856e12171bdc79a1b959f", dest = "app/tray/single_instance.py" }
+
+# [design.review] -- the rendered design review's walk (fleet-config
+# skills/_lib/design_review, docs/skills.md "Two legs, two interpreters").
+# The walk clicks the primary tabs, opens every <details> and showModal()s
+# every dialog[id] on its own; each extra step below is a click (or a short
+# `clicks` sequence) after a fresh load, never a fill or submit, and never on
+# or inside a no_go selector. A step whose target is missing on the live app
+# (an empty list) is recorded STEP_TARGET_ABSENT and leaves unrelated rules
+# alone (fleet-config#995). This repo declares no [design.review.synthetic]
+# instance (#184) -- every extra step below runs against the live app and its
+# real spreadsheet, so no_go must cover every control that writes, launches,
+# records or spends, not just what today's extra_steps happen to reach.
+[design.review]
+theme_storage_key = "grocery.theme"
+# Never clicked: anything that mutates the spreadsheet or local what-if state,
+# starts a recording, spends money, or launches an external process/window.
+no_go = [
+    ".detail-save-btn",                       # every dialog's Save/Apply (login Unlock, Set baseline, Review & apply's Apply, item-detail's Save target & stock)
+    '[data-stores-action="review"]',          # Items -> Stores: Review & apply...
+    '[data-stores-action="set-baseline"]',    # Items -> Stores: Set as baseline
+    '[data-stores-action="reset-baseline"]',  # Items -> Stores: Reset to benchmark
+    '[data-stores-action="import"]',          # Items -> Stores: Import latest run
+    '[data-stores-action="recommended"]',     # Items -> Stores: Load recommended plan
+    '[data-stores-action="reset"]',           # Items -> Stores: Reset to my list
+    "[data-review-checked]",                  # item-detail dialog: Checked toggle
+    "[data-review-reset]",                    # item-detail dialog: per-store Reset to benchmark
+    '.review-edit button[type="submit"]',     # item-detail dialog: per-store override Save
+    "#automation-start",                      # Shop -> Fill carts: Run automation
+    '[data-action="current-minus"]',
+    '[data-action="current-plus"]',
+    '[data-action="target-minus"]',
+    '[data-action="target-plus"]',            # Audit's +/- steppers
+    '[data-action="mark-buy"]',
+    '[data-action="mark-extra"]',             # Shop's "Got it" checkboxes
+    '[data-action="remove-extra"]',           # Shop's quick-add Remove
+    '[data-action="delete"]',                 # Items -> Edit Item: Delete
+    "#record-toggle",                         # Audit -> Audio Audit: Start Recording
+    "#search-record",                         # Items -> Add Item: product-search mic
+    "#search-run",                            # Items -> Add Item: product-search Search
+    '[data-action="search-use"]',
+    '[data-action="search-confirm"]',         # Items -> Add Item: product-search Use / Update item
+    "#email-check-now",
+    "#email-check-test",                      # Setup: Check now / Test last email
+    "#open-sheet",                            # Setup: Open Spreadsheet
+    "#bootstrap-session",                     # Setup: Log in to stores (launches a Chrome window)
+]
+
+[[design.review.extra_steps]]
+tab       = "audit"
+id        = "audio"
+click     = '#pane-audit [data-mode="audio"]'
+synthetic = false
+
+[[design.review.extra_steps]]
+tab       = "items"
+id        = "targets"
+click     = '#pane-items [data-mode="targets"]'
+synthetic = false
+
+[[design.review.extra_steps]]
+tab       = "items"
+id        = "edit"
+click     = '#pane-items [data-mode="edit"]'
+synthetic = false
+
+[[design.review.extra_steps]]
+tab       = "items"
+id        = "add"
+click     = '#pane-items [data-mode="add"]'
+synthetic = false
+
+[[design.review.extra_steps]]
+tab       = "items"
+id        = "stores"
+click     = '#pane-items [data-mode="stores"]'
+synthetic = false
+
+# Stores takes a moment to load its price simulator (GET /api/stores then
+# /api/stores/checks) before a row's pencil attaches -- relies on the walk's
+# own 5s STEP_TARGET_WAIT_MS rather than a hand-added wait.
+[[design.review.extra_steps]]
+tab       = "items"
+id        = "stores-detail"
+clicks    = ['#pane-items [data-mode="stores"]', '[data-stores-action="detail"]']
+synthetic = false
