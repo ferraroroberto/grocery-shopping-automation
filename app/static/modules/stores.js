@@ -383,8 +383,32 @@ function paintSim() {
       <tbody>${rows}</tbody>
     </table>
     <ul class="stores-per-store">${perStore}</ul>
-    <p class="hint">Today = your stores when prices were benchmarked (${esc(local.sim.run_date || "")}).${excludedNote()}</p>
+    <p class="hint">${todayHint()}${excludedNote()}</p>
+    ${baselineButtonMarkup()}
     ${notComparable}${stale}`;
+}
+
+// The baseline (#183) is "active" once set and still tied to the latest run;
+// a stale one (an older run superseded it) reads as not set — the household
+// sets a fresh one instead of resurrecting a dropped run's stores.
+function activeBaseline() {
+  const b = local.sim?.baseline;
+  return b && !b.stale ? b : null;
+}
+
+function todayHint() {
+  const active = activeBaseline();
+  if (active) return `Today = your stores as of ${esc(active.set_at.slice(0, 10))} (baseline).`;
+  const stale = local.sim?.baseline?.stale
+    ? ` A saved baseline from ${esc(local.sim.baseline.run_date)} is out of date (a newer run superseded it) and was not used.`
+    : "";
+  return `Today = your stores when prices were benchmarked (${esc(local.sim?.run_date || "")}).${stale}`;
+}
+
+function baselineButtonMarkup() {
+  return activeBaseline()
+    ? `<button type="button" class="secondary btn-block" data-stores-action="reset-baseline">${icon("refresh-cw")}Reset to benchmark</button>`
+    : `<button type="button" class="secondary btn-block" data-stores-action="set-baseline">${icon("check")}Set as baseline</button>`;
 }
 
 // Target-0 items aren't bought, so the simulator leaves them out of both sides (#178).
@@ -698,6 +722,50 @@ function setDialogStatus(dialog, text, kind = "error") {
 // badges) and the simulator (totals, chip prices — it repaints the list).
 function afterReviewChange() {
   loadChecks();
+  scheduleSimulate(0);
+}
+
+// -------------------------------------------------------- baseline (#183)
+function openSetBaselineConfirm() {
+  const dialog = dialogShell("stores-baseline-dialog", "Set as baseline", "Set baseline");
+  const bodyEl = dialog.querySelector(".stores-dialog-body");
+  const status = dialog.querySelector(".stores-dialog-status");
+  const save = dialog.querySelector(".detail-save-btn");
+  status.textContent = "";
+  save.disabled = false;
+  save.textContent = "Set baseline";
+  const needs = local.checks?.counts?.needs_checking ?? 0;
+  bodyEl.innerHTML = `<p>This freezes your current stores as the new "Today" for the Monthly cost what-if — the saving shown from here on is measured from this list, not the benchmarked run.</p>
+    ${needs ? `<p class="hint">${plural(needs, "item")} still ${needs === 1 ? "needs" : "need"} checking in the review worklist.</p>` : ""}`;
+  save.onclick = () => submitSetBaseline(dialog);
+  dialog.showModal();
+}
+
+async function submitSetBaseline(dialog) {
+  const save = dialog.querySelector(".detail-save-btn");
+  const status = dialog.querySelector(".stores-dialog-status");
+  save.disabled = true;
+  status.textContent = "";
+  try {
+    await fetchJson("/api/stores/baseline", { method: "POST" });
+    dialog.close();
+    local.note = { kind: "ok", text: "Baseline set." };
+    render();
+    scheduleSimulate(0);
+  } catch (error) {
+    status.textContent = error.message;
+    save.disabled = false;
+  }
+}
+
+async function resetBaseline() {
+  try {
+    await fetchJson("/api/stores/baseline", { method: "DELETE" });
+    local.note = { kind: "ok", text: "Baseline reset to the benchmark." };
+  } catch (error) {
+    local.note = { kind: "error", text: error.message };
+  }
+  render();
   scheduleSimulate(0);
 }
 
@@ -1403,6 +1471,8 @@ export async function onStoresClick(event) {
   if (action === "reset") resetPicks();
   if (action === "review") await openApplyReview();
   if (action === "retry-sim") scheduleSimulate(0);
+  if (action === "set-baseline") openSetBaselineConfirm();
+  if (action === "reset-baseline") await resetBaseline();
   if (action === "detail") await openItemDetail(Number(button.closest("[data-item-id]").dataset.itemId));
 }
 

@@ -385,6 +385,25 @@ def test_stores_plan_simulate_and_apply(page, server):
     burger = page.locator(".store-row", has_text="burguer ternera").first
     assert page.locator(".store-row").count() == 1
     assert burger.locator(".review-badge").inner_text().startswith("Moved store")
+
+    # ── Baseline (#183): freeze the list as the new "today", confirm shows the
+    # unchecked count, then reset restores the exact prior simulate result.
+    hint = page.locator("#stores-sim .hint").first
+    assert "benchmarked" in hint.inner_text()
+    before_baseline_total = page.locator(".stores-total strong").inner_text()
+    page.click("[data-stores-action='set-baseline']")
+    baseline_dialog = page.locator("#stores-baseline-dialog")
+    baseline_dialog.wait_for()
+    assert "1 item" in baseline_dialog.inner_text() and "checking" in baseline_dialog.inner_text()
+    baseline_dialog.locator(".detail-save-btn").click()
+    page.wait_for_function("() => !document.querySelector('#stores-baseline-dialog').open")
+    page.wait_for_function("() => document.querySelector('#stores-sim .hint')?.textContent.includes('baseline')")
+    assert "Same as today" in page.locator(".stores-delta").inner_text()
+    page.click("[data-stores-action='reset-baseline']")
+    page.wait_for_function("() => !document.querySelector('#stores-sim .hint')?.textContent.includes('baseline')")
+    page.wait_for_function(
+        "(before) => document.querySelector('.stores-total strong')?.textContent === before", arg=before_baseline_total,
+    )
     total = page.locator(".stores-total strong").inner_text()
 
     burger.locator("[data-stores-action='detail']").click()
