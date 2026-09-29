@@ -23,6 +23,7 @@ from app.api_common import (
     load_inventory_or_error,
     mutate_or_error,
 )
+from automation.product_options import options_for_url
 from src import store_links
 from src.store_links import NoBenchmarkRunError, StoreLinkError
 
@@ -132,7 +133,12 @@ def import_latest() -> dict[str, Any]:
 def store_detail(item_id: int) -> dict[str, Any]:
     df = load_inventory_or_error()
     get_row(df, item_id)
-    return _call(store_links.item_detail, df, item_id)
+    detail = _call(store_links.item_detail, df, item_id)
+    # The page options the cart automation picks per product (#179). Added here,
+    # not in src/: product ids are the store handlers' business.
+    for entry in detail["stores"]:
+        entry["options"] = options_for_url(entry["store"], entry["url"] or "")
+    return detail
 
 
 @router.put("/api/items/{item_id}/store-override")

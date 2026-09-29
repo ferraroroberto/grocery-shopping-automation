@@ -45,6 +45,22 @@ def test_broken_options_file_stops_the_run(tmp_path, text):
         product_options.load_product_options(path)
 
 
+def test_options_for_url(tmp_path):
+    path = tmp_path / "opts.json"
+    path.write_text(json.dumps({"carrefour": {DORADA_ID: {"cut": "Entero limpio", "note": "cleaned"}, "1": {"cut": "Rodajas"}}}), encoding="utf-8")
+    assert product_options.options_for_url("carrefour", DORADA_URL, path=path) == {"cut": "Entero limpio", "note": "cleaned"}
+    assert product_options.options_for_url("Carrefour", "https://www.carrefour.es/supermercado/x/R-1/p", path=path) == {"cut": "Rodajas"}
+    assert product_options.options_for_url("carrefour", "https://www.carrefour.es/supermercado/x/R-2/p", path=path) == {}
+    assert product_options.options_for_url("carrefour", "https://www.carrefour.es/supermercado", path=path) == {}
+    assert product_options.options_for_url("carrefour", "", path=path) == {}
+    # A store with no product-id parser has no options.
+    assert product_options.options_for_url("mercadona", "https://tienda.mercadona.es/product/1/x", path=path) == {}
+
+
+def test_shipped_config_shows_the_dorada_cut():
+    assert product_options.options_for_url("carrefour", DORADA_URL)["cut"] == "Entero limpio"
+
+
 # --- cart-line cuts ----------------------------------------------------------
 
 def test_cart_units_collects_the_cut_type():

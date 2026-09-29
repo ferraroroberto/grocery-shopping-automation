@@ -918,6 +918,7 @@ details[open] > summary .inline-chevron { transform: rotate(90deg); }
 .review-cell-product > * { display: block; }
 .review-cell-product > * + * { margin-top: var(--space-xs); }
 .review-product-name { font-weight: 600; }
+.review-option { display: block; margin: 4px 0; }
 .review-url { color: var(--accent); overflow-wrap: anywhere; }
 .review-bench { display: block; color: var(--muted); }
 .review-cell-num .chip { margin-top: var(--space-xs); }

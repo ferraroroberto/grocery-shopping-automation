@@ -18,6 +18,7 @@ from types import SimpleNamespace
 import pytest
 
 import app.routers.audio as audio_router
+import automation.product_options as product_options
 import src.data as data
 from app.api import app
 from src.inventory_extract import ExtractionResult
@@ -122,6 +123,11 @@ def server(tmp_path_factory):
     runs = tmp / "runs"
     shutil.copytree(BENCHMARK_RUNS, runs)
     data.CONFIG["benchmark"] = {"runs_dir": str(runs)}
+    # A product option (#179) on the fixture burger's Carrefour product.
+    options = tmp / "product_options.json"
+    options.write_text('{"carrefour": {"FIX-burger-600": {"cut": "Fileteado"}}}', encoding="utf-8")
+    orig_options = product_options.DEFAULT_OPTIONS_PATH
+    product_options.DEFAULT_OPTIONS_PATH = options
     data.CONFIG["data"]["xlsx_file"] = str(xlsx)
     data.CONFIG["audio_audit"]["logs_dir"] = str(logs_dir)
     if not LIVE:
@@ -145,6 +151,7 @@ def server(tmp_path_factory):
         srv.should_exit = True
         thread.join(timeout=5)
         data.CONFIG["data"]["xlsx_file"], data.CONFIG["audio_audit"]["logs_dir"], audio_router.extract = orig
+        product_options.DEFAULT_OPTIONS_PATH = orig_options
         if orig_benchmark is None:
             data.CONFIG.pop("benchmark", None)
         else:
@@ -386,6 +393,9 @@ def test_stores_plan_simulate_and_apply(page, server):
     qty = dialog.locator(".review-qty-lines").inner_text()
     assert "Ametller Origen 2 × 0.3 kg = 0.6 kg" in qty
     assert "Carrefour 2 × 0.6 kg = 1.2 kg (+100%)" in qty
+    # The cut the cart picks for that product is shown on its store row (#179).
+    assert dialog.locator("tr[data-review-store='carrefour'] .review-option").inner_text().startswith("Cut: Fileteado")
+    assert dialog.locator("tr[data-review-store='ametller'] .review-option").count() == 0
     # Wide on a desktop, no sideways scroll on a phone.
     page.set_viewport_size({"width": 1280, "height": 900})
     assert dialog.bounding_box()["width"] >= 900
