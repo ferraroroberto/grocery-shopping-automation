@@ -33,6 +33,21 @@ those values is flagged ``benchmark_changed``. ``checked`` is the review
 progress (any row's ``item_key(comida)``). A missing or unreadable file reads
 as empty (⚠️ logged); a write sets an unreadable file aside first, and every
 write is atomic (temp file + replace).
+
+**Monthly cost what-if baseline (#183)** lives in
+``<runs_dir>/_state/baseline.json``::
+
+    {"set_at": "<ISO timestamp>", "run_date": "<YYYY-MM-DD>",
+     "items": {<item key>: {"store", "name", "pack_size", "unit", "pack_price"}}}
+
+:func:`set_baseline` freezes the list's current stores (and their price at
+that moment) so a later :func:`simulate` prices its "today" side from there
+instead of the benchmark's basket store — the switch becomes the new status
+quo. It only applies while ``run_date`` still matches the latest run;
+:func:`clear_baseline` (or a newer benchmark run) goes back to the benchmark's
+status quo. It never touches the review reference points (``moved``,
+``is_basket_store``, the quantity check's "before") — those keep comparing
+against the benchmark until a new run.
 """
 
 from __future__ import annotations
@@ -228,6 +243,60 @@ def _update_overrides(base: Optional[Path], change: Callable[[dict[str, dict]], 
         Path(tmp).unlink(missing_ok=True)
         raise
     return doc
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Monthly cost what-if baseline (#183) — format in the module docstring
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def baseline_path(base: Optional[Path] = None) -> Path:
+    """``<runs_dir>/_state/baseline.json``."""
+    return (base or runs_dir()) / "_state" / "baseline.json"
+
+
+def _read_baseline(path: Path) -> tuple[Optional[dict], bool]:
+    """``(document, readable)``; a missing file is readable and empty (None)."""
+    if not path.is_file():
+        return None, True
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(doc, dict) or not isinstance(doc.get("items"), dict):
+            raise ValueError("not a baseline document")
+    except (OSError, ValueError) as err:
+        logger.warning("⚠️ Ignoring unreadable baseline file %s: %s", path, err)
+        return None, False
+    return doc, True
+
+
+def load_baseline(base: Optional[Path] = None) -> Optional[dict]:
+    """The saved baseline document (``{"set_at", "run_date", "items"}``), or None."""
+    return _read_baseline(baseline_path(base))[0]
+
+
+def _write_baseline(base: Optional[Path], doc: Optional[dict]) -> None:
+    """Write the baseline file atomically, or remove it when ``doc`` is None."""
+    path = baseline_path(base)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if doc is None:
+        path.unlink(missing_ok=True)
+        return
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".baseline.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump(doc, fh, ensure_ascii=False, indent=2)
+        os.replace(tmp, path)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
+
+
+def _baseline_field(doc: Optional[dict], latest_run_date: Optional[str]) -> Optional[dict[str, Any]]:
+    """The ``baseline`` field embedded in a simulate()/GET result: ``{"set_at", "run_date", "stale"}``."""
+    if doc is None:
+        return None
+    run_date = doc.get("run_date")
+    return {"set_at": doc.get("set_at"), "run_date": run_date, "stale": run_date != latest_run_date}
 
 
 def _num(value: Any) -> Optional[float]:
@@ -606,6 +675,45 @@ def _current_stores(df: pd.DataFrame, ctx: _RunContext, by_key: dict[str, int]) 
     return out
 
 
+def _offer_snapshot(ctx: _RunContext, key: str, store: str) -> dict[str, Any]:
+    """``{"store", "name", "pack_size", "unit", "pack_price"}`` for ``ctx.offer(key, store)`` right now (#183)."""
+    offer = ctx.offer(key, store)
+    if offer is None:
+        return {"store": store, "name": None, "pack_size": None, "unit": None, "pack_price": None}
+    ov = ctx.override(key, store)
+    item_unit = ((ctx.all_items.get(key) or {}).get("current") or {}).get("unit") or ""
+    unit = (cell_text(ov.get("unit")) if ov else "") or item_unit
+    return {"store": store, "name": offer.name, "pack_size": offer.pack_size,
+            "unit": unit or None, "pack_price": offer.pack_price}
+
+
+def set_baseline(df: pd.DataFrame, run_dir: Optional[Path] = None) -> dict[str, Any]:
+    """Freeze the list's current stores as the new "today" for :func:`simulate` (#183).
+
+    Snapshots :func:`_current_stores` — each basket item's store as the list
+    has it right now — plus its price through :meth:`_RunContext.offer` at
+    this moment, keyed by benchmark item key. Written to
+    ``<runs_dir>/_state/baseline.json``, replacing any earlier baseline.
+    Returns ``{"set_at", "run_date"}``.
+    """
+    run = _require_run(run_dir)
+    ctx = _RunContext(run)
+    by_key = rows_by_key(df)
+    stores = _current_stores(df, ctx, by_key)
+    set_at = datetime.now().isoformat(timespec="seconds")
+    items = {key: _offer_snapshot(ctx, key, store) for key, store in stores.items()}
+    _write_baseline(run.parent, {"set_at": set_at, "run_date": ctx.run_date, "items": items})
+    logger.info("ℹ️ Baseline set: %d item(s) frozen at %s (run %s)", len(items), set_at, ctx.run_date)
+    return {"set_at": set_at, "run_date": ctx.run_date}
+
+
+def clear_baseline(base: Optional[Path] = None) -> None:
+    """Remove the baseline: :func:`simulate` goes back to the benchmark's status quo."""
+    had = load_baseline(base) is not None
+    _write_baseline(base, None)
+    logger.info("ℹ️ Baseline %s", "removed — back to the benchmark's status quo" if had else "not set, nothing to remove")
+
+
 def _price(ctx: _RunContext, stores: dict[str, str], orders_per_month: float) -> dict[str, Any]:
     """Total a key → store assignment with benchmark.score; list what can't be priced."""
     assignment: dict[str, bscore.Offer] = {}
@@ -646,18 +754,24 @@ def simulate(df: pd.DataFrame, picks: Mapping[Union[int, str], str], orders_per_
     """Monthly cost of ``picks`` vs today's stores, both at ``orders_per_month``.
 
     ``picks`` maps an item id or a benchmark key to a store; items not in it
-    stay at the store in the list now (the row's ``super``). "Today" is the
-    benchmark's status quo — each basket item at the store it was bought
-    from when the run was taken — so it stays the baseline after a switch
-    is applied to ``super``. The universe is the latest run's basket. Returns ``{"picks", "today"}`` — each ``goods``,
+    stay at the store in the list now (the row's ``super``). "Today" is
+    normally the benchmark's status quo — each basket item at the store it
+    was bought from when the run was taken — so it stays fixed after a
+    switch is applied to ``super``. A baseline (:func:`set_baseline`, #183)
+    freezes the list's current stores as "today" instead, for as long as it
+    is still tied to the latest run — an older one is ignored (``baseline``
+    is still reported, with ``stale`` True) and "today" falls back to the
+    benchmark's status quo. The universe is the latest run's basket. Returns
+    ``{"picks", "today"}`` — each ``goods``,
     ``delivery``, ``total``, ``delivery_optimised``, ``total_optimised``,
     ``per_store`` and ``items`` from :func:`benchmark.score.price_assignment`
     plus ``unpriced`` (``{key, store, reason, id, comida}`` for items with no
     price at their store; excluded from the totals, never counted as 0) — and
     ``delta`` (picks − today). ``comparable`` is False when the two sides
     leave out different items, so ``delta`` is not like-for-like.
-    ``not_in_benchmark`` lists inventory rows the run has no item for, and
-    ``item_prices`` maps item id → {store: monthly € for that item}.
+    ``not_in_benchmark`` lists inventory rows the run has no item for,
+    ``item_prices`` maps item id → {store: monthly € for that item}, and
+    ``baseline`` is ``{"set_at", "run_date", "stale"}`` or None.
 
     Basket items whose list row has target (``cantidad``) 0 are not bought,
     so they are left out of **both** sides — a store kept only by them would
@@ -667,6 +781,8 @@ def simulate(df: pd.DataFrame, picks: Mapping[Union[int, str], str], orders_per_
     if orders_per_month <= 0:
         raise StoreLinkError("orders_per_month must be > 0")
     ctx = _RunContext(_require_run(run_dir))
+    baseline_doc = load_baseline(ctx.run_dir.parent)
+    baseline = _baseline_field(baseline_doc, ctx.run_date)
     by_key = rows_by_key(df)
     key_by_row = {row: key for key, row in by_key.items()}
     excluded = [
@@ -675,7 +791,12 @@ def simulate(df: pd.DataFrame, picks: Mapping[Union[int, str], str], orders_per_
         if key in ctx.all_items and not (_num(df.at[row, COLUMNS["cantidad"]]) or 0) > 0
     ]
     skip = {e["key"] for e in excluded}
-    today = {key: item["store"] for key, item in ctx.all_items.items() if key not in skip}
+    if baseline_doc is not None and not baseline["stale"]:
+        base_items = baseline_doc.get("items") or {}
+        today = {key: (base_items.get(key) or {}).get("store") or item["store"]
+                 for key, item in ctx.all_items.items() if key not in skip}
+    else:
+        today = {key: item["store"] for key, item in ctx.all_items.items() if key not in skip}
     chosen = {key: store for key, store in _current_stores(df, ctx, by_key).items() if key not in skip}
     for ref, store in picks.items():
         row = _resolve_row(df, ref, by_key)
@@ -706,6 +827,7 @@ def simulate(df: pd.DataFrame, picks: Mapping[Union[int, str], str], orders_per_
         "not_in_benchmark": not_in_benchmark,
         "excluded": excluded,
         "item_prices": _item_prices(ctx, by_key),
+        "baseline": baseline,
     }
     logger.info("ℹ️ Simulated %d item(s) at %.2f orders/month (%d with target 0 left out): "
                 "picks %.2f vs today %.2f (fee-optimised)", len(chosen), orders_per_month,
@@ -1267,13 +1389,14 @@ def set_item_checked(df: pd.DataFrame, item_id: int, checked: bool,
 
 
 def run_status(base: Optional[Path] = None) -> dict[str, Any]:
-    """The latest run's age and review due date, the stores it covers and the override count."""
+    """The latest run's age and review due date, the stores it covers, the override count and the baseline (#183)."""
     items = load_overrides(base)["items"]
     n_overrides = sum(len(v) for v in items.values() if isinstance(v, dict))
     run = latest_run_dir(base)
+    baseline = _baseline_field(load_baseline(base), run.name if run else None)
     if run is None:
         return {"run_date": None, "age_days": None, "next_due": None, "stores_covered": [],
-                "overrides": n_overrides}
+                "overrides": n_overrides, "baseline": baseline}
     run_day = date.fromisoformat(run.name)
     return {
         "run_date": run.name,
@@ -1281,4 +1404,5 @@ def run_status(base: Optional[Path] = None) -> dict[str, Any]:
         "next_due": (run_day + timedelta(days=REVIEW_INTERVAL_DAYS)).isoformat(),
         "stores_covered": sorted(p.stem for p in (run / "stores").glob("*.json")),
         "overrides": n_overrides,
+        "baseline": baseline,
     }

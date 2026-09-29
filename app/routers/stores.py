@@ -5,7 +5,9 @@ Thin HTTP layer over :mod:`src.store_links`: its ``StoreLinkError`` becomes
 through :func:`app.api_common.mutate_or_error` like every other mutator.
 Mutating routes that write the inventory echo the full inventory payload, as
 the inventory routes do; the per-item review routes (#165), which write only
-``_state/overrides.json``, echo the item's store detail (or its checked state).
+``_state/overrides.json``, echo the item's store detail (or its checked state);
+the baseline routes (#183), which write only ``_state/baseline.json``, echo
+``{"baseline": ...}``.
 """
 
 import logging
@@ -199,6 +201,19 @@ def simulate(payload: SimulatePayload) -> dict[str, Any]:
     opm = _call(store_links.resolve_frequency, payload.orders_per_month, payload.frequency)
     df = load_inventory_or_error()
     return _call(store_links.simulate, df, payload.picks, opm)
+
+
+@router.post("/api/stores/baseline")
+def set_baseline() -> dict[str, Any]:
+    df = load_inventory_or_error()
+    _call(store_links.set_baseline, df)
+    return {"baseline": store_links.run_status()["baseline"]}
+
+
+@router.delete("/api/stores/baseline")
+def clear_baseline() -> dict[str, Any]:
+    _call(store_links.clear_baseline)
+    return {"baseline": None}
 
 
 @router.post("/api/stores/apply-preview")

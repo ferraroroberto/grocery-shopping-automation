@@ -27,7 +27,8 @@ flowchart TB
     APPJS --> API
     JSMODULES --> API
     JSMODULES -->|stores.js: /api/stores/* + store-url, what-if picks,
-item review dialog: store-detail / store-override / checked| ROUTERS
+item review dialog: store-detail / store-override / checked,
+monthly-cost baseline: set/reset (#183)| ROUTERS
     MW --> API
     API --> ROUTERS
     API --> STATICFILES
@@ -53,7 +54,7 @@ item review dialog: store-detail / store-override / checked| ROUTERS
 
   subgraph datalayer["src/ — UI-free data & business layer"]
     DATA["src/data.py\nconfig load, XLSX read/write,\nsupermarket stats, quantity mutators,\noptional per-store url_* columns"]
-    STORELINKS["src/store_links.py\nper-store URL import, store pick,\ncost simulator + apply with pack/stock conversion (#148),\nper-item review + your overrides in\nbenchmark_runs/_state/overrides.json (#165)"]
+    STORELINKS["src/store_links.py\nper-store URL import, store pick,\ncost simulator + apply with pack/stock conversion (#148),\nper-item review + your overrides in\nbenchmark_runs/_state/overrides.json (#165),\nmonthly-cost what-if baseline in\nbenchmark_runs/_state/baseline.json (#183)"]
     AUDIOCORE["src/audio_audit_core.py\ntranscript cleaning, audit-log writer"]
     EXTRACT["src/inventory_extract.py\nLLM match against inventory"]
     AUDITRESOLVE["src/audit_resolve.py\ndeterministic fuzzy fallback for mentions\nthe LLM left unresolved (#132)"]

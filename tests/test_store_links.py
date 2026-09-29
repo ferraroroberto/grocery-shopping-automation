@@ -8,6 +8,7 @@ Ametller and Carrefour, plus one mapping key no inventory row matches.
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import pandas as pd
@@ -36,6 +37,22 @@ def runs(temp_env, monkeypatch):
 @pytest.fixture()
 def seeded(runs):
     """The fixture inventory after one import (persisted to the temp xlsx)."""
+    store_links.import_latest(load_inventory_data())
+    return load_inventory_data()
+
+
+@pytest.fixture()
+def runs_copy(temp_env, monkeypatch, tmp_path: Path) -> Path:
+    """A writable copy of the fixture runs, for tests that write `_state/baseline.json`."""
+    dst = tmp_path / "runs"
+    shutil.copytree(RUNS, dst)
+    monkeypatch.setitem(data.CONFIG, "benchmark", {"runs_dir": str(dst)})
+    return dst
+
+
+@pytest.fixture()
+def seeded_copy(runs_copy):
+    """The fixture inventory after one import, priced from the writable runs copy."""
     store_links.import_latest(load_inventory_data())
     return load_inventory_data()
 
@@ -247,6 +264,71 @@ def test_simulate_low_confidence_offer_is_unpriced_not_free(seeded):
 def test_simulate_unknown_item_is_an_error(seeded):
     with pytest.raises(store_links.StoreLinkError):
         store_links.simulate(seeded, {"no-such-item": "carrefour"}, 4.0)
+
+
+# ── Baseline (#183) ─────────────────────────────────────────────────────────
+# Writes `_state/baseline.json`, so these use `runs_copy`/`seeded_copy` (a
+# writable copy of the fixture runs) rather than `seeded`, which points
+# straight at the committed `tests/fixtures/store_links/`.
+
+
+def test_baseline_zeroes_the_delta_on_unchanged_picks(seeded_copy):
+    weekly = store_links.FREQUENCIES["weekly"]
+    before = store_links.simulate(seeded_copy, {}, weekly)
+    assert before["baseline"] is None
+
+    set_result = store_links.set_baseline(seeded_copy)
+    assert set_result["run_date"] == "2026-01-15"
+    res = store_links.simulate(seeded_copy, {}, weekly)
+    assert res["baseline"]["run_date"] == "2026-01-15" and res["baseline"]["stale"] is False
+    assert res["baseline"]["set_at"] == set_result["set_at"]
+    assert res["delta"] == {f: 0 for f in ("goods", "delivery", "total", "delivery_optimised", "total_optimised")}
+    assert res["today"]["goods"] == res["picks"]["goods"]
+
+
+def test_baseline_prices_a_move_from_the_frozen_store(seeded_copy):
+    weekly = store_links.FREQUENCIES["weekly"]
+    # Move the burger to Carrefour first, then freeze it there as the baseline.
+    store_links.pick_store(seeded_copy, BURGUER, "carrefour")
+    df = load_inventory_data()
+    store_links.set_baseline(df)
+    res = store_links.simulate(df, {}, weekly)
+    assert res["today"]["items"]["burguer-ternera"] == "carrefour"
+    assert res["delta"]["goods"] == 0  # unchanged picks: today == picks
+
+    # Move it again, away from the frozen store: delta reflects only this
+    # move (Carrefour 14.4 -> Ametller 20.0), not the original 2026-01-15
+    # benchmark basket store.
+    res2 = store_links.simulate(df, {str(BURGUER): "ametller"}, weekly)
+    assert res2["today"]["items"]["burguer-ternera"] == "carrefour"
+    assert res2["picks"]["items"]["burguer-ternera"] == "ametller"
+    assert res2["delta"]["goods"] == round(20.0 - 14.4, 2)
+
+
+def test_clear_baseline_restores_the_benchmark_status_quo(seeded_copy):
+    weekly = store_links.FREQUENCIES["weekly"]
+    before = store_links.simulate(seeded_copy, {}, weekly)
+    assert before["baseline"] is None
+
+    store_links.set_baseline(seeded_copy)
+    assert store_links.simulate(seeded_copy, {}, weekly)["delta"]["goods"] == 0
+
+    store_links.clear_baseline()
+    after = store_links.simulate(load_inventory_data(), {}, weekly)
+    assert after == before
+
+
+def test_baseline_from_an_older_run_is_ignored_and_flagged(seeded_copy, runs_copy):
+    weekly = store_links.FREQUENCIES["weekly"]
+    baseline_run = runs_copy / "2025-12-01"
+    assert store_links.latest_run_dir().name == "2026-01-15"  # newer than the baseline's run
+    set_result = store_links.set_baseline(seeded_copy, run_dir=baseline_run)
+    assert set_result["run_date"] == "2025-12-01"
+
+    res = store_links.simulate(seeded_copy, {}, weekly)
+    assert res["baseline"] == {**set_result, "stale": True}
+    # Ignored: "today" falls back to the 2026-01-15 benchmark's status quo.
+    assert res["today"]["goods"] == 49.6
 
 
 def test_recommended_picks(runs):

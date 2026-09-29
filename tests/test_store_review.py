@@ -383,6 +383,35 @@ def test_api_stores_status_fields(api):
     assert body["overrides"] == 1
 
 
+# ── Baseline (#183) ─────────────────────────────────────────────────────────
+
+
+def test_api_baseline_round_trip(api, runs_copy):
+    assert api.get("/api/stores").json()["baseline"] is None
+
+    resp = api.post("/api/stores/baseline")
+    assert resp.status_code == 200
+    baseline = resp.json()["baseline"]
+    assert baseline["run_date"] == "2026-01-15" and baseline["stale"] is False
+
+    assert api.get("/api/stores").json()["baseline"]["run_date"] == "2026-01-15"
+    sim = api.post("/api/stores/simulate", json={"frequency": "weekly"}).json()
+    assert sim["delta"]["goods"] == 0
+    assert sim["baseline"] == baseline
+
+    resp = api.delete("/api/stores/baseline")
+    assert resp.status_code == 200 and resp.json() == {"baseline": None}
+    assert api.get("/api/stores").json()["baseline"] is None
+
+
+def test_api_baseline_needs_a_benchmark_run(client, monkeypatch, tmp_path):
+    monkeypatch.setitem(data.CONFIG, "benchmark", {"runs_dir": str(tmp_path / "no-runs")})
+    assert client.post("/api/stores/baseline").status_code == 404
+    # Clearing a baseline that was never set (no run needed either) is a no-op, not an error.
+    resp = client.delete("/api/stores/baseline")
+    assert resp.status_code == 200 and resp.json() == {"baseline": None}
+
+
 def test_api_apply_with_stock(api):
     [change] = api.post("/api/stores/apply-preview", json={"picks": {str(BURGUER): "carrefour"}}).json()["changes"]
     assert (change["tenemos_from"], change["tenemos"]) == (2, 1)
