@@ -101,7 +101,7 @@ Write `pack_size` in the basket item's `current.unit` (kg, l, ud, m): 200 g → 
 - `./.venv/Scripts/python.exe -m benchmark.results item --run {run_dir} --store {store} --key <key> --json-file <tmp.json>`
 - `./.venv/Scripts/python.exe -m benchmark.results delivery --run {run_dir} --store {store} --json '<...>'`
 - `./.venv/Scripts/python.exe -m benchmark.results access --run {run_dir} --store {store} --json '{"method": "http|chrome", "blocked": false, "notes": "which endpoints worked"}'`
-Record schema: see the docstring of benchmark/results.py (read it first). Write each item as soon as it's decided. Write temp JSON files ONLY under `<your scratchpad>/{store}/` — never the scratchpad root or the repo (other store agents share the scratchpad and will overwrite root-level files).
+Record schema: see the docstring of benchmark/results.py (read it first). Copy `url` from the product card's own link (the one that opens the product page, with its product id) — never a slug-only or search-results URL; the writer rejects it for stores with a known product-URL shape. Write each item as soon as it's decided. Write temp JSON files ONLY under `<your scratchpad>/{store}/` — never the scratchpad root or the repo (other store agents share the scratchpad and will overwrite root-level files).
 
 ## Delivery conditions
 Record for {postal_code}: delivers yes/no/unknown, fee tiers by order value (e.g. [{min_order: 0, fee: 7.9}, {min_order: 120, fee: 0}]), minimum order, source URL. If the store does not deliver to {postal_code}, record that FIRST, then still price the basket (it may deliver soon / click&collect) but say so in `notes`.

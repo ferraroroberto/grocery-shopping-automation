@@ -59,6 +59,7 @@ import os
 import re
 import tempfile
 from datetime import date, datetime, timedelta
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Union
 
@@ -84,27 +85,37 @@ logger = logging.getLogger(__name__)
 STORES_REGISTRY_PATH = REPO_ROOT / "benchmark" / "stores.json"
 DEFAULT_RUNS_DIR = REPO_ROOT / "benchmark_runs"
 _RUN_DIR_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-# What a real product-page URL looks like, per store. A URL that doesn't
-# match (e.g. a Carrefour slug without its `/R-<id>/p` product id, which
-# redirects to the home page) is still imported, but counted and logged so a
-# bad benchmark run is visible.
-_PRODUCT_URL_PATTERNS: dict[str, re.Pattern[str]] = {
-    "carrefour": re.compile(r"/R-[A-Za-z0-9-]+/p"),
-}
 # A store-search results page rather than a product: bot-protected stores
 # (Bonpreu, Alcampo) left the benchmark only their search URL.
 _SEARCH_URL_RE = re.compile(r"/(search|buscar|busqueda)(?:[/?#]|$)|[?&](q|query|search)=", re.IGNORECASE)
 
 
 def link_kind(store: str, url: str) -> str:
-    """``"search"`` (a search-results page), ``"suspect"`` (not shaped like
-    the store's product URL) or ``"product"``."""
+    """``"search"`` (a search-results page), ``"suspect"`` (an http(s) URL
+    that doesn't match the store's ``product_url_pattern`` in
+    ``benchmark/stores.json`` — e.g. a Carrefour slug without its
+    `/R-<id>/p` product id, which redirects to the home page; a store with
+    no declared pattern is never "suspect") or ``"product"``.
+
+    The pattern is only applied to an actual http(s) URL — some stores'
+    ``buscador``/``url_<store>`` cells hold a plain search term instead of a
+    link, which is a pre-existing data shape, not a bad product link.
+    """
     if _SEARCH_URL_RE.search(url):
         return "search"
-    pattern = _PRODUCT_URL_PATTERNS.get(store)
+    if not _is_url(url):
+        return "product"
+    pattern = _product_url_pattern(store)
     if pattern is not None and not pattern.search(url):
         return "suspect"
     return "product"
+
+
+@lru_cache(maxsize=None)
+def _product_url_pattern(store: str) -> Optional[re.Pattern[str]]:
+    """``store``'s compiled ``product_url_pattern``, read once per process (the registry is tracked config)."""
+    raw = (load_registry().get(store) or {}).get("product_url_pattern")
+    return re.compile(raw) if raw else None
 
 # Ordering-frequency presets, in orders per month per store.
 FREQUENCIES: dict[str, float] = {
@@ -527,7 +538,8 @@ def import_latest(df: pd.DataFrame, *, save: bool = True, xlsx_path: Optional[st
     "stores", "suspect_urls", "run_date"}``: cells written, URLs not written
     because the cell already had a value, mapping keys no inventory row
     matches, and per store the mapping URLs that don't look like a product
-    page (see ``_PRODUCT_URL_PATTERNS``; imported anyway, logged ⚠️).
+    page (each store's ``product_url_pattern`` in ``benchmark/stores.json``;
+    imported anyway, logged ⚠️).
     """
     base = base or runs_dir()
     registry = load_registry()
@@ -580,7 +592,7 @@ def import_latest(df: pd.DataFrame, *, save: bool = True, xlsx_path: Optional[st
     }
     for store, n in sorted(suspect.items()):
         logger.warning("⚠️ %d %s mapping URL(s) lack a product id (%s) — they may redirect to the home page",
-                       n, store, _PRODUCT_URL_PATTERNS[store].pattern)
+                       n, store, registry[store]["product_url_pattern"])
     logger.info("ℹ️ Store-URL import: %d seeded, %d skipped (already set), %d unmatched mapping key(s)",
                 seeded, skipped, len(unmatched))
     if seeded:

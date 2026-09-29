@@ -16,6 +16,10 @@ Item record (``--json``)::
 
     status        exact | equivalent | not_found | unknown
     name, brand, url, ean
+                  — for a match, `url` must be the product card's own link
+                  (with its product id), not a slug-only or search URL: the
+                  writer checks it against the store's `product_url_pattern`
+                  in benchmark/stores.json, when one is declared (issue #156)
     pack_size     float, in the BASKET item's unit (convert g→kg, ml→l, eggs→ud)
     unit          must equal the basket item's current unit
     pack_price    float EUR (the price you'd pay today)
@@ -44,6 +48,7 @@ import argparse
 import contextlib
 import json
 import os
+import re
 import sys
 import time
 from datetime import datetime
@@ -54,6 +59,19 @@ STATUSES = {"exact", "equivalent", "not_found", "unknown"}
 MATCHED = {"exact", "equivalent"}
 CONFIDENCE = {"high", "medium", "low"}
 DELIVERS = {"yes", "no", "unknown"}
+
+# The store registry (issue #156's ``product_url_pattern``) is the single
+# source of truth for what a store's real product-page URL looks like —
+# src.store_links.link_kind() checks the same field. Read directly (like
+# benchmark/report.py already does) rather than importing src, which would
+# pull the whole UI-free app layer (pandas, openpyxl, …) into this CLI.
+STORES_REGISTRY = Path(__file__).resolve().parent / "stores.json"
+
+
+def _product_url_pattern(store: str) -> Optional[str]:
+    """``store``'s ``product_url_pattern`` regex from ``benchmark/stores.json``, if it declares one."""
+    registry = json.loads(STORES_REGISTRY.read_text(encoding="utf-8"))["stores"]
+    return (registry.get(store) or {}).get("product_url_pattern") or None
 
 
 class ResultError(ValueError):
@@ -72,8 +90,14 @@ def basket_units(basket: dict) -> dict[str, str]:
     }
 
 
-def validate_item(key: str, record: dict, units: dict[str, str]) -> dict:
-    """Validate one item record; returns it normalised or raises ResultError."""
+def validate_item(key: str, record: dict, units: dict[str, str], store: Optional[str] = None) -> dict:
+    """Validate one item record; returns it normalised or raises ResultError.
+
+    ``store`` (issue #156), when given, additionally rejects a match whose
+    ``url`` doesn't look like that store's real product page — see
+    :func:`_product_url_pattern`. A store with no declared pattern, or no
+    ``store`` at all (e.g. the unit tests below), skips this check.
+    """
     if key not in units:
         raise ResultError(f"unknown item key '{key}' — use the keys in basket.json")
     status = record.get("status")
@@ -85,6 +109,16 @@ def validate_item(key: str, record: dict, units: dict[str, str]) -> dict:
         for field in ("name", "url", "evidence"):
             if not str(record.get(field) or "").strip():
                 raise ResultError(f"a {status} match needs a non-empty '{field}'")
+        if store:
+            pattern = _product_url_pattern(store)
+            url = str(record.get("url") or "")
+            if pattern and not re.search(pattern, url):
+                raise ResultError(
+                    f"url {url!r} doesn't look like a {store} product page (must match "
+                    f"{pattern!r}) — take it from the product card's own link, with its "
+                    f"product id, not a slug-only or search URL (e.g. Carrefour's "
+                    f"…/<slug>/R-<id>/p)"
+                )
         for field in ("pack_size", "pack_price"):
             try:
                 value = float(record.get(field))
@@ -106,18 +140,19 @@ def validate_item(key: str, record: dict, units: dict[str, str]) -> dict:
     for alt in alts:
         if alt.get("status") not in MATCHED:
             raise ResultError("each alternative must be an exact/equivalent match")
-        validate_item(key, alt, units)
+        validate_item(key, alt, units, store)
     return record
 
 
-def add_alternative(existing: Optional[dict], alt: dict, key: str, units: dict[str, str]) -> dict:
+def add_alternative(existing: Optional[dict], alt: dict, key: str, units: dict[str, str],
+                    store: Optional[str] = None) -> dict:
     """Merge another qualifying product into an item record.
 
     No match yet → the alternative becomes the record (keeping the old
     notes/rejected). Otherwise it is appended to ``alternatives`` (replacing
     one with the same URL).
     """
-    alt = validate_item(key, dict(alt), units)
+    alt = validate_item(key, dict(alt), units, store)
     if alt["status"] not in MATCHED:
         raise ResultError("an alternative must be an exact/equivalent match")
     if not existing or existing.get("status") not in MATCHED:
@@ -239,10 +274,11 @@ def main(argv: Optional[list[str]] = None) -> int:
             if args.action in ("item", "alt") and not args.key:
                 raise ResultError(f"--key is required for '{args.action}'")
             if args.action == "item":
-                doc["items"][args.key] = validate_item(args.key, record, basket_units(load_basket(run_dir)))
+                doc["items"][args.key] = validate_item(args.key, record, basket_units(load_basket(run_dir)),
+                                                        args.store)
             elif args.action == "alt":
                 doc["items"][args.key] = add_alternative(doc["items"].get(args.key), record, args.key,
-                                                         basket_units(load_basket(run_dir)))
+                                                         basket_units(load_basket(run_dir)), args.store)
             elif args.action == "delivery":
                 doc["delivery"] = validate_delivery(record)
             else:

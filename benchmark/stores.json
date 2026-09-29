@@ -1,10 +1,11 @@
 {
-  "_doc": "Store registry for the supermarket benchmark (issue #145). Public info only. 'hints' are starting points verified on the date noted — research agents must re-verify and append what they learn to 'notes' via the orchestrator.",
+  "_doc": "Store registry for the supermarket benchmark (issue #145). Public info only. 'hints' are starting points verified on the date noted — research agents must re-verify and append what they learn to 'notes' via the orchestrator. 'product_url_pattern' (issue #156), where declared, is a regex a real product-page URL must contain; src.store_links.link_kind() and benchmark.results.validate_item() both check a URL against it (a store with no pattern is left unchecked).",
   "stores": {
     "mercadona": {
       "name": "Mercadona",
       "baseline": true,
       "shop_url": "https://tienda.mercadona.es/",
+      "product_url_pattern": "/product/\\d+",
       "hints": [
         "Public product API, no login: GET https://tienda.mercadona.es/api/products/{id}/?lang=es&wh={warehouse} (warehouse is basket.json 'mercadona_warehouse'; without wh some products 404). Returns price_instructions + nutrition_information.ingredients + ean. (verified 2026-09-27)",
         "Full catalogue via public category API: GET https://tienda.mercadona.es/api/categories/?lang=es&wh={wh} then /api/categories/{id}/?lang=es&wh={wh} lists every product with price_instructions. Crawl it once, then match locally. (verified 2026-09-27)",
@@ -28,6 +29,7 @@
     "carrefour": {
       "name": "Carrefour",
       "shop_url": "https://www.carrefour.es/supermercado",
+      "product_url_pattern": "/R-[A-Za-z0-9-]+/p",
       "hints": [
         "Cloudflare blocks curl and in-page API fetch. Real Chrome works but the postcode must be set EVERY session (session-only 'salepoint' cookie): click [aria-label=\"Envío a domicilio\"] → Modificar → fill input[name=\"postal-code\"] → Empezar a comprar. benchmark.browser_fetch can't click, so drive Playwright directly on benchmark_runs/_state/chrome/carrefour. (2026-09-27)",
         "Search: https://www.carrefour.es/?query=<term> (not q=); cards [data-test=\"search-grid-result\"]; product pages list 'Ingredientes' in body text.",
