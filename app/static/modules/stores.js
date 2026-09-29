@@ -902,7 +902,7 @@ function storeRowMarkup(d, s) {
     <td class="review-cell-store" data-label="Store"><span class="review-store-name">${esc(s.store_name)}</span>${markers}</td>
     <td class="review-cell-product" data-label="Product">
       <span class="review-product-name">${esc(s.name || "No product")}${yoursMarkup(s, ["name"], bench.name)}</span>
-      ${link}${kind}${benchLink}${changed}
+      ${optionsMarkup(s)}${link}${kind}${benchLink}${changed}
     </td>
     <td class="review-cell-num" data-label="Pack">${esc(packOf(s) || "–")}${yoursMarkup(s, ["pack_size", "unit"], packOf(bench))}</td>
     <td class="review-cell-num" data-label="Pack price">${eur(s.pack_price)}${yoursMarkup(s, ["pack_price"], isSet(bench.pack_price) ? eur(bench.pack_price) : "")}</td>
@@ -913,6 +913,16 @@ function storeRowMarkup(d, s) {
         aria-expanded="${editing}" aria-label="Edit ${esc(s.store_name)}">${icon(editing ? "x" : "pencil")}</button></td>
   </tr>`;
   return editing ? row + `<tr class="review-edit-row"><td colspan="8">${editFormMarkup(d, s)}</td></tr>` : row;
+}
+
+// A page option the cart automation picks for this product (#179), e.g. the
+// fish cut; set in config/product_options.json, shown here so it isn't hidden.
+function optionsMarkup(s) {
+  const cut = s.options?.cut;
+  if (!cut) return "";
+  const note = s.options.note ? ` <span class="meta">${esc(s.options.note)}</span>` : "";
+  return `<span class="review-option"><span class="chip chip-neutral">Cut: ${esc(cut)}</span>${note}
+    <span class="review-bench">The cart picks this cut. Set in config/product_options.json.</span></span>`;
 }
 
 // The inline editor for one store: its link, and (basket items only) your

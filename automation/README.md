@@ -153,6 +153,8 @@ plumbing in `app/automation_runner.py`.
   by hand), and an add that comes back in another cut is removed and fails.
   A product whose page offers cuts but has no entry is added in the page's
   default cut, with a warning in the log.
+  The item review dialog (Items → Stores → the row's pencil) shows the cut on
+  that store's row, so the setting is never hidden (issue #179).
 
 ### Order-confirmation email check (issue #72)
 

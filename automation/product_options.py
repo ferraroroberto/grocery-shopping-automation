@@ -19,11 +19,13 @@ different product (even for the same item) never inherits it::
     }
 
 ``cut`` is the option's visible label on the product page, matched exactly.
-``note`` is for people only.
+``note`` is for people only. The item review dialog shows them per store
+(:func:`options_for_url`, issue #179).
 """
 
 from __future__ import annotations
 
+import importlib
 import json
 import logging
 from pathlib import Path
@@ -33,16 +35,22 @@ logger = logging.getLogger(__name__)
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_OPTIONS_PATH = _REPO_ROOT / "config" / "product_options.json"
+# Store → the handler module whose ``product_id_from_url`` names its products.
+# Imported lazily: the handlers import this module.
+_PRODUCT_ID_MODULES = {"carrefour": "automation.carrefour"}
 
 
-def load_product_options(path: Path = DEFAULT_OPTIONS_PATH) -> dict[str, dict[str, dict]]:
+def load_product_options(path: Optional[Path] = None) -> dict[str, dict[str, dict]]:
     """Return ``{store: {product_id: options}}``, or ``{}`` when the file is absent.
+
+    ``path`` defaults to :data:`DEFAULT_OPTIONS_PATH`, read at call time.
 
     Raises:
         ValueError: the file exists but is not valid JSON of that shape. A
             broken preferences file must stop the run rather than silently
             buying every product with its default option.
     """
+    path = path or DEFAULT_OPTIONS_PATH
     if not path.exists():
         return {}
     try:
@@ -58,7 +66,7 @@ def load_product_options(path: Path = DEFAULT_OPTIONS_PATH) -> dict[str, dict[st
 
 
 def preferred_cut(
-    store: str, product_id: str, *, path: Path = DEFAULT_OPTIONS_PATH
+    store: str, product_id: str, *, path: Optional[Path] = None
 ) -> Optional[str]:
     """The cut label to select for ``product_id`` at ``store``, or ``None``."""
     if not product_id:
@@ -66,3 +74,20 @@ def preferred_cut(
     options = load_product_options(path).get(store.lower(), {}).get(str(product_id), {})
     cut = str(options.get("cut") or "").strip()
     return cut or None
+
+
+def options_for_url(store: str, url: str, *, path: Optional[Path] = None) -> dict[str, str]:
+    """The options set for the product ``url`` points at — ``{"cut", "note"}``
+    with only the fields that are set, ``{}`` when none.
+
+    The product id comes from the store handler's own ``product_id_from_url``;
+    a store without one has no options.
+    """
+    module = _PRODUCT_ID_MODULES.get(store.lower())
+    if not module or not url:
+        return {}
+    product_id = importlib.import_module(module).product_id_from_url(url)
+    if not product_id:
+        return {}
+    options = load_product_options(path).get(store.lower(), {}).get(product_id, {})
+    return {f: str(options[f]).strip() for f in ("cut", "note") if str(options.get(f) or "").strip()}

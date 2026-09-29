@@ -304,6 +304,18 @@ def test_api_store_detail(api):
     assert api.get("/api/items/99999/store-detail").status_code == 404
 
 
+def test_api_store_detail_shows_the_product_options(api, monkeypatch, tmp_path):
+    # #179: the cut the cart automation picks is visible per store, keyed by
+    # the store's product id (the burger's Carrefour link is R-FIX-burger-600).
+    from automation import product_options
+    opts = tmp_path / "product_options.json"
+    opts.write_text(json.dumps({"carrefour": {"FIX-burger-600": {"cut": "Fileteado", "note": "fixture"}}}), encoding="utf-8")
+    monkeypatch.setattr(product_options, "DEFAULT_OPTIONS_PATH", opts)
+    body = api.get(f"/api/items/{BURGUER}/store-detail").json()
+    assert _store(body, "carrefour")["options"] == {"cut": "Fileteado", "note": "fixture"}
+    assert all(s["options"] == {} for s in body["stores"] if s["store"] != "carrefour")
+
+
 def test_api_override_moves_the_simulator_then_resets(api, runs_copy):
     def carrefour_price() -> float:
         body = api.post("/api/stores/simulate", json={"picks": {str(BURGUER): "carrefour"}, "frequency": "monthly"})
