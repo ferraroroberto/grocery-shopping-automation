@@ -12,6 +12,11 @@ port         = 8502
 [vendored]
 single_instance = { src = "app/tray/single_instance.py", sha = "c493e1ab36f464be046856e12171bdc79a1b959f", dest = "app/tray/single_instance.py" }
 
+[[design.accepted]]
+rule   = "LAYOUT-03"
+reason = "Stores rows keep one-tap product links per store beside the picker and the edit button — household decision (the #153 round had made them labels)"
+record = "https://github.com/ferraroroberto/grocery-shopping-automation/issues/194"
+
 # [design.review] -- the rendered design review's walk (fleet-config
 # skills/_lib/design_review, docs/skills.md "Two legs, two interpreters").
 # The walk clicks the primary tabs, opens every <details> and showModal()s
