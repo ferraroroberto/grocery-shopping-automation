@@ -414,6 +414,21 @@ def test_stores_plan_simulate_and_apply(page, server):
     assert "burguer ternera" in page.locator(".store-row").inner_text()
     page.fill("#search", "")
     page.wait_for_function(f"document.querySelectorAll('.store-row').length === {all_row_count}")
+    # #193 regression: typing character by character (not a programmatic
+    # fill/dispatch) must not rebuild the Stores pane — the search keeps focus
+    # and its full value, the rows filter as you type, and the Monthly cost
+    # card is the exact same DOM node throughout (a tagged JS property proves
+    # no renderStores() rebuild happened, as opposed to the list-only repaint).
+    page.evaluate("document.querySelector('#stores-sim').__regression193 = true")
+    page.click("#search")
+    page.keyboard.type("burguer ternera", delay=50)
+    assert page.evaluate("document.activeElement === document.querySelector('#search')")
+    assert page.eval_on_selector("#search", "el => el.value") == "burguer ternera"
+    page.wait_for_function("document.querySelectorAll('.store-row').length === 1")
+    assert "burguer ternera" in page.locator(".store-row").inner_text()
+    assert page.evaluate("document.querySelector('#stores-sim')?.__regression193") is True
+    page.fill("#search", "")
+    page.wait_for_function(f"document.querySelectorAll('.store-row').length === {all_row_count}")
     # Benchmark status: run date and the review due 90 days later, plus the copyable steps.
     status = page.locator(".stores-status").inner_text()
     assert "2026-01-15" in status and "2026-04-15" in status

@@ -51,7 +51,7 @@ import {
   useCandidateClick,
 } from "./modules/search.js";
 import { renderShopping, shoppingStoreCount } from "./modules/shopping.js";
-import { onStoresChange, onStoresClick, renderStores } from "./modules/stores.js";
+import { onStoresChange, onStoresClick, renderStores, repaintStoresList } from "./modules/stores.js";
 
 // Page-header context lines for the four non-Home panes (#153 J-04) — Home's
 // own #status is driven by idleStatus()/setStatus() below, unchanged. Each
@@ -90,14 +90,35 @@ function render() {
   if (state.mode === "audio") renderAudio();
   if (state.mode === "settings") renderEmailWatch();
   if (state.mode === "stores") {
+    // A full render() (as opposed to the search-only repaintStoresList() used
+    // for keystrokes, #193) rebuilds the pane body from scratch, detaching
+    // the toolbar from its slot — capture focus/caret first so it can be
+    // restored below if the search was mid-edit.
+    const hadFocus = document.activeElement === el.search;
+    const selStart = el.search.selectionStart;
+    const selEnd = el.search.selectionEnd;
     renderStores();
     // LAYOUT-02: the Stores list needs its own search/filter input inside the
     // list's card (the measurement looks for input[type=search] within the
     // list's nearest `section` ancestor) — re-home the one global toolbar
     // search into the freshly-rendered card instead of duplicating a second
     // search box. renderStores() rebuilds the pane-body from scratch on every
-    // call, so this re-homes on every stores render, not just the first.
-    document.querySelector("#stores-search-slot")?.appendChild(el.toolbar);
+    // call, so the slot is a fresh node each time and never already holds the
+    // toolbar — the guard still protects a future renderStores() that stops
+    // wiping the slot from silently duplicating the search box.
+    const slot = document.querySelector("#stores-search-slot");
+    if (slot && !slot.contains(el.toolbar)) {
+      slot.appendChild(el.toolbar);
+      if (hadFocus) {
+        el.search.focus();
+        try {
+          el.search.setSelectionRange(selStart, selEnd);
+        } catch (_) {
+          // Some input types/browsers reject setSelectionRange — focus alone
+          // still saves the keystroke.
+        }
+      }
+    }
   }
 }
 
@@ -288,7 +309,14 @@ el.app.addEventListener("keydown", (event) => {
 });
 
 // ------------------------------------------------------- top-bar controls
-el.search.addEventListener("input", () => { state.query = el.search.value.trim().toLowerCase(); render(); });
+el.search.addEventListener("input", () => {
+  state.query = el.search.value.trim().toLowerCase();
+  // Stores mode repaints just the list (#193) — a full render() rebuilds the
+  // pane and re-homes the toolbar, which drops focus mid-keystroke. Every
+  // other mode keeps the old full-render behaviour.
+  if (state.mode === "stores") repaintStoresList();
+  else render();
+});
 el.openSheet.addEventListener("click", () => fetchJson("/api/actions/open-spreadsheet", { method: "POST" }).then(() => setStatus("Spreadsheet opened")));
 el.copyLink.addEventListener("click", async () => {
   const url = state.access?.cloudflare || state.access?.lan || window.location.href;
