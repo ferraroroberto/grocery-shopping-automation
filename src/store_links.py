@@ -59,6 +59,7 @@ import os
 import re
 import tempfile
 from datetime import date, datetime, timedelta
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Union
 
@@ -104,10 +105,17 @@ def link_kind(store: str, url: str) -> str:
         return "search"
     if not _is_url(url):
         return "product"
-    pattern = (load_registry().get(store) or {}).get("product_url_pattern")
-    if pattern and not re.search(pattern, url):
+    pattern = _product_url_pattern(store)
+    if pattern is not None and not pattern.search(url):
         return "suspect"
     return "product"
+
+
+@lru_cache(maxsize=None)
+def _product_url_pattern(store: str) -> Optional[re.Pattern[str]]:
+    """``store``'s compiled ``product_url_pattern``, read once per process (the registry is tracked config)."""
+    raw = (load_registry().get(store) or {}).get("product_url_pattern")
+    return re.compile(raw) if raw else None
 
 # Ordering-frequency presets, in orders per month per store.
 FREQUENCIES: dict[str, float] = {
