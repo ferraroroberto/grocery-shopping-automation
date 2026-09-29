@@ -1,11 +1,11 @@
-// Email watch (issue #73) — the Auto tab's second card.
+// Email watch (issue #73) — a card in the Setup tab (moved from the retired
+// Auto tab in #182).
 //
 // Server-side poller over the #72 confirmation-email check: the card selects
 // which monitored senders (each mapped to a store) are active, sets the poll
 // cadence, and shows the last-check log. "Test last email" re-processes the
 // newest confirmation even if already seen — the end-to-end dry run.
 import { fetchJson } from "./api.js";
-import { activePaneBody } from "./core.js";
 import { fmtBuildTime, html, switchMarkup, switchOn, text } from "./dom.js";
 
 const EMAIL_INTERVALS = [
@@ -13,12 +13,18 @@ const EMAIL_INTERVALS = [
   [180, "Every 3 h"], [360, "Every 6 h"], [720, "Every 12 h"], [1440, "Daily"],
 ];
 
-// The card shell the automation view interpolates. Folds by default; harvest
-// the live open state so a re-render (e.g. automation dismiss) doesn't slam
-// it shut. `refreshEmailMonitor` fills the body.
-export function emailMonitorCard() {
-  const open = !!activePaneBody().querySelector("#email-monitor[open]");
-  return `<details id="email-monitor" class="card card--collapsible"${open ? " open" : ""}>
+// Paint the card shell into Setup's static host once (it folds by default, and
+// keeping the node keeps its open state across re-renders), then refresh the
+// body from the server on every Setup render.
+export function renderEmailWatch() {
+  const host = document.querySelector("#email-watch-host");
+  if (!host) return;
+  if (!host.firstElementChild) host.innerHTML = emailMonitorCard();
+  refreshEmailMonitor();
+}
+
+function emailMonitorCard() {
+  return `<details id="email-monitor" class="card card--collapsible">
     <summary class="collapse-summary">
       <span class="collapse-main">
         <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-mail"></use></svg>
@@ -33,7 +39,7 @@ export function emailMonitorCard() {
   </details>`;
 }
 
-export async function refreshEmailMonitor() {
+async function refreshEmailMonitor() {
   const body = document.querySelector("#email-monitor-body");
   if (!body) return;
   let s;

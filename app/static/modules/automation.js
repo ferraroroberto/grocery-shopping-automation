@@ -1,10 +1,10 @@
-// Cart automation: the run panel (store/cart-mode/dry-run + live command
-// preview), the elapsed timer, and the SSE log stream. Run state is local to
+// Cart automation — the "Fill carts" section at the bottom of Shop (#182; it
+// was the Auto tab): store/cart-mode/dry-run controls, the command preview
+// (folded), the elapsed timer, and the SSE log stream. Run state is local to
 // this module — nothing else in the app reads it.
 import { fetchJson } from "./api.js";
-import { activePaneBody, state, storedToken } from "./core.js";
+import { state, storedToken } from "./core.js";
 import { formatElapsed, html, switchMarkup, switchOn } from "./dom.js";
-import { emailMonitorCard, refreshEmailMonitor } from "./email.js";
 
 const run = {
   source: null,
@@ -12,10 +12,21 @@ const run = {
   timer: null,
 };
 
-export function renderAutomation() {
+const IDLE_LOG = "Not running. Press Run automation to fill the store carts; progress appears here.";
+
+function host() {
+  return document.querySelector("#fill-carts-host");
+}
+
+// Paints the section once and then leaves it alone: Shop re-renders its list
+// on every Got-it tap, and that must not reset the picks or the live log.
+// Re-entering Shop resyncs the run status via syncFillCarts() instead.
+export function renderFillCarts({ force = false } = {}) {
+  const node = host();
+  if (!node || (node.firstElementChild && !force)) return;
   const stores = state.payload.summary.supermarkets;
-  activePaneBody().innerHTML = `<section class="panel">
-    <h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-bot"></use></svg>Run Automation</h2>
+  node.innerHTML = `<section id="fill-carts" class="panel" aria-labelledby="fill-carts-title">
+    <h2 id="fill-carts-title" class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-bot"></use></svg>Fill carts</h2>
     <div class="hint">Fills the store carts from this list via Chrome automation. You still confirm and pay in the browser.</div>
     <div class="two">
       <label class="field-label">Store
@@ -28,19 +39,26 @@ export function renderAutomation() {
     <div class="flag-row"><span>Dry run</span>${switchMarkup(false, "Dry run", { id: "automation-dry-run" })}</div>
     <div id="automation-clean-warn" class="panel-status error" hidden>Clean mode empties the store cart first — anything added by hand will be removed.</div>
     <div id="automation-clean-confirm-wrap" class="flag-row" hidden><span>Yes, empty the cart first</span>${switchMarkup(false, "Yes, empty the cart first", { id: "automation-clean-confirm" })}</div>
-    <pre id="automation-command" class="log"></pre>
+    <details class="inline-disclosure">
+      <summary class="inline-disclosure-summary"><span>Command</span><span class="inline-chevron" aria-hidden="true">›</span></summary>
+      <pre id="automation-command" class="log"></pre>
+    </details>
     <div class="actions">
-      <button id="automation-start" class="big-btn btn-block" type="button"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-play"></use></svg>Run Automation</button>
+      <button id="automation-start" class="big-btn btn-block" type="button"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-play"></use></svg>Run automation</button>
       <button id="automation-stop" class="danger btn-block" type="button" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-square"></use></svg>Stop</button>
       <button id="automation-dismiss" class="secondary btn-block" type="button" hidden>Dismiss</button>
     </div>
     <div id="automation-elapsed" class="panel-status"></div>
-    <pre id="automation-log" class="log">Not running. Press Run Automation to fill the store carts; progress appears here.</pre>
-  </section>
-  ${emailMonitorCard()}`;
+    <pre id="automation-log" class="log">${IDLE_LOG}</pre>
+  </section>`;
   updateAutomationCommand();
   refreshAutomation();
-  refreshEmailMonitor();
+}
+
+// Tab (re-)entry / foreground: pick up a run that started, finished or lost
+// its event stream while Shop was out of view. No-op until first painted.
+export function syncFillCarts() {
+  if (host()?.firstElementChild && !run.source) refreshAutomation();
 }
 
 // Mirror the Streamlit controls: clean-mode warning + destructive confirm, and a
@@ -79,7 +97,7 @@ async function refreshAutomation() {
 
 function applyAutomationStatus(status) {
   const log = document.querySelector("#automation-log");
-  if (log) log.textContent = status.lines?.length ? status.lines.join("\n") : (status.running ? "(waiting for output…)" : "Not running. Press Run Automation to fill the store carts; progress appears here.");
+  if (log) log.textContent = status.lines?.length ? status.lines.join("\n") : (status.running ? "(waiting for output…)" : IDLE_LOG);
   const finished = !status.running && status.returncode !== null && status.returncode !== undefined;
   const start = document.querySelector("#automation-start");
   const stop = document.querySelector("#automation-stop");
@@ -158,5 +176,5 @@ export async function stopAutomation() {
 export async function dismissAutomation() {
   stopAutomationTimer();
   await fetchJson("/api/automation/reset", { method: "POST" }).catch(() => null);
-  renderAutomation();
+  renderFillCarts({ force: true });
 }

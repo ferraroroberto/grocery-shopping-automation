@@ -1,5 +1,5 @@
 // The four inventory views: the Home dashboard, the audit/target editors, the
-// per-row edit form, and the add form.
+// per-row edit form, and the add form (with the product-search host above it).
 import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
 import { activePaneBody, c, filteredItems, items, state } from "./core.js";
 import { html, qtyMarkup, text } from "./dom.js";
@@ -123,10 +123,13 @@ export function renderEdit() {
     </article>`).join("") || emptyStateEl("search", "No matching items.").outerHTML}</section>`;
 }
 
+// Add Item = the store product search (#182; search.js fills #product-search,
+// and a picked new product pre-fills this form) above the manual form.
 export function renderAdd() {
   const zones = state.payload.summary.zones;
   const stores = state.payload.summary.supermarkets;
-  activePaneBody().innerHTML = `<section class="panel">
+  activePaneBody().innerHTML = `<section id="product-search" class="panel" aria-label="Find a store product"></section>
+  <section class="panel">
     <h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg>Add Item</h2>
     <form id="add-form" class="form">
       <div class="three">

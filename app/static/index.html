@@ -208,26 +208,6 @@
         </svg>
         <span class="tab-label">Items</span>
       </button>
-      <button id="tabSearch" type="button" class="tab" data-tab="search"
-              role="tab" aria-selected="false" aria-controls="pane-search" tabindex="-1">
-        <svg class="tab-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
-          <circle cx="11" cy="11" r="8" />
-          <path d="m21 21-4.3-4.3" />
-        </svg>
-        <span class="tab-label">Search</span>
-      </button>
-      <button id="tabAutomation" type="button" class="tab" data-tab="automation"
-              role="tab" aria-selected="false" aria-controls="pane-automation" tabindex="-1">
-        <svg class="tab-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
-          <path d="M12 8V4H8" />
-          <rect width="16" height="12" x="4" y="8" rx="2" />
-          <path d="M2 14h2" />
-          <path d="M20 14h2" />
-          <path d="M15 13v2" />
-          <path d="M9 13v2" />
-        </svg>
-        <span class="tab-label">Auto</span>
-      </button>
       <button id="tabSettings" type="button" class="tab" data-tab="settings"
               role="tab" aria-selected="false" aria-controls="pane-settings" tabindex="-1">
         <svg class="tab-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
@@ -268,6 +248,11 @@
       </section>
       <section id="pane-shopping" class="pane" role="tabpanel" aria-labelledby="tabShopping" aria-label="Shopping" hidden>
         <div class="pane-body"></div>
+        <!-- Fill carts (cart automation; the retired Auto tab, #182). A static
+             host OUTSIDE .pane-body: the list re-renders on every Got-it tap,
+             which must not reset the store / cart-mode / dry-run picks or the
+             run log. -->
+        <div id="fill-carts-host"></div>
       </section>
       <section id="pane-audit" class="pane" role="tabpanel" aria-labelledby="tabAudit" aria-label="Audit" hidden>
         <div class="pills subnav" role="group" aria-label="Audit modes">
@@ -283,12 +268,6 @@
           <button type="button" class="pill" data-mode="add">Add Item</button>
           <button type="button" class="pill" data-mode="stores">Stores</button>
         </div>
-        <div class="pane-body"></div>
-      </section>
-      <section id="pane-search" class="pane" role="tabpanel" aria-labelledby="tabSearch" aria-label="Product search" hidden>
-        <div class="pane-body"></div>
-      </section>
-      <section id="pane-automation" class="pane" role="tabpanel" aria-labelledby="tabAutomation" aria-label="Automation" hidden>
         <div class="pane-body"></div>
       </section>
       <section id="pane-settings" class="pane" role="tabpanel" aria-labelledby="tabSettings" aria-label="Settings" hidden>
@@ -318,6 +297,9 @@
             </button>
           </div>
         </div>
+        <!-- Email Watch (#73) — a setting, so it lives here since the Auto tab
+             was retired (#182). Filled by email.js on entering Setup. -->
+        <div id="email-watch-host"></div>
       </section>
 
       <!-- Build identity: which build the PWA is running. Filled by app.js

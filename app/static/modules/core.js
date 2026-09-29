@@ -17,7 +17,9 @@ export const THEME_KEY = "grocery.theme";
 export const SEARCHABLE_MODES = new Set(["dashboard", "audit", "targets", "edit", "stores"]);
 
 // The 9 modes group into the fleet nav's 5 tabs; audit/items tabs re-home
-// their modes as sub-pills (static markup in index.html).
+// their modes as sub-pills (static markup in index.html). Product search lives
+// inside Items → Add Item, cart automation ("Fill carts") at the bottom of
+// Shop, Email Watch in Setup (#182).
 export const MODE_TO_TAB = {
   dashboard: "inventory",
   shopping: "shopping",
@@ -27,8 +29,6 @@ export const MODE_TO_TAB = {
   edit: "items",
   add: "items",
   stores: "items",
-  search: "search",
-  automation: "automation",
   settings: "settings",
 };
 export const TAB_DEFAULT_MODE = {
@@ -36,9 +36,16 @@ export const TAB_DEFAULT_MODE = {
   shopping: "shopping",
   audit: "audit",
   items: "targets",
-  search: "search",
-  automation: "automation",
   settings: "settings",
+};
+
+// Tabs retired in #182 → their content's new home. A PWA that last closed on
+// one still has it saved in TAB_KEY; the vendored nav would silently fall
+// back to Home, so migrateRetiredTab() rewrites it before the nav boots.
+// `reveal` is the section scrolled into view once the pane has rendered.
+export const RETIRED_TABS = {
+  search: { tab: "items", mode: "add", reveal: null }, // search heads the Add Item pane
+  automation: { tab: "shopping", mode: "shopping", reveal: "#fill-carts" },
 };
 
 export const state = {
@@ -179,6 +186,23 @@ export function restoreSubMode(tab) {
     return fallback;
   }
   return stored && MODE_TO_TAB[stored] === tab ? stored : fallback;
+}
+
+// Rewrite a saved retired tab (see RETIRED_TABS) to its new home tab + sub-mode.
+// Must run before initNavTabs reads TAB_KEY. Returns the selector of the
+// section to reveal once rendered, or null when there is none to reveal.
+export function migrateRetiredTab() {
+  try {
+    const saved = localStorage.getItem(TAB_KEY);
+    const target = RETIRED_TABS[saved];
+    if (!target) return null;
+    localStorage.setItem(TAB_KEY, target.tab);
+    localStorage.setItem(SUB_KEY_PREFIX + target.tab, target.mode);
+    localStorage.removeItem(SUB_KEY_PREFIX + saved);
+    return target.reveal;
+  } catch (_) {
+    return null; // private mode — nothing was saved to migrate
+  }
 }
 
 export function saveSubMode(mode) {

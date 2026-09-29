@@ -831,7 +831,7 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 .stores-howto code { background: var(--accent-soft); color: var(--accent-text); padding: 0 4px; border-radius: 4px; }
 .stores-howto .panel-status:empty { display: none; }
 /* Inline disclosures (not card-level): a 44px summary row, chevron right. */
-.stores-howto-summary, .review-evidence-summary {
+.stores-howto-summary, .review-evidence-summary, .inline-disclosure-summary {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
@@ -841,10 +841,15 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
   cursor: pointer;
   list-style: none;
 }
-.stores-howto-summary::-webkit-details-marker, .review-evidence-summary::-webkit-details-marker { display: none; }
+.stores-howto-summary::-webkit-details-marker, .review-evidence-summary::-webkit-details-marker,
+.inline-disclosure-summary::-webkit-details-marker { display: none; }
 .stores-howto-summary > .icon { width: var(--icon-inline); height: var(--icon-inline); color: var(--muted); }
 .inline-chevron { margin-left: auto; color: var(--muted); font-size: var(--font-heading-lg); line-height: 1; transition: transform 0.15s ease; }
 details[open] > summary .inline-chevron { transform: rotate(90deg); }
+/* Fill carts' folded command preview (#182): a quiet row — the raw argv is a
+   detail for the curious, not a label — with the log spaced off its summary. */
+.inline-disclosure-summary { color: var(--muted); }
+.inline-disclosure[open] > .log { margin-top: var(--space-sm); }
 
 /* All · Needs checking · Checked, then the multi-select Store row (#170) —
    above the show-all switch; both wrap on a phone. */

@@ -33,8 +33,10 @@ BENCHMARK_RUNS = REPO_ROOT / "tests" / "fixtures" / "store_links"
 LIVE = os.environ.get("GROCERY_E2E_LIVE") == "1"
 TRANSCRIPT = "en la nevera, tengo dos yogures y un litro de leche. en el congelador, tres salmones."
 
-# The 9 modes group into the fleet nav's tabs (mirrors MODE_TO_TAB in app.js);
-# grouped modes are reached via a sub-pill inside their tab's pane.
+# The 9 modes group into the fleet nav's 5 tabs (mirrors MODE_TO_TAB in
+# modules/core.js); grouped modes are reached via a sub-pill inside their tab's
+# pane. Product search lives in Items -> Add Item and cart automation ("Fill
+# carts") at the bottom of Shop since the Search/Auto tabs were retired (#182).
 TAB_FOR_MODE = {
     "dashboard": "inventory",
     "shopping": "shopping",
@@ -44,8 +46,6 @@ TAB_FOR_MODE = {
     "edit": "items",
     "add": "items",
     "stores": "items",
-    "search": "search",
-    "automation": "automation",
     "settings": "settings",
 }
 
@@ -160,11 +160,16 @@ def server(tmp_path_factory):
 
 
 @pytest.fixture(scope="module")
-def browser(server):
+def pw():
     with sync_playwright() as p:
-        b = p.chromium.launch()
-        yield b
-        b.close()
+        yield p
+
+
+@pytest.fixture(scope="module")
+def browser(pw, server):
+    b = pw.chromium.launch()
+    yield b
+    b.close()
 
 
 @pytest.fixture()
@@ -182,8 +187,7 @@ def page(browser, server):
 
 @pytest.mark.e2e
 def test_all_tabs_render_without_js_errors(page):
-    for mode in ["dashboard", "audit", "targets", "edit", "add", "stores", "shopping", "audio", "search",
-                 "automation", "settings"]:
+    for mode in ["dashboard", "audit", "targets", "edit", "add", "stores", "shopping", "audio", "settings"]:
         goto_mode(page, mode)
         page.wait_for_timeout(150)
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
@@ -200,12 +204,68 @@ def test_standalone_page_head_meta(page):
 
 
 @pytest.mark.e2e
-def test_search_tab_renders_shell(page):
-    """The Search tab renders its input + Buscar button (no live search run)."""
-    goto_mode(page, "search")
-    page.wait_for_selector("#search-term")
-    assert page.locator("#search-run").is_visible()
-    assert page.locator("#search-record").is_visible()
+def test_five_tab_nav_and_relocated_sections(page, pw, server):
+    """#182: five tabs, and every capability of the retired Search/Auto tabs in
+    reach -- product search in Items -> Add Item, Fill carts at the bottom of
+    Shop, Email Watch in Setup -- with a saved retired tab reopening on its new
+    home instead of falling back to Home. Then the WebKit 390px nav check."""
+    tabs = page.locator("nav.tabs .tab")
+    assert tabs.count() == 5
+    assert tabs.locator(".tab-label").all_inner_texts() == ["Home", "Shop", "Audit", "Items", "Setup"]
+
+    goto_mode(page, "add")
+    assert page.locator("#pane-items #product-search #search-term").is_visible()
+
+    goto_mode(page, "shopping")
+    fill = page.locator("#pane-shopping #fill-carts")
+    fill.wait_for()
+    for control in ("#automation-store", "#automation-cart-mode", "#automation-dry-run", "#automation-start"):
+        assert fill.locator(control).is_visible(), f"{control} missing from Fill carts"
+    # The raw pythonw ... argv is folded under "Command", not shown as a label.
+    assert not fill.locator("#automation-command").is_visible()
+    # A shopping-list re-render (Got it) must not reset the run picks.
+    fill.locator("#automation-cart-mode").select_option("clean")
+    page.locator("#pane-shopping details[data-store] > summary").first.click()
+    page.locator("#pane-shopping [data-action='mark-buy']").first.click()
+    page.locator("#pane-shopping [data-action='undo-buy']").first.wait_for()
+    assert fill.locator("#automation-cart-mode").input_value() == "clean"
+
+    goto_mode(page, "settings")
+    page.locator("#pane-settings #email-monitor").wait_for()
+
+    # A PWA last closed on a retired tab reopens on that tab's new home.
+    for saved, tab, landing in (("search", "items", "#pane-items #search-term"),
+                                ("automation", "shopping", "#pane-shopping #fill-carts")):
+        page.evaluate("t => localStorage.setItem('grocery.tab', t)", saved)
+        page.reload()
+        page.locator(landing).wait_for()
+        assert page.locator("nav.tabs").get_attribute("data-active-tab") == tab
+        assert page.evaluate("() => localStorage.getItem('grocery.tab')") == tab
+        if saved == "search":
+            assert "active" in page.locator(".subnav [data-mode='add']").get_attribute("class")
+    page.wait_for_function(  # scrolled to Fill carts, below the store list
+        "() => { const r = document.querySelector('#fill-carts').getBoundingClientRect();"
+        " return r.top < innerHeight && r.bottom > 0; }")
+    assert page._js_errors == [], f"JS errors: {page._js_errors}"
+
+    # WebKit (iPhone, 390px): five tabs with full labels, 44px targets, no sideways scroll.
+    webkit = pw.webkit.launch()
+    try:
+        phone = webkit.new_page(**pw.devices["iPhone 13"])
+        errors: list[str] = []
+        phone.on("pageerror", lambda exc: errors.append(str(exc)))
+        phone.goto(server.url)
+        phone.wait_for_function("document.querySelector('#status')?.textContent?.includes('Loaded')")
+        assert phone.viewport_size["width"] == 390
+        boxes = [phone.locator("nav.tabs .tab").nth(i).bounding_box() for i in range(5)]
+        assert all(b["x"] >= 0 and b["x"] + b["width"] <= 390 for b in boxes), boxes
+        assert all(b["width"] >= 44 and b["height"] >= 44 for b in boxes), boxes
+        assert phone.locator("nav.tabs .tab-label").evaluate_all(
+            "els => els.every(e => e.scrollWidth <= e.clientWidth)"), "a tab label is truncated at 390px"
+        assert phone.evaluate("() => document.documentElement.scrollWidth <= innerWidth")
+        assert errors == [], f"WebKit JS errors: {errors}"
+    finally:
+        webkit.close()
 
 
 @pytest.mark.e2e
@@ -457,6 +517,61 @@ def test_stores_plan_simulate_and_apply(page, server):
     assert dialog.locator("[data-review-checked]").get_attribute("aria-checked") == "true"
     dialog.locator("[data-dialog-close]").click()
     assert page.locator(".store-row").count() == 0
+    assert page._js_errors == [], f"JS errors: {page._js_errors}"
+
+
+@pytest.mark.e2e
+def test_add_item_product_search(page, server):
+    """Items -> Add Item carries the product search (#182; it was the Search
+    tab). The store search is stubbed at the HTTP seam (no Chrome): a new
+    term's "Use" pre-fills the Add Item form and nothing is saved until Add
+    Item; a term already on the list keeps its confirm row -> /select.
+    Last in the module on purpose: it adds a row to the shared fixture list."""
+    goto_mode(page, "add")
+    search = page.locator("#pane-items #product-search")
+    search.locator("#search-term").wait_for()
+    assert search.locator("#search-run").is_visible() and search.locator("#search-record").is_visible()
+    assert search.locator(".card-title").inner_text().strip() == "Find a store product"
+
+    inventory = f"{server.url}/api/inventory"
+    existing = next(i for i in page.request.get(inventory).json()["items"] if i["buscador"] and i["cantidad"] > 0)
+    new_url = "https://www.compraonline.ametller.cat/e2e-sandia.html"
+    status = {"id": "e2e", "state": "done", "elapsed_s": 1.0, "error": None, "progress": None, "items": [
+        {"term": "zzz sandia e2e", "inventory_idx": None, "existing_super": "", "store_errors": {},
+         "candidates": [{"store": "ametller", "name": "Sandia e2e", "product_url": new_url,
+                         "price_text": "3,00 EUR", "thumbnail": "", "match": "strong"}]},
+        # Same store + link as the row already holds, so /select rewrites it unchanged.
+        {"term": existing["comida"], "inventory_idx": existing["id"], "existing_super": existing["super"],
+         "store_errors": {}, "candidates": [{"store": existing["super"], "name": "Existing e2e",
+                                              "product_url": existing["buscador"], "price_text": "",
+                                              "thumbnail": "", "match": ""}]},
+    ]}
+    for path in ("start", "status"):
+        page.route(f"**/api/product-search/{path}", lambda route: route.fulfill(json=status))
+    search.locator("#search-term").fill("sandia")
+    search.locator("#search-run").click()
+    new_card = page.locator(".candidate", has_text="Sandia e2e")
+    new_card.wait_for()
+
+    new_card.locator("[data-action='search-use']").click()
+    form = page.locator("#add-form")
+    assert form.locator("[name='comida']").input_value() == "zzz sandia e2e"
+    assert form.locator("[name='super']").input_value() == "ametller"
+    assert form.locator("[name='buscador']").input_value() == new_url
+    assert form.locator("[name='cantidad']").input_value() == "1"
+    assert not [i for i in page.request.get(inventory).json()["items"] if i["comida"] == "zzz sandia e2e"]
+    form.locator("[name='lugar']").fill("nevera")
+    form.locator("button[type='submit']").click()
+    new_card.locator("button:has-text('Added')").wait_for()
+    created = [i for i in page.request.get(inventory).json()["items"] if i["comida"] == "zzz sandia e2e"]
+    assert [(i["super"], i["buscador"], i["cantidad"]) for i in created] == [("ametller", new_url, 1)]
+
+    old_card = page.locator(".candidate", has_text="Existing e2e")
+    old_card.locator("[data-action='search-use']").click()
+    with page.expect_response(lambda r: r.url.endswith("/api/product-search/select")) as resp:
+        old_card.locator("[data-action='search-confirm']").click()
+    assert resp.value.ok and resp.value.request.post_data_json["inventory_idx"] == existing["id"]
+    old_card.locator("button:has-text('Updated')").wait_for()
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
 
 
