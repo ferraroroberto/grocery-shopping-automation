@@ -593,19 +593,8 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 .collapse-body .item { padding-left: 0; padding-right: 0; }
 
 /* --------------------------------------------------- audio zone checklist */
-/* TOUCH-02: with every zone's <details> open (the design-review walk's own
-   state — a real multi-zone walk gets close too), one checklist toggle's row
-   happened to render close enough to the fixed bottom nav's on-screen band
-   that its own hit-target::before expansion (switch.css, -9px vertical)
-   reached into the nav's real hit area while its *visual* box stayed clear —
-   an unresolved overlap (a tap there could land on the toggle or the Settings
-   tab depending on hit-test order; design.md Touch targets: expanded rects
-   never intersect). A mid-scroll pass UNDER the floating nav is normal and
-   exempted (the nav visibly covers it, so the tap goes to the nav) — this one
-   wasn't, because the two raw boxes never actually touched, only their
-   invisible expansions did. Widening the gap between zone cards nudges every
-   row after the first past that narrow band with real clearance instead of a
-   few-px coincidence (measured: 0 overlaps at every device/theme, was 1). */
+/* A roomier gap between zone cards: with every zone open, a toggle's invisible
+   hit-target expansion reached into the floating nav's tap band (TOUCH-02). */
 .zone-list { display: grid; gap: var(--space-md); }
 .zone-items { display: grid; gap: 0; }
 /* The collapse-body stack spacing must NOT leak between checklist rows — a
