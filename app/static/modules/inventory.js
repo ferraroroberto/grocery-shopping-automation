@@ -4,18 +4,22 @@ import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
 import { activePaneBody, c, filteredItems, items, state } from "./core.js";
 import { html, qtyMarkup, text } from "./dom.js";
 
-function metric(label, value) {
-  return `<article class="metric"><span>${label}</span><strong>${value}</strong></article>`;
+function summaryRow(label, value) {
+  return `<div class="summary-row"><dt>${label}</dt><dd class="summary-value">${value}</dd></div>`;
 }
 
 function renderSummary() {
   const s = state.payload.summary;
-  return `<section class="summary">
-    ${metric("Tracked items", s.total_items)}
-    ${metric("Stocked", s.total_items - s.shopping_items)}
-    ${metric("Need buying", s.shopping_items)}
-    ${metric("Units to buy", s.shopping_units)}
-    ${metric("Zones", s.zones.length)}
+  // One card of label/value rows, not five separate stat cards — five cards
+  // read two-to-a-row at phone width, breaking single reading order (#198).
+  return `<section class="summary card">
+    <dl class="summary-list">
+      ${summaryRow("Tracked items", s.total_items)}
+      ${summaryRow("Stocked", s.total_items - s.shopping_items)}
+      ${summaryRow("Need buying", s.shopping_items)}
+      ${summaryRow("Units to buy", s.shopping_units)}
+      ${summaryRow("Zones", s.zones.length)}
+    </dl>
   </section>`;
 }
 

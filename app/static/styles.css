@@ -348,14 +348,14 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 }
 
 /* ------------------------------------------------------------- surfaces */
-.card, .metric, .panel {
+.card, .panel {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius);
 }
 /* Collapsible cards zero their own padding (vendored disclosure contract) —
    this rule loads after disclosure.css, so it must not re-add it. */
-.card:not(.card--collapsible), .metric, .panel { padding: var(--space-md); }
+.card:not(.card--collapsible), .panel { padding: var(--space-md); }
 /* Page header matches the collapse-summary geometry exactly (52px, 14px
    inset) — same 0-2-0 specificity as the padding rule above, later wins. */
 .card.page-header { min-height: var(--row-md); padding: 0 14px; }
@@ -380,11 +380,24 @@ h1, h2, h3 { margin: 0; line-height: 1.2; }
 h2 { font-size: var(--font-body); font-weight: 700; }
 h3 { font-size: var(--font-body); font-weight: 600; }
 
-.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: var(--gap); }
-.metric { padding: var(--gap); }
-.metric span, .meta, .hint { color: var(--muted); font-size: var(--font-caption); font-weight: 600; }
+/* Home summary: one card, a <dl> of label/value rows (#198) — five separate
+   stat cards used to sit two-to-a-row at phone width, breaking the single
+   top-to-bottom reading order (design-review J-04). One card reads in one
+   column by construction, and the dl gives the label/value pairing semantic
+   meaning for free. Desktop may re-flow the rows into a short multi-column
+   list (below) but stays one card — never separate cards side by side. */
+.summary-list { display: grid; grid-template-columns: minmax(0, 1fr); margin: 0; }
+.summary-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-sm); padding: var(--space-xs) 0; }
+.summary-row + .summary-row { border-top: 1px solid var(--line-muted); }
+.summary-row dt { margin: 0; color: var(--muted); font-size: var(--font-caption); font-weight: 600; }
+.summary-row dd { margin: 0; font-size: var(--font-heading-lg); font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.meta, .hint { color: var(--muted); font-size: var(--font-caption); font-weight: 600; }
 .hint { font-weight: 400; font-size: var(--font-label); }
-.metric strong { display: block; margin-top: var(--space-xs); font-size: var(--font-heading-lg); }
+
+@media (pointer: fine), (min-width: 521px) {
+  .summary-list { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); row-gap: 0; column-gap: var(--space-lg); }
+  .summary-row, .summary-row + .summary-row { border-top: none; }
+}
 
 /* Every stack in the pane chain pins its single track to minmax(0, 1fr):
    an implicit `auto` track takes the min-content of its widest item
