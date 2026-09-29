@@ -311,9 +311,14 @@ def test_add_item_increases_count(page):
 @pytest.mark.e2e
 def test_audio_match_and_apply_writes_log(page, server):
     goto_mode(page, "audio")
+    # J-07: the Match model dropdown shows a humanized label, never the raw
+    # config id (gemini_pro) verbatim.
+    model_label = page.locator("#audio-model option:checked").inner_text()
+    assert model_label == "Gemini Pro"
+    assert "_" not in model_label
     page.fill("#transcript", TRANSCRIPT)
     page.click("#match-transcript")
-    page.wait_for_selector("text=Detected Items", timeout=120000)
+    page.wait_for_selector("text=Detected items", timeout=120000)
     # the accept switch renders pre-on (the old checkbox's pre-ticked guarantee)
     accept = page.locator("[data-audio-idx]").first
     assert accept.get_attribute("aria-checked") == "true"
@@ -600,5 +605,5 @@ def test_audio_match_live_hub(page):
     page.fill("#transcript", TRANSCRIPT)
     page.click("#match-transcript")
     # Real hub call — proves no premature timeout (budget up to 10 min).
-    page.wait_for_selector("text=Detected Items", timeout=600000)
+    page.wait_for_selector("text=Detected items", timeout=600000)
     assert page.locator("#audio-status.ok").count() >= 1

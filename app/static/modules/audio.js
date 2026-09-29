@@ -137,12 +137,21 @@ function renderAudioHealth() {
   }
 }
 
+// The hub's model ids (config's audio_audit.llm_models_available, e.g.
+// "gemini_pro") are internal identifiers, not copy (J-07) — humanize for the
+// dropdown label and the helper text below it; the submitted value stays the
+// raw id. A snake_case → Title Case split needs no per-model map to maintain
+// as the hub's model list grows.
+function humanizeModelId(id) {
+  return id ? id.split("_").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ") : "";
+}
+
 export function renderAudio() {
   const cols = c();
   const audioCfg = state.payload.audio || { models: [], default_model: "" };
   if (!audio.model) audio.model = audioCfg.default_model || audioCfg.models[0] || "";
   const modelOptions = (audioCfg.models || [])
-    .map((name) => `<option value="${html(name)}" ${name === audio.model ? "selected" : ""}>${html(name)}</option>`)
+    .map((name) => `<option value="${html(name)}" ${name === audio.model ? "selected" : ""}>${html(humanizeModelId(name))}</option>`)
     .join("");
   const checklist = state.payload.summary.zones.map((zone) => {
     const zoneItems = items().filter((item) => item[cols.lugar] === zone && Number(item[cols.cantidad]) > 0);
@@ -161,10 +170,10 @@ export function renderAudio() {
     </details>`;
   }).join("");
   activePaneBody().innerHTML = `<section class="panel">
-    <h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-mic"></use></svg>Audio Audit</h2>
+    <h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-mic"></use></svg>Audio audit</h2>
     <div id="audio-health-banner" class="panel-status"></div>
     <div class="hint">Keep the checklist visible while recording. Announce the zone, then item counts in Spanish.</div>
-    <button id="record-toggle" class="secondary btn-block" type="button">Start Recording</button>
+    <button id="record-toggle" class="primary btn-block" type="button">Start recording</button>
     <button id="audio-redo" class="secondary btn-block" type="button" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-refresh-cw"></use></svg>Redo</button>
     <div class="hint">Recording streams to the PC as you talk — the take is safe even if the phone dies. Redo re-transcribes the saved audio.</div>
     <div class="zone-list">${checklist}</div>
@@ -173,13 +182,13 @@ export function renderAudio() {
     <h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-list-checks"></use></svg>Transcript</h2>
     <textarea id="transcript" placeholder="Transcript appears here, or paste one manually.">${audio.transcript ? html(audio.transcript) : ""}</textarea>
     <label class="field-label" for="audio-model">Match model
-      <select id="audio-model"${modelOptions ? "" : " disabled"}>${modelOptions || `<option>${html(audio.model || "config default")}</option>`}</select>
+      <select id="audio-model"${modelOptions ? "" : " disabled"}>${modelOptions || `<option>${html(humanizeModelId(audio.model) || "config default")}</option>`}</select>
     </label>
     <div id="audio-context" class="hint"></div>
     <div class="audio-actions">
       <button id="match-transcript" class="big-btn">Match</button>
       <button id="apply-audio" class="big-btn" disabled>Apply</button>
-      <button id="audio-clear" class="big-btn" type="button">Clear</button>
+      <button id="audio-clear" class="big-btn danger" type="button">Clear</button>
       <button id="audio-cancel" class="danger" hidden>Cancel</button>
     </div>
     <div id="audio-status" class="panel-status" role="status"></div>
@@ -195,7 +204,7 @@ function renderAudioContext() {
   const node = document.querySelector("#audio-context");
   if (!node) return;
   const hub = audio.health?.hub_url || state.payload.audio?.hub_url || "local hub";
-  node.textContent = `${hub} · candidates ${items().length} · model ${audio.model || "config default"}`;
+  node.textContent = `${hub} · candidates ${items().length} · model ${humanizeModelId(audio.model) || "config default"}`;
 }
 
 export function setAudioModel(value) {
@@ -299,12 +308,12 @@ function renderMatches() {
   // Whatever is left really is unmatched — no row, nothing to apply.
   const stillUnmatched = mentions.filter((m) => !Number.isInteger(m.idx) || !byId.has(m.idx));
 
-  target.innerHTML = `<section class="panel"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-circle-check"></use></svg>Detected Items</h2>${
+  target.innerHTML = `<section class="panel"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-circle-check"></use></svg>Detected items</h2>${
     zoneSections || emptyStateEl("mic", "No recognised items.").outerHTML
   }</section>
   ${needCountSection}
   ${unseenSection}
-  ${stillUnmatched.length ? `<section class="panel"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-circle-alert"></use></svg>Unmatched Mentions</h2>${stillUnmatched.map((m) => `<div class="meta">${html(m.phrase)} · ${html(m.note)}</div>`).join("")}</section>` : ""}`;
+  ${stillUnmatched.length ? `<section class="panel"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-circle-alert"></use></svg>Unmatched mentions</h2>${stillUnmatched.map((m) => `<div class="meta">${html(m.phrase)} · ${html(m.note)}</div>`).join("")}</section>` : ""}`;
   if (apply) apply.disabled = !matched.length && !unseen.length && !needCount.length;
 }
 
@@ -372,7 +381,7 @@ export async function toggleRecording(button) {
 
   startRecordTimer();
   openAudioPartialStream(audio.sessionId);
-  button.textContent = "Stop Recording";
+  button.textContent = "Stop recording";
   const redo = document.querySelector("#audio-redo");
   if (redo) redo.hidden = true;
 }
@@ -492,7 +501,7 @@ async function finishRecording() {
   } finally {
     if (button) {
       button.disabled = false;
-      button.textContent = "Start Recording";
+      button.textContent = "Start recording";
     }
   }
 }
@@ -547,7 +556,7 @@ export async function matchTranscript() {
     );
     const m = audio.matches;
     setAudioStatus(
-      `Matched ${m.items.length} item${m.items.length === 1 ? "" : "s"} · ${m.candidates} candidates · ${m.transcript_chars} chars · ${m.model}`,
+      `Matched ${m.items.length} item${m.items.length === 1 ? "" : "s"} · ${m.candidates} candidates · ${m.transcript_chars} chars · ${humanizeModelId(m.model)}`,
       "ok",
     );
     renderMatches();
