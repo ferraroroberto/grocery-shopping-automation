@@ -783,6 +783,8 @@ def simulate(df: pd.DataFrame, picks: Mapping[Union[int, str], str], orders_per_
     ctx = _RunContext(_require_run(run_dir))
     baseline_doc = load_baseline(ctx.run_dir.parent)
     baseline = _baseline_field(baseline_doc, ctx.run_date)
+    if baseline and baseline["stale"]:
+        logger.info("ℹ️ Baseline from run %s ignored: the latest run is %s", baseline["run_date"], ctx.run_date)
     by_key = rows_by_key(df)
     key_by_row = {row: key for key, row in by_key.items()}
     excluded = [
