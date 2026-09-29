@@ -318,7 +318,7 @@ def test_search_only_on_filterable_modes(page):
 def test_add_item_increases_count(page):
     goto_mode(page, "dashboard")
     page.wait_for_selector(".summary")
-    before = int(page.locator(".metric strong").first.inner_text())
+    before = int(page.locator(".summary-value").first.inner_text())
     goto_mode(page, "add")
     page.fill("#add-form input[name='comida']", "zzz e2e item")
     page.fill("#add-form input[name='super']", "mercadona")
@@ -329,7 +329,7 @@ def test_add_item_increases_count(page):
     page.wait_for_function("document.querySelector('#status')?.textContent?.includes('Saved')")
     goto_mode(page, "dashboard")
     page.wait_for_selector(".summary")
-    after = int(page.locator(".metric strong").first.inner_text())
+    after = int(page.locator(".summary-value").first.inner_text())
     assert after == before + 1
 
 
