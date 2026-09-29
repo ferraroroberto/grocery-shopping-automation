@@ -144,6 +144,37 @@ def test_results_not_found_needs_no_price():
     assert results.validate_item("ham", {"status": "not_found"}, {"ham": "kg"})["status"] == "not_found"
 
 
+def test_results_validator_rejects_carrefour_url_without_product_id():
+    rec = {**_rec(0.5, 3.0), "url": "https://www.carrefour.es/supermercado/copos-de-avena-500-g/p"}
+    with pytest.raises(results.ResultError, match="product card"):
+        results.validate_item("ham", rec, {"ham": "kg"}, store="carrefour")
+
+
+def test_results_validator_accepts_valid_carrefour_product_url():
+    rec = {**_rec(0.5, 3.0), "url": "https://www.carrefour.es/supermercado/copos-de-avena/R-VC4AECOMM-081271/p"}
+    assert results.validate_item("ham", rec, {"ham": "kg"}, store="carrefour")["status"] == "equivalent"
+
+
+def test_results_validator_mercadona_product_pattern():
+    ok = {**_rec(0.5, 3.0), "url": "https://tienda.mercadona.es/product/5507/arandanos-tarrina"}
+    assert results.validate_item("ham", ok, {"ham": "kg"}, store="mercadona")["status"] == "equivalent"
+    bad = {**_rec(0.5, 3.0), "url": "https://tienda.mercadona.es/search?q=arandanos"}
+    with pytest.raises(results.ResultError, match="product card"):
+        results.validate_item("ham", bad, {"ham": "kg"}, store="mercadona")
+
+
+def test_results_validator_store_without_pattern_is_unchecked():
+    rec = {**_rec(0.5, 3.0), "url": "https://www.dia.es/whatever-shape"}
+    assert results.validate_item("ham", rec, {"ham": "kg"}, store="dia")["status"] == "equivalent"
+
+
+def test_results_validator_rejects_bad_alternative_url():
+    rec = {**_rec(0.5, 3.0), "url": "https://www.carrefour.es/supermercado/x/R-good-id/p",
+           "alternatives": [{**_rec(1.0, 5.0), "url": "https://www.carrefour.es/supermercado/no-id/p"}]}
+    with pytest.raises(results.ResultError, match="product card"):
+        results.validate_item("ham", rec, {"ham": "kg"}, store="carrefour")
+
+
 def test_low_confidence_food_match_is_not_counted_but_reported():
     basket = {"items": [_item("ham", "ametller", 10, 0.2, 5.0), _item("soap", "mercadona", 1, 1.0, 2.0, unit="l")]}
     basket["items"][0]["tier"], basket["items"][1]["tier"] = "B", "D"
