@@ -57,8 +57,47 @@ export const state = {
   shopping: loadShoppingState(),
 };
 
+// ------------------------------------------------------ page header
+// design.md "page header" contract (#153 J-04): the first element of every
+// tab's pane — icon + bold title naming the tab, one context line, a
+// trailing theme toggle. One markup source here (generalized from the old
+// Home-only .home-head) instead of 5 hand-copied HTML blocks that would
+// drift. Injected as each pane's firstElementChild at module load, which
+// must run before `el` below queries #status — the Home context line lives
+// inside the injected markup.
+const PAGE_HEADERS = [
+  { tab: "inventory", icon: "shopping-basket", title: "Home", contextId: "status", themeToggleId: "theme-toggle", context: "Loading inventory..." },
+  { tab: "shopping", icon: "shopping-cart", title: "Shop", contextId: "shop-context" },
+  { tab: "audit", icon: "list-checks", title: "Audit", contextId: "audit-context" },
+  { tab: "items", icon: "package", title: "Items", contextId: "items-context" },
+  // Setup's context is a fixed label, not a live figure — no submode/API to
+  // read it from (see design.md page-header contract: "e.g. build id or
+  // Settings"; the build id already has its own footer line).
+  { tab: "settings", icon: "settings", title: "Setup", contextId: "setup-context", context: "Settings" },
+];
+
+function pageHeaderHtml({ icon, title, contextId, context, themeToggleId }) {
+  return `<section class="card page-header" aria-label="${title}">
+      <h1 class="card-title">
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-${icon}"></use></svg>
+        ${title}
+      </h1>
+      <div id="${contextId}" class="status" role="status">${context || ""}</div>
+      <button ${themeToggleId ? `id="${themeToggleId}" ` : ""}class="theme-toggle hit-target" type="button"
+              title="Toggle theme" aria-label="Toggle dark mode">
+        <!-- Sprite moon + sun; CSS shows the glyph for the *action* keyed
+             on html[data-theme]. -->
+        <svg class="theme-toggle-icon theme-icon-moon hit-target" aria-hidden="true" focusable="false"><use href="#i-moon"></use></svg>
+        <svg class="theme-toggle-icon theme-icon-sun hit-target" aria-hidden="true" focusable="false"><use href="#i-sun"></use></svg>
+      </button>
+    </section>`;
+}
+
+for (const cfg of PAGE_HEADERS) {
+  document.querySelector(`#pane-${cfg.tab}`)?.insertAdjacentHTML("afterbegin", pageHeaderHtml(cfg));
+}
+
 export const el = {
-  themeToggle: document.querySelector("#theme-toggle"),
   status: document.querySelector("#status"),
   search: document.querySelector("#search"),
   toolbar: document.querySelector("#toolbar"),

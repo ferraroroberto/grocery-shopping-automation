@@ -213,6 +213,21 @@ def test_five_tab_nav_and_relocated_sections(page, pw, server):
     assert tabs.count() == 5
     assert tabs.locator(".tab-label").all_inner_texts() == ["Home", "Shop", "Audit", "Items", "Setup"]
 
+    # J-04 (#153): every pane opens on its own page header, not a bare control
+    # row -- one shared markup shape (icon + tab-naming title + context line +
+    # theme toggle) as each pane's first element, and only the active pane's
+    # is ever visible at once.
+    header_titles = {
+        "pane-inventory": "Home", "pane-shopping": "Shop", "pane-audit": "Audit",
+        "pane-items": "Items", "pane-settings": "Setup",
+    }
+    for pane_id, title in header_titles.items():
+        header = page.locator(f"#{pane_id} > :first-child")
+        assert "page-header" in (header.get_attribute("class") or ""), f"{pane_id}'s first child isn't the page header"
+        assert header.locator(".card-title").inner_text().strip() == title
+    assert page.locator(".page-header").count() == 5
+    assert page.locator(".page-header:visible").count() == 1
+
     goto_mode(page, "add")
     assert page.locator("#pane-items #product-search #search-term").is_visible()
 
@@ -229,6 +244,16 @@ def test_five_tab_nav_and_relocated_sections(page, pw, server):
     page.locator("#pane-shopping [data-action='mark-buy']").first.click()
     page.locator("#pane-shopping [data-action='undo-buy']").first.wait_for()
     assert fill.locator("#automation-cart-mode").input_value() == "clean"
+
+    # Theme toggle works from every pane's own header, not just Home's
+    # (#theme-toggle id stays on Home's for back-compat; the rest share the
+    # .theme-toggle class, #153 J-04).
+    theme = lambda: page.evaluate("document.documentElement.getAttribute('data-theme')")  # noqa: E731
+    before_theme = theme()
+    page.locator("#pane-shopping .theme-toggle").click()
+    assert theme() != before_theme
+    page.locator("#pane-shopping .theme-toggle").click()
+    assert theme() == before_theme
 
     goto_mode(page, "settings")
     page.locator("#pane-settings #email-monitor").wait_for()
