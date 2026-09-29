@@ -7,7 +7,7 @@ Mobile-responsive web app for managing household grocery inventory with intellig
 Comprehensive household inventory management across multiple operational modes. Audit current stock room-by-room, edit target quantities, track shopping in real time, and add on-the-fly items directly to the shopping list.
 
 **Key Features:**
-- Mobile access over local Wi-Fi — use the **Copy Link** button in the ⚙️ Settings tab to get the URL and open it on your phone
+- Mobile access over local Wi-Fi — use the **Copy Link** button in the ⚙️ Setup tab to get the URL and open it on your phone
 - Room-by-room inventory auditing with auto-save (best done from mobile)
 - Shopping list grouped by supermarket with per-store progress bars (best done from desktop)
 - Cart offset counters to account for items already in the cart
@@ -69,7 +69,7 @@ webapp.bat
 
 The FastAPI app on `:8502` covers the inventory dashboard, audit, target editing, item editing, item creation, shopping mode, automation controls, and the audio-audit workflow against the Excel-backed `src/data.py` layer. Open `http://127.0.0.1:8502` when no local cert exists, or `https://127.0.0.1:8502` after running `& .\.venv\Scripts\python.exe src\gen_ssl_cert.py`. Either launcher binds to `0.0.0.0`, so the same port is reachable over LAN or Tailscale from devices that can reach this PC.
 
-The PWA follows the fleet design system (`~/.claude/design.md` + `design.dark.md`): a floating bottom-tab pill on the phone (inline top tabs on desktop, a left icon-over-label rail on a desktop window 1100px or wider) with seven tabs — **Inventory · Shopping · Audit · Items · Search · Auto · Settings** (Audio Audit lives as a sub-pill under Audit; Targets / Edit Item / Add Item under Items) — vendored fleet components under `app/static/_vendored/`, and a light/dark **theme toggle in the top bar** (moon/sun icon) that remembers your choice. The utility actions (Open Spreadsheet, Copy Link, Export CSV, Log in to stores) live in the ⚙️ **Settings tab** — Log in to stores opens the same plain Chrome window as `python -m automation.bootstrap_session` (see below) so a stale store login can be refreshed without a terminal; heavy cards (the dashboard item list, the per-store shopping panels, the audio zone checklist) are collapsible and folded by default; the search box appears only on the modes that filter the item list. A footer line shows the running build (`Build: <git sha> · <time>`, from `/api/version`) so you always know which deploy the app is serving, and the shell auto-reloads once when it detects a newer build.
+The PWA follows the fleet design system (`~/.claude/design.md` + `design.dark.md`): a floating bottom-tab pill on the phone (inline top tabs on desktop, a left icon-over-label rail on a desktop window 1100px or wider) with five tabs — **Home · Shop · Audit · Items · Setup** (Audio Audit lives as a sub-pill under Audit; Targets / Edit Item / Add Item / Stores under Items; the store product search sits at the top of **Items → Add Item**, and the cart automation is the **Fill carts** section at the bottom of **Shop**) — vendored fleet components under `app/static/_vendored/`, and a light/dark **theme toggle in the top bar** (moon/sun icon) that remembers your choice. The utility actions (Open Spreadsheet, Copy Link, Export CSV, Log in to stores) and the **Email Watch** card live in the ⚙️ **Setup tab** — Log in to stores opens the same plain Chrome window as `python -m automation.bootstrap_session` (see below) so a stale store login can be refreshed without a terminal; heavy cards (the dashboard item list, the per-store shopping panels, the audio zone checklist) are collapsible and folded by default; the search box appears only on the modes that filter the item list. A footer line shows the running build (`Build: <git sha> · <time>`, from `/api/version`) so you always know which deploy the app is serving, and the shell auto-reloads once when it detects a newer build.
 
 ### Regenerate application icons
 
@@ -222,7 +222,7 @@ Copy `auth/gmail/credentials.json` + `auth/gmail/token.json` from the
 `whatsapp-radar` sister repo (same account, same scope) and
 `config/gmail_config.sample.json` → gitignored `config/gmail_config.json`.
 
-The PWA's Auto tab drives this via the **Email Watch** card: pick the
+The PWA's ⚙️ Setup tab drives this via the **Email Watch** card: pick the
 monitored senders (each mapped to a store), switch automatic polling on/off
 and set its frequency, run a one-off *Check now* or an end-to-end *Test last
 email*, and review the last-check log. Scheduled checks alert only when the
@@ -278,9 +278,11 @@ Set or adjust target quantities per item. Auto-saves every change.
 Search for any item and edit all its fields (name, supermarket, zone, URL, quantities) or delete it.
 
 ### ➕ Add Item
-Add new items to the inventory via a form.
+Add new items to the inventory via a form (name, supermarket, zone, target,
+current, URL). Above the form, **Find a store product** searches the stores for
+you (below) and can fill the form in.
 
-### 🔎 Search
+#### 🔎 Find a store product (Items → Add Item)
 Find the store product that fills an item's `buscador` so the cart automation
 can buy it. **Speak or type a product in Spanish** (e.g. *"añade sandía"*); the
 spoken clip is transcribed by whisper (language auto-detect) and parsed into the
@@ -291,12 +293,20 @@ Carrefour (a real-Chrome DOM read of its results grid, Cloudflare-gated like
 its cart handler) — driving the logged-in Chrome profile, and shows the
 candidates as **cards you validate**:
 each card has the product name, store, price and a **link to open the product
-and check it yourself**. Tapping **Usar** opens a compact confirm row on the
-card — a **zone** combo (the inventory's existing zones) plus **present**
-(default 0) and **target** (default 1) quantities; for an item already on the
-list they prefill from its current row. Tapping **Añadir** writes the product's
-URL to the item's `buscador` and applies the store, zone, and quantities —
-**nothing is auto-picked**; you always choose. A term the
+and check it yourself**. Each searched term is tagged **New** or **Already on
+the list**, and **Use** acts on that:
+
+- **New** — **Use** fills the **Add Item** form below with the term as the
+  name, the card's store and product link, and a target of 1; pick the zone
+  (and adjust the quantities) and tap **Add Item**. Nothing is saved until
+  then, and the card then reads **Added**.
+- **Already on the list** — **Use** opens a compact confirm row on the card —
+  a **zone** combo (the inventory's existing zones) plus **have** and
+  **target** quantities, prefilled from the item's current row. Tapping
+  **Update item** writes the product's URL to that item's `buscador` and
+  applies the store, zone, and quantities.
+
+**Nothing is auto-picked**; you always choose. A term the
 stores don't carry (e.g. *"añade flurbos"*) simply returns no cards. The search
 runs on demand with a live elapsed timer and a Cancel button (it drives a real
 browser, so it takes seconds-to-minutes) and reuses the same `automation/`
@@ -329,6 +339,9 @@ Each supermarket shows an editable `＋items` and `＋units` counter below its p
 **Quick-add items:**
 At the bottom of each supermarket's expander, a small inline form lets you add ad-hoc items (name + quantity). These are session-only and support the full `Got it` / `Undo` / `Remove` workflow. Works for both Ametller and Mercadona (and any other supermarket in the list).
 
+**Fill carts:**
+Below the store panels, the **Fill carts** section runs the cart automation from this list — see [Browser Automation](#-browser-automation).
+
 ### 💾 Save / Export
 Manual save to Excel or download as CSV, plus summary statistics.
 
@@ -354,14 +367,17 @@ A plain Chrome window opens with a tab per store — log into each, close the
 window, then press Enter in the terminal. See
 [`automation/README.md`](automation/README.md) for details.
 
-**Run it from the app:** the ⚙️ **Settings tab** has a **Log in to stores**
+**Run it from the app:** the ⚙️ **Setup tab** has a **Log in to stores**
 button — it opens the same Chrome window without needing a terminal; log into
 each store, then close the window.
 
-**Start a cart run from the app:** the PWA's **🤖 Auto** tab lets you pick a
-store (or "All stores"), choose a **cart mode**, optionally tick *Dry run*,
-and click **Run Automation**. Output streams live into the page and a **Stop**
-button cancels an in-progress run. The legacy Streamlit app offers the same
+**Start a cart run from the app:** the **Fill carts** section at the bottom of
+the PWA's **🛒 Shop** tab lets you pick a store (or "All stores"), choose a
+**cart mode**, optionally switch on *Dry run*, and click **Run automation**
+(nothing runs until you do). The exact command it will run is folded under
+**Command**. Output streams live into the page and a **Stop** button cancels an
+in-progress run; the section keeps its picks and live log while you tick items
+off the list above it. The legacy Streamlit app offers the same
 controls under its **🛒 Shopping List** mode's **🤖 Run Automation** section.
 From a terminal you can also run
 `& .\.venv\Scripts\python.exe -m automation.run_automation --keep-open`, which
