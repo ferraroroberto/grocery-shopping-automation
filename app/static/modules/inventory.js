@@ -87,7 +87,7 @@ export function renderAudit(targetsOnly = false) {
     .sort((a, b) => text(a[cols.comida]).localeCompare(text(b[cols.comida])));
   const header = targetsOnly ? "have − + · have/target · target − + · need" : "have/target · target − + · need";
   const controlsClass = targetsOnly ? "audit-controls audit-controls--full" : "audit-controls audit-controls--targets";
-  activePaneBody().innerHTML = `<section class="panel"><div class="row"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-${targetsOnly ? "list-checks" : "package"}"></use></svg>${targetsOnly ? "Audit Inventory" : "Edit Targets"}</h2><span class="hint">${html(state.zone)} · ${source.length} items</span></div>${zoneTabs()}<div class="hint">${header}</div></section>
+  activePaneBody().innerHTML = `<section class="panel"><div class="row"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-${targetsOnly ? "list-checks" : "package"}"></use></svg>${targetsOnly ? "Audit inventory" : "Edit targets"}</h2><span class="hint">${html(state.zone)} · ${source.length} items</span></div>${zoneTabs()}<div class="hint">${header}</div></section>
     <section class="grid">${source.map((item) => `
       <article class="item audit-item" data-id="${item.id}">
         <div class="audit-name"><h3>${html(item[cols.comida])}</h3><div class="meta">${html(item[cols.super])}</div></div>
@@ -130,7 +130,7 @@ export function renderAdd() {
   const stores = state.payload.summary.supermarkets;
   activePaneBody().innerHTML = `<section id="product-search" class="panel" aria-label="Find a store product"></section>
   <section class="panel">
-    <h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg>Add Item</h2>
+    <h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg>Add item</h2>
     <form id="add-form" class="form">
       <div class="three">
         <input class="field" name="comida" placeholder="Item name" required />
@@ -142,7 +142,7 @@ export function renderAdd() {
         <input class="field" name="tenemos" type="number" min="0" value="0" placeholder="Current" />
         <input class="field" name="buscador" placeholder="URL" />
       </div>
-      <button class="big-btn" type="submit">Add Item</button>
+      <button class="big-btn" type="submit">Add item</button>
     </form>
     <datalist id="stores">${stores.map((x) => `<option value="${html(x)}"></option>`).join("")}</datalist>
     <datalist id="zones">${zones.map((x) => `<option value="${html(x)}"></option>`).join("")}</datalist>
