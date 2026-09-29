@@ -1479,6 +1479,14 @@ export async function onStoresClick(event) {
   if (action === "detail") await openItemDetail(Number(button.closest("[data-item-id]").dataset.itemId));
 }
 
+// Search-only repaint (#193): a keystroke in the shared search box must not
+// rebuild the whole Stores pane — the Monthly cost card, the simulator call
+// and the toolbar re-home all stay untouched. Just refilter the rows and the
+// "N items · M with links" count.
+export function repaintStoresList() {
+  paintList();
+}
+
 export function onStoresChange(event) {
   if (state.mode !== "stores" || !event.target.matches("[data-stores-pick]")) return;
   const id = Number(event.target.closest("[data-item-id]").dataset.itemId);
