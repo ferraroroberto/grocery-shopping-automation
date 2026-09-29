@@ -16,15 +16,17 @@ import {
 } from "./modules/audio.js";
 import {
   dismissAutomation,
-  renderAutomation,
+  renderFillCarts,
   startAutomation,
   stopAutomation,
+  syncFillCarts,
   updateAutomationCommand,
 } from "./modules/automation.js";
 import {
   captureTokenFromURL,
   el,
   idleStatus,
+  migrateRetiredTab,
   MODE_TO_TAB,
   restoreSubMode,
   saveShoppingState,
@@ -36,16 +38,17 @@ import {
   TAB_KEY,
   THEME_KEY,
 } from "./modules/core.js";
-import { isEmailControl, pushEmailMonitorConfig, runEmailCheck } from "./modules/email.js";
+import { isEmailControl, pushEmailMonitorConfig, renderEmailWatch, runEmailCheck } from "./modules/email.js";
 import { renderAdd, renderAudit, renderDashboard, renderEdit } from "./modules/inventory.js";
 import {
   cancelProductSearch,
   handleSearchInput,
+  markPrefillAdded,
   renderSearch,
   startProductSearch,
-  toggleCandidateConfirm,
   toggleSearchRecording,
   useCandidate,
+  useCandidateClick,
 } from "./modules/search.js";
 import { renderShopping } from "./modules/shopping.js";
 import { onStoresChange, onStoresClick, renderStores } from "./modules/stores.js";
@@ -65,11 +68,10 @@ function render() {
   if (state.mode === "audit") renderAudit(true);
   if (state.mode === "targets") renderAudit(false);
   if (state.mode === "edit") renderEdit();
-  if (state.mode === "add") renderAdd();
-  if (state.mode === "shopping") renderShopping();
-  if (state.mode === "automation") renderAutomation();
+  if (state.mode === "add") { renderAdd(); renderSearch(); }
+  if (state.mode === "shopping") { renderShopping(); renderFillCarts(); }
   if (state.mode === "audio") renderAudio();
-  if (state.mode === "search") renderSearch();
+  if (state.mode === "settings") renderEmailWatch();
   if (state.mode === "stores") renderStores();
 }
 
@@ -77,6 +79,10 @@ setRenderer(render);
 
 function onTabChange(tab) {
   if (MODE_TO_TAB[state.mode] !== tab) state.mode = restoreSubMode(tab);
+  // Fill carts paints once (render → renderFillCarts, which fetches the run
+  // status itself) and then persists; re-entering Shop resyncs an already
+  // painted section. Before render(), so a first paint isn't fetched twice.
+  if (tab === "shopping") syncFillCarts();
   render();
 }
 
@@ -167,6 +173,7 @@ el.app.addEventListener("submit", async (event) => {
     data.cantidad = Number(data.cantidad);
     data.tenemos = Number(data.tenemos);
     await mutate("/api/items", data);
+    markPrefillAdded(data.buscador); // a product-search pick that filled this form → Added
   }
   if (event.target.matches(".quick-add")) {
     const panel = event.target.closest("[data-store]");
@@ -230,7 +237,7 @@ el.app.addEventListener("click", async (event) => {
   if (id === "search-record") await toggleSearchRecording(button);
   if (id === "search-run") await startProductSearch();
   if (id === "search-cancel") await cancelProductSearch();
-  if (button?.dataset.action === "search-use") toggleCandidateConfirm(button.closest(".candidate"));
+  if (button?.dataset.action === "search-use") useCandidateClick(button.closest(".candidate"));
   if (button?.dataset.action === "search-confirm") await useCandidate(button.closest(".candidate"));
 });
 
@@ -271,6 +278,9 @@ el.loginDialog.addEventListener("cancel", (event) => event.preventDefault());
 // ------------------------------------------------------------------ boot
 captureTokenFromURL();
 applyTheme(currentTheme());
+// A saved Search/Auto tab (retired in #182) is rewritten to its new home
+// before the nav reads it — otherwise the nav would fall back to Home.
+const retiredReveal = migrateRetiredTab();
 // The nav restores the persisted tab and fires onChange once at init
 // (payload is still null there, so that first render() is a no-op — the
 // restored tab paints when loadInventory() completes).
@@ -279,7 +289,9 @@ initNavTabs({
   onChange: onTabChange,
   scrollResetSelector: ".app",
 });
-loadInventory();
+loadInventory().then(() => {
+  if (retiredReveal) document.querySelector(retiredReveal)?.scrollIntoView({ block: "start" });
+});
 fetchVersion();
 
 // No manual refresh button: refetch when the PWA returns to the foreground.
@@ -289,4 +301,5 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible") return;
   fetchVersion();
   if (["dashboard", "shopping", "audit", "targets"].includes(state.mode)) loadInventory();
+  if (state.mode === "shopping") syncFillCarts();
 });

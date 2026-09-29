@@ -1,4 +1,4 @@
-"""Email-monitor config + manual checks — the Auto tab's Email Watch card,
+"""Email-monitor config + manual checks — the Setup tab's Email Watch card,
 backed by the server-side poller in `app/email_poller`."""
 
 from typing import Any
@@ -24,13 +24,13 @@ class EmailMonitorConfigPayload(BaseModel):
 
 class EmailCheckPayload(BaseModel):
     # force=True re-processes the latest email even if already seen — the
-    # Auto tab's end-to-end test path.
+    # Setup tab's end-to-end test path.
     force: bool = False
 
 
 @router.get("/api/email-monitor/status")
 def email_monitor_status() -> dict[str, Any]:
-    """Config + last-check log for the Auto tab's Email Watch card."""
+    """Config + last-check log for the Setup tab's Email Watch card."""
     return email_poller.status()
 
 

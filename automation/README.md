@@ -92,7 +92,8 @@ filled cart itself persists in your store account regardless.
 
 ### From the web app
 
-The FastAPI/PWA app drives automation from the dedicated **🤖 Auto** tab: pick a
+The FastAPI/PWA app drives automation from the **Fill carts** section at the
+bottom of its **🛒 Shop** tab: pick a
 store (or "All stores"), choose a cart mode, optionally tick *Dry run*, and
 start the run. The automation endpoints in `app/routers/automation.py` spawn
 this same CLI as a subprocess and stream its output live to the page
@@ -216,8 +217,8 @@ and matches it against the latest purchase log so a dropped item is visible.
   current purchase log (issue #134). A pre-#134 state file holding a bare
   message id still loads, and adopts its watermark on the first check that
   can still see that message.
-- **Auto-tab poller (issue #73)**: `app/email_poller.py` calls that seam on a
-  schedule. The PWA's Auto tab carries an **Email Watch** card (folded by
+- **Background poller (issue #73)**: `app/email_poller.py` calls that seam on a
+  schedule. The PWA's ⚙️ Setup tab carries an **Email Watch** card (folded by
   default) that selects which whitelisted senders are monitored (each mapped
   to a store via the `store` field in `config/gmail_config.json`), switches
   automatic polling on/off, sets the cadence (15 min – daily), and shows the
@@ -262,7 +263,7 @@ send if a match is found):
 | `email_check.py` | `check_latest_confirmation()` — the Gmail-fetch → parse → match → notify orchestration entrypoint (issue #72). |
 
 The app-side glue lives under `app/`, not here — see "From the web app" above
-for the FastAPI/PWA **🤖 Auto** tab and the legacy Streamlit **🤖 Run
+for the FastAPI/PWA **Fill carts** section (🛒 Shop tab) and the legacy Streamlit **🤖 Run
 Automation** section.
 
 Smoke tests live in `tests/automation_smoke_*.py` — run them manually (they are
