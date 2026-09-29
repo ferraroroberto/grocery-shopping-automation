@@ -760,6 +760,10 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
    Head = name + one meta line, then the what-if picker and the 44px edit
    button; the store links follow on one swipeable line so a row never
    grows past the phone width. */
+/* LAYOUT-02: the re-homed global search (app.js) lives here, in the list's
+   own card, instead of the toolbar section above the pane — so it filters
+   the Stores list without a second, duplicate search box on screen. */
+#stores-search-slot:not(:empty) { margin-top: var(--gap); }
 .store-rows { list-style: none; margin: 0; padding: 0; }
 .store-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-sm); padding: 12px 0; }
 .store-row + .store-row { border-top: 1px solid var(--line-muted); }

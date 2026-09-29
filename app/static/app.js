@@ -72,7 +72,16 @@ function render() {
   if (state.mode === "shopping") { renderShopping(); renderFillCarts(); }
   if (state.mode === "audio") renderAudio();
   if (state.mode === "settings") renderEmailWatch();
-  if (state.mode === "stores") renderStores();
+  if (state.mode === "stores") {
+    renderStores();
+    // LAYOUT-02: the Stores list needs its own search/filter input inside the
+    // list's card (the measurement looks for input[type=search] within the
+    // list's nearest `section` ancestor) — re-home the one global toolbar
+    // search into the freshly-rendered card instead of duplicating a second
+    // search box. renderStores() rebuilds the pane-body from scratch on every
+    // call, so this re-homes on every stores render, not just the first.
+    document.querySelector("#stores-search-slot")?.appendChild(el.toolbar);
+  }
 }
 
 setRenderer(render);

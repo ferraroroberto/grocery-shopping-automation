@@ -264,6 +264,7 @@ export function renderStores() {
         <h2 class="card-title">${icon("package")}Items</h2>
         <span class="card-head-meta" id="stores-list-count"></span>
       </div>
+      <div id="stores-search-slot"></div>
       <div id="stores-filter"></div>
       <div class="stores-switches">
         <div class="flag-row">${switchMarkup(local.targetOnly, "Only items I buy", { "data-stores-targetonly": "" })}<span>Only items I buy (target above 0)</span></div>
@@ -504,16 +505,18 @@ function rowMarkup(item, inUse = storesInUse()) {
     ? `<select class="field store-pick" data-stores-pick aria-label="Buy ${esc(name)} at">${options.map((key) =>
         `<option value="${esc(key)}"${key === pick ? " selected" : ""}>${esc(storeName(key))}${key === today ? " (in list)" : ""}</option>`).join("")}</select>`
     : "";
-  // The picked store leads, then the cheapest: with up to nine links on one
-  // swipeable line, what matters must not start off-screen.
-  const rank = ([key]) => (key === pick ? -1 : prices[key] ?? Number.MAX_VALUE);
-  const chips = Object.entries(urls).sort((a, b) => rank(a) - rank(b)).map(([key, url]) => {
+  // The picked store leads, then the cheapest: with up to nine chips on one
+  // swipeable line, what matters must not start off-screen. Non-interactive
+  // labels (LAYOUT-03) — a row's controls are the store picker and the
+  // pencil; the product link for each store is in the pencil's review
+  // dialog, which already lists every store with its link.
+  const rank = (key) => (key === pick ? -1 : prices[key] ?? Number.MAX_VALUE);
+  const chips = Object.keys(urls).sort((a, b) => rank(a) - rank(b)).map((key) => {
     const price = prices[key];
     const picked = key === pick;
     const kind = kinds[key];
-    const label = `Open ${name} at ${storeName(key)}${price !== undefined ? `, ${eur(price)} a month` : ""}${kind ? ` (${LINK_NOTE[kind]})` : ""}`;
     const lead = picked ? icon("check") : kind === "search" ? icon("search") : kind === "suspect" ? icon("circle-alert") : "";
-    return `<a class="store-chip${picked ? " is-picked" : ""}${kind ? ` is-${kind}` : ""}" href="${esc(url)}" target="_blank" rel="noopener noreferrer" aria-label="${esc(label)}"${kind ? ` title="${esc(LINK_NOTE[kind])}"` : ""}>${lead}<span>${esc(storeName(key))}</span>${price !== undefined ? `<span class="store-chip-price">${eur(price)}/mo</span>` : ""}</a>`;
+    return `<span class="store-chip${picked ? " is-picked" : ""}${kind ? ` is-${kind}` : ""}"${kind ? ` title="${esc(LINK_NOTE[kind])}"` : ""}>${lead}<span>${esc(storeName(key))}</span>${price !== undefined ? `<span class="store-chip-price">${eur(price)}/mo</span>` : ""}</span>`;
   }).join("");
   return `<li class="store-row" data-item-id="${item.id}">
     <div class="store-row-head">
