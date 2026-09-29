@@ -839,7 +839,7 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
-  padding: 1px 8px;
+  padding: 2px 8px;
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--attention) 16%, transparent);
   color: var(--attention-text);
@@ -848,6 +848,11 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
   line-height: 1.4;
   white-space: nowrap;
 }
+/* The badge's glyph (the "Checked" check mark, Stores list + item-detail
+   dialog) was inheriting 1em from the badge's own caption font-size — a
+   12x12 box, off the icons.size steps. Pin it to icons.size.inline (16px;
+   COMP-02) and give the pill a touch more vertical room so it doesn't clip. */
+.review-badge .icon { width: var(--icon-inline); height: var(--icon-inline); }
 .review-badge.is-checked { background: color-mix(in srgb, var(--on) 16%, transparent); color: var(--success-text); }
 
 /* Benchmark status + the copyable refresh steps, folded by default so the
