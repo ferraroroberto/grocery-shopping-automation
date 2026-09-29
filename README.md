@@ -285,9 +285,11 @@ Find the store product that fills an item's `buscador` so the cart automation
 can buy it. **Speak or type a product in Spanish** (e.g. *"añade sandía"*); the
 spoken clip is transcribed by whisper (language auto-detect) and parsed into the
 search term the same way the HA voice bridge parses commands. The app then
-searches **both stores at once** — Mercadona (its Algolia search endpoint) and
-Ametller (Salesforce Commerce Cloud SCAPI Shopper Search) — driving the
-logged-in Chrome profile, and shows the candidates as **cards you validate**:
+searches **all three stores at once** — Mercadona (its Algolia search
+endpoint), Ametller (Salesforce Commerce Cloud SCAPI Shopper Search) and
+Carrefour (a real-Chrome DOM read of its results grid, Cloudflare-gated like
+its cart handler) — driving the logged-in Chrome profile, and shows the
+candidates as **cards you validate**:
 each card has the product name, store, price and a **link to open the product
 and check it yourself**. Tapping **Usar** opens a compact confirm row on the
 card — a **zone** combo (the inventory's existing zones) plus **present**

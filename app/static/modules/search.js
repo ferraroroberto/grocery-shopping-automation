@@ -1,6 +1,6 @@
 // On-demand product search (issue #87).
 //
-// Speak or type a product (Spanish); search both stores; the user validates a
+// Speak or type a product (Spanish); search every store; the user validates a
 // candidate card (each with a link to see it) to fill that item's `buscador`.
 // No automated decision — nothing is written until you tap "Usar".
 import { authFetch, fetchJson } from "./api.js";
@@ -29,7 +29,7 @@ export function renderSearch() {
   const s = search;
   activePaneBody().innerHTML = `<section class="panel">
     <h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-search"></use></svg>Buscar producto</h2>
-    <div class="hint">Di o escribe un producto en español. Busco en Mercadona y Ametller — tú eliges el correcto para añadirlo a la lista.</div>
+    <div class="hint">Di o escribe un producto en español. Busco en Mercadona, Ametller y Carrefour — tú eliges el correcto para añadirlo a la lista.</div>
     <div class="search-bar">
       <button id="search-record" class="icon-btn hit-target${s.recording ? " recording" : ""}" type="button" aria-label="Dictar producto" title="Dictar">
         <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-mic"></use></svg>

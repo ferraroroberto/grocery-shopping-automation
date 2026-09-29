@@ -255,7 +255,7 @@ send if a match is found):
 | `run_automation.py` | CLI runner — reads the list, dispatches to handlers, prints a summary. |
 | `report.py` | `RunReport` — per-run summary with `print_summary()`. |
 | `purchase_log.py` | `write_purchase_logs()` — persists what was ordered, per store, after a live run. |
-| `product_search.py` | `search_all()` — searches Mercadona + Ametller for a spoken product term and ranks candidates for display; the engine behind the PWA's **Search** tab (issue #87). |
+| `product_search.py` | `search_all()` — searches Mercadona + Ametller + Carrefour for a spoken product term and ranks candidates for display; the engine behind the PWA's **Search** tab (issue #87, Carrefour added in #157). |
 | `email_parsers/__init__.py` | Deterministic (non-LLM) per-store order-confirmation email parsers — package marker. |
 | `email_parsers/ametller.py` | Deterministic order-confirmation item-list parser for Ametller. |
 | `item_matching.py` | `match_items()` — resolves confirmed email items to purchase-log `comida` values (alias table + fuzzy fallback). |

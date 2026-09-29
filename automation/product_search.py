@@ -1,6 +1,6 @@
 """Search the supermarket sites for a spoken product term (issue #87).
 
-Given a Spanish free-text term (e.g. "sandia"), search both supported stores and
+Given a Spanish free-text term (e.g. "sandia"), search every supported store and
 return candidate products — name, price, product URL, thumbnail — so the app can
 show them as cards the user validates. **No automated decision**: this module
 only *finds and ranks for display*; a human picks which candidate fills
@@ -36,6 +36,20 @@ shared Chrome profile (``automation/browser.py``):
   against a name alone; the score is kept as a display aid. (Before #111 this
   was additionally forced by the names being Catalan — that reason is gone, but
   the ordering choice stands on its own merit.)
+
+* **Carrefour** (issue #157) — behind Cloudflare like the cart handler
+  (:mod:`automation.carrefour`), so this is a real-Chrome DOM read rather than
+  a direct API call: load ``https://www.carrefour.es/?query={term}`` (``query=``,
+  not ``q=`` — verified live 2026-09-29) and read the results grid, whose cards
+  are ``[data-test="search-grid-result"]``. Each card's ``<a data-test=
+  "result-link">`` carries the ``/R-<id>/p`` product path
+  (:func:`automation.carrefour.product_id_from_url` extracts the id), the name
+  sits in ``[data-test="result-title"] p``, the price in ``[data-test=
+  "result-current-price"]``, and the image in ``img[data-test=
+  "result-picture-image"]``. The DOM → dict extraction runs in-page
+  (:data:`_CARREFOUR_CARD_JS`); the cleanup and validation is the pure
+  :func:`_parse_carrefour_card`, so it is unit-tested without a browser. Cards
+  come in the store's own relevance order, same as the other two.
 """
 
 from __future__ import annotations
@@ -53,12 +67,14 @@ from typing import Callable, Optional
 from urllib.parse import quote
 
 from playwright.sync_api import Page
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from automation import ametller  # noqa: E402  (SCAPI constants + auth reader)
+from automation import carrefour  # noqa: E402  (BASE_URL + product_id_from_url)
 from automation.browser import (  # noqa: E402
     ProfileNotInitializedError,
     SessionExpiredError,
@@ -80,6 +96,35 @@ _AMETLLER_SEARCH = (
     f"{ametller._SCAPI_ORG}/product-search"
 )
 _AMETLLER_PRODUCT = "https://www.ametllerorigen.com/es/{slug}/{pid}.html"
+
+_CARREFOUR_SEARCH = "https://www.carrefour.es/?query={query}"
+_CARREFOUR_CARD_SELECTOR = '[data-test="search-grid-result"]'
+
+# How long to let the (client-rendered) results grid settle after navigation,
+# and how long to wait for the first card before treating the term as a
+# genuine no-match (verified live 2026-09-29, issue #157).
+_CARREFOUR_SEARCH_SETTLE_S = 4.0
+_CARREFOUR_CARD_TIMEOUT_MS = 10000
+
+# In-page card → plain-dict extraction (no parsing logic here — that's the
+# pure :func:`_parse_carrefour_card` below, so it can be unit-tested offline).
+_CARREFOUR_CARD_JS = """els => els.map(el => {
+  const linkEl = el.querySelector('a[data-test="result-link"]') || el.querySelector('a[data-test="result-title"]');
+  const nameEl = el.querySelector('[data-test="result-title"] p') || el.querySelector('[data-test="result-title"]');
+  const priceEl = el.querySelector('[data-test="result-current-price"]');
+  const imgEl = el.querySelector('img[data-test="result-picture-image"]');
+  return {
+    href: linkEl ? (linkEl.getAttribute('href') || '') : '',
+    name: (nameEl ? nameEl.textContent : (imgEl ? imgEl.getAttribute('alt') : '')) || '',
+    price_text: priceEl ? priceEl.textContent : '',
+    image: imgEl ? (imgEl.getAttribute('src') || '') : '',
+  };
+})"""
+
+# Spanish-formatted euro price inside a card's text, e.g. "0,84 €" (a sale
+# card also carries a struck-through "result-previous-price" — we only read
+# "result-current-price", so this only ever matches the one that's charged).
+_CARREFOUR_PRICE_RE = re.compile(r"(\d+),(\d+)\s*€")
 
 # SCAPI locale for Spanish product names. Plain ``es`` only — the
 # region-qualified spellings 400 (``es-ES`` "Unsupported Locale", ``es_ES``
@@ -210,11 +255,72 @@ def search_ametller(page: Page, query: str, limit: int) -> list[Candidate]:
     return out
 
 
+def _parse_carrefour_price(text: str) -> Optional[float]:
+    """Extract a Spanish-formatted euro amount ("0,84 €") from card text."""
+    m = _CARREFOUR_PRICE_RE.search(text or "")
+    if not m:
+        return None
+    return float(f"{m.group(1)}.{m.group(2)}")
+
+
+def _parse_carrefour_card(raw: dict) -> Optional[dict]:
+    """Turn one extracted search-result card into a candidate dict, or ``None``.
+
+    Pure — no browser/page dependency, so it is unit-tested with recorded card
+    data (see ``tests/test_product_search.py``) rather than a live Cloudflare
+    fetch. Returns ``None`` for a card with no product id or no name (e.g. a
+    sponsored banner tile that isn't a real result).
+    """
+    href = str(raw.get("href") or "")
+    pid = carrefour.product_id_from_url(href)
+    # Cards show the name with a trailing period ("... 500 g."); the other two
+    # stores don't, so trim it for a consistent look across cards.
+    name = re.sub(r"\.\s*$", "", str(raw.get("name") or "").strip())
+    if not pid or not name:
+        return None
+    url = href if href.startswith("http") else f"{carrefour.BASE_URL}{href}"
+    return {
+        "name": name,
+        "url": url,
+        "price": _parse_carrefour_price(str(raw.get("price_text") or "")),
+        "image": str(raw.get("image") or ""),
+    }
+
+
+def search_carrefour(page: Page, query: str, limit: int) -> list[Candidate]:
+    """Search Carrefour by loading its results grid in real Chrome.
+
+    Carrefour sits behind Cloudflare (like the cart handler,
+    :mod:`automation.carrefour`), so this drives the page itself rather than
+    calling an API directly. ``query=`` (not ``q=``) is the storefront's own
+    search param. An empty results grid (genuinely no matches) returns ``[]``
+    rather than raising.
+    """
+    goto_with_login_check(page, "carrefour", _CARREFOUR_SEARCH.format(query=quote(query)))
+    time.sleep(_CARREFOUR_SEARCH_SETTLE_S)  # client-rendered grid needs a moment
+    cards = page.locator(_CARREFOUR_CARD_SELECTOR)
+    try:
+        cards.first.wait_for(state="visible", timeout=_CARREFOUR_CARD_TIMEOUT_MS)
+    except PlaywrightTimeoutError:
+        return []
+    raw_cards = cards.evaluate_all(_CARREFOUR_CARD_JS)
+    out: list[Candidate] = []
+    for i, raw in enumerate(raw_cards[:limit]):
+        parsed = _parse_carrefour_card(raw)
+        if parsed is None:
+            continue
+        out.append(_rank(
+            query, "carrefour", parsed["name"], parsed["url"],
+            parsed["price"], parsed["image"], i,
+        ))
+    return out
+
+
 # Store key → search function.
-SEARCHERS = {"mercadona": search_mercadona, "ametller": search_ametller}
+SEARCHERS = {"mercadona": search_mercadona, "ametller": search_ametller, "carrefour": search_carrefour}
 
 # Display names for progress messages.
-_STORE_LABEL = {"mercadona": "Mercadona", "ametller": "Ametller"}
+_STORE_LABEL = {"mercadona": "Mercadona", "ametller": "Ametller", "carrefour": "Carrefour"}
 
 # A progress sink: called with a short human (Spanish) status line as the search
 # advances, so the app can show what's happening instead of a static spinner.
@@ -226,15 +332,16 @@ def _noop_progress(_msg: str) -> None:
 
 
 def _search_one(page: Page, query: str, limit: int, on_progress: ProgressFn = _noop_progress) -> dict:
-    """Search both stores for a single ``query`` on an open page.
+    """Search every store in :data:`SEARCHERS` for a single ``query`` on an open page.
 
     Returns ``{"query", "candidates": [Candidate-dicts], "errors": {store: msg}}``.
     A store that errors (session expired, network) is recorded in ``errors`` and
-    skipped; the other store's results still come back. Candidates are ordered
-    by store (Mercadona first, then Ametller), each in the store's own relevance
-    order — never silently reduced past ``limit`` without the cap being visible
-    to the caller (per-store ``limit``). ``on_progress`` receives a status line
-    before and after each store so the caller can narrate the run.
+    skipped; the other stores' results still come back. Candidates are ordered
+    by store (:data:`SEARCHERS` order — Mercadona, Ametller, Carrefour), each in
+    the store's own relevance order — never silently reduced past ``limit``
+    without the cap being visible to the caller (per-store ``limit``).
+    ``on_progress`` receives a status line before and after each store so the
+    caller can narrate the run.
     """
     candidates: list[Candidate] = []
     errors: dict[str, str] = {}
