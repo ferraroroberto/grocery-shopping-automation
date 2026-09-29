@@ -311,9 +311,14 @@ def test_add_item_increases_count(page):
 @pytest.mark.e2e
 def test_audio_match_and_apply_writes_log(page, server):
     goto_mode(page, "audio")
+    # J-07: the Match model dropdown shows a humanized label, never the raw
+    # config id (gemini_pro) verbatim.
+    model_label = page.locator("#audio-model option:checked").inner_text()
+    assert model_label == "Gemini Pro"
+    assert "_" not in model_label
     page.fill("#transcript", TRANSCRIPT)
     page.click("#match-transcript")
-    page.wait_for_selector("text=Detected Items", timeout=120000)
+    page.wait_for_selector("text=Detected items", timeout=120000)
     # the accept switch renders pre-on (the old checkbox's pre-ticked guarantee)
     accept = page.locator("[data-audio-idx]").first
     assert accept.get_attribute("aria-checked") == "true"
@@ -367,6 +372,23 @@ def test_stores_plan_simulate_and_apply(page, server):
     page.click("[data-stores-action='import']")
     page.wait_for_selector(".stores-head .panel-status.ok")
     page.wait_for_selector("#stores-sim[data-state='ready']")
+    # LAYOUT-02: the Stores list gets its own filter input in the list's own
+    # card (the re-homed global toolbar search), not a second search box.
+    assert page.locator(".stores-list-card input[type='search']").count() == 1
+    assert page.locator("#toolbar input[type='search']").count() == 1  # the same node, moved
+    # LAYOUT-03: a row exposes at most 3 interactive controls besides itself
+    # (the store picker + the pencil) — the per-store chips are inert price
+    # labels, not links; the product link lives in the review dialog instead.
+    first_row = page.locator(".store-row").first
+    assert first_row.locator("button, select, a[href], input").count() <= 3
+    assert first_row.locator(".store-chip a").count() == 0
+    # The re-homed search actually filters the Stores rows (not just present).
+    all_row_count = page.locator(".store-row").count()
+    page.fill("#search", "burguer ternera")
+    page.wait_for_function("document.querySelectorAll('.store-row').length === 1")
+    assert "burguer ternera" in page.locator(".store-row").inner_text()
+    page.fill("#search", "")
+    page.wait_for_function(f"document.querySelectorAll('.store-row').length === {all_row_count}")
     # Benchmark status: run date and the review due 90 days later, plus the copyable steps.
     status = page.locator(".stores-status").inner_text()
     assert "2026-01-15" in status and "2026-04-15" in status
@@ -583,5 +605,5 @@ def test_audio_match_live_hub(page):
     page.fill("#transcript", TRANSCRIPT)
     page.click("#match-transcript")
     # Real hub call — proves no premature timeout (budget up to 10 min).
-    page.wait_for_selector("text=Detected Items", timeout=600000)
+    page.wait_for_selector("text=Detected items", timeout=600000)
     assert page.locator("#audio-status.ok").count() >= 1

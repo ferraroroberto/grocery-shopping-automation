@@ -7,7 +7,7 @@ Mobile-responsive web app for managing household grocery inventory with intellig
 Comprehensive household inventory management across multiple operational modes. Audit current stock room-by-room, edit target quantities, track shopping in real time, and add on-the-fly items directly to the shopping list.
 
 **Key Features:**
-- Mobile access over local Wi-Fi — use the **Copy Link** button in the ⚙️ Setup tab to get the URL and open it on your phone
+- Mobile access over local Wi-Fi — use the **Copy link** button in the ⚙️ Setup tab to get the URL and open it on your phone
 - Room-by-room inventory auditing with auto-save (best done from mobile)
 - Shopping list grouped by supermarket with per-store progress bars (best done from desktop)
 - Cart offset counters to account for items already in the cart
@@ -69,7 +69,7 @@ webapp.bat
 
 The FastAPI app on `:8502` covers the inventory dashboard, audit, target editing, item editing, item creation, shopping mode, automation controls, and the audio-audit workflow against the Excel-backed `src/data.py` layer. Open `http://127.0.0.1:8502` when no local cert exists, or `https://127.0.0.1:8502` after running `& .\.venv\Scripts\python.exe src\gen_ssl_cert.py`. Either launcher binds to `0.0.0.0`, so the same port is reachable over LAN or Tailscale from devices that can reach this PC.
 
-The PWA follows the fleet design system (`~/.claude/design.md` + `design.dark.md`): a floating bottom-tab pill on the phone (inline top tabs on desktop, a left icon-over-label rail on a desktop window 1100px or wider) with five tabs — **Home · Shop · Audit · Items · Setup** (Audio Audit lives as a sub-pill under Audit; Targets / Edit Item / Add Item / Stores under Items; the store product search sits at the top of **Items → Add Item**, and the cart automation is the **Fill carts** section at the bottom of **Shop**) — vendored fleet components under `app/static/_vendored/`, and a light/dark **theme toggle in the top bar** (moon/sun icon) that remembers your choice. The utility actions (Open Spreadsheet, Copy Link, Export CSV, Log in to stores) and the **Email Watch** card live in the ⚙️ **Setup tab** — Log in to stores opens the same plain Chrome window as `python -m automation.bootstrap_session` (see below) so a stale store login can be refreshed without a terminal; heavy cards (the dashboard item list, the per-store shopping panels, the audio zone checklist) are collapsible and folded by default; the search box appears only on the modes that filter the item list. A footer line shows the running build (`Build: <git sha> · <time>`, from `/api/version`) so you always know which deploy the app is serving, and the shell auto-reloads once when it detects a newer build.
+The PWA follows the fleet design system (`~/.claude/design.md` + `design.dark.md`): a floating bottom-tab pill on the phone (inline top tabs on desktop, a left icon-over-label rail on a desktop window 1100px or wider) with five tabs — **Home · Shop · Audit · Items · Setup** (Audio audit lives as a sub-pill under Audit; Targets / Edit item / Add item / Stores under Items; the store product search sits at the top of **Items → Add item**, and the cart automation is the **Fill carts** section at the bottom of **Shop**) — vendored fleet components under `app/static/_vendored/`, and a light/dark **theme toggle in the top bar** (moon/sun icon) that remembers your choice. The utility actions (Open spreadsheet, Copy link, Export CSV, Log in to stores) and the **Email watch** card live in the ⚙️ **Setup tab** — Log in to stores opens the same plain Chrome window as `python -m automation.bootstrap_session` (see below) so a stale store login can be refreshed without a terminal; heavy cards (the dashboard item list, the per-store shopping panels, the audio zone checklist) are collapsible and folded by default; the search box appears only on the modes that filter the item list. A footer line shows the running build (`Build: <git sha> · <time>`, from `/api/version`) so you always know which deploy the app is serving, and the shell auto-reloads once when it detects a newer build.
 
 ### Regenerate application icons
 
@@ -222,7 +222,7 @@ Copy `auth/gmail/credentials.json` + `auth/gmail/token.json` from the
 `whatsapp-radar` sister repo (same account, same scope) and
 `config/gmail_config.sample.json` → gitignored `config/gmail_config.json`.
 
-The PWA's ⚙️ Setup tab drives this via the **Email Watch** card: pick the
+The PWA's ⚙️ Setup tab drives this via the **Email watch** card: pick the
 monitored senders (each mapped to a store), switch automatic polling on/off
 and set its frequency, run a one-off *Check now* or an end-to-end *Test last
 email*, and review the last-check log. Scheduled checks alert only when the
@@ -251,11 +251,11 @@ Excel file columns:
 
 ## 📱 Modes
 
-### 🔍 Audit Inventory
+### 🔍 Audit inventory
 Walk through each zone of the house, update current stock levels with ±1 buttons. Auto-saves every change to Excel.
 Best done from mobile — rotate to **landscape** for optimal layout.
 
-### 🎙️ Audio Audit
+### 🎙️ Audio audit
 Walk the house dictating the inventory in Spanish (*"ahora en la nevera, dos yogures, un litro de leche…"*). The audio is transcribed by the local whisper-server and matched against the inventory by the local LLM hub — same `local-llm-hub` services that power the rest of this monorepo. The record view shows a per-zone, alphabetical checklist of tracked items so nothing gets missed while dictating. A service-status banner reports recorder/hub/whisper reachability. A **Match model** selector picks which hub model performs the match (defaults to `gemini_pro`, configurable via `audio_audit.llm_model` / `llm_models_available`). Transcribe and Match show a **live elapsed timer** with staged progress and a **Cancel** button (calls budget up to 10 min — `audio_audit.llm_timeout`), and surface errors inline instead of failing silently. The review groups detected items by zone with current→new/Δ/evidence, then a **"Mentioned — count missing"** section, then a "not mentioned in audited zones → set 0" section; applying writes a JSON audit log to `audio_audit_logs/`.
 
 **Named but uncounted items (#132).** Whisper regularly drops a dictated number or pushes it onto the next item, so an item you clearly named comes back with no count. Those rows land in **Mentioned — count missing**: type the number to apply it, leave the box blank to skip. They are *never* offered in the "set to 0" section — an item you named out loud must not be zeroable, which is what previously wiped a stocked row. Each mention is pinned to an inventory row by the LLM, and by the deterministic fallback in `src/audit_resolve.py` when the LLM leaves it open (it recovers whisper drift like *Aximell*→actimel, *Copos de arena*→copos avena, *Ganzos*→garbanzos, and declines rather than guessing when two rows fit equally well).
@@ -271,18 +271,18 @@ Walk the house dictating the inventory in Spanish (*"ahora en la nevera, dos yog
 
 > **Pre-requisites:** the **voice-transcriber** webapp must be running (it boots from its tray) for live recording — when it's down the audio view shows a clear banner and disables Record instead of hanging. The hub on `:8000` and whisper-server on `:8090` must also be running (start them via `E:\automation\local-llm-hub\run_hub.bat` and `launchers\run_model.bat whisper`, or its tray launcher). **`ffmpeg` must be on `PATH`** (`winget install Gyan.FFmpeg`) for the direct-upload `/api/audio/transcribe` endpoint — uploaded webm/mp4 is transcoded to 16 kHz WAV, then sent to the hub's transcribe role on `:8000` (parakeet primary + whisper failover), not to whisper directly (the streamed record path transcodes inside voice-transcriber). The audio-audit diagnostic still targets whisper-server on `:8090` directly.
 
-### ✏️ Edit Targets
+### ✏️ Edit targets
 Set or adjust target quantities per item. Auto-saves every change.
 
-### 🔧 Edit Item
+### 🔧 Edit item
 Search for any item and edit all its fields (name, supermarket, zone, URL, quantities) or delete it.
 
-### ➕ Add Item
+### ➕ Add item
 Add new items to the inventory via a form (name, supermarket, zone, target,
 current, URL). Above the form, **Find a store product** searches the stores for
 you (below) and can fill the form in.
 
-#### 🔎 Find a store product (Items → Add Item)
+#### 🔎 Find a store product (Items → Add item)
 Find the store product that fills an item's `buscador` so the cart automation
 can buy it. **Speak or type a product in Spanish** (e.g. *"añade sandía"*); the
 spoken clip is transcribed by whisper (language auto-detect) and parsed into the
@@ -296,9 +296,9 @@ each card has the product name, store, price and a **link to open the product
 and check it yourself**. Each searched term is tagged **New** or **Already on
 the list**, and **Use** acts on that:
 
-- **New** — **Use** fills the **Add Item** form below with the term as the
+- **New** — **Use** fills the **Add item** form below with the term as the
   name, the card's store and product link, and a target of 1; pick the zone
-  (and adjust the quantities) and tap **Add Item**. Nothing is saved until
+  (and adjust the quantities) and tap **Add item**. Nothing is saved until
   then, and the card then reads **Added**.
 - **Already on the list** — **Use** opens a compact confirm row on the card —
   a **zone** combo (the inventory's existing zones) plus **have** and
@@ -321,7 +321,7 @@ The **Stores** sub-mode under **Items** is where you decide which supermarket ea
 - **Store prices** — the benchmark status: which run the prices come from, how old it is, when the next review is due (run date + 90 days, flagged once it has passed), how many stores it covers and how many overrides of yours are in force. **How to refresh the prices** folds out the three steps (run `/supermarket-benchmark` in Claude Code in this repo → **Import latest run** → review **Needs checking**) with a **Copy steps** button; the app never launches the benchmark itself, since it needs your quality-spec confirmation and about an hour of agents. **Import latest run** fills in every item's per-store product links (it never overwrites a link you set, and warns about links that look broken).
 - **Monthly cost** — goods, delivery and total for your what-if picks next to **today** — normally the stores you bought from when the benchmark ran, so the saving stays visible after you apply a switch — at a chosen ordering frequency (weekly, 2-weekly or monthly), per store (stores without a cart handler are marked *manual order*) and with the fee-optimised totals. Items with no price at the picked store are listed under **No price** and left out of the totals, never counted as 0 €. Items with target 0 aren't bought, so they are left out of **both** sides (a store kept only by them would otherwise add a delivery fee nobody pays); the card says how many.
 - **Set as baseline** (#183) freezes your list's current stores as the new "today", once a real switch has actually happened and the benchmark's stores are no longer the status quo — the next what-if then measures from there, so an unrelated later pick doesn't show yesterday's already-applied saving all over again. It confirms first (and says how many items in the review worklist are still unchecked); once set, the hint reads *"Today = your stores as of \<date> (baseline)"* with a **Reset to benchmark** control. A baseline only applies while it's still tied to the latest benchmark run — a newer run supersedes it (it's then ignored and flagged as out of date). The review worklist (the **moved** flag, the quantity check's *before*, which store counts as *benchmarked from*) keeps comparing against the benchmark run regardless, until a new one is imported.
-- **Load recommended plan** / **Reset to my list** replace the what-if picks (the what-if starts from the stores saved in your list); each item row also has a store picker, one link chip per store (opens the product; the picked store is highlighted; each chip shows the item's monthly €, e.g. `€12.80/mo`) and a pencil that opens the item's review dialog (below). Rows show only the stores your list buys from; the **Show all stores** switch reveals every benchmarked store. A dashed chip with a magnifier opens a store *search* page (Bonpreu and Alcampo blocked the benchmark's browser, so only search URLs were recorded); a dashed chip with an alert icon is a URL missing the store's product id.
+- **Load recommended plan** / **Reset to my list** replace the what-if picks (the what-if starts from the stores saved in your list); each item row also has a store picker, one price chip per store (a label, not a link — the picked store is highlighted; each chip shows the item's monthly €, e.g. `€12.80/mo`) and a pencil that opens the item's review dialog (below), which lists every store with its product link. Rows show only the stores your list buys from; the **Show all stores** switch reveals every benchmarked store. A dashed chip with a magnifier flags a store *search* page as the link (Bonpreu and Alcampo blocked the benchmark's browser, so only search URLs were recorded); a dashed chip with an alert icon flags a URL missing the store's product id. The search box above the list (also used to filter Home/Audit/Targets/Edit item) filters these rows by item name, zone or supermarket.
 - Picks are only a what-if (remembered on this device) until **Review & apply…**, which shows each change with the old → new product and pack, and the target **and stock** converted by pack size (both editable), then writes `super`, `buscador`, `cantidad` and `tenemos` in one save.
 - **All · Needs checking · Checked** — filter pills above the list (the choice is remembered on this device). An item needs checking when it moved store since the benchmark, its pack changed ×2 or more, the units differ, its link is a search page or looks broken, it has an override (or the benchmark changed under one), or its stock may still be in the old packs. Flagged rows carry a badge with the first reason (`Moved store +2`).
 - **Store** — a second pill row with one toggle per store your list buys from and its item count (`Ametller 37 · Carrefour 37 · Mercadona 87`); pick one or several to list only the items bought there today (none picked = every store). It combines with the status pills and the search box, is remembered on this device, and never changes the simulator's totals — handy for re-picking a whole store's items to see whether dropping it is worth it.
@@ -470,8 +470,8 @@ moved store, the packs differ, you have stock, and you haven't checked it yet.
 
 ## 🖥️ Typical Workflow
 
-1. **Edit Targets** — set desired quantities for tracked items
-2. **Audit Inventory** — walk through zones and update current stock
+1. **Edit targets** — set desired quantities for tracked items
+2. **Audit inventory** — walk through zones and update current stock
 3. **Shopping List** — check what to buy, mark as bought while shopping
 4. Use **cart offset counters** if items were already in the cart
 5. Use **quick-add** for anything not in the system

@@ -28,7 +28,7 @@ function emailMonitorCard() {
     <summary class="collapse-summary">
       <span class="collapse-main">
         <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-mail"></use></svg>
-        <h3 class="collapse-title">Email Watch</h3>
+        <h3 class="collapse-title">Email watch</h3>
         <span class="collapse-count" id="email-monitor-count"></span>
       </span>
       <span class="collapse-chevron" aria-hidden="true">›</span>

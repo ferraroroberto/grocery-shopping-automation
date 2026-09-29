@@ -46,15 +46,15 @@ no_go = [
     '[data-action="mark-buy"]',
     '[data-action="mark-extra"]',             # Shop's "Got it" checkboxes
     '[data-action="remove-extra"]',           # Shop's quick-add Remove
-    '[data-action="delete"]',                 # Items -> Edit Item: Delete
-    "#record-toggle",                         # Audit -> Audio Audit: Start Recording
-    "#search-record",                         # Items -> Add Item: product-search mic
-    "#search-run",                            # Items -> Add Item: product-search Search
+    '[data-action="delete"]',                 # Items -> Edit item: Delete
+    "#record-toggle",                         # Audit -> Audio audit: Start recording
+    "#search-record",                         # Items -> Add item: product-search mic
+    "#search-run",                            # Items -> Add item: product-search Search
     '[data-action="search-use"]',
-    '[data-action="search-confirm"]',         # Items -> Add Item: product-search Use / Update item
+    '[data-action="search-confirm"]',         # Items -> Add item: product-search Use / Update item
     "#email-check-now",
     "#email-check-test",                      # Setup: Check now / Test last email
-    "#open-sheet",                            # Setup: Open Spreadsheet
+    "#open-sheet",                            # Setup: Open spreadsheet
     "#bootstrap-session",                     # Setup: Log in to stores (launches a Chrome window)
 ]
 

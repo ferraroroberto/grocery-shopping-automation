@@ -26,6 +26,7 @@
   /* status text on its own 16% tint (badges) — sRGB only, AA by design */
   --success-text: #116329;
   --attention-text: #7d4e00;
+  --danger-text: #a40e26;   /* danger text on a danger tint/outline — 6.08:1 (COLOR-02) */
   /* derived surface roles (mapped onto the neutral tokens above) */
   --input-bg: var(--card-off);
   --toggle-knob: #ffffff;
@@ -35,6 +36,8 @@
   --neutral-soft: color-mix(in srgb, var(--muted) 16%, transparent);
   --accent-border-soft: color-mix(in srgb, var(--accent) 24%, transparent);
   --accent-border-strong: color-mix(in srgb, var(--accent) 28%, transparent);
+  --danger-border-soft: color-mix(in srgb, var(--deficit) 24%, transparent);
+  --danger-soft: color-mix(in srgb, var(--deficit) 16%, transparent);
   /* the transcript/automation log is a terminal-class surface that follows
      the theme (a fixed dark matte read as "not switching" in light mode). */
   --log-bg: var(--card-off);
@@ -114,6 +117,7 @@
   --attention: #d29922;     /* attention */
   --success-text: #56d364;
   --attention-text: #e3b341;
+  --danger-text: #ff7b72;   /* danger text on a danger tint/outline — 5.70:1 (COLOR-02) */
   --input-bg: var(--bg);
   --toggle-knob: var(--ink);
   --close-bg: var(--line);
@@ -478,7 +482,17 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
 .primary { background: var(--accent-fill); border-color: var(--accent-fill); color: var(--accent-fg); padding: 0 14px; }
 /* button-primary height for the view's primary action and every form submit */
 .primary, form button[type="submit"] { min-height: var(--primary-h); }
-.danger { background: var(--deficit); border-color: var(--deficit); color: #ffffff; }
+/* Quiet destructive (design.md "a destructive action may restate the tint
+   recipe on danger" — outlined, not a solid fill): a transparent surface, a
+   soft danger-tinted hairline, danger-text label. Fixes COLOR-02 (a solid
+   deficit fill under white text drops to 3.35:1 in dark) and stops Delete
+   reading as the loudest control on every Edit Item card (J-03/LAYOUT-04). */
+.danger { background: transparent; border-color: var(--danger-border-soft); color: var(--danger-text); }
+.danger:active { background: var(--danger-soft); }
+/* Clear (audio.js): the same quiet-destructive recipe at the .big-btn 48px
+   row height, so it still lines up with Match/Apply beside it. */
+.big-btn.danger { background: transparent; color: var(--danger-text); border-color: var(--danger-border-soft); }
+.big-btn.danger:active { background: var(--danger-soft); }
 .icon-btn { width: var(--control-h); padding: 0; display: inline-flex; align-items: center; justify-content: center; }
 .icon-btn .icon { width: var(--icon-inline); height: var(--icon-inline); }
 
@@ -579,7 +593,9 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 .collapse-body .item { padding-left: 0; padding-right: 0; }
 
 /* --------------------------------------------------- audio zone checklist */
-.zone-list { display: grid; gap: var(--space-sm); }
+/* A roomier gap between zone cards: with every zone open, a toggle's invisible
+   hit-target expansion reached into the floating nav's tap band (TOUCH-02). */
+.zone-list { display: grid; gap: var(--space-md); }
 .zone-items { display: grid; gap: 0; }
 /* The collapse-body stack spacing must NOT leak between checklist rows — a
    12px margin above each row makes the text sit low in its row (more space
@@ -733,6 +749,10 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
    Head = name + one meta line, then the what-if picker and the 44px edit
    button; the store links follow on one swipeable line so a row never
    grows past the phone width. */
+/* LAYOUT-02: the re-homed global search (app.js) lives here, in the list's
+   own card, instead of the toolbar section above the pane — so it filters
+   the Stores list without a second, duplicate search box on screen. */
+#stores-search-slot:not(:empty) { margin-top: var(--gap); }
 .store-rows { list-style: none; margin: 0; padding: 0; }
 .store-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-sm); padding: 12px 0; }
 .store-row + .store-row { border-top: 1px solid var(--line-muted); }
@@ -808,7 +828,7 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
-  padding: 1px 8px;
+  padding: 2px 8px;
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--attention) 16%, transparent);
   color: var(--attention-text);
@@ -817,6 +837,11 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
   line-height: 1.4;
   white-space: nowrap;
 }
+/* The badge's glyph (the "Checked" check mark, Stores list + item-detail
+   dialog) was inheriting 1em from the badge's own caption font-size — a
+   12x12 box, off the icons.size steps. Pin it to icons.size.inline (16px;
+   COMP-02) and give the pill a touch more vertical room so it doesn't clip. */
+.review-badge .icon { width: var(--icon-inline); height: var(--icon-inline); }
 .review-badge.is-checked { background: color-mix(in srgb, var(--on) 16%, transparent); color: var(--success-text); }
 
 /* Benchmark status + the copyable refresh steps, folded by default so the
