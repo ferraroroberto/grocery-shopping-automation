@@ -321,7 +321,7 @@ SEARCHERS = {"mercadona": search_mercadona, "ametller": search_ametller, "carref
 # Display names for progress messages.
 _STORE_LABEL = {"mercadona": "Mercadona", "ametller": "Ametller", "carrefour": "Carrefour"}
 
-# A progress sink: called with a short human (Spanish) status line as the search
+# A progress sink: called with a short human status line as the search
 # advances, so the app can show what's happening instead of a static spinner.
 ProgressFn = Callable[[str], None]
 
@@ -346,16 +346,16 @@ def _search_one(page: Page, query: str, limit: int, on_progress: ProgressFn = _n
     errors: dict[str, str] = {}
     for store, searcher in SEARCHERS.items():
         label = _STORE_LABEL.get(store, store)
-        on_progress(f"Buscando «{query}» en {label}…")
+        on_progress(f"Searching {label} for “{query}”…")
         try:
             found = searcher(page, query, limit)
             logger.info("🔎 [%s] %d candidate(s) for %r", store, len(found), query)
             candidates.extend(found)
-            on_progress(f"{label}: {len(found)} resultado(s)")
+            on_progress(f"{label}: {len(found)} result(s)")
         except Exception as err:  # noqa: BLE001 — one store failing must not sink the other
             logger.warning("⚠️ [%s] search failed: %s", store, err)
             errors[store] = str(err)
-            on_progress(f"{label}: sin resultados")
+            on_progress(f"{label}: no results")
     return {
         "query": query,
         "candidates": [asdict(c) for c in candidates],
@@ -371,20 +371,20 @@ def search_all(queries: list[str], *, limit: int = DEFAULT_LIMIT,
     non-empty query, preserving input order. Headed by default: Mercadona's
     search endpoint 403s a headless client (bot detection), and the store sites
     are best driven headed anyway (see ``browser.py``). ``on_progress`` is called
-    with short Spanish status lines as the run advances.
+    with short status lines as the run advances.
     """
     terms = [q.strip() for q in queries if q and q.strip()]
     if not terms:
         return {"results": []}
 
-    on_progress("Abriendo el navegador…")
+    on_progress("Opening the browser…")
     playwright, context, page = launch_context(headless=headless, wait_for_profile=True)
     try:
         results = [_search_one(page, term, limit, on_progress) for term in terms]
     finally:
         context.close()
         playwright.stop()
-    on_progress("Preparando resultados…")
+    on_progress("Preparing results…")
     return {"results": results}
 
 
