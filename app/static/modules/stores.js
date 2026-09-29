@@ -505,18 +505,22 @@ function rowMarkup(item, inUse = storesInUse()) {
     ? `<select class="field store-pick" data-stores-pick aria-label="Buy ${esc(name)} at">${options.map((key) =>
         `<option value="${esc(key)}"${key === pick ? " selected" : ""}>${esc(storeName(key))}${key === today ? " (in list)" : ""}</option>`).join("")}</select>`
     : "";
-  // The picked store leads, then the cheapest: with up to nine chips on one
-  // swipeable line, what matters must not start off-screen. Non-interactive
-  // labels (LAYOUT-03) — a row's controls are the store picker and the
-  // pencil; the product link for each store is in the pencil's review
-  // dialog, which already lists every store with its link.
-  const rank = (key) => (key === pick ? -1 : prices[key] ?? Number.MAX_VALUE);
-  const chips = Object.keys(urls).sort((a, b) => rank(a) - rank(b)).map((key) => {
+  // The picked store leads, then the cheapest: with up to nine links on one
+  // swipeable line, what matters must not start off-screen (LAYOUT-03,
+  // accepted in .fleet.toml — issue #194: one-tap product links per store
+  // are how the list is used, so each chip opens that store's product page).
+  const rank = ([key]) => (key === pick ? -1 : prices[key] ?? Number.MAX_VALUE);
+  const chips = Object.entries(urls).sort((a, b) => rank(a) - rank(b)).map(([key, url]) => {
     const price = prices[key];
     const picked = key === pick;
     const kind = kinds[key];
+    const label = `Open ${name} at ${storeName(key)}${price !== undefined ? `, ${eur(price)} a month` : ""}${kind ? ` (${LINK_NOTE[kind]})` : ""}`;
     const lead = picked ? icon("check") : kind === "search" ? icon("search") : kind === "suspect" ? icon("circle-alert") : "";
-    return `<span class="store-chip${picked ? " is-picked" : ""}${kind ? ` is-${kind}` : ""}"${kind ? ` title="${esc(LINK_NOTE[kind])}"` : ""}>${lead}<span>${esc(storeName(key))}</span>${price !== undefined ? `<span class="store-chip-price">${eur(price)}/mo</span>` : ""}</span>`;
+    const cls = `store-chip${picked ? " is-picked" : ""}${kind ? ` is-${kind}` : ""}`;
+    const body = `${lead}<span>${esc(storeName(key))}</span>${price !== undefined ? `<span class="store-chip-price">${eur(price)}/mo</span>` : ""}`;
+    return url
+      ? `<a class="${cls}" href="${esc(url)}" target="_blank" rel="noopener noreferrer" aria-label="${esc(label)}"${kind ? ` title="${esc(LINK_NOTE[kind])}"` : ""}>${body}</a>`
+      : `<span class="${cls}"${kind ? ` title="${esc(LINK_NOTE[kind])}"` : ""}>${body}</span>`;
   }).join("");
   return `<li class="store-row" data-item-id="${item.id}">
     <div class="store-row-head">

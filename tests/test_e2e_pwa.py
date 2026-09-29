@@ -401,12 +401,16 @@ def test_stores_plan_simulate_and_apply(page, server):
     # card (the re-homed global toolbar search), not a second search box.
     assert page.locator(".stores-list-card input[type='search']").count() == 1
     assert page.locator("#toolbar input[type='search']").count() == 1  # the same node, moved
-    # LAYOUT-03: a row exposes at most 3 interactive controls besides itself
-    # (the store picker + the pencil) — the per-store chips are inert price
-    # labels, not links; the product link lives in the review dialog instead.
-    first_row = page.locator(".store-row").first
-    assert first_row.locator("button, select, a[href], input").count() <= 3
-    assert first_row.locator(".store-chip a").count() == 0
+    # LAYOUT-03 (#194, accepted in .fleet.toml): a store chip with a product
+    # URL is a link that opens it in a new tab — the picked (today's) store's
+    # chip here is the imported Ametller link.
+    burger_row = page.locator(".store-row", has_text="burguer ternera").first
+    ametller_chip = burger_row.locator(".store-chip.is-picked")
+    assert ametller_chip.count() == 1
+    assert ametller_chip.evaluate("el => el.tagName") == "A"
+    assert ametller_chip.get_attribute("href") == \
+        "https://www.ametllerorigen.com/es/american-burger-ametller-origen-150g-2uds/p?sc=14"
+    assert ametller_chip.get_attribute("target") == "_blank"
     # The re-homed search actually filters the Stores rows (not just present).
     all_row_count = page.locator(".store-row").count()
     page.fill("#search", "burguer ternera")
