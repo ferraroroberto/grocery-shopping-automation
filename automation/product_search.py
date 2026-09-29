@@ -302,17 +302,16 @@ def search_carrefour(page: Page, query: str, limit: int) -> list[Candidate]:
     try:
         cards.first.wait_for(state="visible", timeout=_CARREFOUR_CARD_TIMEOUT_MS)
     except PlaywrightTimeoutError:
+        logger.info("ℹ️ Carrefour search %r: no result cards within %d ms", query, _CARREFOUR_CARD_TIMEOUT_MS)
         return []
     raw_cards = cards.evaluate_all(_CARREFOUR_CARD_JS)
-    out: list[Candidate] = []
-    for i, raw in enumerate(raw_cards[:limit]):
-        parsed = _parse_carrefour_card(raw)
-        if parsed is None:
-            continue
-        out.append(_rank(
-            query, "carrefour", parsed["name"], parsed["url"],
-            parsed["price"], parsed["image"], i,
-        ))
+    parsed_cards = [c for c in map(_parse_carrefour_card, raw_cards) if c is not None]
+    out: list[Candidate] = [
+        _rank(query, "carrefour", c["name"], c["url"], c["price"], c["image"], i)
+        for i, c in enumerate(parsed_cards[:limit])
+    ]
+    logger.info("ℹ️ Carrefour search %r: %d card(s), %d usable, %d returned",
+                query, len(raw_cards), len(parsed_cards), len(out))
     return out
 
 
