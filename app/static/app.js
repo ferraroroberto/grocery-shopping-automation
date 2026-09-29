@@ -50,12 +50,29 @@ import {
   useCandidate,
   useCandidateClick,
 } from "./modules/search.js";
-import { renderShopping } from "./modules/shopping.js";
+import { renderShopping, shoppingStoreCount } from "./modules/shopping.js";
 import { onStoresChange, onStoresClick, renderStores } from "./modules/stores.js";
+
+// Page-header context lines for the four non-Home panes (#153 J-04) — Home's
+// own #status is driven by idleStatus()/setStatus() below, unchanged. Each
+// falls back to its tab's default submode label so the line is never stale
+// even before that tab has been opened once.
+const AUDIT_CONTEXT = { audit: "Manual audit", audio: "Audio audit" };
+const ITEMS_CONTEXT = { targets: "Targets", edit: "Edit item", add: "Add item", stores: "Stores" };
+
+function updatePageHeaderContexts() {
+  const shopContext = document.querySelector("#shop-context");
+  if (shopContext) shopContext.textContent = `${state.payload.summary.shopping_items} to buy · ${shoppingStoreCount()} stores`;
+  const auditContext = document.querySelector("#audit-context");
+  if (auditContext) auditContext.textContent = AUDIT_CONTEXT[state.mode] || AUDIT_CONTEXT.audit;
+  const itemsContext = document.querySelector("#items-context");
+  if (itemsContext) itemsContext.textContent = ITEMS_CONTEXT[state.mode] || ITEMS_CONTEXT.targets;
+}
 
 function render() {
   if (!state.payload) return;
   setStatus(idleStatus());
+  updatePageHeaderContexts();
   // Re-home the (single) search node into the active pane, above its body but
   // BELOW the sub-mode pills — the pills stay pinned to the top and never
   // shift when the search appears/disappears across sub-modes.
@@ -104,10 +121,10 @@ function applyTheme(theme) {
   document.documentElement.setAttribute("data-theme", theme);
   localStorage.setItem(THEME_KEY, theme);
   // The button holds both sprite glyphs; CSS shows the one for the *action*
-  // keyed on html[data-theme] — no JS glyph swap.
-  if (el.themeToggle) {
-    el.themeToggle.title = theme === "dark" ? "Switch to light mode" : "Switch to dark mode";
-  }
+  // keyed on html[data-theme] — no JS glyph swap. Every pane's page header
+  // carries its own toggle (#153 J-04), so update all of them, not just one.
+  const title = theme === "dark" ? "Switch to light mode" : "Switch to dark mode";
+  document.querySelectorAll(".theme-toggle").forEach((button) => { button.title = title; });
 }
 
 function toggleTheme() {
@@ -122,6 +139,12 @@ el.app.addEventListener("click", (event) => {
   state.mode = button.dataset.mode;
   saveSubMode(state.mode);
   render();
+});
+
+// Theme toggle: one per pane's page header (#153 J-04), so the id lives only
+// on Home's for back-compat — delegate on the shared class instead.
+el.app.addEventListener("click", (event) => {
+  if (event.target.closest(".theme-toggle")) toggleTheme();
 });
 
 // Vendored switches are rendered as markup strings, so their flips are
@@ -279,7 +302,6 @@ el.bootstrapSession.addEventListener("click", () => {
     .catch((error) => setStatus(error.message));
 });
 
-el.themeToggle.addEventListener("click", toggleTheme);
 el.loginForm.addEventListener("submit", onLoginSubmit);
 // Auth is mandatory — Esc must not dismiss the login dialog.
 el.loginDialog.addEventListener("cancel", (event) => event.preventDefault());

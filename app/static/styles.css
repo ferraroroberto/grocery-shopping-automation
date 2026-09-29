@@ -272,16 +272,18 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 :root[data-theme="dark"] .theme-icon-moon { display: none; }
 :root:not([data-theme="dark"]) .theme-icon-sun { display: none; }
 
-/* ------------------------------------------------------- home header card */
-/* Home-only, ONE row at disclosure-summary height (52px): icon + title,
-   status inline after it, theme toggle right — everything centered
-   vertically (the home-automation weather-tile shape, compacted). */
-.home-head {
+/* ------------------------------------------------------------ page header */
+/* design.md "page header" contract (#153 J-04) — the first element of every
+   tab's pane, ONE row at disclosure-summary height (52px): icon + title,
+   context line inline after it, theme toggle right — everything centered
+   vertically (the home-automation weather-tile shape, compacted). Markup is
+   shared across all 5 panes (modules/core.js pageHeaderHtml). */
+.page-header {
   display: flex;
   align-items: center;
   gap: var(--gap);
 }
-.home-head .status {
+.page-header .status {
   flex: 1;
   min-width: 0;
   min-height: 0;
@@ -354,9 +356,9 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 /* Collapsible cards zero their own padding (vendored disclosure contract) —
    this rule loads after disclosure.css, so it must not re-add it. */
 .card:not(.card--collapsible), .metric, .panel { padding: var(--space-md); }
-/* Home header matches the collapse-summary geometry exactly (52px, 14px
+/* Page header matches the collapse-summary geometry exactly (52px, 14px
    inset) — same 0-2-0 specificity as the padding rule above, later wins. */
-.card.home-head { min-height: var(--row-md); padding: 0 14px; }
+.card.page-header { min-height: var(--row-md); padding: 0 14px; }
 .panel > * + * { margin-top: var(--gap); }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
 .card-title {

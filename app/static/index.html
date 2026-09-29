@@ -220,23 +220,9 @@
 
     <main class="app">
       <section id="pane-inventory" class="pane" role="tabpanel" aria-labelledby="tabInventory" aria-label="Inventory">
-        <!-- Home-only header card (home-automation weather-tile pattern):
-             app icon + title + status left, theme toggle right. Living inside
-             the home pane keeps the toggle (and the row) off every other tab. -->
-        <section class="card home-head" aria-label="Grocery">
-          <h1 class="card-title">
-            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-shopping-basket"></use></svg>
-            Grocery
-          </h1>
-          <div id="status" class="status" role="status">Loading inventory...</div>
-          <button id="theme-toggle" class="theme-toggle hit-target" type="button"
-                  title="Toggle theme" aria-label="Toggle dark mode">
-            <!-- Sprite moon + sun; CSS shows the glyph for the *action*
-                 keyed on html[data-theme]. -->
-            <svg class="theme-toggle-icon theme-icon-moon hit-target" aria-hidden="true" focusable="false"><use href="#i-moon"></use></svg>
-            <svg class="theme-toggle-icon theme-icon-sun hit-target" aria-hidden="true" focusable="false"><use href="#i-sun"></use></svg>
-          </button>
-        </section>
+        <!-- Page header: injected as this pane's first child by
+             modules/core.js (pageHeaderHtml) — see that module for the
+             shared markup every one of the 5 panes gets (#153 J-04). -->
         <!-- Search shows only on the modes that filter the item list
              (dashboard / audit / targets / edit) — app.js re-homes this node
              into the active pane BELOW the sub-mode pills, so the pills never
@@ -271,13 +257,10 @@
         <div class="pane-body"></div>
       </section>
       <section id="pane-settings" class="pane" role="tabpanel" aria-labelledby="tabSettings" aria-label="Settings" hidden>
+        <!-- No "Settings" card title here — the page header above already
+             names this tab "Setup" (#153 J-04: the old h2 was a pure
+             duplicate). -->
         <div class="card">
-          <div class="card-head">
-            <h2 class="card-title">
-              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-settings"></use></svg>
-              Settings
-            </h2>
-          </div>
           <div class="settings-actions">
             <button id="open-sheet" class="secondary" type="button">
               <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-external-link"></use></svg>

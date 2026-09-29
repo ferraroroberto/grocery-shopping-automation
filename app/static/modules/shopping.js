@@ -10,6 +10,15 @@ function shoppingItems() {
   return items().filter((item) => Number(item[cols.comprar]) > 0);
 }
 
+// Shop tab's page-header context line ("49 to buy · 2 stores", #153 J-04) —
+// the item count mirrors the dashboard's own "Need buying" metric
+// (payload.summary.shopping_items); the store count isn't in that summary,
+// so it's derived here from the same list this view already builds from.
+export function shoppingStoreCount() {
+  const cols = c();
+  return new Set([...shoppingItems().map((item) => item[cols.super]), ...Object.keys(state.shopping.extras)]).size;
+}
+
 export function renderShopping() {
   const cols = c();
   const base = shoppingItems();
