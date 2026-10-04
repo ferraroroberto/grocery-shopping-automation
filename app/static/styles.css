@@ -245,57 +245,11 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 }
 
 /* ------------------------------------------------------ theme toggle */
-/* Sun/moon ghost button in the top bar. Shows the glyph for the ACTION:
-   moon in light (tap → dark), sun in dark (tap → light). */
-.theme-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: var(--control-h);
-  min-width: var(--control-h);
-  padding: 6px;
-  background: transparent;
-  border: 0;
-  border-radius: var(--radius-md);
-  color: var(--muted);
-}
-.theme-toggle:active { background: var(--card-off); color: var(--ink); }
-.theme-toggle-icon {
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
+/* The toggle itself is the vendored home-head's .home-toggle (the page header,
+   modules/core.js); this only picks the glyph for the ACTION: moon in light
+   (tap -> dark), sun in dark (tap -> light). */
 :root[data-theme="dark"] .theme-icon-moon { display: none; }
 :root:not([data-theme="dark"]) .theme-icon-sun { display: none; }
-
-/* ------------------------------------------------------------ page header */
-/* design.md "page header" contract (#153 J-04) — the first element of every
-   tab's pane, ONE row at disclosure-summary height (52px): icon + title,
-   context line inline after it, theme toggle right — everything centered
-   vertically (the home-automation weather-tile shape, compacted). Markup is
-   shared across all 5 panes (modules/core.js pageHeaderHtml). */
-.page-header {
-  display: flex;
-  align-items: center;
-  gap: var(--gap);
-}
-.page-header .status {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.status {
-  min-height: 20px;
-  color: var(--muted);
-  font-size: var(--font-label);
-}
 
 /* Search sits alone below the pills: full card width (a second grid track
    would inset it by one gap and break the alignment with the cards below)
@@ -353,12 +307,10 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   border: 1px solid var(--line);
   border-radius: var(--radius);
 }
-/* Collapsible cards zero their own padding (vendored disclosure contract) —
-   this rule loads after disclosure.css, so it must not re-add it. */
-.card:not(.card--collapsible), .panel { padding: var(--space-md); }
-/* Page header matches the collapse-summary geometry exactly (52px, 14px
-   inset) — same 0-2-0 specificity as the padding rule above, later wins. */
-.card.page-header { min-height: var(--row-md); padding: 0 14px; }
+/* Collapsible cards zero their own padding (vendored disclosure contract) and
+   the page header (vendored home-head) sets its own 52px row — this rule
+   loads after both, so it must not re-add padding to either. */
+.card:not(.card--collapsible):not(.home-head), .panel { padding: var(--space-md); }
 .panel > * + * { margin-top: var(--gap); }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
 .card-title {

@@ -1,10 +1,10 @@
-"""Background email-confirmation poller for the Setup tab (issue #73).
+"""Background email-confirmation poller for the Settings pane (issue #73).
 
 Wraps the #72 seam (`automation.email_check.check_latest_confirmation`) in a
 scheduled loop: a daemon thread wakes periodically, and when polling is
 enabled and the configured interval has elapsed it checks every enabled
 monitored sender's store. Each check (scheduled or manual) appends one entry
-to a small gitignored log so the Setup tab can show what happened last.
+to a small gitignored log so the Settings pane can show what happened last.
 
 Already-processed emails are skipped by the seam itself (processed-state
 file, #72); a manual `force=True` run re-processes the latest email — the
@@ -64,7 +64,7 @@ def _append_log(entries: list[dict[str, Any]], path: Optional[Path] = None) -> N
 
 
 def outcome_text(result: ConfirmationCheckResult) -> str:
-    """One human-readable line for the Setup tab's last-check log."""
+    """One human-readable line for the Settings pane's last-check log."""
 
     if not result.checked:
         return f"Check skipped: {result.reason}"
@@ -117,7 +117,7 @@ def run_checks(*, force: bool = False, trigger: str = "manual") -> list[dict[str
                 # A per-store failure (e.g. an unrefreshable Gmail token, #109)
                 # must still produce its own log entry — never silently drop
                 # out of the loop before _append_log/_last_run_at run below,
-                # or the Setup tab's log and next-check ETA go stale with no
+                # or the Settings pane's log and next-check ETA go stale with no
                 # trace of what happened.
                 logger.exception("❌ Email check errored (%s, %s)", store, trigger)
                 entries.append(
@@ -163,7 +163,7 @@ def update_config(
 
 
 def status() -> dict[str, Any]:
-    """Config + last-check log + next scheduled run, for the Setup tab card."""
+    """Config + last-check log + next scheduled run, for the Settings pane card."""
 
     settings = load_poller_settings()
     senders = load_monitored_senders()

@@ -1,6 +1,7 @@
 // The HTTP seam: bearer-token fetch, the mandatory login handshake, and the
 // two calls that refresh app-wide state (inventory payload, build identity).
 import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
+import { showToast } from "../_vendored/toast/toast.js";
 import {
   activePaneBody,
   defaultZone,
@@ -107,7 +108,7 @@ export async function mutate(url, payload, method = "POST") {
     body: JSON.stringify(payload),
   });
   render();
-  setStatus("Saved");
+  showToast("Saved");
 }
 
 // --------------------------------------------------- build identity

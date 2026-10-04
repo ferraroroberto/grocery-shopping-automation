@@ -9,8 +9,8 @@
 flowchart TB
   subgraph frontend["Primary surface — FastAPI + vanilla-JS PWA (:8502)"]
     STATIC["app/static/\nindex.html · styles.css · generated PWA icons\n_vendored/ (fleet nav, icons, card, disclosure, modal, switch, empty-state)"]
-    APPJS["app/static/app.js\norchestrator: render() mode routing, delegated listeners, boot\n5 nav tabs (#182): Home · Shop · Audit · Items · Setup"]
-    JSMODULES["app/static/modules/ (ES modules, no bundler)\ncore (state + render mediator, retired-tab migration) · dom · media · api\ninventory · shopping · stores · audio\nsearch → Items › Add Item · automation (Fill carts) → Shop · email (Email Watch) → Setup"]
+    APPJS["app/static/app.js\norchestrator: render() mode routing, delegated listeners, boot\n4 nav tabs (#182, #200): Home · Shop · Audit · Items; Settings is the header gear, never a tab"]
+    JSMODULES["app/static/modules/ (ES modules, no bundler)\ncore (state + render mediator, retired-tab migration) · dom · media · api\ninventory · shopping · stores · audio\nsearch → Items › Add Item · automation (Fill carts) → Shop · email (Email Watch) → Settings"]
     API["app/api.py\ncomposition root: lifespan, middleware, static mount, router includes"]
     ROUTERS["app/routers/ — one APIRouter per concern\nsystem (shell, version, manifest, login, access, actions)\ninventory · stores · automation · product_search · audio · voice · email"]
     APICOMMON["app/api_common.py\ndata-layer → HTTP translation (lock/file errors → status codes),\ninventory payload builder shared by every router"]

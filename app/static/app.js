@@ -3,6 +3,8 @@
 // own module under ./modules/ — add features there, not here.
 import { initNavTabs } from "./_vendored/nav/nav-tabs.js";
 import { setSwitch } from "./_vendored/switch/switch.js";
+import { bindTextSize } from "./_vendored/text-size/text-size.js";
+import { showToast } from "./_vendored/toast/toast.js";
 import { fetchJson, fetchVersion, loadInventory, mutate, onLoginSubmit } from "./modules/api.js";
 import {
   applyAudio,
@@ -124,7 +126,35 @@ function render() {
 
 setRenderer(render);
 
+// ---------------------------------------------------------------- settings
+// Settings is never a tab (design.md "Navigation", #200): every pane's header
+// carries a gear that opens #pane-settings over whichever tab is showing. The
+// nav only knows its own tab panes, so opening hides them here and leaves no
+// tab selected; a tap on any tab (or on the gear again) comes back.
+const settingsPane = document.querySelector("#pane-settings");
+let nav = null;
+let settingsReturnTab = "inventory";
+
+function openSettings() {
+  settingsReturnTab = nav.getTab();
+  state.mode = "settings";
+  el.app.querySelectorAll(":scope > .pane").forEach((pane) => { pane.hidden = pane !== settingsPane; });
+  document.querySelectorAll(".tabs .tab").forEach((tab) => {
+    tab.classList.remove("active");
+    tab.setAttribute("aria-selected", "false");
+  });
+  el.app.scrollTop = 0;
+  window.scrollTo(0, 0);
+  render();
+}
+
+function closeSettings() {
+  nav.setTab(settingsReturnTab);
+}
+
 function onTabChange(tab) {
+  // Leaving Settings: its pane is not a nav pane, so the nav never hides it.
+  settingsPane.hidden = true;
   if (MODE_TO_TAB[state.mode] !== tab) state.mode = restoreSubMode(tab);
   // Fill carts paints once (render → renderFillCarts, which fetches the run
   // status itself) and then persists; re-entering Shop resyncs an already
@@ -160,6 +190,13 @@ el.app.addEventListener("click", (event) => {
   state.mode = button.dataset.mode;
   saveSubMode(state.mode);
   render();
+});
+
+// Settings gear: one per pane's page header, always beside the theme toggle.
+el.app.addEventListener("click", (event) => {
+  if (!event.target.closest(".home-settings")) return;
+  if (state.mode === "settings") closeSettings();
+  else openSettings();
 });
 
 // Theme toggle: one per pane's page header (#153 J-04), so the id lives only
@@ -317,17 +354,17 @@ el.search.addEventListener("input", () => {
   if (state.mode === "stores") repaintStoresList();
   else render();
 });
-el.openSheet.addEventListener("click", () => fetchJson("/api/actions/open-spreadsheet", { method: "POST" }).then(() => setStatus("Spreadsheet opened")));
+el.openSheet.addEventListener("click", () => fetchJson("/api/actions/open-spreadsheet", { method: "POST" }).then(() => showToast("Spreadsheet opened")));
 el.copyLink.addEventListener("click", async () => {
   const url = state.access?.cloudflare || state.access?.lan || window.location.href;
   await navigator.clipboard.writeText(url);
-  setStatus("Link copied");
+  showToast("Link copied");
 });
 el.exportCsv.addEventListener("click", () => { window.location.href = "/api/export.csv"; });
 el.bootstrapSession.addEventListener("click", () => {
   fetchJson("/api/actions/bootstrap-session", { method: "POST" })
-    .then(() => setStatus("Chrome window opened — log into each store, then close it completely."))
-    .catch((error) => setStatus(error.message));
+    .then(() => showToast("Chrome window opened — log into each store, then close it completely."))
+    .catch((error) => showToast(error.message, "error"));
 });
 
 el.loginForm.addEventListener("submit", onLoginSubmit);
@@ -343,11 +380,12 @@ const retiredReveal = migrateRetiredTab();
 // The nav restores the persisted tab and fires onChange once at init
 // (payload is still null there, so that first render() is a no-op — the
 // restored tab paints when loadInventory() completes).
-initNavTabs({
+nav = initNavTabs({
   storageKey: TAB_KEY,
   onChange: onTabChange,
   scrollResetSelector: ".app",
 });
+bindTextSize(document.querySelector("#textSizeControl"), "grocery");
 loadInventory().then(() => {
   if (retiredReveal) document.querySelector(retiredReveal)?.scrollIntoView({ block: "start" });
 });
