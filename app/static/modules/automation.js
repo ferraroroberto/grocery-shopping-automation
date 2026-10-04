@@ -40,7 +40,7 @@ export function renderFillCarts({ force = false } = {}) {
     <div id="automation-clean-warn" class="panel-status error" hidden>Clean mode empties the store cart first — anything added by hand will be removed.</div>
     <div id="automation-clean-confirm-wrap" class="flag-row" hidden><span>Yes, empty the cart first</span>${switchMarkup(false, "Yes, empty the cart first", { id: "automation-clean-confirm" })}</div>
     <details class="inline-disclosure">
-      <summary class="inline-disclosure-summary"><span>Command</span><span class="inline-chevron" aria-hidden="true">›</span></summary>
+      <summary class="inline-disclosure-summary"><span>What will run</span><span class="inline-chevron" aria-hidden="true">›</span></summary>
       <pre id="automation-command" class="log"></pre>
     </details>
     <div class="actions">

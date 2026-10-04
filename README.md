@@ -375,7 +375,7 @@ each store, then close the window.
 the PWA's **🛒 Shop** tab lets you pick a store (or "All stores"), choose a
 **cart mode**, optionally switch on *Dry run*, and click **Run automation**
 (nothing runs until you do). The exact command it will run is folded under
-**Command**. Output streams live into the page and a **Stop** button cancels an
+**What will run**. Output streams live into the page and a **Stop** button cancels an
 in-progress run; the section keeps its picks and live log while you tick items
 off the list above it. The legacy Streamlit app offers the same
 controls under its **🛒 Shopping List** mode's **🤖 Run Automation** section.
