@@ -859,3 +859,26 @@ def test_empty_automation_log_says_what_fills_it(page):
     log.wait_for(state="attached")
     text = log.inner_text()
     assert "Run automation" in text and "progress appears here" in text
+
+
+_FIRST_AFTER_HEADER_JS = r"""
+(tab) => {
+  const pane = document.querySelector(`#pane-${tab}`);
+  const head = pane.querySelector('.home-head');
+  const seen = [...pane.querySelectorAll('h1,h2,h3,h4,h5,h6,button,input,select,textarea,[role="tab"]')]
+    .filter((e) => !head.contains(e) && e.getClientRects().length);
+  const first = seen[0];
+  return first ? `${first.tagName.toLowerCase()}:${first.textContent.trim().slice(0, 30)}` : null;
+}
+"""
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("mode,tab", [("dashboard", "inventory"), ("shopping", "shopping"), ("audit", "audit"), ("targets", "items")])
+def test_every_tab_opens_on_a_heading_not_a_control(page, mode, tab):
+    """J-04: below the page header, a tab's first heading-or-control in reading
+    order is a heading — never a mode pill or the search box."""
+    goto_mode(page, mode)
+    page.wait_for_timeout(300)
+    first = page.evaluate(_FIRST_AFTER_HEADER_JS, tab)
+    assert first and first.startswith(("h2:", "h3:")), f"{tab} opens on {first}"
