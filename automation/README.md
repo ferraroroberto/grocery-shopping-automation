@@ -179,7 +179,8 @@ and matches it against the latest purchase log so a dropped item is visible.
   different token.
 - **Sender whitelist**: copy `config/gmail_config.sample.json` to gitignored
   `config/gmail_config.json` and list the sender(s) to read from (today:
-  Ametller Origen, `noreply@news.ametllerorigen.cat`). `src/gmail_config.py`
+  Ametller Origen, `noreply@news.ametllerorigen.cat`, and Carrefour,
+  `clientes_carrefour.es@carrefour.com`). `src/gmail_config.py`
   wires this whitelist to the vendored component, mirroring
   `src/notify_config.py`'s shape.
 - **Subject filtering**: the sender whitelist alone would also catch
@@ -191,9 +192,13 @@ and matches it against the latest purchase log so a dropped item is visible.
 - **Per-store parser**: `automation/email_parsers/<store>.py` extracts the
   ordered item-name list from that store's specific email HTML/text
   structure — deterministic regex/parsing, never an LLM call, mirroring the
-  per-store handler split (`ametller.py` / `mercadona.py`) above. Only
-  Ametller is implemented today; add a sibling module once another store's
-  confirmation-email format is available.
+  per-store handler split (`ametller.py` / `mercadona.py`) above. Ametller
+  and Carrefour are implemented; add a sibling module once another store's
+  confirmation-email format is available. Carrefour's *"Aviso de pedido NNN
+  preparado"* body lists what was **delivered** per line (`Pedido n …
+  Entregado m`), so a line with `Entregado 0` counts as dropped; the email has
+  no per-line prices. The Carrefour confirmation that *"Hemos recibido tu
+  pedido"* carries no item list, and its subject does not match.
 - **Matching**: `automation.item_matching` resolves each parsed website item
   name to a purchase-log `comida` value. The website's full catalogue name
   (e.g. *"American Burger Ametller Origen 150g - 2uds."*) rarely shares
@@ -259,6 +264,7 @@ send if a match is found):
 | `product_search.py` | `search_all()` — searches Mercadona + Ametller + Carrefour for a spoken product term and ranks candidates for display; the engine behind the PWA's **Search** tab (issue #87, Carrefour added in #157). |
 | `email_parsers/__init__.py` | Deterministic (non-LLM) per-store order-confirmation email parsers — package marker. |
 | `email_parsers/ametller.py` | Deterministic order-confirmation item-list parser for Ametller. |
+| `email_parsers/carrefour.py` | Deterministic "order prepared" item-list parser for Carrefour (delivered lines only; issue #158). |
 | `item_matching.py` | `match_items()` — resolves confirmed email items to purchase-log `comida` values (alias table + fuzzy fallback). |
 | `email_check.py` | `check_latest_confirmation()` — the Gmail-fetch → parse → match → notify orchestration entrypoint (issue #72). |
 

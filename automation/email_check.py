@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Optional
 
 from automation.email_parsers import ametller as ametller_parser
+from automation.email_parsers import carrefour as carrefour_parser
 from automation.item_matching import (
     MatchResult,
     load_alias_table,
@@ -40,15 +41,19 @@ DEFAULT_PROCESSED_STATE_PATH = _REPO_ROOT / "config" / "gmail_processed_state.js
 DEFAULT_PURCHASE_LOGS_DIR = _REPO_ROOT / "purchase_logs"
 
 # Store key -> canonical "order prepared" subject, accents/emoji stripped.
-# One entry today (Ametller); add a sibling entry once another store's
-# confirmation-email format is available (issue #72 scope note).
+# Add a sibling entry once another store's confirmation-email format is
+# available (issue #72 scope note). Carrefour's real subject embeds the order
+# number ("Aviso de pedido 93752541 preparado. Carrefour."); the similarity
+# match in `subject_matches` absorbs it, so the canonical form omits it.
 STORE_SUBJECTS: dict[str, str] = {
     "ametller": "la comanda esta preparada",
+    "carrefour": "aviso de pedido preparado carrefour",
 }
 # Store key -> that store's parser module, mirroring
 # automation.run_automation.HANDLERS.
 STORE_PARSERS = {
     "ametller": ametller_parser,
+    "carrefour": carrefour_parser,
 }
 SUBJECT_SIMILARITY_THRESHOLD = 0.8
 

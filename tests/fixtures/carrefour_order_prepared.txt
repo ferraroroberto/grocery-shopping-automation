@@ -1,0 +1,106 @@
+Pedido nº 00000000
+
+Fecha compra:01/01/2000
+
+Fecha entrega:01/01/2000
+
+Variaciones en la entrega
+
+Variaciones en el peso
+
+Productos que no te hemos podido entregar	 
+Vino D.O. Rueda blanco verdejo Apoteosis 75 cl.	 
+Pedido  1	 Entregado  0	 
+Vino D.O. Rueda blanco verdejo Apoteosis 75 cl.	 
+Pedido  2	 Entregado  0	 
+Hamburguesa de Pollo Mini Coren (6x40g) 240 g	 
+Pedido  1	 Entregado  0	 
+Pera conferencia de mercado 500 g aprox	 
+Pedido  2	 Entregado  0	 
+Tomate natural especial pizza Cirio 680 g.	 
+Pedido  1	 Entregado  0	 
+ 	 
+Productos de los que solo te entregamos algunas unidades	 
+Manzana pink lady a granel 1 kg aprox	 
+Pedido  2	 Entregado  1	 
+ 	 
+Productos que te entregamos con variaciones en el peso	 
+Patata lavada a granel 1 Kg aprox	 
+Pedido  1 (1 kg) 	Entregado  1 (1,027 kg) 	
+Queso curado mezcla Boffard al corte 250 g aprox	 
+Pedido  1 (0,25 kg) 	Entregado  1 (0,324 kg) 	
+Manzana pink lady a granel 1 kg aprox	 
+Pedido  2 (2 kg) 	Entregado  1 (1,183 kg) 	
+ 	 
+Productos que te entregamos con normalidad	 
+Colonia infantil Suavinex 100 ml.	 
+Pedido  1	 Entregado  1	 
+Guisantes finos Findus 1 kg.	 
+Pedido  2	 Entregado  2	 
+Queso parmesano reggiano D.O.P. Parmeggio Hispano Italiana 200 g
+Pedido  1	 Entregado  1	 
+Bebida de soja Carrefour sin azúcares brik 1 l.	 
+Pedido  6	 Entregado  6	 
+Cereales con avena integral y chocolate Cruesli Quaker 375 g.	 
+Pedido  1	 Entregado  1	 
+Galletas María Fontaneda 800 g.	 
+Pedido  1	 Entregado  1	 
+Huevos L Carrefour 12 ud 	
+Pedido  1	 Entregado  1	 
+Menestra tradicional Findus-Verdeliss 450 g.	 
+Pedido  3	 Entregado  3	 
+Canelones de carne con bechamel Bo de Debó 720 g	 
+Pedido  1	 Entregado  1	 
+Chocolate con leche Valor sin gluten 300 g.	 
+Pedido  1	 Entregado  1	 
+Chocolate puro XL Valor sin gluten 350 g.	 
+Pedido  1	 Entregado  1	 
+Varitas merluza enriquecidas Pescanova 450 g.	 
+Pedido  1	 Entregado  1	 
+Vino D.O. Rias Baixas albariño blanco Martin Codax 75 cl.	 
+Pedido  1	 Entregado  1	 
+Ensalada gourmet Carrefour 320 g	 
+Pedido  1	 Entregado  1	 
+Ensalada gourmet Carrefour 320 g	 
+Pedido  1	 Entregado  1	 
+Queso emmental bloque President 250 g	 
+Pedido  1	 Entregado  1	 
+Tortilla de patata con cebolla 600 g	 
+Pedido  1	 Entregado  1	 
+Arroz Sos 2 kg.	 
+Pedido  1	 Entregado  1	 
+Arroz Sos 2 kg.	 
+Pedido  1	 Entregado  1	 
+Lenteja pardina categoría extra Luengo 1 kg.	 
+Pedido  1	 Entregado  1	 
+Tomate natural especial pasta Cirio 700 g.	 
+Pedido  1	 Entregado  1	 
+10 Bolsas de basura Handy Bag Resistente Antibacterias 100 Litros- Azul
+Pedido  1	 Entregado  1	 
+Gel de ducha con Flor de cereza y Leche Hidratante NB Palmolive 600 ml.
+Pedido  1	 Entregado  1	 
+Protegeslip Cottonlike maxi Evax 72 ud.	 
+Pedido  1	 Entregado  1	 
+FRESON TARRINA 500 GRAMOS	 
+Pedido  1	 Entregado  1	 
+Plátano de Canarias Coplaca bandeja 5 uds	 
+Pedido  2	 Entregado  2	 
+Surtido de picos y regañás Carrefour 450 g. 	
+Pedido  1	 Entregado  1	 
+Pan de molde sin corteza buenisimo Bimbo 450 g.	 
+Pedido  1	 Entregado  1	 
+Queso gouda holland en lonchas Carrefour 200 g.	 
+Pedido  1	 Entregado  1	 
+Pimentón dulce Carmencita 75 g.	 
+Pedido  1	 Entregado  1	 
+Yogur griego de fresa Carrefour pack de 4 unidades de 125 g.	 
+Pedido  2	 Entregado  2	 
+Yogur de sabores Danone pack de 12 unidades de 125 g.	 
+Pedido  2	 Entregado  2	 
+Barra Baguettina 100 g sin gluten	 
+Pedido  8	 Entregado  8
+
+Para más información
+
+Consulta el detalle de pedido
+<https://www.carrefour.es/supermercado/newOrderDetail?OMSOrderId=00000000>
