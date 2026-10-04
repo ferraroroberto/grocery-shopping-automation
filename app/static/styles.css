@@ -330,6 +330,9 @@ h1, h2, h3 { margin: 0; line-height: 1.2; }
    The full text scale is exactly four steps: heading-lg 1.5 / body 1 /
    label 0.92 (controls, statuses, hints) / caption 0.78 (data metas). */
 h2 { font-size: var(--font-body); font-weight: 700; }
+/* A tab's first line under the page header (#153 J-04): the section title the
+   mode pills and the search box sit under. Inset to the cards' text edge. */
+.pane-title { padding: 0 var(--space-xs); }
 h3 { font-size: var(--font-body); font-weight: 600; }
 
 /* Home summary: one card, a <dl> of label/value rows (#198) — five separate

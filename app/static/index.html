@@ -227,6 +227,9 @@
         <!-- Page header: injected as this pane's first child by
              modules/core.js (pageHeaderHtml) — see that module for the
              shared markup every one of the 5 panes gets (#153 J-04). -->
+        <!-- First content under the header is a section title, not a control
+             (#153 J-04): the search box and the pills below read as its body. -->
+        <h2 class="pane-title">Overview</h2>
         <!-- Search shows only on the modes that filter the item list
              (dashboard / audit / targets / edit) — app.js re-homes this node
              into the active pane BELOW the sub-mode pills, so the pills never
@@ -245,6 +248,7 @@
         <div id="fill-carts-host"></div>
       </section>
       <section id="pane-audit" class="pane" role="tabpanel" aria-labelledby="tabAudit" aria-label="Audit" hidden>
+        <h2 class="pane-title">Check your stock</h2>
         <div class="pills subnav" role="group" aria-label="Audit modes">
           <button type="button" class="pill" data-mode="audit">Audit</button>
           <button type="button" class="pill" data-mode="audio">Audio audit</button>
@@ -252,6 +256,7 @@
         <div class="pane-body"></div>
       </section>
       <section id="pane-items" class="pane" role="tabpanel" aria-labelledby="tabItems" aria-label="Items" hidden>
+        <h2 class="pane-title">Manage items</h2>
         <div class="pills subnav" role="group" aria-label="Item modes">
           <button type="button" class="pill" data-mode="targets">Targets</button>
           <button type="button" class="pill" data-mode="edit">Edit item</button>
