@@ -44,19 +44,19 @@ function setAudioStatus(message, kind = "") {
 // up to ~10 minutes; never imply a call is fast.
 function audioMatchStage(elapsed) {
   const t = formatElapsed(elapsed);
-  if (elapsed < 5) return `Sending request to LLM hub… (${t})`;
-  if (elapsed < 20) return `Hub routing to model, analysing transcript… (${t})`;
-  if (elapsed < 60) return `Matching mentions to candidates… (${t}) — typical 30s–2min`;
+  if (elapsed < 5) return `Sending the transcript… (${t})`;
+  if (elapsed < 20) return `Reading the transcript… (${t})`;
+  if (elapsed < 60) return `Matching what you said to your list… (${t}) — typical 30s–2min`;
   if (elapsed < 180) return `Still working… (${t}) — long noisy transcripts take 2–4 min`;
   return `Still working… (${t}) — patience, can take up to 10 min on the longest walks`;
 }
 
 function audioTranscribeStage(elapsed) {
   const t = formatElapsed(elapsed);
-  if (elapsed < 5) return `Uploading audio to whisper-server… (${t})`;
-  if (elapsed < 30) return `Whisper transcribing… (${t})`;
-  if (elapsed < 120) return `Whisper still working… (${t}) — long clips can take 1–3 min`;
-  return `Whisper still working… (${t}) — long audio can take up to 10 min`;
+  if (elapsed < 5) return `Uploading the audio… (${t})`;
+  if (elapsed < 30) return `Transcribing… (${t})`;
+  if (elapsed < 120) return `Still transcribing… (${t}) — long clips can take 1–3 min`;
+  return `Still transcribing… (${t}) — long audio can take up to 10 min`;
 }
 
 function setAudioInFlight(busy) {
@@ -112,18 +112,18 @@ function renderAudioHealth() {
   const okIcon = '<svg class="icon" aria-hidden="true" focusable="false"><use href="#i-circle-check"></use></svg> ';
   const badIcon = '<svg class="icon" aria-hidden="true" focusable="false"><use href="#i-circle-alert"></use></svg> ';
   const problems = [];
-  if (!h.voice_ok) problems.push(`${badIcon}Voice recorder unreachable at <code>${html(h.voice_url)}</code> — start the voice-transcriber tray`);
-  if (!h.hub_ok) problems.push(`${badIcon}LLM hub unreachable at <code>${html(h.hub_url)}</code>`);
+  if (!h.voice_ok) problems.push(`${badIcon}The voice recorder isn't reachable — start the voice-transcriber app`);
+  if (!h.hub_ok) problems.push(`${badIcon}The matching service isn't reachable — start local-llm-hub`);
   if (!h.whisper_ok) {
-    const hint = h.whisper_host ? ` — local-llm-hub currently has it running on <code>${html(h.whisper_host)}</code> instead` : "";
-    problems.push(`${badIcon}Whisper server unreachable at <code>${html(h.whisper_url)}</code>${hint}`);
+    const hint = h.whisper_host ? " — local-llm-hub is running it somewhere else" : "";
+    problems.push(`${badIcon}Speech-to-text isn't reachable${hint}`);
   }
   if (!problems.length) {
     banner.className = "panel-status ok";
-    banner.innerHTML = `${okIcon}Voice recorder, hub and whisper-server reachable`;
+    banner.innerHTML = `${okIcon}Voice recorder, matching and speech-to-text are reachable`;
   } else {
     banner.className = "panel-status error";
-    banner.innerHTML = `${problems.join("<br>")}<br>Voice recorder is the voice-transcriber app; hub :8000 + whisper :8090 are local-llm-hub.`;
+    banner.innerHTML = problems.join("<br>");
   }
   const matchBtn = document.querySelector("#match-transcript");
   if (matchBtn && !audioAbort) matchBtn.disabled = !h.hub_ok;
@@ -133,7 +133,7 @@ function renderAudioHealth() {
   const recording = audio.mediaRecorder && audio.mediaRecorder.state === "recording";
   if (recordBtn && !recording) {
     recordBtn.disabled = !h.voice_ok;
-    recordBtn.title = h.voice_ok ? "" : "Voice recorder unreachable — start the voice-transcriber tray";
+    recordBtn.title = h.voice_ok ? "" : "The voice recorder isn't reachable — start the voice-transcriber app";
   }
 }
 
@@ -203,8 +203,7 @@ export function renderAudio() {
 function renderAudioContext() {
   const node = document.querySelector("#audio-context");
   if (!node) return;
-  const hub = audio.health?.hub_url || state.payload.audio?.hub_url || "local hub";
-  node.textContent = `${hub} · candidates ${items().length} · model ${humanizeModelId(audio.model) || "config default"}`;
+  node.textContent = `${items().length} items to match · model ${humanizeModelId(audio.model) || "default"}`;
 }
 
 export function setAudioModel(value) {
@@ -338,7 +337,7 @@ export async function toggleRecording(button) {
     return;
   }
   if (audio.health && !audio.health.voice_ok) {
-    setAudioStatus("Voice recorder unreachable — start the voice-transcriber tray", "error");
+    setAudioStatus("The voice recorder isn't reachable — start the voice-transcriber app", "error");
     return;
   }
 
@@ -541,7 +540,7 @@ export async function matchTranscript() {
     return;
   }
   if (audio.health && !audio.health.hub_ok) {
-    setAudioStatus("LLM hub unreachable — start the hub before matching", "error");
+    setAudioStatus("The matching service isn't reachable — start local-llm-hub before matching", "error");
     return;
   }
   const model = audio.model;
@@ -556,7 +555,7 @@ export async function matchTranscript() {
     );
     const m = audio.matches;
     setAudioStatus(
-      `Matched ${m.items.length} item${m.items.length === 1 ? "" : "s"} · ${m.candidates} candidates · ${m.transcript_chars} chars · ${humanizeModelId(m.model)}`,
+      `Matched ${m.items.length} item${m.items.length === 1 ? "" : "s"} · ${humanizeModelId(m.model)}`,
       "ok",
     );
     renderMatches();
