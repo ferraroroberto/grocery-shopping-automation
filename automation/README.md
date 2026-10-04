@@ -218,7 +218,7 @@ and matches it against the latest purchase log so a dropped item is visible.
   message id still loads, and adopts its watermark on the first check that
   can still see that message.
 - **Background poller (issue #73)**: `app/email_poller.py` calls that seam on a
-  schedule. The PWA's ⚙️ Setup tab carries an **Email Watch** card (folded by
+  schedule. The PWA's ⚙️ Settings pane (the header gear) carries an **Email Watch** card (folded by
   default) that selects which whitelisted senders are monitored (each mapped
   to a store via the `store` field in `config/gmail_config.json`), switches
   automatic polling on/off, sets the cadence (15 min – daily), and shows the

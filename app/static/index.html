@@ -13,14 +13,22 @@
     <link rel="icon" type="image/png" href="/static/icon-512.png" />
     <link rel="manifest" href="/manifest.json" />
     <title>Inventory Helper</title>
+    <!-- Pre-paint boot (vendored text-size/text-size-boot.html, only `app` set):
+         stamps html[data-theme] and html[data-textsize] before first paint. -->
     <script>
-      // Apply the saved (or system) theme before first paint to avoid a flash.
       (function () {
-        var theme = localStorage.getItem("grocery.theme");
-        if (theme !== "light" && theme !== "dark") {
-          theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-        }
-        document.documentElement.setAttribute("data-theme", theme);
+        var app = 'grocery';
+        var root = document.documentElement;
+        var theme = null;
+        var size = null;
+        try {
+          theme = localStorage.getItem(app + '.theme');
+          size = localStorage.getItem(app + '.textsize');
+        } catch (e) {}
+        var dark = theme ? theme === 'dark'
+          : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        root.dataset.theme = dark ? 'dark' : 'light';
+        root.dataset.textsize = size === 'small' || size === 'large' ? size : 'default';
       })();
     </script>
     <link rel="stylesheet" href="/static/_vendored/nav/nav-tabs.css" />
@@ -29,6 +37,10 @@
     <link rel="stylesheet" href="/static/_vendored/modal/modal.css" />
     <link rel="stylesheet" href="/static/_vendored/switch/switch.css" />
     <link rel="stylesheet" href="/static/_vendored/empty-state/empty-state.css" />
+    <link rel="stylesheet" href="/static/_vendored/home-head/home-head.css" />
+    <link rel="stylesheet" href="/static/_vendored/range-tab/range-tab.css" />
+    <link rel="stylesheet" href="/static/_vendored/text-size/text-size.css" />
+    <link rel="stylesheet" href="/static/_vendored/toast/toast.css" />
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body>
@@ -208,14 +220,6 @@
         </svg>
         <span class="tab-label">Items</span>
       </button>
-      <button id="tabSettings" type="button" class="tab" data-tab="settings"
-              role="tab" aria-selected="false" aria-controls="pane-settings" tabindex="-1">
-        <svg class="tab-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
-          <path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" />
-          <circle cx="12" cy="12" r="3" />
-        </svg>
-        <span class="tab-label">Setup</span>
-      </button>
     </nav>
 
     <main class="app">
@@ -256,10 +260,22 @@
         </div>
         <div class="pane-body"></div>
       </section>
-      <section id="pane-settings" class="pane" role="tabpanel" aria-labelledby="tabSettings" aria-label="Settings" hidden>
+      <!-- Settings is never a tab (design.md "Navigation", #200): this pane is
+           opened by the gear in every pane's header (app.js openSettings), not
+           by the nav, so it has no tabpanel role and no nav button. -->
+      <section id="pane-settings" class="pane" aria-label="Settings" hidden>
         <!-- No "Settings" card title here — the page header above already
-             names this tab "Setup" (#153 J-04: the old h2 was a pure
-             duplicate). -->
+             names this pane (#153 J-04: the old h2 was a pure duplicate). -->
+        <div class="card">
+          <h2 class="card-title" id="text-size-title">Text size</h2>
+          <!-- Vendored text-size control (text-size/text-size.html); bound in
+               app.js with the grocery storage prefix. -->
+          <nav class="range-tabs" id="textSizeControl" aria-labelledby="text-size-title">
+            <button type="button" class="range-tab" data-textsize="small">Small</button>
+            <button type="button" class="range-tab" data-textsize="default">Default</button>
+            <button type="button" class="range-tab" data-textsize="large">Large</button>
+          </nav>
+        </div>
         <div class="card">
           <div class="settings-actions">
             <button id="open-sheet" class="secondary" type="button">

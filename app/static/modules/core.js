@@ -16,10 +16,11 @@ export const THEME_KEY = "grocery.theme";
 // Modes whose content the search box filters — it hides everywhere else.
 export const SEARCHABLE_MODES = new Set(["dashboard", "audit", "targets", "edit", "stores"]);
 
-// The 9 modes group into the fleet nav's 5 tabs; audit/items tabs re-home
+// The 9 modes group into the fleet nav's 4 tabs plus Settings, which is never a
+// tab (#200): its pane is opened by the header gear. audit/items tabs re-home
 // their modes as sub-pills (static markup in index.html). Product search lives
 // inside Items → Add Item, cart automation ("Fill carts") at the bottom of
-// Shop, Email Watch in Setup (#182).
+// Shop, Email Watch in Settings (#182).
 export const MODE_TO_TAB = {
   dashboard: "inventory",
   shopping: "shopping",
@@ -36,7 +37,6 @@ export const TAB_DEFAULT_MODE = {
   shopping: "shopping",
   audit: "audit",
   items: "targets",
-  settings: "settings",
 };
 
 // Tabs retired in #182 → their content's new home. A PWA that last closed on
@@ -58,39 +58,42 @@ export const state = {
 };
 
 // ------------------------------------------------------ page header
-// design.md "page header" contract (#153 J-04): the first element of every
-// tab's pane — icon + bold title naming the tab, one context line, a
-// trailing theme toggle. One markup source here (generalized from the old
-// Home-only .home-head) instead of 5 hand-copied HTML blocks that would
-// drift. Injected as each pane's firstElementChild at module load, which
-// must run before `el` below queries #status — the Home context line lives
-// inside the injected markup.
+// design.md "page header" contract (#153 J-04, #200): the first element of
+// every pane — the vendored home-head (icon + bold title, one optional context
+// line, then the theme toggle and the Settings gear pinned right). One markup
+// source here instead of 5 hand-copied HTML blocks that would drift. Settings
+// is never a tab, so the gear sits on every pane, Settings' own included.
+// Injected as each pane's firstElementChild at module load, which must run
+// before `el` below queries #status — the Home context line lives inside the
+// injected markup.
 const PAGE_HEADERS = [
   { tab: "inventory", icon: "shopping-basket", title: "Home", contextId: "status", themeToggleId: "theme-toggle", context: "Loading inventory..." },
   { tab: "shopping", icon: "shopping-cart", title: "Shop", contextId: "shop-context" },
   { tab: "audit", icon: "list-checks", title: "Audit", contextId: "audit-context" },
   { tab: "items", icon: "package", title: "Items", contextId: "items-context" },
-  // Setup's context is a fixed label, not a live figure — no submode/API to
-  // read it from (see design.md page-header contract: "e.g. build id or
-  // Settings"; the build id already has its own footer line).
-  { tab: "settings", icon: "settings", title: "Setup", contextId: "setup-context", context: "Settings" },
+  // Settings has no live context line to show (the build id already has its
+  // own footer line), so its header omits the optional status span.
+  { tab: "settings", icon: "settings", title: "Settings" },
 ];
 
 function pageHeaderHtml({ icon, title, contextId, context, themeToggleId }) {
-  return `<section class="card page-header" aria-label="${title}">
-      <h1 class="card-title">
+  return `<div class="card home-head">
+      <h1 class="home-title">
         <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-${icon}"></use></svg>
         ${title}
       </h1>
-      <div id="${contextId}" class="status" role="status">${context || ""}</div>
-      <button ${themeToggleId ? `id="${themeToggleId}" ` : ""}class="theme-toggle hit-target" type="button"
+      ${contextId ? `<span id="${contextId}" class="status" role="status">${context || ""}</span>` : ""}
+      <button ${themeToggleId ? `id="${themeToggleId}" ` : ""}class="home-toggle theme-toggle" type="button"
               title="Toggle theme" aria-label="Toggle dark mode">
         <!-- Sprite moon + sun; CSS shows the glyph for the *action* keyed
              on html[data-theme]. -->
-        <svg class="theme-toggle-icon theme-icon-moon hit-target" aria-hidden="true" focusable="false"><use href="#i-moon"></use></svg>
-        <svg class="theme-toggle-icon theme-icon-sun hit-target" aria-hidden="true" focusable="false"><use href="#i-sun"></use></svg>
+        <svg class="icon theme-icon-moon" aria-hidden="true" focusable="false"><use href="#i-moon"></use></svg>
+        <svg class="icon theme-icon-sun" aria-hidden="true" focusable="false"><use href="#i-sun"></use></svg>
       </button>
-    </section>`;
+      <button class="button-surface home-toggle home-settings" type="button" title="Settings" aria-label="Settings">
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-settings"></use></svg>
+      </button>
+    </div>`;
 }
 
 for (const cfg of PAGE_HEADERS) {

@@ -1,4 +1,4 @@
-// Email watch (issue #73) — a card in the Setup tab (moved from the retired
+// Email watch (issue #73) — a card in the Settings pane (moved from the retired
 // Auto tab in #182).
 //
 // Server-side poller over the #72 confirmation-email check: the card selects
@@ -13,9 +13,9 @@ const EMAIL_INTERVALS = [
   [180, "Every 3 h"], [360, "Every 6 h"], [720, "Every 12 h"], [1440, "Daily"],
 ];
 
-// Paint the card shell into Setup's static host once (it folds by default, and
+// Paint the card shell into Settings' static host once (it folds by default, and
 // keeping the node keeps its open state across re-renders), then refresh the
-// body from the server on every Setup render.
+// body from the server on every Settings render.
 export function renderEmailWatch() {
   const host = document.querySelector("#email-watch-host");
   if (!host) return;

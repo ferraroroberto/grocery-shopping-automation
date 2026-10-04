@@ -58,9 +58,9 @@ no_go = [
     '[data-action="search-use"]',
     '[data-action="search-confirm"]',         # Items -> Add item: product-search Use / Update item
     "#email-check-now",
-    "#email-check-test",                      # Setup: Check now / Test last email
-    "#open-sheet",                            # Setup: Open spreadsheet
-    "#bootstrap-session",                     # Setup: Log in to stores (launches a Chrome window)
+    "#email-check-test",                      # Settings: Check now / Test last email
+    "#open-sheet",                            # Settings: Open spreadsheet
+    "#bootstrap-session",                     # Settings: Log in to stores (launches a Chrome window)
 ]
 
 [[design.review.extra_steps]]
@@ -100,4 +100,12 @@ synthetic = false
 tab       = "items"
 id        = "stores-detail"
 clicks    = ['#pane-items [data-mode="stores"]', '[data-stores-action="detail"]']
+synthetic = false
+
+# Settings is never a tab (#200): the walk reaches it through the header gear,
+# which also puts the text-size control on a screen (A11Y-02).
+[[design.review.extra_steps]]
+tab       = "inventory"
+id        = "settings"
+click     = '#pane-inventory .home-settings'
 synthetic = false

@@ -33,10 +33,11 @@ BENCHMARK_RUNS = REPO_ROOT / "tests" / "fixtures" / "store_links"
 LIVE = os.environ.get("GROCERY_E2E_LIVE") == "1"
 TRANSCRIPT = "en la nevera, tengo dos yogures y un litro de leche. en el congelador, tres salmones."
 
-# The 9 modes group into the fleet nav's 5 tabs (mirrors MODE_TO_TAB in
+# 8 of the 9 modes group into the fleet nav's 4 tabs (mirrors MODE_TO_TAB in
 # modules/core.js); grouped modes are reached via a sub-pill inside their tab's
 # pane. Product search lives in Items -> Add Item and cart automation ("Fill
 # carts") at the bottom of Shop since the Search/Auto tabs were retired (#182).
+# Settings is the 9th and never a tab (#200): the header gear opens it.
 TAB_FOR_MODE = {
     "dashboard": "inventory",
     "shopping": "shopping",
@@ -46,12 +47,17 @@ TAB_FOR_MODE = {
     "edit": "items",
     "add": "items",
     "stores": "items",
-    "settings": "settings",
 }
 
 
 def goto_mode(page, mode: str) -> None:
-    """Navigate to a mode: click its nav tab, then its sub-pill when grouped."""
+    """Navigate to a mode: click its nav tab, then its sub-pill when grouped.
+    Settings has no tab -- it opens from the gear in the visible page header."""
+    if mode == "settings":
+        if not page.locator("#pane-settings").is_visible():
+            page.locator(".home-settings:visible").click()
+        page.wait_for_timeout(100)
+        return
     page.click(f"[data-tab='{TAB_FOR_MODE[mode]}']")
     pill = page.locator(f".subnav [data-mode='{mode}']")
     if pill.count():
@@ -204,29 +210,33 @@ def test_standalone_page_head_meta(page):
 
 
 @pytest.mark.e2e
-def test_five_tab_nav_and_relocated_sections(page, pw, server):
-    """#182: five tabs, and every capability of the retired Search/Auto tabs in
-    reach -- product search in Items -> Add Item, Fill carts at the bottom of
-    Shop, Email Watch in Setup -- with a saved retired tab reopening on its new
-    home instead of falling back to Home. Then the WebKit 390px nav check."""
+def test_four_tab_nav_and_relocated_sections(page, pw, server):
+    """#182 + #200: four tabs, and every capability of the retired Search/Auto
+    tabs in reach -- product search in Items -> Add Item, Fill carts at the
+    bottom of Shop, Email Watch in Settings (the header gear, never a tab) --
+    with a saved retired tab reopening on its new home instead of falling back
+    to Home. Then the WebKit 390px nav check."""
     tabs = page.locator("nav.tabs .tab")
-    assert tabs.count() == 5
-    assert tabs.locator(".tab-label").all_inner_texts() == ["Home", "Shop", "Audit", "Items", "Setup"]
+    assert tabs.count() == 4
+    assert tabs.locator(".tab-label").all_inner_texts() == ["Home", "Shop", "Audit", "Items"]
+    assert page.locator("nav.tabs [data-tab='settings']").count() == 0
 
-    # J-04 (#153): every pane opens on its own page header, not a bare control
-    # row -- one shared markup shape (icon + tab-naming title + context line +
-    # theme toggle) as each pane's first element, and only the active pane's
-    # is ever visible at once.
+    # J-04 (#153) + #200: every pane opens on its own page header, not a bare
+    # control row -- the vendored home-head (icon + tab-naming title + context
+    # line + theme toggle + Settings gear) as each pane's first element, and
+    # only the active pane's is ever visible at once.
     header_titles = {
         "pane-inventory": "Home", "pane-shopping": "Shop", "pane-audit": "Audit",
-        "pane-items": "Items", "pane-settings": "Setup",
+        "pane-items": "Items", "pane-settings": "Settings",
     }
     for pane_id, title in header_titles.items():
         header = page.locator(f"#{pane_id} > :first-child")
-        assert "page-header" in (header.get_attribute("class") or ""), f"{pane_id}'s first child isn't the page header"
-        assert header.locator(".card-title").inner_text().strip() == title
-    assert page.locator(".page-header").count() == 5
-    assert page.locator(".page-header:visible").count() == 1
+        assert "home-head" in (header.get_attribute("class") or ""), f"{pane_id}'s first child isn't the page header"
+        assert header.locator(".home-title").inner_text().strip() == title
+        assert header.locator(".theme-toggle").count() == 1
+        assert header.locator(".home-settings").count() == 1
+    assert page.locator(".home-head").count() == 5
+    assert page.locator(".home-head:visible").count() == 1
 
     goto_mode(page, "add")
     assert page.locator("#pane-items #product-search #search-term").is_visible()
@@ -273,7 +283,7 @@ def test_five_tab_nav_and_relocated_sections(page, pw, server):
         " return r.top < innerHeight && r.bottom > 0; }")
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
 
-    # WebKit (iPhone, 390px): five tabs with full labels, 44px targets, no sideways scroll.
+    # WebKit (iPhone, 390px): four tabs with full labels, 44px targets, no sideways scroll.
     webkit = pw.webkit.launch()
     try:
         phone = webkit.new_page(**pw.devices["iPhone 13"])
@@ -282,7 +292,7 @@ def test_five_tab_nav_and_relocated_sections(page, pw, server):
         phone.goto(server.url)
         phone.wait_for_function("document.querySelector('#status')?.textContent?.includes('Loaded')")
         assert phone.viewport_size["width"] == 390
-        boxes = [phone.locator("nav.tabs .tab").nth(i).bounding_box() for i in range(5)]
+        boxes = [phone.locator("nav.tabs .tab").nth(i).bounding_box() for i in range(4)]
         assert all(b["x"] >= 0 and b["x"] + b["width"] <= 390 for b in boxes), boxes
         assert all(b["width"] >= 44 and b["height"] >= 44 for b in boxes), boxes
         assert phone.locator("nav.tabs .tab-label").evaluate_all(
@@ -324,9 +334,9 @@ def test_add_item_increases_count(page):
     page.fill("#add-form input[name='super']", "mercadona")
     page.fill("#add-form input[name='lugar']", "nevera")
     page.click("#add-form button[type='submit']")
-    # Mutations report transient "Saved" feedback; the resting count only
+    # Mutations report a transient "Saved" toast (#200); the resting count only
     # shows on Home (the repeated "Loaded N items" line was UI noise).
-    page.wait_for_function("document.querySelector('#status')?.textContent?.includes('Saved')")
+    page.wait_for_function("document.querySelector('#toast')?.textContent?.includes('Saved')")
     goto_mode(page, "dashboard")
     page.wait_for_selector(".summary")
     after = int(page.locator(".summary-value").first.inner_text())
@@ -651,3 +661,128 @@ def test_audio_match_live_hub(page):
     # Real hub call — proves no premature timeout (budget up to 10 min).
     page.wait_for_selector("text=Detected items", timeout=600000)
     assert page.locator("#audio-status.ok").count() >= 1
+
+
+@pytest.mark.e2e
+def test_settings_gear_opens_settings_from_every_tab(page):
+    """#200: Settings is never a tab -- the gear beside the theme toggle opens it
+    from every tab, no nav tab is selected while it is open, and a tap on a tab
+    (or on the gear again) comes back."""
+    for tab in ("inventory", "shopping", "audit", "items"):
+        page.click(f"[data-tab='{tab}']")
+        page.locator(f"#pane-{tab} .home-settings").click()
+        assert page.locator("#pane-settings").is_visible()
+        assert page.locator(f"#pane-{tab}").is_hidden()
+        assert page.locator("#pane-settings #email-monitor").count() == 1
+        assert page.locator("nav.tabs .tab.active").count() == 0
+        # The gear on Settings' own header returns to the tab it was opened from.
+        page.locator("#pane-settings .home-settings").click()
+        assert page.locator(f"#pane-{tab}").is_visible()
+        assert page.locator("#pane-settings").is_hidden()
+        assert page.locator(f"nav.tabs [data-tab='{tab}']").get_attribute("aria-selected") == "true"
+    page.locator("#pane-items .home-settings").click()
+    page.click("[data-tab='shopping']")
+    assert page.locator("#pane-shopping").is_visible()
+    assert page.locator("#pane-settings").is_hidden()
+    assert page._js_errors == [], f"JS errors: {page._js_errors}"
+
+
+# What every switch that is on must draw: the theme's accent-fill (#200,
+# design.md switch.trackOn) -- resolved from the token, never hard-coded.
+_ACCENT_PROBE = """() => {
+  const probe = document.createElement('div');
+  probe.style.background = 'var(--accent-fill)';
+  document.body.appendChild(probe);
+  const accent = getComputedStyle(probe).backgroundColor;
+  probe.remove();
+  const on = [...document.querySelectorAll('[role=switch][aria-checked=true]')]
+    .map((sw) => getComputedStyle(sw).backgroundColor);
+  return { accent, on };
+}"""
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_switch_on_track_is_the_accent(page, theme):
+    """#200: an on switch is the accent blue in both themes, never success green."""
+    page.evaluate("t => { localStorage.setItem('grocery.theme', t); document.documentElement.dataset.theme = t; }", theme)
+    goto_mode(page, "shopping")
+    dry_run = page.locator("#automation-dry-run")
+    dry_run.wait_for()
+    if dry_run.get_attribute("aria-checked") != "true":
+        dry_run.click()  # client-side only: it just rewrites the command preview
+    page.wait_for_timeout(400)  # the track's 0.15s background transition must settle
+    probe = page.evaluate(_ACCENT_PROBE)
+    assert probe["on"], "no switch is on to measure"
+    assert set(probe["on"]) == {probe["accent"]}, probe
+
+
+# Computed font-size (px) of every visible text-bearing element in the visible
+# pane, in DOM order -- identical DOM at every size, so the lists line up.
+_TEXT_PROBE = """() => {
+  const pane = [...document.querySelectorAll('main.app > .pane')].find((p) => !p.hidden);
+  const out = [];
+  for (const node of pane.querySelectorAll('*')) {
+    if (!node.getClientRects().length) continue;
+    const own = [...node.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
+    if (!own) continue;
+    out.push([node.tagName.toLowerCase() + '.' + node.className, parseFloat(getComputedStyle(node).fontSize)]);
+  }
+  return out;
+}"""
+
+_ALL_MODES = ["dashboard", "shopping", "audit", "audio", "targets", "edit", "add", "stores", "settings"]
+
+
+def _sample_view_at(page, mode, size):
+    """The view's text sizes with <html data-textsize> stamped to `size` -- the
+    exact attribute the control sets -- so both samples come from one visit and
+    the same DOM (a second visit could differ in zone / open state)."""
+    goto_mode(page, mode)
+    page.wait_for_timeout(250)
+    page.evaluate("s => { document.documentElement.dataset.textsize = s; }", size)
+    return page.evaluate(_TEXT_PROBE)
+
+
+@pytest.mark.e2e
+def test_text_size_scales_every_view(page):
+    """#200 / fleet-config#1211: the vendored Small / Default / Large control in
+    Settings scales the text of every view. Proven with a computed-style probe:
+    the root font-size steps 15 / 16 / 18px and, per view, every text element
+    drawn in rem grows by the Large step (geometry stays px by design), and the
+    choice survives a reload."""
+    root_px = lambda: page.evaluate("parseFloat(getComputedStyle(document.documentElement).fontSize)")  # noqa: E731
+    assert page.evaluate("document.documentElement.dataset.textsize") == "default"
+    assert root_px() == 16
+    goto_mode(page, "settings")
+    control = page.locator("#pane-settings #textSizeControl")
+    assert control.locator("[data-textsize]").count() == 3
+    assert control.locator("[data-textsize='default']").get_attribute("aria-pressed") == "true"
+    control.locator("[data-textsize='small']").click()
+    assert root_px() == 15
+    control.locator("[data-textsize='large']").click()
+    assert root_px() == 18
+    assert control.locator("[data-textsize='large']").get_attribute("aria-pressed") == "true"
+    assert page.evaluate("localStorage.getItem('grocery.textsize')") == "large"
+
+    for mode in _ALL_MODES:
+        large = _sample_view_at(page, mode, "large")
+        default = _sample_view_at(page, mode, "default")
+        page.evaluate("document.documentElement.dataset.textsize = 'large'")
+        before, after = default, large
+        assert before, f"{mode}: nothing to measure"
+        assert [name for name, _ in before] == [name for name, _ in after], f"{mode}: DOM differs between sizes"
+        grown = [name for (name, a), (_, b) in zip(before, after) if b > a]
+        shrunk = [name for (name, a), (_, b) in zip(before, after) if b < a]
+        fixed = sorted({name for (name, a), (_, b) in zip(before, after) if b == a})
+        assert not shrunk, f"{mode}: text shrank at Large: {shrunk}"
+        assert len(grown) / len(before) >= 0.9, f"{mode}: only {len(grown)}/{len(before)} elements grew; fixed: {fixed}"
+
+    page.reload()
+    page.wait_for_selector("[data-tab='audit']")
+    assert page.evaluate("document.documentElement.dataset.textsize") == "large"
+    assert root_px() == 18
+    # restore, so a later test sharing this origin starts at Default
+    goto_mode(page, "settings")
+    page.locator("#pane-settings [data-textsize='default']").click()
+    assert root_px() == 16

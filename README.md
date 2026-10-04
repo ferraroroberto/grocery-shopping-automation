@@ -7,7 +7,7 @@ Mobile-responsive web app for managing household grocery inventory with intellig
 Comprehensive household inventory management across multiple operational modes. Audit current stock room-by-room, edit target quantities, track shopping in real time, and add on-the-fly items directly to the shopping list.
 
 **Key Features:**
-- Mobile access over local Wi-Fi — use the **Copy link** button in the ⚙️ Setup tab to get the URL and open it on your phone
+- Mobile access over local Wi-Fi — use the **Copy link** button in ⚙️ Settings (the gear in the page header) to get the URL and open it on your phone
 - Room-by-room inventory auditing with auto-save (best done from mobile)
 - Shopping list grouped by supermarket with per-store progress bars (best done from desktop)
 - Cart offset counters to account for items already in the cart
@@ -69,7 +69,7 @@ webapp.bat
 
 The FastAPI app on `:8502` covers the inventory dashboard, audit, target editing, item editing, item creation, shopping mode, automation controls, and the audio-audit workflow against the Excel-backed `src/data.py` layer. Open `http://127.0.0.1:8502` when no local cert exists, or `https://127.0.0.1:8502` after running `& .\.venv\Scripts\python.exe src\gen_ssl_cert.py`. Either launcher binds to `0.0.0.0`, so the same port is reachable over LAN or Tailscale from devices that can reach this PC.
 
-The PWA follows the fleet design system (`~/.claude/design.md` + `design.dark.md`): a floating bottom-tab pill on the phone (inline top tabs on desktop, a left icon-over-label rail on a desktop window 1100px or wider) with five tabs — **Home · Shop · Audit · Items · Setup** (Audio audit lives as a sub-pill under Audit; Targets / Edit item / Add item / Stores under Items; the store product search sits at the top of **Items → Add item**, and the cart automation is the **Fill carts** section at the bottom of **Shop**) — vendored fleet components under `app/static/_vendored/`, and a **page header** atop every tab (icon, bold tab name, one live context line, and a light/dark **theme toggle**, moon/sun icon, that remembers your choice) so each tab opens the same way. The utility actions (Open spreadsheet, Copy link, Export CSV, Log in to stores) and the **Email watch** card live in the ⚙️ **Setup tab** — Log in to stores opens the same plain Chrome window as `python -m automation.bootstrap_session` (see below) so a stale store login can be refreshed without a terminal; heavy cards (the dashboard item list, the per-store shopping panels, the audio zone checklist) are collapsible and folded by default; the search box appears only on the modes that filter the item list. A footer line shows the running build (`Build: <git sha> · <time>`, from `/api/version`) so you always know which deploy the app is serving, and the shell auto-reloads once when it detects a newer build.
+The PWA follows the fleet design system (`~/.claude/design.md` + `design.dark.md`): a floating bottom-tab pill on the phone (inline top tabs on desktop, a left icon-over-label rail on a desktop window 1100px or wider) with four tabs — **Home · Shop · Audit · Items** (Audio audit lives as a sub-pill under Audit; Targets / Edit item / Add item / Stores under Items; the store product search sits at the top of **Items → Add item**, and the cart automation is the **Fill carts** section at the bottom of **Shop**) — vendored fleet components under `app/static/_vendored/`, and a **page header** atop every tab (icon, bold tab name, one live context line, a light/dark **theme toggle**, moon/sun icon, that remembers your choice, and the **Settings gear**) so each tab opens the same way. Settings is never a tab: the gear beside the theme toggle opens it over whichever tab you are on (tap the gear again, or any tab, to leave). It holds the **text size** control (Small / Default / Large, remembered on the device and applied to every view), the utility actions (Open spreadsheet, Copy link, Export CSV, Log in to stores) and the **Email watch** card — Log in to stores opens the same plain Chrome window as `python -m automation.bootstrap_session` (see below) so a stale store login can be refreshed without a terminal; heavy cards (the dashboard item list, the per-store shopping panels, the audio zone checklist) are collapsible and folded by default; the search box appears only on the modes that filter the item list; the result of an action you started (Saved, Link copied, …) shows as a brief neutral toast above the nav. A footer line shows the running build (`Build: <git sha> · <time>`, from `/api/version`) so you always know which deploy the app is serving, and the shell auto-reloads once when it detects a newer build.
 
 ### Regenerate application icons
 
@@ -222,7 +222,7 @@ Copy `auth/gmail/credentials.json` + `auth/gmail/token.json` from the
 `whatsapp-radar` sister repo (same account, same scope) and
 `config/gmail_config.sample.json` → gitignored `config/gmail_config.json`.
 
-The PWA's ⚙️ Setup tab drives this via the **Email watch** card: pick the
+The PWA's ⚙️ Settings (the header gear) drives this via the **Email watch** card: pick the
 monitored senders (each mapped to a store), switch automatic polling on/off
 and set its frequency, run a one-off *Check now* or an end-to-end *Test last
 email*, and review the last-check log. Scheduled checks alert only when the
@@ -367,7 +367,7 @@ A plain Chrome window opens with a tab per store — log into each, close the
 window, then press Enter in the terminal. See
 [`automation/README.md`](automation/README.md) for details.
 
-**Run it from the app:** the ⚙️ **Setup tab** has a **Log in to stores**
+**Run it from the app:** ⚙️ **Settings** (the header gear) has a **Log in to stores**
 button — it opens the same Chrome window without needing a terminal; log into
 each store, then close the window.
 
