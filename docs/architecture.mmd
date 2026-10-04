@@ -102,7 +102,7 @@ monthly-cost baseline: set/reset (#183)| ROUTERS
     REPORT["report.py / models.py / errors.py\nrun summary, CartItem, typed exceptions"]
     PURCHASELOG["purchase_log.py\nwrites per-store purchase_logs/ JSON after a live run"]
     EMAILCHECK["email_check.py\nconfirmation-email check seam:\nsubject similarity, processed-state idempotency"]
-    EMAILPARSERS["email_parsers/ametller.py\ndeterministic per-store item-list parser"]
+    EMAILPARSERS["email_parsers/ametller.py, carrefour.py\ndeterministic per-store item-list parsers"]
     ITEMMATCH["item_matching.py\nalias/exact/contains/fuzzy matching vs latest purchase log"]
     PRODSEARCH["product_search.py\nstore product search (Mercadona Algolia +\nAmetller SCAPI + Carrefour DOM read, #157),\nreuses browser.py (#87)"]
     RUNAUTO --> STOREMODS

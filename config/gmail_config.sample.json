@@ -5,6 +5,12 @@
       "name": "Ametller Origen",
       "store": "ametller",
       "enabled": true
+    },
+    {
+      "address": "clientes_carrefour.es@carrefour.com",
+      "name": "Carrefour",
+      "store": "carrefour",
+      "enabled": true
     }
   ],
   "poller": {
