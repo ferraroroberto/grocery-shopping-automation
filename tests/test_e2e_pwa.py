@@ -865,7 +865,7 @@ _FIRST_AFTER_HEADER_JS = r"""
 (tab) => {
   const pane = document.querySelector(`#pane-${tab}`);
   const head = pane.querySelector('.home-head');
-  const seen = [...pane.querySelectorAll('h1,h2,h3,h4,h5,h6,button,input,select,textarea,[role="tab"]')]
+  const seen = [...pane.querySelectorAll('h1,h2,h3,h4,h5,h6,button,input,select,textarea,summary,[role="tab"]')]
     .filter((e) => !head.contains(e) && e.getClientRects().length);
   const first = seen[0];
   return first ? `${first.tagName.toLowerCase()}:${first.textContent.trim().slice(0, 30)}` : null;
@@ -877,8 +877,9 @@ _FIRST_AFTER_HEADER_JS = r"""
 @pytest.mark.parametrize("mode,tab", [("dashboard", "inventory"), ("shopping", "shopping"), ("audit", "audit"), ("targets", "items")])
 def test_every_tab_opens_on_a_heading_not_a_control(page, mode, tab):
     """J-04: below the page header, a tab's first heading-or-control in reading
-    order is a heading — never a mode pill or the search box."""
+    order is a heading — never a mode pill, the search box or a collapsible
+    card header (a heading inside a <summary> reads as a control)."""
     goto_mode(page, mode)
     page.wait_for_timeout(300)
     first = page.evaluate(_FIRST_AFTER_HEADER_JS, tab)
-    assert first and first.startswith(("h2:", "h3:")), f"{tab} opens on {first}"
+    assert first and first.startswith("h2:"), f"{tab} opens on {first}"
