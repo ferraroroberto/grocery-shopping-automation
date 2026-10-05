@@ -90,7 +90,7 @@ function pageHeaderHtml({ icon, title, contextId, context, themeToggleId }) {
         <svg class="icon theme-icon-moon" aria-hidden="true" focusable="false"><use href="#i-moon"></use></svg>
         <svg class="icon theme-icon-sun" aria-hidden="true" focusable="false"><use href="#i-sun"></use></svg>
       </button>
-      <button class="button-surface home-toggle home-settings" type="button" title="Settings" aria-label="Settings">
+      <button class="home-toggle home-settings" type="button" title="Settings" aria-label="Settings">
         <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-settings"></use></svg>
       </button>
     </div>`;
