@@ -954,11 +954,10 @@ details[open] > summary .inline-chevron { transform: rotate(90deg); }
 /* One store's inline editor: its link, and your override for basket items. */
 .review-edit { display: grid; gap: var(--gap); padding: var(--space-md); border: 1px solid var(--line); border-radius: var(--radius-md); }
 .review-edit .hint { margin: 0; }
-.review-edit .field-label .field { font-weight: 400; }
+.review-edit .field-label :is(.field, .select-native) { font-weight: 400; }
 .review-edit-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-sm); }
 .review-edit-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-sm); }
-.review-edit-actions > button { min-height: var(--primary-h); }
-.review-edit-actions .big-btn { font-size: var(--font-label); }
+.review-edit-actions > button { min-height: var(--primary-h); font-size: var(--font-label); }
 .review-edit-status:empty { display: none; }
 .review-add { display: grid; gap: var(--space-xs); }
 .review-add-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto; gap: var(--space-sm); }
