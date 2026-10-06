@@ -766,6 +766,7 @@ def test_add_item_product_search(page, server):
                          "price_text": "3,00 EUR", "thumbnail": "", "match": "strong"}]},
         # Same store + link as the row already holds, so /select rewrites it unchanged.
         {"term": existing["comida"], "inventory_idx": existing["id"], "existing_super": existing["super"],
+         "inventory_name": "zzz fila existente e2e",
          "store_errors": {}, "candidates": [{"store": existing["super"], "name": "Existing e2e",
                                               "product_url": existing["buscador"], "price_text": "",
                                               "thumbnail": "", "match": ""}]},
@@ -795,7 +796,16 @@ def test_add_item_product_search(page, server):
     created = [i for i in page.request.get(inventory).json()["items"] if i["comida"] == "zzz sandia e2e"]
     assert [(i["super"], i["buscador"], i["cantidad"]) for i in created] == [("carrefour", new_url, 1)]
 
+    # The header names the exact term searched; a matched row is only a hint (#214).
+    heads = page.locator(".search-group-term").all_inner_texts()
+    assert heads == ["Results for “zzz sandia e2e”", f"Results for “{existing['comida']}”"]
+    assert "Matches your item zzz fila existente e2e" in page.locator(".search-group-hint").inner_text()
+
     old_card = page.locator(".candidate", has_text="Existing e2e")
+    old_card.locator("[data-action='search-use']").click()
+    old_card.locator("[data-action='search-add-new']").click()  # → Add Item form, under the searched term
+    assert form.locator("[name='comida']").input_value() == existing["comida"]
+    assert form.locator("[name='buscador']").input_value() == existing["buscador"]
     old_card.locator("[data-action='search-use']").click()
     with page.expect_response(lambda r: r.url.endswith("/api/product-search/select")) as resp:
         old_card.locator("[data-action='search-confirm']").click()

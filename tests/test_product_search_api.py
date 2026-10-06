@@ -56,6 +56,54 @@ def test_start_parses_utterance_and_launches(client, monkeypatch):
     assert body["items"][0]["term"] == "sandia"
 
 
+def _capture_start(monkeypatch):
+    seen = {}
+
+    def fake_start(terms, limit):
+        seen["terms"] = terms
+        return FakeProc(alive=True), [], None
+
+    monkeypatch.setattr(search_api.product_search_runner, "start", fake_start)
+    return seen
+
+
+def test_start_searches_typed_phrase_not_matched_inventory_name(client, monkeypatch):
+    """Issue #214: the parse maps "boniato" onto an existing row; the stores must
+    still be queried with the typed word, the row kept only as a hint."""
+    inv = client.get("/api/inventory").json()
+    row = inv["items"][0]
+    name = row[inv["columns"]["comida"]]
+    monkeypatch.setattr(
+        search_api, "parse_voice_items",
+        lambda *a, **k: VoiceParseResult(items=[VoiceItem(idx=row["id"], name=name, qty=None)]),
+    )
+    seen = _capture_start(monkeypatch)
+    body = client.post("/api/product-search/start", json={"text": "boniato"}).json()
+    assert seen["terms"] == ["boniato"]
+    item = body["items"][0]
+    assert item["term"] == "boniato"
+    assert item["inventory_idx"] == row["id"]
+    assert item["inventory_name"] == name
+
+
+def test_start_uses_each_spoken_phrase_for_a_multi_item_utterance(client, monkeypatch):
+    inv = client.get("/api/inventory").json()
+    row = inv["items"][0]
+    name = row[inv["columns"]["comida"]]
+    monkeypatch.setattr(
+        search_api, "parse_voice_items",
+        lambda *a, **k: VoiceParseResult(items=[
+            VoiceItem(idx=row["id"], name=name, qty=None, phrase="boniato"),
+            VoiceItem(idx=None, name="sandia", qty=2, phrase="sandía"),
+        ]),
+    )
+    seen = _capture_start(monkeypatch)
+    body = client.post("/api/product-search/start", json={"text": "añade boniato y dos sandías"}).json()
+    assert seen["terms"] == ["boniato", "sandía"]
+    assert [i["inventory_idx"] for i in body["items"]] == [row["id"], None]
+    assert body["items"][1]["inventory_name"] == ""
+
+
 def test_start_rejects_empty_text(client):
     assert client.post("/api/product-search/start", json={"text": "  "}).status_code == 400
 

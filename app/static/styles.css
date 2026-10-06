@@ -624,6 +624,7 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
   border-bottom: 1px solid var(--line-muted);
 }
 .search-group-term { font-weight: 700; font-size: var(--font-body); }
+.search-group-hint { margin-bottom: var(--space-xs); }
 /* One line per store (#211): waiting / searching / N results / failed. */
 .search-store-states { list-style: none; margin: 0 0 var(--space-xs); padding: 0; display: grid; gap: 2px; }
 .candidate-list { display: grid; gap: 0; }
@@ -645,7 +646,8 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 }
 /* Añadir: compact tint at the control height, spanning the full row so its
    edges align with the zone/quantity controls above. */
-.candidate-confirm .candidate-confirm-add {
+.candidate-confirm .candidate-confirm-add,
+.candidate-confirm .candidate-confirm-new {
   grid-column: 1 / -1;
   width: 100%;
   min-height: var(--control-h);

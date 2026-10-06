@@ -33,7 +33,7 @@ You will receive:
 Return STRICT JSON ONLY (no markdown fences, no prose) with this schema:
 {
   "items": [
-    {"idx": int or null, "name": str, "qty": int or null}
+    {"idx": int or null, "name": str, "phrase": str, "qty": int or null}
   ],
   "ambiguous": [
     {"phrase": str, "note": str}
@@ -46,6 +46,9 @@ Rules:
   use idx null ONLY when no candidate plausibly matches — then "name" is the
   new item name exactly as spoken (lowercase, no filler words).
 - For a matched item, "name" is the candidate's comida verbatim.
+- "phrase" is the item exactly as spoken — the user's own words, lowercase, no
+  quantity or filler — whether or not it matched a candidate ("tenemos dos
+  boniatos" → "boniatos"). Never replace it with the candidate's comida.
 - "qty" is the number spoken for that item ("dos huevos" → 2, "cuatro" → 4,
   "media docena" → 6). No number spoken → qty null.
 - Zero-phrases mean qty 0 for that item: "no queda", "no quedan", "se acabó",
@@ -59,11 +62,14 @@ Rules:
 @dataclass(frozen=True)
 class VoiceItem:
     """One parsed mention: a candidate idx (or ``None`` for a new item),
-    the display name, and the spoken quantity (``None`` when unspoken)."""
+    the display name, the spoken quantity (``None`` when unspoken) and the
+    ``phrase`` as the user said it (``None`` when the LLM omitted it). A matched
+    item's ``name`` is the inventory row's, so a store search must use ``phrase``."""
 
     idx: Optional[int]
     name: str
     qty: Optional[int]
+    phrase: Optional[str] = None
 
 
 @dataclass
@@ -118,7 +124,8 @@ def clean_parsed(parsed: Dict[str, Any], valid_idxs: set) -> Tuple[List[VoiceIte
         if not name and idx is None:
             logger.warning(f"⚠️ dropping unnamed item: {entry}")
             continue
-        items.append(VoiceItem(idx=idx, name=name, qty=_clean_qty(entry.get("qty"))))
+        phrase = str(entry.get("phrase") or "").strip() or None
+        items.append(VoiceItem(idx=idx, name=name, qty=_clean_qty(entry.get("qty")), phrase=phrase))
     ambiguous = [dict(m) for m in (parsed.get("ambiguous") or []) if isinstance(m, dict)]
     return items, ambiguous
 

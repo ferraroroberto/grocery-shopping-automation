@@ -103,10 +103,14 @@ function renderSearchResults() {
 
 function searchItemGroup(item) {
   const cands = item.candidates || [];
-  const tag = item.inventory_idx == null
-    ? '<span class="chip chip-new">New</span>'
-    : '<span class="meta">Already on the list</span>';
-  const header = `<div class="search-group-head"><span class="search-group-term">${html(item.term)}</span>${tag}</div>`;
+  // The header names exactly what was looked up (issue #214); a matched row is
+  // only a hint — the query is never that row's name.
+  const matched = item.inventory_idx != null;
+  const tag = matched ? "" : '<span class="chip chip-new">New</span>';
+  const hint = matched
+    ? `<div class="meta search-group-hint">Matches your item <strong>${html(item.inventory_name || "on the list")}</strong> — pick one to update it, or add as new.</div>`
+    : "";
+  const header = `<div class="search-group-head"><span class="search-group-term">Results for “${html(item.term)}”</span>${tag}</div>${hint}`;
   const stores = item.stores || [];
   const states = storeStates(item, stores);
   const pending = search.running && stores.some((st) => st.state === "waiting" || st.state === "searching");
@@ -167,6 +171,7 @@ function candidateConfirmPanel() {
       <input class="field" data-confirm="cantidad" type="number" min="0" inputmode="numeric" value="${html(d.cantidad)}" />
     </label>
     <button class="big-btn candidate-confirm-add" type="button" data-action="search-confirm">Update item</button>
+    <button class="secondary candidate-confirm-new" type="button" data-action="search-add-new">Add as new item</button>
   </div>`;
 }
 
@@ -325,6 +330,11 @@ export function useCandidateClick(cardEl) {
   if (!cardEl) return;
   if (cardEl.dataset.idx === "") prefillAddForm(cardEl);
   else toggleCandidateConfirm(cardEl);
+}
+
+// "Add as new item" on a matched card's confirm row: same hand-off as a new term.
+export function addCandidateAsNew(cardEl) {
+  if (cardEl) prefillAddForm(cardEl);
 }
 
 // Copy the candidate into the Add Item form: the name is the searched term
