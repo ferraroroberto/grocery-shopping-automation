@@ -723,7 +723,7 @@ def test_dialog_controls_are_styled(page, theme):
     detail.locator("[data-review-edit]").first.click()
     detail.locator("[data-review-form]").wait_for()
     found = check("stores-detail-dialog")
-    assert {"Save", "Cancel", "Save target & stock"} <= set(found["buttons"]), found
+    assert {"Save", "Cancel", "Save target & in stock"} <= set(found["buttons"]), found
     assert found["selects"] >= 1, found
     detail.locator("[data-dialog-close]").click()
 

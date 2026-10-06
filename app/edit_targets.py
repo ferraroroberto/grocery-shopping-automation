@@ -28,7 +28,7 @@ def main(df: pd.DataFrame) -> pd.DataFrame:
         st.info(f"No items found in {selected_zone}")
         return df
 
-    st.caption(f"{selected_zone.title()} · {len(zone_data)} items · have / target · buy")
+    st.caption(f"{selected_zone.title()} · {len(zone_data)} items · in stock / target · buy")
 
     for idx in zone_data.index:
         item_name = zone_data.at[idx, COLUMNS["comida"]]

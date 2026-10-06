@@ -164,7 +164,7 @@ function candidateConfirmPanel() {
     : `<input class="field" data-confirm="lugar" value="${html(d.lugar)}" placeholder="Zone" aria-label="Zone" />`;
   return `<div class="candidate-confirm">
     <label class="field-label">Zone ${zoneField}</label>
-    <label class="field-label">Have
+    <label class="field-label">In stock
       <input class="field" data-confirm="tenemos" type="number" min="0" inputmode="numeric" value="${html(d.tenemos)}" />
     </label>
     <label class="field-label">Target

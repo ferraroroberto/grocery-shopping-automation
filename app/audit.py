@@ -35,9 +35,9 @@ def main(df: pd.DataFrame) -> pd.DataFrame:
 
     _, hv, hd, ht, hb = st.columns([4, 2, 2, 2, 2])
     with hv:
-        st.markdown("<div style='text-align:center;font-size:0.72rem;color:#888;padding-bottom:0'>➖ have ➕</div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align:center;font-size:0.72rem;color:#888;padding-bottom:0'>➖ in stock ➕</div>", unsafe_allow_html=True)
     with hd:
-        st.markdown("<div style='text-align:center;font-size:0.72rem;color:#888'>have/tgt</div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align:center;font-size:0.72rem;color:#888'>in stock/tgt</div>", unsafe_allow_html=True)
     with ht:
         st.markdown("<div style='text-align:center;font-size:0.72rem;color:#888;padding-bottom:0'>⊖ target ⊕</div>", unsafe_allow_html=True)
     with hb:
@@ -53,7 +53,7 @@ def main(df: pd.DataFrame) -> pd.DataFrame:
         with col1:
             st.markdown(f"**{item_name}**")
         with col2:
-            if st.button("➖", key=f"audit_minus_{idx}", help="Decrease stock"):
+            if st.button("➖", key=f"audit_minus_{idx}", help="Decrease in stock"):
                 try:
                     df = update_item_quantity(df, idx, -1)
                 except (SpreadsheetLockedError, InventoryFileError) as e:
@@ -61,7 +61,7 @@ def main(df: pd.DataFrame) -> pd.DataFrame:
                 else:
                     st.rerun()
         with col3:
-            if st.button("➕", key=f"audit_plus_{idx}", help="Increase stock"):
+            if st.button("➕", key=f"audit_plus_{idx}", help="Increase in stock"):
                 try:
                     df = update_item_quantity(df, idx, 1)
                 except (SpreadsheetLockedError, InventoryFileError) as e:
