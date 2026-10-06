@@ -711,7 +711,7 @@ function dialogShell(id, title, saveLabel, init) {
       </div>
       <div class="stores-dialog-body"></div>
       <div class="panel-status error stores-dialog-status" role="status"></div>
-      <div class="detail-actions"><button type="button" class="detail-save-btn" disabled>${esc(saveLabel)}</button></div>
+      <div class="detail-actions"><button type="button" class="button-primary detail-save-btn" disabled>${esc(saveLabel)}</button></div>
     </div>`;
   dialog.querySelector("[data-dialog-close]").addEventListener("click", () => dialog.close());
   init?.(dialog);
@@ -912,7 +912,7 @@ function quantityMarkup(d) {
 function qtyFieldMarkup(field, label, saved, suggested, packCtx) {
   const value = local.qtyDraft[field] ?? saved;
   const suggest = suggested !== undefined && suggested !== null && suggested !== saved
-    ? `<button type="button" class="secondary review-suggest" data-review-suggest="${field}" data-value="${suggested}">Use suggested (${suggested})</button>`
+    ? `<button type="button" class="button-surface review-suggest" data-review-suggest="${field}" data-value="${suggested}">Use suggested (${suggested})</button>`
     : "";
   return `<div class="review-qty-field">
       <label class="field-label" for="review-${field}">${label} <span class="meta">${esc(packCtx)}</span></label>
@@ -1017,7 +1017,7 @@ function editFormMarkup(d, s) {
           <input id="${id("pack_size")}" class="field" name="pack_size" type="number" min="0" step="any" inputmode="decimal"
                  value="${val(ov.pack_size)}" placeholder="${val(bench.pack_size)}"></label>
         <label class="field-label" for="${id("unit")}">Unit
-          <select id="${id("unit")}" class="field" name="unit">
+          <select id="${id("unit")}" class="select-native" name="unit">
             <option value="">${bench.unit ? `Benchmark (${esc(bench.unit)})` : "Benchmark"}</option>
             ${OVERRIDE_UNITS.map((u) => `<option value="${u}"${ov.unit === u ? " selected" : ""}>${u}</option>`).join("")}
           </select></label>
@@ -1035,9 +1035,9 @@ function editFormMarkup(d, s) {
       ${overrideFields}
       <p class="panel-status error review-edit-status" role="status"></p>
       <div class="review-edit-actions">
-        <button type="submit" class="big-btn">Save</button>
-        ${s.override ? `<button type="button" class="secondary" data-review-reset="${esc(s.store)}">Reset to benchmark</button>` : ""}
-        <button type="button" class="secondary" data-review-cancel>Cancel</button>
+        <button type="submit" class="button-tint">Save</button>
+        ${s.override ? `<button type="button" class="button-surface" data-review-reset="${esc(s.store)}">Reset to benchmark</button>` : ""}
+        <button type="button" class="button-surface" data-review-cancel>Cancel</button>
       </div>
     </form>`;
 }
@@ -1051,11 +1051,11 @@ function addLinkMarkup(d) {
   return `<div class="review-add">
       <label class="field-label" for="review-add-url">Link another store</label>
       <div class="review-add-row">
-        <select class="field" data-review-add-store aria-label="Store">${missing.map((s) =>
+        <select class="select-native" data-review-add-store aria-label="Store">${missing.map((s) =>
           `<option value="${esc(s.key)}">${esc(s.name)}</option>`).join("")}</select>
         <input id="review-add-url" class="field" type="url" inputmode="url" autocomplete="off" spellcheck="false"
                placeholder="https://…" data-review-add-url>
-        <button type="button" class="secondary" data-review-add>Add link</button>
+        <button type="button" class="button-surface" data-review-add>Add link</button>
       </div>
     </div>`;
 }

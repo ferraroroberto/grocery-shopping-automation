@@ -596,6 +596,134 @@ def test_stores_plan_simulate_and_apply(page, server):
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
 
 
+# Every dropdown, inline input and labelled button in one open dialog, checked
+# against the vendored recipes (#207: select-native/, button/, modal/), with
+# the expected values resolved from the theme's own tokens -- never hard-coded.
+# A button must match one button.css tier (or the shared disabled recipe);
+# glyph-only controls (the x close, .icon-btn) and switches are out of scope.
+_DIALOG_CONTROLS_PROBE = r"""(id) => {
+  const dialog = document.getElementById(id);
+  const card = dialog.querySelector('.detail-card');
+  const probe = document.createElement('div');
+  card.appendChild(probe);
+  const color = (name) => { probe.style.cssText = `background-color: var(${name})`; return getComputedStyle(probe).backgroundColor; };
+  const len = (name) => { probe.style.cssText = `width: var(${name})`; return parseFloat(getComputedStyle(probe).width); };
+  const tiers = {
+    primary: ['--accent-fill', '--accent-fg', '--accent-border-strong'],
+    tint: ['--accent-soft', '--accent-text', '--accent-border-soft'],
+    surface: ['--card-off', '--muted', '--line'],
+    disabled: ['--card-off', '--muted', '--line'],
+  };
+  const expect = Object.fromEntries(Object.entries(tiers).map(([k, [bg, fg, border]]) =>
+    [k, { bg: color(bg), fg: color(fg), border: color(border) }]));
+  const radius = len('--radius-md'), controlH = len('--control-h'), primaryH = len('--primary-h');
+  const field = { bg: color('--input-bg'), border: color('--control-border') };
+  probe.remove();
+
+  const cardBox = card.getBoundingClientRect();
+  const shown = (el) => el.getClientRects().length > 0;
+  const bad = [];
+  const name = (el) => `${el.tagName.toLowerCase()}.${el.className} "${(el.textContent || el.getAttribute('aria-label') || '').trim().slice(0, 24)}"`;
+  const inside = (el, box) => {
+    if (box.right > cardBox.right + 1 || box.left < cardBox.left - 1) bad.push(`${name(el)} overflows the dialog`);
+  };
+
+  const buttons = [...card.querySelectorAll('button')]
+    .filter((b) => shown(b) && !b.matches('.detail-close, .icon-btn, [role=switch]'));
+  for (const b of buttons) {
+    const s = getComputedStyle(b), box = b.getBoundingClientRect();
+    const got = { bg: s.backgroundColor, fg: s.color, border: s.borderTopColor };
+    const pool = b.disabled ? ['disabled'] : ['primary', 'tint', 'surface'];
+    const tier = pool.find((k) => ['bg', 'fg', 'border'].every((p) => got[p] === expect[k][p]));
+    if (!tier) bad.push(`${name(b)} wears no button tier: ${JSON.stringify(got)}`);
+    if (Math.abs(parseFloat(s.borderTopLeftRadius) - radius) > 0.5) bad.push(`${name(b)} radius ${s.borderTopLeftRadius}`);
+    if (box.height < controlH - 0.5) bad.push(`${name(b)} is ${box.height}px tall`);
+    if (b.scrollHeight > b.clientHeight + 1 || b.scrollWidth > b.clientWidth + 1) bad.push(`${name(b)} label overflows`);
+    inside(b, box);
+  }
+  const footer = card.querySelector('.detail-actions');
+  const save = footer?.querySelector('.detail-save-btn');
+  if (!save) bad.push('no footer primary');
+  else {
+    const box = save.getBoundingClientRect(), fs = getComputedStyle(footer);
+    const content = footer.clientWidth - parseFloat(fs.paddingLeft) - parseFloat(fs.paddingRight);
+    if (box.height < primaryH - 0.5) bad.push(`footer primary is ${box.height}px tall`);
+    if (Math.abs(box.width - content) > 1) bad.push(`footer primary is ${box.width}px of ${content}px`);
+  }
+
+  const fields = [...card.querySelectorAll('select, .input-native')].filter(shown);
+  for (const f of fields) {
+    const s = getComputedStyle(f), box = f.getBoundingClientRect();
+    if (Math.abs(box.height - controlH) > 0.5) bad.push(`${name(f)} is ${box.height}px tall`);
+    if (s.backgroundColor !== field.bg) bad.push(`${name(f)} fill ${s.backgroundColor}`);
+    if (s.borderTopColor !== field.border) bad.push(`${name(f)} border ${s.borderTopColor}`);
+    if (Math.abs(parseFloat(s.borderTopLeftRadius) - radius) > 0.5) bad.push(`${name(f)} radius ${s.borderTopLeftRadius}`);
+    inside(f, box);
+  }
+  return {
+    buttons: buttons.map((b) => b.textContent.trim()),
+    selects: fields.filter((f) => f.tagName === 'SELECT').length,
+    inputs: fields.filter((f) => f.tagName === 'INPUT').length,
+    bad,
+  };
+}"""
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_dialog_controls_are_styled(page, theme):
+    """#207: every dialog's dropdowns and Save/Cancel buttons render on the
+    vendored select-native / button recipes in both themes, on a desktop and
+    at phone width. modal.css no longer styles them itself, so a modal
+    re-vendor without its two companions leaves them as bare UA controls."""
+    page.evaluate("t => { localStorage.setItem('grocery.theme', t); document.documentElement.dataset.theme = t; }", theme)
+
+    def check(dialog_id: str) -> dict:
+        found = {}
+        for width, height in ((1100, 950), (390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.wait_for_timeout(150)
+            found = page.evaluate(_DIALOG_CONTROLS_PROBE, dialog_id)
+            assert not found["bad"], f"#{dialog_id} at {width}px ({theme}): {found['bad']}"
+        page.set_viewport_size({"width": 1100, "height": 950})
+        return found
+
+    # Login is static markup; the fixture server has auth off, so open it directly.
+    page.evaluate("document.getElementById('login-dialog').showModal()")
+    assert check("login-dialog")["buttons"] == ["Unlock"]
+    page.evaluate("document.getElementById('login-dialog').close()")
+
+    goto_mode(page, "stores")
+    page.click("[data-stores-action='import']")
+    page.wait_for_selector("#stores-sim[data-state='ready']")
+
+    page.click("[data-stores-action='set-baseline']")
+    page.locator("#stores-baseline-dialog").wait_for()
+    assert check("stores-baseline-dialog")["buttons"] == ["Set baseline"]
+    page.locator("#stores-baseline-dialog [data-dialog-close]").click()
+
+    burger = page.locator(".store-row", has_text="burguer ternera")
+    burger.locator("[data-stores-action='detail']").click()
+    detail = page.locator("#stores-detail-dialog")
+    detail.locator(".review-qty-lines").wait_for()
+    detail.locator("[data-review-edit]").first.click()
+    detail.locator("[data-review-form]").wait_for()
+    found = check("stores-detail-dialog")
+    assert {"Save", "Cancel", "Save target & stock"} <= set(found["buttons"]), found
+    assert found["selects"] >= 1, found
+    detail.locator("[data-dialog-close]").click()
+
+    pick = burger.locator("[data-stores-pick]")
+    other = pick.evaluate("s => [...s.options].map((o) => o.value).find((v) => v && v !== s.value)")
+    pick.select_option(other)
+    page.click("[data-stores-action='review']")
+    page.locator("#stores-apply-dialog .apply-row").first.wait_for()
+    found = check("stores-apply-dialog")
+    assert len(found["buttons"]) == 1 and found["buttons"][0].startswith("Apply") and found["inputs"] >= 2, found
+    page.locator("#stores-apply-dialog [data-dialog-close]").click()
+    assert page._js_errors == [], f"JS errors: {page._js_errors}"
+
+
 @pytest.mark.e2e
 def test_add_item_product_search(page, server):
     """Items -> Add Item carries the product search (#182; it was the Search
