@@ -38,6 +38,9 @@
   --accent-border-strong: color-mix(in srgb, var(--accent) 28%, transparent);
   --danger-border-soft: color-mix(in srgb, var(--deficit) 24%, transparent);
   --danger-soft: color-mix(in srgb, var(--deficit) 16%, transparent);
+  /* the vendored danger button's fill + border (vendored button README defaults) */
+  --deficit-soft: color-mix(in srgb, var(--deficit) 12%, transparent);
+  --deficit-border-soft: color-mix(in srgb, var(--deficit) 30%, transparent);
   /* the transcript/automation log is a terminal-class surface that follows
      the theme (a fixed dark matte read as "not switching" in light mode). */
   --log-bg: var(--card-off);
