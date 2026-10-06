@@ -24,8 +24,8 @@ const DETAIL_ID = "stores-detail-dialog";
 const FREQ_LABELS = { weekly: "Weekly", "2-weekly": "2-weekly", monthly: "Monthly" };
 const FILTERS = [["all", "All"], ["needs", "Needs checking"], ["checked", "Checked"]];
 const FLAG_TEXT = {
-  unit_mismatch: "Pack units differ, so the target and stock were kept. Check them.",
-  pack_unknown: "Pack size unknown, so the target and stock were kept. Check them.",
+  unit_mismatch: "Pack units differ, so the target and in-stock count were kept. Check them.",
+  pack_unknown: "Pack size unknown, so the target and in-stock count were kept. Check them.",
 };
 // Review flags (src/store_links.CHECK_FLAGS): badge wording + the longer reason.
 const FLAG_LABELS = {
@@ -36,7 +36,7 @@ const FLAG_LABELS = {
   suspect_link: ["Suspect link", "The list's link may not open the product page"],
   override: ["Your override", "You saved your own values for a store"],
   benchmark_changed: ["Benchmark changed", "A newer run changed the values your override was made against"],
-  stock_unconverted: ["Stock not converted", "Your stock may still be counted in the old packs"],
+  stock_unconverted: ["In stock not converted", "Your in-stock count may still be in the old packs"],
 };
 const STATUS_TEXT = {
   baseline: "Current product",
@@ -79,7 +79,7 @@ const local = {
   detail: null,       // GET /api/items/{id}/store-detail
   detailError: "",
   editing: null,      // store whose edit form is open in the detail dialog
-  qtyDraft: {},       // unsaved target / stock typed in the detail dialog
+  qtyDraft: {},       // unsaved target / in-stock count typed in the detail dialog
 };
 
 // ------------------------------------------------------------ persistence
@@ -778,7 +778,7 @@ async function resetBaseline() {
 
 // ---------------------------------------------------- item detail (#165)
 function detailDialog() {
-  return dialogShell(DETAIL_ID, "", "Save target & stock", (dialog) => {
+  return dialogShell(DETAIL_ID, "", "Save target & in stock", (dialog) => {
     dialog.classList.add("review-dialog");
     dialog.querySelector(".detail-save-btn").addEventListener("click", saveQuantities);
     dialog.addEventListener("click", onReviewClick);
@@ -905,7 +905,7 @@ function quantityMarkup(d) {
     ${note ? `<p class="review-warn">${icon("circle-alert")}${esc(note)}</p>` : ""}
     <div class="review-qty-fields">
       ${qtyFieldMarkup("cantidad", "Target", d.list.cantidad, suggested.cantidad, packCtx)}
-      ${qtyFieldMarkup("tenemos", "Stock", d.list.tenemos, suggested.tenemos, `${packCtx} you have`)}
+      ${qtyFieldMarkup("tenemos", "In stock", d.list.tenemos, suggested.tenemos, `${packCtx} in stock`)}
     </div>`;
 }
 
@@ -1185,7 +1185,7 @@ async function saveQuantities() {
   if (!d || !item) return;
   const values = qtyValues();
   const parsed = {};
-  for (const [field, label] of [["cantidad", "Target"], ["tenemos", "Stock"]]) {
+  for (const [field, label] of [["cantidad", "Target"], ["tenemos", "In stock"]]) {
     const n = Number(values[field]);
     if (values[field] === "" || !Number.isInteger(n) || n < 0) {
       setDialogStatus(dialog, `${label} must be a whole number of 0 or more.`);
@@ -1205,7 +1205,7 @@ async function saveQuantities() {
     }));
     local.qtyDraft = {};
     await loadDetail();
-    setDialogStatus(dialog, "Target and stock saved.", "ok");
+    setDialogStatus(dialog, "Target and in stock saved.", "ok");
     // A target moving to or from 0 moves the item in or out of the what-if.
     afterReviewChange();
   } catch (error) {
@@ -1331,7 +1331,7 @@ async function openApplyReview() {
     bodyEl.replaceChildren(emptyStateEl("circle-check", "No store changes to apply."));
     return;
   }
-  bodyEl.innerHTML = `<p class="hint">Target and stock are converted by pack size. Adjust any before applying.</p>
+  bodyEl.innerHTML = `<p class="hint">Target and in-stock count are converted by pack size. Adjust any before applying.</p>
     <ul class="apply-rows">${local.preview.map(applyRowMarkup).join("")}</ul>`;
   const ready = local.preview.filter((ch) => !ch.flags.includes("no_url")).length;
   save.textContent = `Apply ${ready} change${ready === 1 ? "" : "s"}`;
@@ -1360,9 +1360,9 @@ function applyRowMarkup(change) {
     <label class="row"><span>Target <span class="meta">was ${change.old_cantidad}</span></span>
       <input class="input-native apply-qty" type="number" min="0" step="1" inputmode="numeric"
              value="${change.cantidad}" aria-label="New target for ${esc(change.comida)}"${blocked ? " disabled" : ""}></label>
-    <label class="row"><span>Stock <span class="meta">was ${change.tenemos_from}</span></span>
+    <label class="row"><span>In stock <span class="meta">was ${change.tenemos_from}</span></span>
       <input class="input-native apply-stock" type="number" min="0" step="1" inputmode="numeric"
-             value="${change.tenemos}" aria-label="New stock for ${esc(change.comida)}"${blocked ? " disabled" : ""}></label>
+             value="${change.tenemos}" aria-label="New in-stock count for ${esc(change.comida)}"${blocked ? " disabled" : ""}></label>
     ${flagLines}
   </li>`;
 }
@@ -1375,7 +1375,7 @@ async function submitApply(dialog) {
     if (change.flags.includes("no_url")) continue;
     const row = dialog.querySelector(`[data-apply-id="${change.id}"]`);
     const values = {};
-    for (const [field, cls, label] of [["cantidad", ".apply-qty", "Target"], ["tenemos", ".apply-stock", "Stock"]]) {
+    for (const [field, cls, label] of [["cantidad", ".apply-qty", "Target"], ["tenemos", ".apply-stock", "In stock"]]) {
       const input = row.querySelector(cls);
       const n = Number(input.value);
       if (input.value.trim() === "" || !Number.isInteger(n) || n < 0) {
