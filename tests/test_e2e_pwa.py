@@ -739,10 +739,16 @@ def test_add_item_product_search(page, server):
 
     inventory = f"{server.url}/api/inventory"
     existing = next(i for i in page.request.get(inventory).json()["items"] if i["buscador"] and i["cantidad"] > 0)
-    new_url = "https://www.compraonline.ametller.cat/e2e-sandia.html"
+    new_url = "https://www.carrefour.es/supermercado/e2e-sandia/R-e2e/p"
     status = {"id": "e2e", "state": "done", "elapsed_s": 1.0, "error": None, "progress": None, "items": [
-        {"term": "zzz sandia e2e", "inventory_idx": None, "existing_super": "", "store_errors": {},
-         "candidates": [{"store": "ametller", "name": "Sandia e2e", "product_url": new_url,
+        {"term": "zzz sandia e2e", "inventory_idx": None, "existing_super": "",
+         "store_errors": {"mercadona": "Timeout 20000ms exceeded"},
+         # Per-store lines (#211): a failed store reads as failed, not "no results".
+         "stores": [{"store": "mercadona", "state": "failed", "count": 0, "reason": "timeout",
+                     "error": "Timeout 20000ms exceeded", "elapsed_s": 20.0},
+                    {"store": "carrefour", "state": "done", "count": 1, "reason": None,
+                     "error": None, "elapsed_s": 6.0}],
+         "candidates": [{"store": "carrefour", "name": "Sandia e2e", "product_url": new_url,
                          "price_text": "3,00 EUR", "thumbnail": "", "match": "strong"}]},
         # Same store + link as the row already holds, so /select rewrites it unchanged.
         {"term": existing["comida"], "inventory_idx": existing["id"], "existing_super": existing["super"],
@@ -756,11 +762,16 @@ def test_add_item_product_search(page, server):
     search.locator("#search-run").click()
     new_card = page.locator(".candidate", has_text="Sandia e2e")
     new_card.wait_for()
+    lines = page.locator(".search-store-states li").all_inner_texts()
+    assert "Mercadona: couldn't search — the site was too slow" in lines
+    assert "Carrefour: 1 result" in lines
+    assert "Timeout" not in " ".join(lines)  # failure copy is sanitized
+    assert "Ametller" not in search.locator(".hint").inner_text()
 
     new_card.locator("[data-action='search-use']").click()
     form = page.locator("#add-form")
     assert form.locator("[name='comida']").input_value() == "zzz sandia e2e"
-    assert form.locator("[name='super']").input_value() == "ametller"
+    assert form.locator("[name='super']").input_value() == "carrefour"
     assert form.locator("[name='buscador']").input_value() == new_url
     assert form.locator("[name='cantidad']").input_value() == "1"
     assert not [i for i in page.request.get(inventory).json()["items"] if i["comida"] == "zzz sandia e2e"]
@@ -768,7 +779,7 @@ def test_add_item_product_search(page, server):
     form.locator("button[type='submit']").click()
     new_card.locator("button:has-text('Added')").wait_for()
     created = [i for i in page.request.get(inventory).json()["items"] if i["comida"] == "zzz sandia e2e"]
-    assert [(i["super"], i["buscador"], i["cantidad"]) for i in created] == [("ametller", new_url, 1)]
+    assert [(i["super"], i["buscador"], i["cantidad"]) for i in created] == [("carrefour", new_url, 1)]
 
     old_card = page.locator(".candidate", has_text="Existing e2e")
     old_card.locator("[data-action='search-use']").click()

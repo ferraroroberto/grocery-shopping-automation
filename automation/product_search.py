@@ -6,8 +6,9 @@ show them as cards the user validates. **No automated decision**: this module
 only *finds and ranks for display*; a human picks which candidate fills
 ``buscador``.
 
-Both search mechanisms were verified live on 2026-07-15 and ride the logged-in
-shared Chrome profile (``automation/browser.py``):
+Both stores' search mechanisms ride the logged-in shared Chrome profile
+(``automation/browser.py``). Ametller was dropped from product search in issue
+#211 (its cart handler and stored items stay):
 
 * **Mercadona** — a clean Algolia-backed JSON endpoint the storefront itself
   calls: ``GET https://tornillos.mercadona.es/search?q={term}&lang=es``. The
@@ -16,26 +17,6 @@ shared Chrome profile (``automation/browser.py``):
   ``display_name`` / ``price_instructions`` / ``thumbnail``; the product URL is
   ``https://tienda.mercadona.es/product/{id}/{slug}``. Hits come
   relevance-ranked.
-
-* **Ametller** — Salesforce Commerce Cloud's SCAPI Shopper Search
-  ``product-search`` endpoint, riding the same SLAS token the basket code reads
-  (:func:`automation.ametller._read_auth`). ``total == 0`` means the store
-  genuinely carries no match (e.g. it has no watermelon). We pass
-  ``locale=es`` (:data:`_AMETLLER_LOCALE`) so names come back in **Spanish**;
-  omitting it makes SCAPI fall back to the storefront default, which is Catalan
-  ("Alvocat" for aguacate). Only the *region-qualified* spellings are rejected —
-  ``es-ES`` → 400 "Unsupported Locale", ``es_ES`` → 400 "Malformed Locale" —
-  plain ``es`` works (verified live 2026-07-29, issue #111). The product URL is
-  ``https://www.ametllerorigen.com/es/{slug}/{productId}.html`` where the slug
-  is slugified from that Spanish name, so it matches the site's own canonical
-  URL rather than relying on a redirect.
-
-  We still **preserve the store's own relevance order** rather than re-ranking
-  by :func:`src.product_match.score`. That ordering is the store's engine
-  matching the query against its full catalogue, which beats string similarity
-  against a name alone; the score is kept as a display aid. (Before #111 this
-  was additionally forced by the names being Catalan — that reason is gone, but
-  the ordering choice stands on its own merit.)
 
 * **Carrefour** (issue #157) — behind Cloudflare like the cart handler
   (:mod:`automation.carrefour`), so this is a real-Chrome DOM read rather than
@@ -49,7 +30,12 @@ shared Chrome profile (``automation/browser.py``):
   "result-picture-image"]``. The DOM → dict extraction runs in-page
   (:data:`_CARREFOUR_CARD_JS`); the cleanup and validation is the pure
   :func:`_parse_carrefour_card`, so it is unit-tested without a browser. Cards
-  come in the store's own relevance order, same as the other two.
+  come in the store's own relevance order, same as Mercadona.
+
+Each store's outcome is streamed as it lands (issue #211): ``on_store`` gets a
+``waiting`` event for every store before the browser is up, then ``searching``
+and ``done`` / ``failed`` per store, so the app shows Mercadona's cards while
+Carrefour is still loading and tells a failed store apart from "no results".
 """
 
 from __future__ import annotations
@@ -60,7 +46,6 @@ import logging
 import re
 import sys
 import time
-import unicodedata
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Callable, Optional
@@ -73,7 +58,6 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from automation import ametller  # noqa: E402  (SCAPI constants + auth reader)
 from automation import carrefour  # noqa: E402  (BASE_URL + product_id_from_url)
 from automation.browser import (  # noqa: E402
     ProfileNotInitializedError,
@@ -90,12 +74,6 @@ logger = logging.getLogger("automation.product_search")
 _MERCADONA_HOME = "https://tienda.mercadona.es/"
 _MERCADONA_SEARCH = "https://tornillos.mercadona.es/search"
 _MERCADONA_PRODUCT = "https://tienda.mercadona.es/product/{id}/{slug}"
-_AMETLLER_SEARCH_PAGE = "https://www.ametllerorigen.com/es/search"
-_AMETLLER_SEARCH = (
-    f"{ametller._SCAPI_BASE}/search/shopper-search/v1/organizations/"
-    f"{ametller._SCAPI_ORG}/product-search"
-)
-_AMETLLER_PRODUCT = "https://www.ametllerorigen.com/es/{slug}/{pid}.html"
 
 _CARREFOUR_SEARCH = "https://www.carrefour.es/?query={query}"
 _CARREFOUR_CARD_SELECTOR = '[data-test="search-grid-result"]'
@@ -126,17 +104,6 @@ _CARREFOUR_CARD_JS = """els => els.map(el => {
 # "result-current-price", so this only ever matches the one that's charged).
 _CARREFOUR_PRICE_RE = re.compile(r"(\d+),(\d+)\s*€")
 
-# SCAPI locale for Spanish product names. Plain ``es`` only — the
-# region-qualified spellings 400 (``es-ES`` "Unsupported Locale", ``es_ES``
-# "Malformed Locale"). Omitting it falls back to the storefront default
-# (Catalan). See the module docstring and issue #111.
-_AMETLLER_LOCALE = "es"
-
-# Loading the storefront search page authorises the SLAS token for the SCAPI
-# Shopper-Search scope — a direct call after only visiting the home page 401s
-# (verified live 2026-07-15). This is how long to let that page settle first.
-_AMETLLER_SEARCH_SETTLE_S = 4.0
-
 # Per-store cap on candidates returned for display.
 DEFAULT_LIMIT = 8
 
@@ -154,13 +121,6 @@ class Candidate:
     native_rank: int         # the store's own relevance position (0 = best)
     score: float             # src.product_match.score vs the query (display aid)
     match: str               # "strong" | "partial" | "weak" (display label)
-
-
-def _slugify(name: str) -> str:
-    """Slugify a product name for the Ametller ``/es/{slug}/{id}.html`` URL."""
-    decomposed = unicodedata.normalize("NFKD", name)
-    ascii_only = "".join(c for c in decomposed if not unicodedata.combining(c))
-    return re.sub(r"[^a-z0-9]+", "-", ascii_only.lower()).strip("-")
 
 
 def _fmt_price(value: Optional[float]) -> str:
@@ -206,51 +166,6 @@ def search_mercadona(page: Page, query: str, limit: int) -> list[Candidate]:
             query, "mercadona", str(h.get("display_name") or "").strip(),
             _MERCADONA_PRODUCT.format(id=pid, slug=slug),
             _to_float(pi.get("unit_price")), str(h.get("thumbnail") or ""), i,
-        ))
-    return out
-
-
-def search_ametller(page: Page, query: str, limit: int) -> list[Candidate]:
-    """Search Ametller via SCAPI Shopper Search, riding the SLAS token.
-
-    Navigating to the storefront **search page** (not just the home page) first
-    is load-bearing: it authorises the SLAS token for the Shopper-Search scope,
-    so the direct SCAPI call below returns 200 instead of a 401 (verified live
-    2026-07-15 — home-only navigation 401s intermittently as the token ages).
-
-    ``locale=es`` is what makes the hit names Spanish rather than Catalan; see
-    :data:`_AMETLLER_LOCALE`.
-    """
-    goto_with_login_check(page, "ametller", f"{_AMETLLER_SEARCH_PAGE}?q={quote(query)}")
-    time.sleep(_AMETLLER_SEARCH_SETTLE_S)  # let the search component prime the SCAPI session
-    auth = ametller._read_auth(page)
-    if auth["customer_type"] != "registered":
-        raise SessionExpiredError("ametller")
-    resp = page.request.get(
-        _AMETLLER_SEARCH,
-        params={
-            "siteId": ametller._SCAPI_SITE,
-            "q": query,
-            "limit": limit,
-            "locale": _AMETLLER_LOCALE,
-        },
-        headers={"Authorization": f"Bearer {auth['token']}"},
-        timeout=20000,
-    )
-    if not resp.ok:
-        raise RuntimeError(f"Ametller search returned {resp.status}")
-    data = resp.json()
-    hits = data.get("hits", []) or []
-    out: list[Candidate] = []
-    for i, h in enumerate(hits[:limit]):
-        pid = h.get("productId")
-        name = str(h.get("productName") or "").strip()
-        if not pid or not name:
-            continue
-        out.append(_rank(
-            query, "ametller", name,
-            _AMETLLER_PRODUCT.format(slug=_slugify(name), pid=pid),
-            _to_float(h.get("price")), str((h.get("image") or {}).get("disBaseLink") or ""), i,
         ))
     return out
 
@@ -315,47 +230,89 @@ def search_carrefour(page: Page, query: str, limit: int) -> list[Candidate]:
     return out
 
 
-# Store key → search function.
-SEARCHERS = {"mercadona": search_mercadona, "ametller": search_ametller, "carrefour": search_carrefour}
+# Store key → search function. Order is the run order: Mercadona first — a
+# plain JSON GET, so its cards land in seconds even when Carrefour's
+# client-rendered grid is slow.
+SEARCHERS = {"mercadona": search_mercadona, "carrefour": search_carrefour}
 
 # Display names for progress messages.
-_STORE_LABEL = {"mercadona": "Mercadona", "ametller": "Ametller", "carrefour": "Carrefour"}
+_STORE_LABEL = {"mercadona": "Mercadona", "carrefour": "Carrefour"}
 
 # A progress sink: called with a short human status line as the search
 # advances, so the app can show what's happening instead of a static spinner.
 ProgressFn = Callable[[str], None]
+
+# A per-store sink (issue #211): called with one event dict each time a store
+# changes state for a query — ``{"query", "store", "state", "candidates",
+# "error", "reason", "elapsed_s"}`` where ``state`` is ``waiting`` (browser not
+# up yet) / ``searching`` / ``done`` / ``failed``. ``done`` with no candidates
+# is a genuine no-match; ``failed`` carries a short ``reason`` the UI turns into
+# copy (``session`` / ``timeout`` / ``error``) and the raw ``error`` for logs.
+StoreFn = Callable[[dict], None]
 
 
 def _noop_progress(_msg: str) -> None:
     pass
 
 
-def _search_one(page: Page, query: str, limit: int, on_progress: ProgressFn = _noop_progress) -> dict:
+def _noop_store(_event: dict) -> None:
+    pass
+
+
+def _failure_reason(err: Exception) -> str:
+    """Classify a store failure into the short code the UI words for the user."""
+    if isinstance(err, SessionExpiredError):
+        return "session"
+    if isinstance(err, PlaywrightTimeoutError):
+        return "timeout"
+    return "error"
+
+
+def _store_event(query: str, store: str, state: str, *, candidates: Optional[list[dict]] = None,
+                 error: Optional[str] = None, reason: Optional[str] = None,
+                 elapsed_s: float = 0.0) -> dict:
+    return {"query": query, "store": store, "state": state, "candidates": candidates or [],
+            "error": error, "reason": reason, "elapsed_s": round(elapsed_s, 1)}
+
+
+def _search_one(page: Page, query: str, limit: int, on_progress: ProgressFn = _noop_progress,
+                on_store: StoreFn = _noop_store) -> dict:
     """Search every store in :data:`SEARCHERS` for a single ``query`` on an open page.
 
     Returns ``{"query", "candidates": [Candidate-dicts], "errors": {store: msg}}``.
     A store that errors (session expired, network) is recorded in ``errors`` and
     skipped; the other stores' results still come back. Candidates are ordered
-    by store (:data:`SEARCHERS` order — Mercadona, Ametller, Carrefour), each in
-    the store's own relevance order — never silently reduced past ``limit``
-    without the cap being visible to the caller (per-store ``limit``).
-    ``on_progress`` receives a status line before and after each store so the
-    caller can narrate the run.
+    by store (:data:`SEARCHERS` order), each in the store's own relevance order
+    — never silently reduced past ``limit`` without the cap being visible to the
+    caller (per-store ``limit``). ``on_progress`` receives a status line before
+    and after each store; ``on_store`` receives each store's result the moment
+    it lands, so one slow store never hides another's cards (issue #211).
     """
     candidates: list[Candidate] = []
     errors: dict[str, str] = {}
     for store, searcher in SEARCHERS.items():
         label = _STORE_LABEL.get(store, store)
         on_progress(f"Searching {label} for “{query}”…")
+        on_store(_store_event(query, store, "searching"))
+        t0 = time.monotonic()
         try:
             found = searcher(page, query, limit)
-            logger.info("🔎 [%s] %d candidate(s) for %r", store, len(found), query)
-            candidates.extend(found)
-            on_progress(f"{label}: {len(found)} result(s)")
         except Exception as err:  # noqa: BLE001 — one store failing must not sink the other
-            logger.warning("⚠️ [%s] search failed: %s", store, err)
+            elapsed = time.monotonic() - t0
+            reason = _failure_reason(err)
+            logger.warning("⚠️ [%s] search %r failed after %.1fs (%s): %s",
+                           store, query, elapsed, reason, err)
             errors[store] = str(err)
-            on_progress(f"{label}: no results")
+            on_progress(f"{label}: couldn't search")
+            on_store(_store_event(query, store, "failed", error=str(err), reason=reason,
+                                  elapsed_s=elapsed))
+            continue
+        elapsed = time.monotonic() - t0
+        logger.info("🔎 [%s] %d candidate(s) for %r in %.1fs", store, len(found), query, elapsed)
+        candidates.extend(found)
+        on_progress(f"{label}: {len(found)} result(s)")
+        on_store(_store_event(query, store, "done", candidates=[asdict(c) for c in found],
+                              elapsed_s=elapsed))
     return {
         "query": query,
         "candidates": [asdict(c) for c in candidates],
@@ -364,26 +321,41 @@ def _search_one(page: Page, query: str, limit: int, on_progress: ProgressFn = _n
 
 
 def search_all(queries: list[str], *, limit: int = DEFAULT_LIMIT,
-               headless: bool = False, on_progress: ProgressFn = _noop_progress) -> dict:
+               headless: bool = False, on_progress: ProgressFn = _noop_progress,
+               on_store: StoreFn = _noop_store) -> dict:
     """Search every store for each term in ``queries``, in one Chrome session.
 
     Returns ``{"results": [ {query, candidates, errors}, … ]}`` — one entry per
     non-empty query, preserving input order. Headed by default: Mercadona's
     search endpoint 403s a headless client (bot detection), and the store sites
     are best driven headed anyway (see ``browser.py``). ``on_progress`` is called
-    with short status lines as the run advances.
+    with short status lines as the run advances; ``on_store`` with each store's
+    state change (see :data:`StoreFn`) — every store starts ``waiting`` until the
+    shared Chrome profile is free and the browser is up.
     """
     terms = [q.strip() for q in queries if q and q.strip()]
     if not terms:
         return {"results": []}
 
+    for term in terms:
+        for store in SEARCHERS:
+            on_store(_store_event(term, store, "waiting"))
     on_progress("Opening the browser…")
-    playwright, context, page = launch_context(headless=headless, wait_for_profile=True)
+    t0 = time.monotonic()
+
+    def on_wait(delay_s: int, attempt: int, total: int) -> None:
+        on_progress(f"Waiting for the browser — another job is using it "
+                    f"(retry {attempt}/{total} in {delay_s}s)")
+
+    playwright, context, page = launch_context(headless=headless, wait_for_profile=True,
+                                               on_wait=on_wait)
+    logger.info("ℹ️ browser ready after %.1fs", time.monotonic() - t0)
     try:
-        results = [_search_one(page, term, limit, on_progress) for term in terms]
+        results = [_search_one(page, term, limit, on_progress, on_store) for term in terms]
     finally:
         context.close()
         playwright.stop()
+    logger.info("✅ product search done in %.1fs for %d term(s)", time.monotonic() - t0, len(terms))
     on_progress("Preparing results…")
     return {"results": results}
 
@@ -419,10 +391,16 @@ def main(argv: Optional[list[str]] = None) -> int:
         else:
             print(f"… {msg}", file=sys.stderr, flush=True)
 
+    def emit_store(event: dict) -> None:
+        # One NDJSON line per store state change so the app can show each
+        # store's cards (or its failure) as soon as it lands (issue #211).
+        if args.json:
+            print(json.dumps({"event": "store", **event}, ensure_ascii=False), flush=True)
+
     exit_code = 0
     try:
         result = search_all(args.query, limit=args.limit, headless=args.headless,
-                            on_progress=emit_progress)
+                            on_progress=emit_progress, on_store=emit_store)
     except ProfileNotInitializedError as err:
         # Emit the reason on stdout too (not just stderr) so the app, which reads
         # this process's stdout JSON, can tell the user to log the stores in.

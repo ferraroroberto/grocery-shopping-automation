@@ -131,6 +131,7 @@ def parse_voice_items(
     model: str,
     max_tokens: int = 4096,
     timeout: float = 90,
+    max_retries: int = 2,
 ) -> VoiceParseResult:
     """Send the spoken fragment + candidates to the hub LLM, return validated items."""
     if not text.strip():
@@ -155,6 +156,7 @@ def parse_voice_items(
             user_text=user_text,
             max_tokens=max_tokens,
             timeout=timeout,
+            max_retries=max_retries,
         )
     except APIError as exc:
         raise ExtractionError(f"Hub call failed: {exc}") from exc

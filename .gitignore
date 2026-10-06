@@ -67,3 +67,6 @@ Thumbs.db
 
 # Claude Code launcher scratch (screenshot uploads, transient run files)
 .launcher-tmp/
+
+# product search run log (issue #211)
+logs/

@@ -1,7 +1,10 @@
-"""On-demand product search (issue #87) — speak/type an item, search both
+"""On-demand product search (issue #87) — speak/type an item, search the
 stores, validate a candidate card to fill its `buscador`. No automated
 decision. Single-flight: one search runs at a time (it drives the shared
-Chrome profile), tracked in this module's `_SEARCH_RUN`."""
+Chrome profile), tracked in this module's `_SEARCH_RUN`.
+
+Each store's cards and state stream into `/status` as they land, so a slow
+or failed store never hides another's results (issue #211)."""
 
 import logging
 import time
@@ -24,8 +27,15 @@ from src.inventory_extract import ExtractionError
 from src.voice_command import parse_voice_items
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 _SEARCH_RUN: dict[str, Any] = {}
+
+# The LLM parse only tidies the utterance ("añade dos de mascarpone" →
+# "mascarpone"); the raw text is a usable fallback, so it gets a short budget
+# with no SDK retries rather than the audit's 10-minute one. A slow or broken
+# hub model held the whole search for 380 s before this (issue #211).
+_PARSE_TIMEOUT_DEFAULT_S = 20
 
 
 class ProductSearchStartPayload(BaseModel):
@@ -65,12 +75,15 @@ def _search_status() -> dict[str, Any]:
     state, error = "idle", None
     progress = None
     results_by_term: dict[str, dict] = {}
+    streamed: dict[str, dict[str, dict]] = {}
     if run.get("id"):
-        progress = product_search_runner.latest_progress(run.get("chunks") or [])
+        chunks = run.get("chunks") or []
+        progress = product_search_runner.latest_progress(chunks)
+        streamed = product_search_runner.store_states(chunks)
         if running:
             state = "running"
         else:
-            parsed = product_search_runner.parse_result(run.get("chunks") or [])
+            parsed = product_search_runner.parse_result(chunks)
             if parsed is None:
                 state, error = "error", "the search did not return any result"
             elif parsed.get("error"):
@@ -83,16 +96,43 @@ def _search_status() -> dict[str, Any]:
 
     merged = []
     for meta in run.get("items") or []:
-        entry = results_by_term.get(meta["term"], {})
+        entry = results_by_term.get(meta["term"])
+        stores = _store_rows(streamed.get(meta["term"], {}), finished=not running)
+        if entry is not None:  # the final result is authoritative once it lands
+            candidates, store_errors = entry.get("candidates", []), entry.get("errors", {})
+        else:  # still running (or crashed): what each store has sent so far
+            candidates = [c for ev in streamed.get(meta["term"], {}).values()
+                          if ev.get("state") == "done" for c in ev.get("candidates") or []]
+            store_errors = {r["store"]: r["error"] or "" for r in stores if r["state"] == "failed"}
         merged.append({
             "term": meta["term"],
             "inventory_idx": meta.get("inventory_idx"),
             "existing_super": meta.get("existing_super", ""),
-            "candidates": entry.get("candidates", []),
-            "store_errors": entry.get("errors", {}),
+            "candidates": candidates,
+            "store_errors": store_errors,
+            "stores": stores,
         })
     return {"id": run.get("id"), "state": state, "elapsed_s": elapsed,
             "items": merged, "error": error, "progress": progress}
+
+
+def _store_rows(events: dict[str, dict], *, finished: bool) -> list[dict[str, Any]]:
+    """One display row per store from its latest streamed event (issue #211).
+
+    `state` is `waiting` / `searching` / `done` / `failed`; a run that ended
+    (crash, cancel) with a store never reaching done/failed reports it
+    `failed` with reason `stopped`, so it never reads as still in flight.
+    """
+    rows = []
+    for store, ev in events.items():
+        state, reason, error = ev.get("state"), ev.get("reason"), ev.get("error")
+        if finished and state not in ("done", "failed"):
+            state, reason, error = "failed", "stopped", "the search stopped before this store finished"
+        rows.append({
+            "store": store, "state": state, "count": len(ev.get("candidates") or []),
+            "reason": reason, "error": error, "elapsed_s": ev.get("elapsed_s"),
+        })
+    return rows
 
 
 @router.post("/api/product-search/transcribe")
@@ -123,15 +163,22 @@ def product_search_start(payload: ProductSearchStartPayload) -> dict[str, Any]:
     # to an existing row when possible. If the hub is down, fall back to the raw
     # text as a single term so a typed query still works.
     items_meta: list[dict[str, Any]] = []
+    budget = cfg.get("product_search_parse_timeout", _PARSE_TIMEOUT_DEFAULT_S)
+    t0 = time.monotonic()
     try:
         parsed = parse_voice_items(
             text, df, base_url=cfg["llm_base_url"], model=model,
-            max_tokens=cfg["llm_max_tokens"], timeout=cfg.get("llm_timeout", 600),
+            max_tokens=cfg["llm_max_tokens"], timeout=budget, max_retries=0,
         )
         raw_items = [(it.name, it.idx) for it in parsed.items]
-    except ExtractionError:
-        logging.getLogger(__name__).warning("voice parse failed; searching raw text %r", text)
+        msg = f"parse model={model} {time.monotonic() - t0:.1f}s → {[n for n, _ in raw_items]}"
+        logger.info("ℹ️ %s", msg)
+    except ExtractionError as err:
+        msg = (f"parse model={model} failed after {time.monotonic() - t0:.1f}s "
+               f"(budget {budget}s), searching raw text {text!r}: {err}")
+        logger.warning("⚠️ %s", msg)
         raw_items = [(text, None)]
+    product_search_runner.note(msg)
 
     seen: set[str] = set()
     for name, idx in raw_items:
@@ -148,6 +195,7 @@ def product_search_start(payload: ProductSearchStartPayload) -> dict[str, Any]:
         raise inventory_error(422, "could not find an item to search in what you said")
 
     terms = [m["term"] for m in items_meta]
+    product_search_runner.note(f"start terms={terms}")
     process, chunks, reader = product_search_runner.start(terms, max(1, payload.limit))
     _SEARCH_RUN.clear()
     _SEARCH_RUN.update({

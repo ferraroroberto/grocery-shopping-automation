@@ -104,7 +104,7 @@ monthly-cost baseline: set/reset (#183)| ROUTERS
     EMAILCHECK["email_check.py\nconfirmation-email check seam:\nsubject similarity, processed-state idempotency"]
     EMAILPARSERS["email_parsers/ametller.py, carrefour.py\ndeterministic per-store item-list parsers"]
     ITEMMATCH["item_matching.py\nalias/exact/contains/fuzzy matching vs latest purchase log"]
-    PRODSEARCH["product_search.py\nstore product search (Mercadona Algolia +\nAmetller SCAPI + Carrefour DOM read, #157),\nreuses browser.py (#87)"]
+    PRODSEARCH["product_search.py\nstore product search (Mercadona Algolia +\nCarrefour DOM read, #157; Ametller dropped #211),\nper-store streamed results, reuses browser.py (#87)"]
     RUNAUTO --> STOREMODS
     STOREMODS --> BROWSER
     BOOTSTRAP --> BROWSER

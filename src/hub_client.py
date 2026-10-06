@@ -21,13 +21,17 @@ def call_hub_llm(
     user_text: str,
     max_tokens: int = 4096,
     timeout: float = 90,
+    max_retries: int = 2,
 ) -> str:
     """Call the hub LLM (Anthropic-shape) and return its concatenated text.
 
     Raises `anthropic.APIError` on failure, untranslated — callers wrap it in
-    their own domain error type with their own message.
+    their own domain error type with their own message. `max_retries` is the
+    SDK's (its default is 2); a caller with a hard time budget passes 0 so a
+    timeout isn't silently tripled.
     """
-    client = Anthropic(api_key="local-dummy", base_url=base_url, timeout=timeout)
+    client = Anthropic(api_key="local-dummy", base_url=base_url, timeout=timeout,
+                       max_retries=max_retries)
     message = client.messages.create(
         model=model,
         max_tokens=max_tokens,

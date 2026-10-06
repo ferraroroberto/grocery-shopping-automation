@@ -18,6 +18,7 @@ import logging
 import random
 import time
 from pathlib import Path
+from typing import Callable, Optional
 
 from playwright.sync_api import (
     BrowserContext,
@@ -125,7 +126,10 @@ _PROFILE_WAIT_BACKOFF_S = (5, 15, 30, 60, 120)
 
 
 def launch_context(
-    *, headless: bool = False, wait_for_profile: bool = False
+    *,
+    headless: bool = False,
+    wait_for_profile: bool = False,
+    on_wait: Optional[Callable[[int, int, int], None]] = None,
 ) -> tuple[Playwright, BrowserContext, Page]:
     """Launch real Chrome on the shared persistent profile.
 
@@ -138,6 +142,9 @@ def launch_context(
             (:data:`_PROFILE_WAIT_BACKOFF_S`) rather than raising immediately —
             the fleet "serialize access, never kill a live holder" rule. Off by
             default so the cart automation's behaviour is unchanged.
+        on_wait: Optional ``(delay_s, attempt, total)`` callback fired before
+            each backoff sleep, so a caller can tell the user it is waiting on
+            the profile rather than searching (issue #211).
 
     Returns:
         ``(playwright, context, page)``. The caller owns cleanup: call
@@ -169,6 +176,8 @@ def launch_context(
                 "(a live sibling job holds it; never killed)",
                 type(err).__name__, delay, attempt, len(schedule),
             )
+            if on_wait is not None:
+                on_wait(delay, attempt, len(schedule))
             time.sleep(delay)
             continue
         logger.info(
