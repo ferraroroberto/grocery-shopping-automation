@@ -621,6 +621,8 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
   border-bottom: 1px solid var(--line-muted);
 }
 .search-group-term { font-weight: 700; font-size: var(--font-body); }
+/* One line per store (#211): waiting / searching / N results / failed. */
+.search-store-states { list-style: none; margin: 0 0 var(--space-xs); padding: 0; display: grid; gap: 2px; }
 .candidate-list { display: grid; gap: 0; }
 .candidate {
   display: flex; align-items: center; gap: var(--space-sm);

@@ -66,13 +66,7 @@ class FakeCarrefourPage:
 def _no_navigation(monkeypatch):
     """Neutralise the real browser navigation / login check + settle waits."""
     monkeypatch.setattr(product_search, "goto_with_login_check", lambda *a, **k: None)
-    monkeypatch.setattr(product_search, "_AMETLLER_SEARCH_SETTLE_S", 0)
     monkeypatch.setattr(product_search, "_CARREFOUR_SEARCH_SETTLE_S", 0)
-
-
-def test_slugify():
-    assert product_search._slugify("Alvocat caixa 1kg") == "alvocat-caixa-1kg"
-    assert product_search._slugify("Síndria negra extra") == "sindria-negra-extra"
 
 
 def test_fmt_price_spanish():
@@ -105,58 +99,6 @@ def test_search_mercadona_non_ok_raises():
         product_search.search_mercadona(page, "sandia", 8)
 
 
-def test_search_ametller_parses_hits(monkeypatch):
-    monkeypatch.setattr(
-        product_search.ametller, "_read_auth",
-        lambda page: {"token": "tok", "customer_id": "c", "customer_type": "registered"},
-    )
-    # Spanish name: the SCAPI call asks for locale=es (issue #111).
-    hit = {
-        "productId": "14200", "productName": "Aguacate caja 1kg",
-        "price": 4.99, "image": {"disBaseLink": "http://img/a.jpg"},
-    }
-    page = FakePage(FakeResp({"hits": [hit], "total": 24}))
-    out = product_search.search_ametller(page, "aguacate", 8)
-    assert len(out) == 1
-    c = out[0]
-    assert c.store == "ametller"
-    assert c.product_url == "https://www.ametllerorigen.com/es/aguacate-caja-1kg/14200.html"
-    assert c.price_text == "4,99 €"
-    # the SCAPI call carries the bearer token
-    assert page.request.calls[0]["headers"]["Authorization"] == "Bearer tok"
-
-
-def test_search_ametller_requests_spanish_locale(monkeypatch):
-    """SCAPI must be asked for ``locale=es`` — without it names come back in
-    Catalan ("Alvocat" for aguacate). Only the plain form is accepted; the
-    region-qualified ``es-ES`` / ``es_ES`` spellings 400. See issue #111."""
-    monkeypatch.setattr(
-        product_search.ametller, "_read_auth",
-        lambda page: {"token": "t", "customer_id": "c", "customer_type": "registered"},
-    )
-    page = FakePage(FakeResp({"hits": [], "total": 0}))
-    product_search.search_ametller(page, "aguacate", 8)
-    assert page.request.calls[0]["params"]["locale"] == "es"
-
-
-def test_search_ametller_no_match_returns_empty(monkeypatch):
-    monkeypatch.setattr(
-        product_search.ametller, "_read_auth",
-        lambda page: {"token": "t", "customer_id": "c", "customer_type": "registered"},
-    )
-    page = FakePage(FakeResp({"hits": [], "total": 0}))
-    assert product_search.search_ametller(page, "flurbos", 8) == []
-
-
-def test_search_ametller_guest_session_raises(monkeypatch):
-    monkeypatch.setattr(
-        product_search.ametller, "_read_auth",
-        lambda page: {"token": "", "customer_id": "", "customer_type": "guest"},
-    )
-    with pytest.raises(SessionExpiredError):
-        product_search.search_ametller(FakePage(FakeResp({})), "sandia", 8)
-
-
 def test_search_one_isolates_a_failing_store(monkeypatch):
     def good(page, q, limit):
         return [product_search.Candidate("mercadona", "X", "u", "1 €", 1.0, "", 0, 0.9, "strong")]
@@ -164,11 +106,11 @@ def test_search_one_isolates_a_failing_store(monkeypatch):
     def bad(page, q, limit):
         raise RuntimeError("boom")
 
-    monkeypatch.setattr(product_search, "SEARCHERS", {"mercadona": good, "ametller": bad})
+    monkeypatch.setattr(product_search, "SEARCHERS", {"mercadona": good, "carrefour": bad})
     res = product_search._search_one(object(), "x", 5)
     assert res["query"] == "x"
     assert len(res["candidates"]) == 1
-    assert "ametller" in res["errors"]  # one store failing never sinks the other
+    assert "carrefour" in res["errors"]  # one store failing never sinks the other
 
 
 # --- Carrefour (issue #157) --------------------------------------------------
@@ -255,3 +197,82 @@ def test_search_carrefour_no_results_returns_empty():
 def test_carrefour_registered_in_searchers_and_labels():
     assert product_search.SEARCHERS["carrefour"] is product_search.search_carrefour
     assert product_search._STORE_LABEL["carrefour"] == "Carrefour"
+
+
+# --- Per-store streaming (issue #211) ----------------------------------------
+
+def _cand(store):
+    return product_search.Candidate(store, "X", "u", "1 €", 1.0, "", 0, 0.9, "strong")
+
+
+def test_ametller_not_in_product_search():
+    # Ametller left the search fan-out (#211); its cart handler stays.
+    assert "ametller" not in product_search.SEARCHERS
+    assert not hasattr(product_search, "search_ametller")
+    assert list(product_search.SEARCHERS) == ["mercadona", "carrefour"]
+
+
+def test_search_one_streams_a_store_before_a_slow_one_finishes(monkeypatch):
+    events = []
+
+    def fast(page, q, limit):
+        return [_cand("mercadona")]
+
+    def slow(page, q, limit):
+        # By the time the slow store is still working, the fast one's results
+        # must already be out — one store never hides another.
+        done = [e for e in events if e["store"] == "mercadona" and e["state"] == "done"]
+        assert done and done[0]["candidates"][0]["store"] == "mercadona"
+        return []
+
+    monkeypatch.setattr(product_search, "SEARCHERS", {"mercadona": fast, "carrefour": slow})
+    product_search._search_one(object(), "x", 5, on_store=events.append)
+    assert [(e["store"], e["state"]) for e in events] == [
+        ("mercadona", "searching"), ("mercadona", "done"),
+        ("carrefour", "searching"), ("carrefour", "done"),
+    ]
+    assert all(e["query"] == "x" for e in events)
+    assert events[-1]["candidates"] == [] and events[-1]["error"] is None
+    assert isinstance(events[1]["elapsed_s"], float)
+
+
+def test_search_one_failed_store_is_distinct_from_no_results(monkeypatch):
+    events = []
+
+    def empty(page, q, limit):
+        return []
+
+    def broken(page, q, limit):
+        raise SessionExpiredError("carrefour")
+
+    monkeypatch.setattr(product_search, "SEARCHERS", {"mercadona": empty, "carrefour": broken})
+    res = product_search._search_one(object(), "x", 5, on_store=events.append)
+    final = {e["store"]: e for e in events if e["state"] in ("done", "failed")}
+    assert final["mercadona"]["state"] == "done" and final["mercadona"]["candidates"] == []
+    assert final["carrefour"]["state"] == "failed"
+    assert final["carrefour"]["reason"] == "session"
+    assert "carrefour" in res["errors"]
+
+
+def test_search_all_marks_every_store_waiting_for_the_browser(monkeypatch):
+    events = []
+
+    class Ctx:
+        def close(self):
+            pass
+
+    class Pw:
+        def stop(self):
+            pass
+
+    def fake_launch(**kwargs):
+        # Every store is announced as waiting before the browser is up.
+        assert [(e["store"], e["state"]) for e in events] == [
+            ("mercadona", "waiting"), ("carrefour", "waiting")]
+        return Pw(), Ctx(), object()
+
+    monkeypatch.setattr(product_search, "launch_context", fake_launch)
+    monkeypatch.setattr(product_search, "SEARCHERS", {
+        "mercadona": lambda p, q, n: [], "carrefour": lambda p, q, n: []})
+    out = product_search.search_all(["x"], on_store=events.append)
+    assert out["results"][0]["query"] == "x"

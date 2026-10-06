@@ -25,12 +25,25 @@ const search = {
   prefilled: null,
 };
 
+// Store keys → display names, and a failed store's reason code → plain copy
+// (the raw error stays in the server log — failure copy is sanitized).
+const STORE_LABEL = { mercadona: "Mercadona", carrefour: "Carrefour" };
+const FAILURE_COPY = {
+  session: "couldn't search — log in to the store again",
+  timeout: "couldn't search — the site was too slow",
+  stopped: "stopped before it finished",
+  error: "couldn't search (network or site error)",
+};
+
+function storeLabel(store) {
+  return STORE_LABEL[store] || (store ? store[0].toUpperCase() + store.slice(1) : "");
+}
+
+// Before /start returns, the server is still reading the text (an LLM call) —
+// say so rather than claim the stores are being searched (issue #211).
 function searchStage(elapsed) {
   const t = formatElapsed(elapsed);
-  if (elapsed < 5) return `Opening the browser… (${t})`;
-  if (elapsed < 20) return `Searching the stores… (${t})`;
-  if (elapsed < 45) return `Searching the stores… (${t}) — usually takes 15–40 s`;
-  return `Still searching… (${t}) — sometimes takes 1–2 min`;
+  return search.pendingStart ? `Reading “${search.term}”… (${t})` : `Starting the search… (${t})`;
 }
 
 // Renders into the #product-search host that renderAdd() lays out, never the
@@ -41,7 +54,7 @@ export function renderSearch() {
   const s = search;
   node.innerHTML = `
     <h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-search"></use></svg>Find a store product</h2>
-    <div class="hint">Say or type a product in Spanish. Searches Mercadona, Ametller and Carrefour — pick the right one to add it to the list, or to link an item that is already on it.</div>
+    <div class="hint">Say or type a product in Spanish. Searches Mercadona and Carrefour — pick the right one to add it to the list, or to link an item that is already on it.</div>
     <div class="search-bar">
       <button id="search-record" class="icon-button${s.recording ? " recording" : ""}" type="button" aria-pressed="${s.recording}" aria-label="Dictate a product" title="Dictate">
         <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-mic"></use></svg>
@@ -81,8 +94,10 @@ function renderSearchResults() {
   const wrap = document.querySelector("#search-results");
   if (!wrap) return;
   const s = search;
-  const anyCandidates = s.items.some((i) => (i.candidates || []).length);
-  if (s.running && !anyCandidates) { wrap.replaceChildren(); return; }
+  // Each store's cards and state show as soon as it reports (issue #211), so
+  // only a run with nothing reported yet renders empty.
+  const anyReported = s.items.some((i) => (i.stores || []).length || (i.candidates || []).length);
+  if (s.running && !anyReported) { wrap.replaceChildren(); return; }
   wrap.innerHTML = s.items.map(searchItemGroup).join("");
 }
 
@@ -92,17 +107,41 @@ function searchItemGroup(item) {
     ? '<span class="chip chip-new">New</span>'
     : '<span class="meta">Already on the list</span>';
   const header = `<div class="search-group-head"><span class="search-group-term">${html(item.term)}</span>${tag}</div>`;
-  // Which stores couldn't be reached (session expired, network) — so a missing
-  // store reads as "couldn't check", not "nothing there".
-  const failed = Object.keys(item.store_errors || {}).map((s) => s[0].toUpperCase() + s.slice(1));
-  const errNote = failed.length
-    ? `<div class="panel-status">Couldn't check ${failed.join(" and ")} (session or network).</div>` : "";
+  const stores = item.stores || [];
+  const states = storeStates(item, stores);
+  const pending = search.running && stores.some((st) => st.state === "waiting" || st.state === "searching");
+  const failed = stores.some((st) => st.state === "failed") || Object.keys(item.store_errors || {}).length;
   if (!cands.length) {
-    return `<section class="search-group card">${header}
-      <div class="panel-status">No results for “${html(item.term)}” — try another word.</div>${errNote}</section>`;
+    // "No results" only when every store answered and none failed — a failed
+    // or still-running store must never read as "nothing there".
+    const empty = pending ? "" : failed
+      ? `<div class="panel-status">No results from the stores that answered.</div>`
+      : `<div class="panel-status">No results for “${html(item.term)}” — try another word.</div>`;
+    return `<section class="search-group card">${header}${states}${empty}</section>`;
   }
-  return `<section class="search-group card">${header}
-    <div class="candidate-list">${cands.map((cand) => candidateRow(cand, item)).join("")}</div>${errNote}</section>`;
+  return `<section class="search-group card">${header}${states}
+    <div class="candidate-list">${cands.map((cand) => candidateRow(cand, item)).join("")}</div></section>`;
+}
+
+// One line per store: waiting for the browser / searching / N results /
+// no results / couldn't search (issue #211). Older payloads without `stores`
+// fall back to naming the stores in `store_errors`.
+function storeStates(item, stores) {
+  const rows = stores.length
+    ? stores.map((st) => [st.state === "failed", `${storeLabel(st.store)}: ${storeStateText(st)}`])
+    : Object.keys(item.store_errors || {}).map((store) => [true, `${storeLabel(store)}: ${FAILURE_COPY.error}`]);
+  if (!rows.length) return "";
+  return `<ul class="search-store-states">${rows.map(([bad, line]) =>
+    `<li class="panel-status${bad ? " error" : ""}">${html(line)}</li>`).join("")}</ul>`;
+}
+
+function storeStateText(st) {
+  const inFlight = st.state === "waiting" || st.state === "searching";
+  if (inFlight && !search.running) return FAILURE_COPY.stopped; // cancelled mid-store
+  if (st.state === "waiting") return "waiting for the browser…";
+  if (st.state === "searching") return "searching…";
+  if (st.state === "failed") return FAILURE_COPY[st.reason] || FAILURE_COPY.error;
+  return st.count ? `${st.count} result${st.count === 1 ? "" : "s"}` : "no results";
 }
 
 function candidateKey(term, productUrl) {
@@ -256,8 +295,16 @@ function applySearchStatus(status) {
   // utterance). Keep our optimistic running state; don't stop the poll early.
   if (!status || status.state === "idle") return;
   s.progress = status.progress || "";
+  const changed = JSON.stringify(status.items || []) !== JSON.stringify(s.items);
   s.items = status.items || [];
-  if (status.state === "running") { s.running = true; renderSearchResults(); renderSearchStatus(); return; }
+  if (status.state === "running") {
+    s.running = true;
+    // Re-render cards only when a store reported something new, so the 1 s
+    // poll never wipes an open confirm row mid-edit.
+    if (changed) renderSearchResults();
+    renderSearchStatus();
+    return;
+  }
   s.running = false;
   stopSearchPoll();
   if (status.state === "error") s.error = status.error || "The search failed";

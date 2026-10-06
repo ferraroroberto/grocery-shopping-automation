@@ -30,6 +30,12 @@ def _clear_search_run():
     search_api._SEARCH_RUN.clear()
 
 
+@pytest.fixture(autouse=True)
+def _log_to_tmp(tmp_path, monkeypatch):
+    # The run log (issue #211) must never land in the real checkout's logs/.
+    monkeypatch.setattr(search_api.product_search_runner, "LOG_PATH", tmp_path / "product_search.log")
+
+
 def test_start_parses_utterance_and_launches(client, monkeypatch):
     monkeypatch.setattr(
         search_api, "parse_voice_items",
@@ -159,3 +165,97 @@ def test_select_updates_existing_row(client):
     assert updated[cols["buscador"]] == "https://www.ametllerorigen.com/es/x/9.html"
     assert updated[cols["super"]] == "ametller"
     assert updated[cols["cantidad"]] >= 1  # never lowered below buyable
+
+
+# --- Per-store streaming + bounded parse (issue #211) ------------------------
+
+_CAND = {
+    "store": "mercadona", "name": "Mascarpone", "product_url": "u1",
+    "price_text": "2,75 €", "price_eur": 2.75, "thumbnail": "",
+    "native_rank": 0, "score": 0.8, "match": "strong",
+}
+
+
+def _store_event(store, state, **extra):
+    return json.dumps({"event": "store", "query": "mascarpone", "store": store,
+                       "state": state, "candidates": extra.pop("candidates", []),
+                       "error": None, "reason": None, "elapsed_s": 1.0, **extra}) + "\n"
+
+
+def test_status_running_shows_a_finished_store_while_another_still_searches(client):
+    search_api._SEARCH_RUN.update({
+        "id": "r2",
+        "process": FakeProc(alive=True),
+        "chunks": [
+            _store_event("mercadona", "waiting"),
+            _store_event("carrefour", "waiting"),
+            _store_event("mercadona", "searching"),
+            _store_event("mercadona", "done", candidates=[_CAND]),
+            _store_event("carrefour", "searching"),
+        ],
+        "items": [{"term": "mascarpone", "inventory_idx": None, "existing_super": ""}],
+        "started_at": 0.0,
+    })
+    body = client.get("/api/product-search/status").json()
+    assert body["state"] == "running"
+    item = body["items"][0]
+    assert [c["name"] for c in item["candidates"]] == ["Mascarpone"]
+    assert [(s["store"], s["state"], s["count"]) for s in item["stores"]] == [
+        ("mercadona", "done", 1), ("carrefour", "searching", 0)]
+
+
+def test_status_failed_store_is_distinct_from_no_results(client):
+    search_api._SEARCH_RUN.update({
+        "id": "r3",
+        "process": FakeProc(alive=True),
+        "chunks": [
+            _store_event("mercadona", "done"),
+            _store_event("carrefour", "failed", reason="timeout", error="Timeout 30000ms"),
+        ],
+        "items": [{"term": "mascarpone", "inventory_idx": None, "existing_super": ""}],
+        "started_at": 0.0,
+    })
+    stores = {s["store"]: s for s in client.get("/api/product-search/status").json()["items"][0]["stores"]}
+    assert stores["mercadona"]["state"] == "done" and stores["mercadona"]["count"] == 0
+    assert stores["carrefour"]["state"] == "failed" and stores["carrefour"]["reason"] == "timeout"
+
+
+def test_status_crashed_run_marks_unfinished_stores_failed(client):
+    search_api._SEARCH_RUN.update({
+        "id": "r4",
+        "process": FakeProc(alive=False, returncode=1),
+        "chunks": [
+            _store_event("mercadona", "done", candidates=[_CAND]),
+            _store_event("carrefour", "searching"),
+        ],
+        "items": [{"term": "mascarpone", "inventory_idx": None, "existing_super": ""}],
+        "started_at": 0.0,
+    })
+    body = client.get("/api/product-search/status").json()
+    assert body["state"] == "error"
+    item = body["items"][0]
+    assert item["candidates"][0]["name"] == "Mascarpone"  # what arrived is kept
+    assert {s["store"]: s["state"] for s in item["stores"]} == {"mercadona": "done", "carrefour": "failed"}
+
+
+def test_start_bounds_the_parse_and_falls_back_to_raw_text(client, monkeypatch):
+    from src.inventory_extract import ExtractionError
+    seen = {}
+
+    def slow_parse(*a, **k):
+        seen.update(k)
+        raise ExtractionError("Hub call failed: timed out")
+
+    def fake_start(terms, limit):
+        seen["terms"] = terms
+        return FakeProc(alive=True), [], None
+
+    monkeypatch.setattr(search_api, "parse_voice_items", slow_parse)
+    monkeypatch.setattr(search_api.product_search_runner, "start", fake_start)
+    resp = client.post("/api/product-search/start", json={"text": "mascarpone"})
+    assert resp.status_code == 200
+    # A slow or broken hub must not hold the store search hostage (#211): the
+    # parse gets a short budget with no SDK retries, then the raw text is searched.
+    assert seen["timeout"] <= 60
+    assert seen["max_retries"] == 0
+    assert seen["terms"] == ["mascarpone"]

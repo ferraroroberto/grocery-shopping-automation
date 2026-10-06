@@ -286,12 +286,18 @@ you (below) and can fill the form in.
 Find the store product that fills an item's `buscador` so the cart automation
 can buy it. **Speak or type a product in Spanish** (e.g. *"añade sandía"*); the
 spoken clip is transcribed by whisper (language auto-detect) and parsed into the
-search term the same way the HA voice bridge parses commands. The app then
-searches **all three stores at once** — Mercadona (its Algolia search
-endpoint), Ametller (Salesforce Commerce Cloud SCAPI Shopper Search) and
-Carrefour (a real-Chrome DOM read of its results grid, Cloudflare-gated like
-its cart handler) — driving the logged-in Chrome profile, and shows the
-candidates as **cards you validate**:
+search term the same way the HA voice bridge parses commands — with a short
+budget (`audio_audit.product_search_parse_timeout`, default 20 s, no retries),
+falling back to searching your raw text if the hub is slow or down. The app
+then searches **Mercadona** (its Algolia search endpoint) and **Carrefour** (a
+real-Chrome DOM read of its results grid, Cloudflare-gated like its cart
+handler), driving the logged-in Chrome profile. (Ametller left product search in
+#211; its cart handler and stored links are unchanged.) Each store's cards
+appear **as soon as that store answers**, under one line per store — *waiting
+for the browser*, *searching…*, *N results*, *no results*, or *couldn't search*
+(session, slow site, or network) — so a slow or failed store never hides the
+other's results and never reads as "no results". The candidates are **cards
+you validate**:
 each card has the product name, store, price and a **link to open the product
 and check it yourself**. Each searched term is tagged **New** or **Already on
 the list**, and **Use** acts on that:
@@ -311,6 +317,9 @@ stores don't carry (e.g. *"añade flurbos"*) simply returns no cards. The search
 runs on demand with a live elapsed timer and a Cancel button (it drives a real
 browser, so it takes seconds-to-minutes) and reuses the same `automation/`
 launch helpers and shared-profile serialization as the cart automation.
+Each run's phases (parse model + time, browser wait, per-store elapsed and
+failures) are appended to `logs/product_search.log` (gitignored) — the webapp
+has no console, so that file is where a slow or empty search is diagnosed.
 
 > **Pre-requisites:** the stores must be logged in
 > (`python -m automation.bootstrap_session`), and the LLM hub (`:8000`) +
