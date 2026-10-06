@@ -105,6 +105,10 @@ export function renderAudit(targetsOnly = false) {
       </article>`).join("") || emptyStateEl("package", "No items in this zone.").outerHTML}</section>`;
 }
 
+// A visible caption above a form input (wrapping <label>, so the name is
+// programmatic too) — placeholders alone vanish once the box holds a value (#213).
+const labelled = (caption, input) => `<label class="field-label">${caption}${input}</label>`;
+
 export function renderEdit() {
   const cols = c();
   const source = filteredItems().sort((a, b) => text(a[cols.comida]).localeCompare(text(b[cols.comida])));
@@ -113,14 +117,14 @@ export function renderEdit() {
       <form class="form edit-form">
         <div class="row"><h3>${html(item[cols.comida])}</h3><button class="danger" type="button" data-action="delete">Delete</button></div>
         <div class="three">
-          <input class="field" name="comida" value="${html(item[cols.comida])}" placeholder="Item" />
-          <input class="field" name="super" value="${html(item[cols.super])}" placeholder="Supermarket" />
-          <input class="field" name="lugar" value="${html(item[cols.lugar])}" placeholder="Zone" />
+          ${labelled("Item", `<input class="field" name="comida" value="${html(item[cols.comida])}" placeholder="Item" />`)}
+          ${labelled("Supermarket", `<input class="field" name="super" value="${html(item[cols.super])}" placeholder="Supermarket" />`)}
+          ${labelled("Zone", `<input class="field" name="lugar" value="${html(item[cols.lugar])}" placeholder="Zone" />`)}
         </div>
         <div class="three-link">
-          <input class="field" name="cantidad" type="number" min="0" value="${html(item[cols.cantidad])}" placeholder="Target" />
-          <input class="field" name="tenemos" type="number" min="0" value="${html(item[cols.tenemos])}" placeholder="Current" />
-          <input class="field" name="buscador" value="${html(item[cols.buscador])}" placeholder="URL" />
+          ${labelled("Target", `<input class="field" name="cantidad" type="number" min="0" value="${html(item[cols.cantidad])}" placeholder="Target" />`)}
+          ${labelled("In stock", `<input class="field" name="tenemos" type="number" min="0" value="${html(item[cols.tenemos])}" placeholder="In stock" />`)}
+          ${labelled("URL", `<input class="field" name="buscador" value="${html(item[cols.buscador])}" placeholder="URL" />`)}
         </div>
         <button class="primary" type="submit">Save</button>
       </form>
@@ -137,14 +141,14 @@ export function renderAdd() {
     <h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg>Add item</h2>
     <form id="add-form" class="form">
       <div class="three">
-        <input class="field" name="comida" placeholder="Item name" required />
-        <input class="field" name="super" list="stores" placeholder="Supermarket" required />
-        <input class="field" name="lugar" list="zones" placeholder="Zone" required />
+        ${labelled("Item", `<input class="field" name="comida" placeholder="Item name" required />`)}
+        ${labelled("Supermarket", `<input class="field" name="super" list="stores" placeholder="Supermarket" required />`)}
+        ${labelled("Zone", `<input class="field" name="lugar" list="zones" placeholder="Zone" required />`)}
       </div>
       <div class="three-link">
-        <input class="field" name="cantidad" type="number" min="0" value="0" placeholder="Target" />
-        <input class="field" name="tenemos" type="number" min="0" value="0" placeholder="Current" />
-        <input class="field" name="buscador" placeholder="URL" />
+        ${labelled("Target", `<input class="field" name="cantidad" type="number" min="0" value="0" placeholder="Target" />`)}
+        ${labelled("In stock", `<input class="field" name="tenemos" type="number" min="0" value="0" placeholder="In stock" />`)}
+        ${labelled("URL", `<input class="field" name="buscador" placeholder="URL" />`)}
       </div>
       <button class="big-btn" type="submit">Add item</button>
     </form>

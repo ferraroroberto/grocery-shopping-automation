@@ -526,6 +526,9 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 
 @media (max-width: 560px) {
   .two, .three, .three-link { grid-template-columns: 1fr; }
+  /* Target + In stock share a row, URL spans below — keeps the labelled item form short (#213). */
+  .three-link { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .three-link > :last-child { grid-column: 1 / -1; }
 }
 
 /* ------------------------------------------------------------ statuses */

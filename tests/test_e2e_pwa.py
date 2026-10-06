@@ -325,6 +325,20 @@ def test_search_only_on_filterable_modes(page):
 
 
 @pytest.mark.e2e
+def test_item_forms_label_every_field(page):
+    """Edit item and Add item name all six fields (#213): the numbers read
+    "Target" / "In stock" even when the box holds a value."""
+    labels = ["Item", "Supermarket", "Zone", "Target", "In stock", "URL"]
+    for mode, selector in (("edit", ".edit-form"), ("add", "#add-form")):
+        goto_mode(page, mode)
+        form = page.locator(selector).first
+        form.wait_for()
+        for label in labels:
+            assert form.get_by_label(label, exact=True).count() == 1, f"{mode}: {label}"
+    assert page._js_errors == [], f"JS errors: {page._js_errors}"
+
+
+@pytest.mark.e2e
 def test_add_item_increases_count(page):
     goto_mode(page, "dashboard")
     page.wait_for_selector(".summary")
