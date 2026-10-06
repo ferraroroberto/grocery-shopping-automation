@@ -49,6 +49,7 @@ import {
   renderSearch,
   startProductSearch,
   toggleSearchRecording,
+  addCandidateAsNew,
   useCandidate,
   useCandidateClick,
 } from "./modules/search.js";
@@ -329,6 +330,7 @@ el.app.addEventListener("click", async (event) => {
   if (id === "search-cancel") await cancelProductSearch();
   if (button?.dataset.action === "search-use") useCandidateClick(button.closest(".candidate"));
   if (button?.dataset.action === "search-confirm") await useCandidate(button.closest(".candidate"));
+  if (button?.dataset.action === "search-add-new") addCandidateAsNew(button.closest(".candidate"));
 });
 
 // Items → Stores: the view owns its data-stores-* hooks (store_links, #148).

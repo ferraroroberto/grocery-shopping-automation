@@ -299,18 +299,22 @@ for the browser*, *searching…*, *N results*, *no results*, or *couldn't search
 other's results and never reads as "no results". The candidates are **cards
 you validate**:
 each card has the product name, store, price and a **link to open the product
-and check it yourself**. Each searched term is tagged **New** or **Already on
-the list**, and **Use** acts on that:
+and check it yourself**. The stores are always searched with **your own words**
+(issue #214) — the results are headed *Results for “boniato”* — never with the
+name of an inventory row the text happened to match. A term is tagged **New**,
+or, when it matches an item already on the list, shows *Matches your item …*,
+and **Use** acts on that:
 
 - **New** — **Use** fills the **Add item** form below with the term as the
   name, the card's store and product link, and a target of 1; pick the zone
   (and adjust the quantities) and tap **Add item**. Nothing is saved until
   then, and the card then reads **Added**.
-- **Already on the list** — **Use** opens a compact confirm row on the card —
+- **Matches your item** — **Use** opens a compact confirm row on the card —
   a **zone** combo (the inventory's existing zones) plus **have** and
   **target** quantities, prefilled from the item's current row. Tapping
   **Update item** writes the product's URL to that item's `buscador` and
-  applies the store, zone, and quantities.
+  applies the store, zone, and quantities; **Add as new item** instead hands
+  the card to the Add item form under the term you searched.
 
 **Nothing is auto-picked**; you always choose. A term the
 stores don't carry (e.g. *"añade flurbos"*) simply returns no cards. The search

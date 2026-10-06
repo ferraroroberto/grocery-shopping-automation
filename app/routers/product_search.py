@@ -24,7 +24,7 @@ from app.api_common import (
 )
 from src.data import COLUMNS, CONFIG, apply_item_edit, build_new_item_row
 from src.inventory_extract import ExtractionError
-from src.voice_command import parse_voice_items
+from src.voice_command import VoiceItem, parse_voice_items
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -59,6 +59,23 @@ class ProductSearchSelectPayload(BaseModel):
     lugar: str | None = None
     tenemos: int | None = Field(None, ge=0)
     cantidad: int | None = Field(None, ge=0)
+
+
+def _search_term(item: VoiceItem, text: str, only_item: bool) -> str:
+    """The store query for one parsed item: the user's own words, never the
+    matched inventory row's name (issue #214) — that match is only a hint about
+    which row a pick would update. `phrase` is what the user said; a model that
+    omitted it leaves the unmatched name (already as spoken) or, for a lone
+    matched item, the typed text. Only a multi-item utterance with matched,
+    phrase-less items falls back to the inventory name, loudly."""
+    if item.phrase:
+        return item.phrase
+    if item.idx is None and item.name:
+        return item.name
+    if only_item:
+        return text
+    logger.warning("⚠️ parse returned no phrase for matched item %r; searching its inventory name", item.name)
+    return item.name
 
 
 def _search_status() -> dict[str, Any]:
@@ -108,6 +125,7 @@ def _search_status() -> dict[str, Any]:
             "term": meta["term"],
             "inventory_idx": meta.get("inventory_idx"),
             "existing_super": meta.get("existing_super", ""),
+            "inventory_name": meta.get("inventory_name", ""),
             "candidates": candidates,
             "store_errors": store_errors,
             "stores": stores,
@@ -160,7 +178,8 @@ def product_search_start(payload: ProductSearchStartPayload) -> dict[str, Any]:
     model = payload.model or cfg["llm_model"]
 
     # Same LLM parse as the HA voice bridge — strips "añade"/quantities and maps
-    # to an existing row when possible. If the hub is down, fall back to the raw
+    # to an existing row when possible; the row is kept as a hint, the query is
+    # the user's own phrase (issue #214). If the hub is down, fall back to the raw
     # text as a single term so a typed query still works.
     items_meta: list[dict[str, Any]] = []
     budget = cfg.get("product_search_parse_timeout", _PARSE_TIMEOUT_DEFAULT_S)
@@ -170,7 +189,7 @@ def product_search_start(payload: ProductSearchStartPayload) -> dict[str, Any]:
             text, df, base_url=cfg["llm_base_url"], model=model,
             max_tokens=cfg["llm_max_tokens"], timeout=budget, max_retries=0,
         )
-        raw_items = [(it.name, it.idx) for it in parsed.items]
+        raw_items = [(_search_term(it, text, len(parsed.items) == 1), it.idx) for it in parsed.items]
         msg = f"parse model={model} {time.monotonic() - t0:.1f}s → {[n for n, _ in raw_items]}"
         logger.info("ℹ️ %s", msg)
     except ExtractionError as err:
@@ -181,15 +200,17 @@ def product_search_start(payload: ProductSearchStartPayload) -> dict[str, Any]:
     product_search_runner.note(msg)
 
     seen: set[str] = set()
-    for name, idx in raw_items:
-        term = (name or "").strip()
+    for term, idx in raw_items:
+        term = (term or "").strip()
         if not term or term.lower() in seen:
             continue
         seen.add(term.lower())
-        existing_super = ""
+        existing_super = inventory_name = ""
         if idx is not None and idx in df.index:
             existing_super = str(df.at[idx, COLUMNS["super"]] or "").strip()
-        items_meta.append({"term": term, "inventory_idx": idx, "existing_super": existing_super})
+            inventory_name = str(df.at[idx, COLUMNS["comida"]] or "").strip()
+        items_meta.append({"term": term, "inventory_idx": idx, "existing_super": existing_super,
+                           "inventory_name": inventory_name})
 
     if not items_meta:
         raise inventory_error(422, "could not find an item to search in what you said")

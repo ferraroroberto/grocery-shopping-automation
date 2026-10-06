@@ -51,6 +51,18 @@ def test_clean_parsed_demotes_invented_idx_to_new_item():
     assert items == [VoiceItem(idx=None, name="leche", qty=2)]
 
 
+def test_clean_parsed_keeps_the_spoken_phrase_beside_the_matched_name():
+    items, _ = clean_parsed(
+        {"items": [{"idx": 1, "name": "boniato microondas", "phrase": " boniato ", "qty": None},
+                   {"idx": 0, "name": "leche", "phrase": "  "}]},
+        {0, 1},
+    )
+    assert items == [
+        VoiceItem(idx=1, name="boniato microondas", qty=None, phrase="boniato"),
+        VoiceItem(idx=0, name="leche", qty=None),
+    ]
+
+
 def test_clean_parsed_drops_unnamed_unmatched_and_bad_qty():
     items, ambiguous = clean_parsed(
         {
