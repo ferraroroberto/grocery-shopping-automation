@@ -1,6 +1,7 @@
 """App shell + local-machine actions: the PWA document, build identity,
 install manifest, auth handshake, health, access URLs, and desktop actions
-(open the spreadsheet, bootstrap a fresh store login session)."""
+(open the spreadsheet, bootstrap a fresh store login session, check the
+store logins)."""
 
 import hmac
 from typing import Any
@@ -8,6 +9,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
+from app import login_check_runner
 from app.api_common import REPO_ROOT, STATIC_DIR, inventory_error
 from app.static_files import BUILD_INFO
 from automation.bootstrap_session import launch_bootstrap_chrome
@@ -152,3 +154,16 @@ def bootstrap_session() -> dict[str, str]:
     except FileNotFoundError as exc:
         raise inventory_error(404, str(exc)) from exc
     return {"status": "opened"}
+
+
+@router.post("/api/actions/check-logins")
+def check_logins() -> dict[str, Any]:
+    """Run the read-only store-login check (issue #217) — never touches a cart.
+
+    Blocking (sync handler, so FastAPI runs it in its threadpool): returns once
+    the child has checked every store, up to the runner's timeout.
+    """
+    try:
+        return {"stores": login_check_runner.run()}
+    except login_check_runner.LoginCheckError as exc:
+        raise inventory_error(502, str(exc)) from exc

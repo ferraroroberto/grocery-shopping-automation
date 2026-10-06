@@ -62,16 +62,59 @@ class ProfileNotInitializedError(RuntimeError):
     """Raised when the shared Chrome profile has not been bootstrapped yet."""
 
 
-class SessionExpiredError(RuntimeError):
-    """Raised when a store redirects to its login page — the session is stale."""
+_RELOGIN_HINT = (
+    "Log in again via Settings → 'Log in to stores' "
+    "(or `python -m automation.bootstrap_session`)."
+)
 
-    def __init__(self, store: str) -> None:
-        super().__init__(
-            f"'{store}' redirected to a login page — the saved Chrome profile "
-            f"session has expired. Re-run `python -m automation.bootstrap_session` "
-            f"and log in again."
-        )
+
+class StoreAccessError(RuntimeError):
+    """A store's saved session could not be used. Each subclass names one cause,
+    so the run log never reports one failure as another (issue #217)."""
+
+    def __init__(self, store: str, message: str) -> None:
+        super().__init__(message)
         self.store = store
+
+
+class SessionExpiredError(StoreAccessError):
+    """Raised when a store redirects a navigation to its login page."""
+
+    def __init__(self, store: str, url: str = "") -> None:
+        where = f" ({url})" if url else ""
+        super().__init__(
+            store,
+            f"'{store}' redirected to a login page{where} — the saved Chrome "
+            f"profile session has expired. {_RELOGIN_HINT}",
+        )
+
+
+class NotLoggedInError(StoreAccessError):
+    """Raised when the store's own session signal reports no logged-in account."""
+
+    def __init__(self, store: str, detail: str) -> None:
+        super().__init__(store, f"'{store}' reports no logged-in account ({detail}). {_RELOGIN_HINT}")
+
+
+class BotChallengeError(StoreAccessError):
+    """Raised when a store answers with a Cloudflare/bot challenge, not its data."""
+
+    def __init__(self, store: str, detail: str) -> None:
+        super().__init__(
+            store,
+            f"'{store}' answered with a Cloudflare/bot challenge ({detail}) — not a "
+            f"login problem. Open the store via Settings → 'Log in to stores', pass "
+            f"the check, then retry.",
+        )
+
+
+class StoreApiError(StoreAccessError):
+    """Raised when a store API answers with a status or shape the code does not expect."""
+
+    def __init__(self, store: str, detail: str) -> None:
+        super().__init__(
+            store, f"'{store}' {detail} — the store's endpoint may have changed.",
+        )
 
 
 def _profile_initialized(user_data_dir: Path) -> bool:
@@ -164,7 +207,9 @@ def launch_context(
     while True:
         playwright = sync_playwright().start()
         try:
-            context, page = _open_context(playwright, headless=headless)
+            # Pass the dir explicitly: the default is bound at definition time,
+            # so the dir checked and logged here must be the one Chrome opens.
+            context, page = _open_context(playwright, headless=headless, user_data_dir=USER_DATA_DIR)
         except Exception as err:  # noqa: BLE001 — a locked profile surfaces here
             playwright.stop()
             if attempt >= len(schedule):
@@ -207,4 +252,5 @@ def goto_with_login_check(
     current = (page.url or "").lower()
     markers = _LOGIN_URL_MARKERS.get(store.lower(), ())
     if any(marker in current for marker in markers):
-        raise SessionExpiredError(store)
+        logger.warning("⚠️ [%s] navigation to %s landed on a login page: %s", store, url, page.url)
+        raise SessionExpiredError(store, page.url)

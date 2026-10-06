@@ -25,7 +25,7 @@ The SCAPI call rides the SLAS shopper token the storefront stashes in
 ``localStorage`` (``access_token_ametller`` / ``customer_id_ametller``). The
 same store also tells us whether the session is still a *registered* shopper —
 if it has dropped to a guest the saved Chrome profile login has expired and a
-:class:`~automation.browser.SessionExpiredError` is raised.
+:class:`~automation.browser.NotLoggedInError` is raised.
 
 Lines are matched by the numeric **productId** — read from the redirected
 product URL and compared against ``productItems[].productId`` in the basket
@@ -53,7 +53,7 @@ import time
 from playwright.sync_api import Page
 
 from automation.browser import (
-    SessionExpiredError,
+    NotLoggedInError,
     goto_with_login_check,
     human_delay,
 )
@@ -326,7 +326,7 @@ def add_to_cart(page: Page, item: CartItem) -> None:
     attempts the product page is reloaded.
 
     Raises:
-        SessionExpiredError: the saved profile session has lapsed to a guest.
+        NotLoggedInError: the saved profile session has lapsed to a guest.
         ProductUnavailableError: the page rendered no product at all — a likely
             stale or discontinued URL. Surfaced as an end-of-run alert.
         OutOfStockError: the product page renders but shows no add control.
@@ -341,7 +341,9 @@ def add_to_cart(page: Page, item: CartItem) -> None:
     auth = _read_auth(page)
     if auth["customer_type"] != "registered":
         # The new site dropped us to a guest — the profile login has expired.
-        raise SessionExpiredError("ametller")
+        raise NotLoggedInError(
+            "ametller", f"storefront customer_type is {auth['customer_type'] or 'empty'!r}, not 'registered'"
+        )
 
     product_id = _product_id_from_url(page.url)
     name = _read_product_name(page)
@@ -426,14 +428,25 @@ def _require_registered_auth(page: Page) -> dict:
     """Navigate to the storefront home and return a registered-shopper auth.
 
     Raises:
-        SessionExpiredError: the saved profile session has lapsed to a guest.
+        NotLoggedInError: the saved profile session has lapsed to a guest.
     """
     goto_with_login_check(page, "ametller", HOME_URL)
     human_delay(*_NAV_SETW)
     auth = _read_auth(page)
     if auth["customer_type"] != "registered":
-        raise SessionExpiredError("ametller")
+        raise NotLoggedInError(
+            "ametller", f"storefront customer_type is {auth['customer_type'] or 'empty'!r}, not 'registered'"
+        )
     return auth
+
+
+def check_login(page: Page) -> None:
+    """Read-only login check (issue #217): reads the storefront's auth, no basket.
+
+    Raises:
+        NotLoggedInError: the saved profile session has lapsed to a guest.
+    """
+    _require_registered_auth(page)
 
 
 def read_cart_total(page: Page) -> int:
@@ -443,7 +456,7 @@ def read_cart_total(page: Page) -> int:
     snapshot.
 
     Raises:
-        SessionExpiredError: the saved profile session has lapsed to a guest.
+        NotLoggedInError: the saved profile session has lapsed to a guest.
     """
     auth = _require_registered_auth(page)
     return sum(line["qty"] for line in _basket_lines(page, auth))
@@ -486,7 +499,7 @@ def clear_cart(page: Page) -> int:
     no-op (returns 0) on an already empty cart.
 
     Raises:
-        SessionExpiredError: the saved profile session has lapsed to a guest.
+        NotLoggedInError: the saved profile session has lapsed to a guest.
         AddToCartFailed: the basket still held lines after deleting every one.
     """
     auth = _require_registered_auth(page)

@@ -107,7 +107,7 @@ Chakra-UI "Composable Storefront") in May 2026 (issue #12).
   sheet 301-redirect there, so no inventory change was needed.
 - **Session check**: the same `localStorage` entry reveals whether the session
   is still a *registered* shopper. If it has lapsed to a guest, the handler
-  raises `SessionExpiredError` immediately.
+  raises `NotLoggedInError` immediately.
 - **Selectors** use Chakra component classes (`h1.chakra-heading`,
   `input.chakra-numberinput__field`) and ARIA labels — never the Emotion
   `css-*` hashes, which are regenerated on every deploy and would silently

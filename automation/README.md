@@ -45,8 +45,29 @@ terminal. The profile is saved to `chrome_user_data/`.
 (`chrome.exe` is auto-detected; pass `--chrome-path` if it lives somewhere
 non-standard.)
 
-`SessionExpiredError` from `launch_context` / `goto_with_login_check` means a
-store bounced you to its login page — just re-run the bootstrap.
+**Check the logins without touching a cart** (issue #217):
+
+```powershell
+& .\.venv\Scripts\python.exe -m automation.check_logins            # every store
+& .\.venv\Scripts\python.exe -m automation.check_logins --store carrefour
+```
+
+Each store prints `logged_in`, `logged_out` or `unknown` (the signal could not
+be read, or the store has no read-only check — Mercadona today). It opens the
+shared profile once, loads each storefront and asks only the store's own
+session signal (Carrefour's header API, Ametller's `localStorage` auth). Exit
+code 0 means every store is logged in. The PWA's **Check store logins** button
+in Settings runs the same check.
+
+A store failure names its cause — every one is a `StoreAccessError`
+(`browser.py`), and the run log shows the status or URL:
+
+| Error | Means | Do |
+|-------|-------|----|
+| `SessionExpiredError` | a navigation landed on the store's login page (URL in the message) | re-run the bootstrap |
+| `NotLoggedInError` | the store's own session signal reports no account (e.g. Carrefour header `user.email` empty, a 401) | re-run the bootstrap |
+| `BotChallengeError` | a Cloudflare/bot challenge page came back instead of JSON | open the store in the bootstrap window, pass the check, retry |
+| `StoreApiError` | an API answered with an unexpected status or shape | the endpoint likely changed — fix the handler |
 
 ## Running the automation
 
@@ -116,7 +137,7 @@ plumbing in `app/automation_runner.py`.
   the redirected product URL (`…/{productId}.html`); the legacy `/p` buy URLs
   still 301-redirect there, so no inventory change was needed. The same
   `localStorage` also reveals whether the session is still a *registered*
-  shopper — if it has lapsed to a guest, a `SessionExpiredError` is raised. A
+  shopper — if it has lapsed to a guest, a `NotLoggedInError` is raised. A
   product page that renders an empty shell — a stale/discontinued buy URL — is
   reported as an end-of-run **🔗 Unavailable (check URL)** alert, not a hard
   failure. Selectors use Chakra component classes, ARIA labels, and visible
@@ -132,7 +153,11 @@ plumbing in `app/automation_runner.py`.
   deletes each line through the same `one-cart-api` call the page's bin
   button uses. Anonymous browsing still renders product pages (for a default
   Madrid store), so the session check reads the header API's `user.email`
-  rather than relying on a login redirect. A product URL that redirects away
+  rather than relying on a login redirect. The cart API answers a logged-in
+  account with no cart yet (e.g. right after an order) with
+  `404 {"type": "no_cart"}` — the storefront's own page gets the same 404 — so
+  that reads as an empty cart, never as a lapsed session (issue #217). A
+  product URL that redirects away
   from a `/R-<id>/p` product page — to the home page, a category, or a
   *different* product — is reported as **🔗 Unavailable (check URL)**, never
   silently bought as a substitute. The full cart page (`/MiCarrito`) asks for
@@ -252,8 +277,9 @@ send if a match is found):
 | `models.py` | `CartItem` dataclass — shared shape for one item to buy. |
 | `errors.py` | `OutOfStockError`, `AddToCartFailed` — shared handler exceptions. |
 | `grocery_reader.py` | `read_cart_items(store=None)` — inventory XLSX → `list[CartItem]`. |
-| `browser.py` | `launch_context()`, `goto_with_login_check()`, `human_delay()`. |
+| `browser.py` | `launch_context()`, `goto_with_login_check()`, `human_delay()`, the `StoreAccessError` family. |
 | `bootstrap_session.py` | One-time interactive login (run via `-m`). |
+| `check_logins.py` | Read-only per-store login check (run via `-m`; issue #217). |
 | `mercadona.py` | Mercadona `add_to_cart(page, item)` handler. |
 | `ametller.py` | Ametller Origen `add_to_cart(page, item)` handler. |
 | `carrefour.py` | Carrefour `add_to_cart(page, item)` handler (issue #150). |

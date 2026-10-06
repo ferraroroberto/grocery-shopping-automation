@@ -21,7 +21,12 @@ click, so a silently no-op click is caught and retried rather than trusted.
 Session check: the header API's ``user.email`` is empty for an anonymous
 session. Anonymous browsing still renders product pages (for a default Madrid
 sale point), so a URL-based login check alone would not catch an expired
-session.
+session. The header API is the *only* login signal: the cart API answers a
+logged-in account that has no cart yet (e.g. right after an order) with
+``404 {"type": "no_cart"}`` — the storefront's own page load gets the same 404
+(verified live 2026-10-06, issue #217) — so that 404 reads as an empty cart,
+never as a lapsed session. Every other non-OK answer raises the
+:class:`~automation.browser.StoreAccessError` subclass that names its cause.
 
 Cut picker (issue #176, verified live 2026-09-28): fresh-fish pages such as
 "Dorada de ración" show "Selecciona el tipo de corte" — one
@@ -50,7 +55,14 @@ from playwright.sync_api import Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from automation import product_options
-from automation.browser import SessionExpiredError, goto_with_login_check, human_delay
+from automation.browser import (
+    BotChallengeError,
+    NotLoggedInError,
+    StoreAccessError,
+    StoreApiError,
+    goto_with_login_check,
+    human_delay,
+)
 from automation.errors import AddToCartFailed, OutOfStockError, ProductUnavailableError
 from automation.models import CartItem
 
@@ -65,6 +77,12 @@ HOME_URL = f"{BASE_URL}/supermercado"
 _HEADER_API = f"{BASE_URL}/cloud-api/header/v1?cart_info=true"
 _CART_API = f"{BASE_URL}/cloud-api/checkout-papi/v1/cart?reprice=true"
 _LINE_API = f"{BASE_URL}/cloud-api/one-cart-api/v1/carts/current/items/{{sku}}?site=food"
+# Error ``type`` of the cart API's 404 for a logged-in account with no cart yet.
+_NO_CART = "no_cart"
+# Statuses a Cloudflare/bot interstitial answers with in place of the API's JSON,
+# and text that marks such an interstitial page.
+_CHALLENGE_STATUSES = (403, 429, 503)
+_CHALLENGE_MARKERS = ("just a moment", "cf-chl", "challenge-platform", "cf-mitigated")
 
 SELECTORS = {
     "add_button": "button.add-to-cart-button__full-button",
@@ -141,34 +159,84 @@ def wrong_cuts(line: Optional[dict], cut: str) -> list[str]:
 
 
 def _fetch_json(page: Page, url: str, method: str = "GET") -> tuple[int, object]:
-    """In-page ``fetch`` riding the session cookies → ``(status, parsed body)``."""
+    """In-page ``fetch`` riding the session cookies → ``(status, body)``.
+
+    ``body`` is the parsed JSON, the raw text when the answer is not JSON (a
+    challenge page, say), or ``None`` when it is empty.
+    """
     res = page.evaluate(_FETCH_JS, [url, method])
     status = int(res.get("status") or 0)
     body = res.get("body") or ""
     try:
         return status, json.loads(body) if body.strip() else None
     except ValueError:
-        return status, None
+        return status, body
+
+
+def _api_error(api: str, status: int, body: object) -> StoreAccessError:
+    """The distinct, logged error for an API answer the handler can't use."""
+    if isinstance(body, str) and (
+        status in _CHALLENGE_STATUSES or any(m in body.lower() for m in _CHALLENGE_MARKERS)
+    ):
+        err: StoreAccessError = BotChallengeError(STORE, f"{api} returned {status} with an HTML page")
+    elif status == 401:
+        err = NotLoggedInError(STORE, f"{api} returned 401")
+    else:
+        kind = f", type '{str(body.get('type'))[:40]}'" if isinstance(body, dict) and body.get("type") else ""
+        shape = " (not JSON)" if isinstance(body, str) else ""
+        err = StoreApiError(STORE, f"{api} returned an unexpected {status}{kind}{shape}")
+    logger.warning("⚠️ [carrefour] %s", err)
+    return err
 
 
 def _require_session(page: Page) -> None:
-    """Raise :class:`SessionExpiredError` unless the account is logged in."""
+    """Return when the header API reports a logged-in account; else raise.
+
+    Raises:
+        NotLoggedInError: the header answers with no account (empty ``user.email``)
+            or a 401.
+        BotChallengeError: a Cloudflare/bot challenge came back instead of JSON.
+        StoreApiError: any other status, or a 200 without a ``user`` block.
+    """
     status, header = _fetch_json(page, _HEADER_API)
-    user = (header or {}).get("user") if isinstance(header, dict) else None
-    if status != 200 or not isinstance(user, dict) or not user.get("email"):
-        logger.warning("⚠️ [carrefour] header API status %s — no logged-in user", status)
-        raise SessionExpiredError(STORE)
+    if status != 200 or not isinstance(header, dict):
+        raise _api_error("header API", status, header)
+    if not isinstance(header.get("user"), dict):
+        raise _api_error("header API", status, {"type": "no user block"})
+    if not header["user"].get("email"):
+        logger.warning("⚠️ [carrefour] header API 200 with an empty user.email — not logged in")
+        raise NotLoggedInError(STORE, "header API returned 200 with an empty user.email")
 
 
 def _read_cart(page: Page) -> dict[str, dict]:
-    """The whole cart as :func:`cart_units` lines. Raises when it can't be read."""
+    """The whole cart as :func:`cart_units` lines (``{}`` when there is no cart).
+
+    Call :func:`_require_session` first: the cart API's ``no_cart`` 404 does not
+    tell a logged-in account with no cart from an anonymous one.
+
+    Raises:
+        StoreAccessError: the matching subclass from :func:`_api_error`.
+    """
     status, cart = _fetch_json(page, _CART_API)
-    if status in (401, 403, 404):
-        # Anonymous sessions get a 404 here — the account session has lapsed.
-        raise SessionExpiredError(STORE)
-    if status != 200 or not isinstance(cart, dict):
-        raise RuntimeError(f"Carrefour cart API returned {status}")
-    return cart_units(cart)
+    if status == 200 and isinstance(cart, dict):
+        return cart_units(cart)
+    if status == 404 and isinstance(cart, dict) and cart.get("type") == _NO_CART:
+        logger.info("🛒 [carrefour] cart API 404 no_cart — the account has no cart yet, reading it as empty")
+        return {}
+    raise _api_error("cart API", status, cart)
+
+
+def check_login(page: Page) -> None:
+    """Read-only login check (issue #217): load the home page, ask the header API.
+
+    Touches no cart. Returns when logged in.
+
+    Raises:
+        StoreAccessError: the matching subclass — see :func:`_require_session`.
+    """
+    goto_with_login_check(page, STORE, HOME_URL)
+    human_delay(*_NAV_SETTLE)
+    _require_session(page)
 
 
 def _cart_line(page: Page, product_id: str) -> dict:
@@ -241,7 +309,8 @@ def add_to_cart(page: Page, item: CartItem) -> None:
     the cart API. Never reduces a line that already holds more than wanted.
 
     Raises:
-        SessionExpiredError: the saved profile is no longer logged in.
+        StoreAccessError: the saved profile is not logged in, or the store
+            answered with a challenge or an unexpected response.
         ProductUnavailableError: the URL redirected away from a product page —
             the product is discontinued or not sold at the account's store.
         OutOfStockError: the product page renders but offers no add control.
@@ -340,7 +409,8 @@ def read_cart_total(page: Page) -> int:
     """Return the total units across the whole Carrefour food cart.
 
     Raises:
-        SessionExpiredError: the saved profile is no longer logged in.
+        StoreAccessError: the saved profile is not logged in, or the store
+            answered with a challenge or an unexpected response.
     """
     goto_with_login_check(page, STORE, HOME_URL)
     human_delay(*_NAV_SETTLE)
@@ -356,7 +426,8 @@ def clear_cart(page: Page) -> int:
     empty cart.
 
     Raises:
-        SessionExpiredError: the saved profile is no longer logged in.
+        StoreAccessError: the saved profile is not logged in, or the store
+            answered with a challenge or an unexpected response.
         AddToCartFailed: the cart still held units after deleting every line.
     """
     goto_with_login_check(page, STORE, HOME_URL)
