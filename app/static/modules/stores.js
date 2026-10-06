@@ -905,7 +905,7 @@ function quantityMarkup(d) {
     ${note ? `<p class="review-warn">${icon("circle-alert")}${esc(note)}</p>` : ""}
     <div class="review-qty-fields">
       ${qtyFieldMarkup("cantidad", "Target", d.list.cantidad, suggested.cantidad, packCtx)}
-      ${qtyFieldMarkup("tenemos", "In stock", d.list.tenemos, suggested.tenemos, `${packCtx} in stock`)}
+      ${qtyFieldMarkup("tenemos", "In stock", d.list.tenemos, suggested.tenemos, packCtx)}
     </div>`;
 }
 
