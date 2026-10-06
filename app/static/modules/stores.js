@@ -529,7 +529,7 @@ function rowMarkup(item, inUse = storesInUse()) {
         <span class="store-row-line">${reviewBadge(item)}<span class="store-row-meta">${meta}</span></span>
       </div>
       ${select}
-      <button type="button" class="icon-btn" data-stores-action="detail" aria-label="Review ${esc(name)}: stores, packs and prices">${icon("pencil")}</button>
+      <button type="button" class="icon-button" data-stores-action="detail" aria-label="Review ${esc(name)}: stores, packs and prices">${icon("pencil")}</button>
     </div>
     ${chips ? `<div class="store-chips">${chips}</div>` : ""}
   </li>`;
@@ -984,7 +984,7 @@ function storeRowMarkup(d, s) {
     <td class="review-cell-num" data-label="Per unit">${s.price_per_unit === null ? "–" : `${eur(s.price_per_unit)}/${esc(unit)}`}</td>
     <td class="review-cell-num" data-label="Per month">${eur(s.monthly_cost)}</td>
     <td class="review-cell-status" data-label="Status">${esc(statusText(s))}</td>
-    <td class="review-cell-edit"><button type="button" class="icon-btn" data-review-edit="${esc(s.store)}"
+    <td class="review-cell-edit"><button type="button" class="icon-button" data-review-edit="${esc(s.store)}"
         aria-expanded="${editing}" aria-label="Edit ${esc(s.store_name)}">${icon(editing ? "x" : "pencil")}</button></td>
   </tr>`;
   return editing ? row + `<tr class="review-edit-row"><td colspan="8">${editFormMarkup(d, s)}</td></tr>` : row;

@@ -600,7 +600,7 @@ def test_stores_plan_simulate_and_apply(page, server):
 # against the vendored recipes (#207: select-native/, button/, modal/), with
 # the expected values resolved from the theme's own tokens -- never hard-coded.
 # A button must match one button.css tier (or the shared disabled recipe);
-# glyph-only controls (the x close, .icon-btn) and switches are out of scope.
+# glyph-only controls (the x close, .icon-button) and switches are out of scope.
 _DIALOG_CONTROLS_PROBE = r"""(id) => {
   const dialog = document.getElementById(id);
   const card = dialog.querySelector('.detail-card');
@@ -629,7 +629,7 @@ _DIALOG_CONTROLS_PROBE = r"""(id) => {
   };
 
   const buttons = [...card.querySelectorAll('button')]
-    .filter((b) => shown(b) && !b.matches('.detail-close, .icon-btn, [role=switch]'));
+    .filter((b) => shown(b) && !b.matches('.detail-close, .icon-button, [role=switch]'));
   for (const b of buttons) {
     const s = getComputedStyle(b), box = b.getBoundingClientRect();
     const got = { bg: s.backgroundColor, fg: s.color, border: s.borderTopColor };

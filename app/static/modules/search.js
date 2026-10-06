@@ -43,7 +43,7 @@ export function renderSearch() {
     <h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-search"></use></svg>Find a store product</h2>
     <div class="hint">Say or type a product in Spanish. Searches Mercadona, Ametller and Carrefour — pick the right one to add it to the list, or to link an item that is already on it.</div>
     <div class="search-bar">
-      <button id="search-record" class="icon-btn hit-target${s.recording ? " recording" : ""}" type="button" aria-label="Dictate a product" title="Dictate">
+      <button id="search-record" class="icon-button${s.recording ? " recording" : ""}" type="button" aria-pressed="${s.recording}" aria-label="Dictate a product" title="Dictate">
         <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-mic"></use></svg>
       </button>
       <input id="search-term" class="search-term" type="search" enterkeyhint="search" autocomplete="off"
@@ -151,7 +151,7 @@ function candidateRow(cand, item) {
       <div class="meta">${html(cand.store)}${cand.price_text ? " · " + html(cand.price_text) : ""}</div>
     </div>
     <div class="candidate-actions">
-      <a class="icon-btn hit-target" href="${html(cand.product_url)}" target="_blank" rel="noopener" aria-label="Open product" title="Open">
+      <a class="icon-button" href="${html(cand.product_url)}" target="_blank" rel="noopener" aria-label="Open product" title="Open">
         <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-external-link"></use></svg>
       </a>
       <button class="secondary candidate-use" type="button" data-action="search-use"${expanded}${done ? " disabled" : ""}>${useLabel}</button>
@@ -177,6 +177,7 @@ export async function toggleSearchRecording(button) {
     stream.getTracks().forEach((t) => t.stop());
     s.recording = false;
     button.classList.remove("recording");
+    button.setAttribute("aria-pressed", "false");
     await transcribeSearchClip(mime);
   };
   s.recorder = rec;
@@ -184,6 +185,7 @@ export async function toggleSearchRecording(button) {
   s.error = "";
   s.notice = "";
   button.classList.add("recording");
+  button.setAttribute("aria-pressed", "true");
   renderSearchStatus();
   rec.start();
 }
