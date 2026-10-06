@@ -96,10 +96,10 @@ export function renderAudit(targetsOnly = false) {
       <article class="item audit-item" data-id="${item.id}">
         <div class="audit-name"><h3>${html(item[cols.comida])}</h3><div class="meta">${html(item[cols.super])}</div></div>
         <div class="${controlsClass}">
-          ${targetsOnly ? `<button class="icon-btn" data-action="current-minus">-</button><button class="icon-btn" data-action="current-plus">+</button>` : ""}
+          ${targetsOnly ? `<button type="button" class="icon-button" data-action="current-minus" aria-label="Decrease have" title="Decrease have"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-minus"></use></svg></button><button type="button" class="icon-button" data-action="current-plus" aria-label="Increase have" title="Increase have"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg></button>` : ""}
           <span class="qty">${qtyMarkup(item[cols.tenemos], item[cols.cantidad])}</span>
-          <button class="icon-btn" data-action="target-minus">-</button>
-          <button class="icon-btn" data-action="target-plus">+</button>
+          <button type="button" class="icon-button" data-action="target-minus" aria-label="Decrease target" title="Decrease target"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-minus"></use></svg></button>
+          <button type="button" class="icon-button" data-action="target-plus" aria-label="Increase target" title="Increase target"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg></button>
           <span class="audit-verdict ${Number(item[cols.comprar]) > 0 ? "buy" : "ok"}">${Number(item[cols.comprar]) > 0 ? `−${item[cols.comprar]}` : "OK"}</span>
         </div>
       </article>`).join("") || emptyStateEl("package", "No items in this zone.").outerHTML}</section>`;

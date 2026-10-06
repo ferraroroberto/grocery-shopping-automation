@@ -439,7 +439,7 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
 .store-block .progress { margin-top: var(--gap); }
 
 /* ------------------------------------------------------------- controls */
-.primary, .secondary, .danger, .icon-btn {
+.primary, .secondary, .danger {
   min-height: var(--control-h);
   border-radius: var(--radius-md);
   border: 1px solid var(--line);
@@ -463,8 +463,9 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
    row height, so it still lines up with Match/Apply beside it. */
 .big-btn.danger { background: transparent; color: var(--danger-text); border-color: var(--danger-border-soft); }
 .big-btn.danger:active { background: var(--danger-soft); }
-.icon-btn { width: var(--control-h); padding: 0; display: inline-flex; align-items: center; justify-content: center; }
-.icon-btn .icon { width: var(--icon-inline); height: var(--icon-inline); }
+/* Glyph-only rows sit at the control height: the icon-button box is the 44px
+   floor, so neighbours at the row gap never overlap targets. */
+.audit-controls, .search-bar, .candidate-actions, .review-cell-edit, .store-row-head { --icon-btn-box: var(--control-h); }
 
 /* Accent-ghost feature button — home-automation's .big-btn recipe verbatim
    (Net tab "Run speed test"): accent tint fill, accent text, soft accent
@@ -607,9 +608,9 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
   justify-content: center;
   gap: 0.45em; /* breathing room between the magnifier and the label */
 }
-.icon-btn.recording { color: var(--deficit); border-color: var(--deficit); background: color-mix(in srgb, var(--deficit) 12%, transparent); }
+.icon-button.recording { color: var(--deficit); }
 @media (prefers-reduced-motion: no-preference) {
-  .icon-btn.recording { animation: search-pulse 1.4s ease-in-out infinite; }
+  .icon-button.recording { animation: search-pulse 1.4s ease-in-out infinite; }
 }
 @keyframes search-pulse { 50% { opacity: 0.55; } }
 
@@ -734,7 +735,6 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 .store-row-title { font-weight: 600; }
 .store-row-meta { color: var(--muted); font-size: var(--font-label); }
 .store-row-head .store-pick { flex: 0 1 auto; width: auto; max-width: 45%; }
-.store-row-head .icon-btn { flex: none; }
 .store-chips {
   display: flex;
   flex-wrap: nowrap;
