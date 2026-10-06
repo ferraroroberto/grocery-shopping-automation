@@ -416,3 +416,25 @@ def test_password_and_query_token_auth(client):
     finally:
         cfg.auth_token = orig_token
         cfg.auth_password = orig_password
+
+
+def test_check_logins_route(client, monkeypatch):
+    import app.login_check_runner as login_check_runner
+
+    states = {"carrefour": {"state": "logged_in", "detail": ""}}
+    monkeypatch.setattr(login_check_runner, "run", lambda: states)
+    resp = client.post("/api/actions/check-logins")
+    assert resp.status_code == 200
+    assert resp.json() == {"stores": states}
+
+
+def test_check_logins_route_reports_a_failed_check(client, monkeypatch):
+    import app.login_check_runner as login_check_runner
+
+    def boom():
+        raise login_check_runner.LoginCheckError("login check exited 1 without a result")
+
+    monkeypatch.setattr(login_check_runner, "run", boom)
+    resp = client.post("/api/actions/check-logins")
+    assert resp.status_code == 502
+    assert "without a result" in resp.json()["detail"]

@@ -110,6 +110,7 @@ export const el = {
   copyLink: document.querySelector("#copy-link"),
   exportCsv: document.querySelector("#export-csv"),
   bootstrapSession: document.querySelector("#bootstrap-session"),
+  checkLogins: document.querySelector("#check-logins"),
   loginDialog: document.querySelector("#login-dialog"),
   loginForm: document.querySelector("#login-form"),
   loginPassword: document.querySelector("#login-password"),

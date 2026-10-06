@@ -368,6 +368,21 @@ el.bootstrapSession.addEventListener("click", () => {
     .then(() => showToast("Chrome window opened — log into each store, then close it completely."))
     .catch((error) => showToast(error.message, "error"));
 });
+// Read-only login check (#217): one line per store, flagged when any is logged out.
+const LOGIN_STATE_LABEL = { logged_in: "logged in", logged_out: "logged out", unknown: "unknown" };
+el.checkLogins.addEventListener("click", () => {
+  el.checkLogins.disabled = true;
+  showToast("Checking store logins — a Chrome window opens briefly…", undefined, { ms: 0 });
+  fetchJson("/api/actions/check-logins", { method: "POST" })
+    .then(({ stores }) => {
+      const results = Object.entries(stores);
+      const text = results.map(([store, r]) => `${store}: ${LOGIN_STATE_LABEL[r.state] || r.state}`).join(" · ");
+      const anyOut = results.some(([, r]) => r.state === "logged_out");
+      showToast(text, anyOut ? "error" : undefined, { ms: 10000 });
+    })
+    .catch((error) => showToast(error.message, "error"))
+    .finally(() => { el.checkLogins.disabled = false; });
+});
 
 el.loginForm.addEventListener("submit", onLoginSubmit);
 // Auth is mandatory — Esc must not dismiss the login dialog.

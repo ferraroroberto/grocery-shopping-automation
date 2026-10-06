@@ -25,7 +25,7 @@ from typing import Optional
 from automation import ametller, carrefour, mercadona
 from automation.browser import (
     ProfileNotInitializedError,
-    SessionExpiredError,
+    StoreAccessError,
     human_delay,
     launch_context,
 )
@@ -202,7 +202,7 @@ def _process_store_live(
                     "🔗 [%s] %s — %s", store, item.comida, getattr(err, "reason", err)
                 )
                 report.unavailable.append((item, getattr(err, "reason", str(err))))
-            except (AddToCartFailed, SessionExpiredError) as err:
+            except (AddToCartFailed, StoreAccessError) as err:
                 logger.error("❌ [%s] %s — %s", store, item.comida, err)
                 report.errors.append((item, str(err)))
             except Exception as err:  # noqa: BLE001 — keep the run going
