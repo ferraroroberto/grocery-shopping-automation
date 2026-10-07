@@ -60,6 +60,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 from automation import carrefour  # noqa: E402  (BASE_URL + product_id_from_url)
 from automation.browser import (  # noqa: E402
+    ProfileBusyError,
     ProfileNotInitializedError,
     SessionExpiredError,
     goto_with_login_check,
@@ -401,9 +402,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     try:
         result = search_all(args.query, limit=args.limit, headless=args.headless,
                             on_progress=emit_progress, on_store=emit_store)
-    except ProfileNotInitializedError as err:
+    except (ProfileNotInitializedError, ProfileBusyError) as err:
         # Emit the reason on stdout too (not just stderr) so the app, which reads
-        # this process's stdout JSON, can tell the user to log the stores in.
+        # this process's stdout JSON, can tell the user to log the stores in
+        # (or that another job still holds the browser).
         result = {"results": [], "error": str(err)}
         exit_code = 2
 

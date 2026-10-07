@@ -62,6 +62,11 @@ class ProfileNotInitializedError(RuntimeError):
     """Raised when the shared Chrome profile has not been bootstrapped yet."""
 
 
+class ProfileBusyError(RuntimeError):
+    """Raised when the shared Chrome profile stayed held by another job
+    through the whole wait-with-backoff schedule."""
+
+
 _RELOGIN_HINT = (
     "Log in again via Settings → 'Log in to stores' "
     "(or `python -m automation.bootstrap_session`)."
@@ -184,7 +189,7 @@ def launch_context(
             product search) is retried with exponential backoff
             (:data:`_PROFILE_WAIT_BACKOFF_S`) rather than raising immediately —
             the fleet "serialize access, never kill a live holder" rule. Off by
-            default so the cart automation's behaviour is unchanged.
+            default; the cart run, product search and login check opt in.
         on_wait: Optional ``(delay_s, attempt, total)`` callback fired before
             each backoff sleep, so a caller can tell the user it is waiting on
             the profile rather than searching (issue #211).
@@ -195,6 +200,8 @@ def launch_context(
 
     Raises:
         ProfileNotInitializedError: the profile has not been bootstrapped.
+        ProfileBusyError: ``wait_for_profile`` was set and every backoff retry
+            still failed to open the profile.
     """
     if not _profile_initialized(USER_DATA_DIR):
         raise ProfileNotInitializedError(
@@ -213,7 +220,13 @@ def launch_context(
         except Exception as err:  # noqa: BLE001 — a locked profile surfaces here
             playwright.stop()
             if attempt >= len(schedule):
-                raise
+                if not schedule:
+                    raise
+                raise ProfileBusyError(
+                    f"The shared Chrome profile is still held by another job after waiting "
+                    f"{sum(schedule)}s (last launch error: {type(err).__name__}: {err}). "
+                    f"Let that job finish, then run this again."
+                ) from err
             delay = schedule[attempt]
             attempt += 1
             logger.warning(
