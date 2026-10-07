@@ -23,6 +23,12 @@ export function html(value) {
   return esc(text(value));
 }
 
+// Sprite icon markup (the <symbol>s live in the page shell); `cls` adds
+// modifier classes, e.g. icon("moon", "icon theme-icon-moon").
+export function icon(name, cls = "icon") {
+  return `<svg class="${cls}" aria-hidden="true" focusable="false"><use href="#i-${name}"></use></svg>`;
+}
+
 // Colour-coded current/target, mirroring app/ui_helpers.qty_html:
 // green when stocked (current ≥ target), amber when low, red when empty.
 export function qtyMarkup(current, target) {

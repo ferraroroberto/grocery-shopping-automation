@@ -8,7 +8,7 @@
 import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
 import { authFetch, fetchJson } from "./api.js";
 import { activePaneBody, c, items, render, state, storedToken } from "./core.js";
-import { formatBytes, formatElapsed, html, switchMarkup, text } from "./dom.js";
+import { formatBytes, formatElapsed, html, icon, switchMarkup, text } from "./dom.js";
 import { pickAudioMime } from "./media.js";
 
 // All of it local to this module — nothing outside the audio view reads it.
@@ -109,8 +109,8 @@ function renderAudioHealth() {
     return;
   }
   // Sprite icons, not emoji — the status colour + glyph carry the state.
-  const okIcon = '<svg class="icon" aria-hidden="true" focusable="false"><use href="#i-circle-check"></use></svg> ';
-  const badIcon = '<svg class="icon" aria-hidden="true" focusable="false"><use href="#i-circle-alert"></use></svg> ';
+  const okIcon = `${icon("circle-check")} `;
+  const badIcon = `${icon("circle-alert")} `;
   const problems = [];
   if (!h.voice_ok) problems.push(`${badIcon}The voice recorder isn't reachable — start the voice-transcriber app`);
   if (!h.hub_ok) problems.push(`${badIcon}The matching service isn't reachable — start local-llm-hub`);
@@ -158,7 +158,7 @@ export function renderAudio() {
     return `<details class="card card--collapsible">
       <summary class="collapse-summary">
         <span class="collapse-main">
-          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-list-checks"></use></svg>
+          ${icon("list-checks")}
           <h3 class="collapse-title">${html(zone)}</h3>
           <span class="collapse-count">${zoneItems.length}</span>
         </span>
@@ -170,16 +170,16 @@ export function renderAudio() {
     </details>`;
   }).join("");
   activePaneBody().innerHTML = `<section class="panel">
-    <h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-mic"></use></svg>Audio audit</h2>
+    <h2 class="card-title">${icon("mic")}Audio audit</h2>
     <div id="audio-health-banner" class="panel-status"></div>
     <div class="hint">Keep the checklist visible while recording. Announce the zone, then item counts in Spanish.</div>
     <button id="record-toggle" class="primary btn-block" type="button">Start recording</button>
-    <button id="audio-redo" class="secondary btn-block" type="button" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-refresh-cw"></use></svg>Redo</button>
+    <button id="audio-redo" class="secondary btn-block" type="button" hidden>${icon("refresh-cw")}Redo</button>
     <div class="hint">Recording streams to the PC as you talk — the take is safe even if the phone dies. Redo re-transcribes the saved audio.</div>
     <div class="zone-list">${checklist}</div>
   </section>
   <section class="panel">
-    <h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-list-checks"></use></svg>Transcript</h2>
+    <h2 class="card-title">${icon("list-checks")}Transcript</h2>
     <textarea id="transcript" placeholder="Transcript appears here, or paste one manually.">${audio.transcript ? html(audio.transcript) : ""}</textarea>
     <label class="field-label" for="audio-model">Match model
       <select id="audio-model"${modelOptions ? "" : " disabled"}>${modelOptions || `<option>${html(humanizeModelId(audio.model) || "config default")}</option>`}</select>
@@ -275,7 +275,7 @@ function renderMatches() {
     && Number(item[cols.tenemos]) > 0,
   );
   const unseenSection = unseen.length
-    ? `<section class="panel"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-circle-alert"></use></svg>Not mentioned (in audited zones)</h2>
+    ? `<section class="panel"><h2 class="card-title">${icon("circle-alert")}Not mentioned (in audited zones)</h2>
       <div class="hint">${unseen.length} item(s) in the zones you walked but didn't name. Tick to set them to 0.</div>
       <div class="grid">${unseen.map((item) =>
         `<div class="item"><span><strong>${html(item[cols.comida])}</strong> <span class="meta">(list: ${html(item[cols.lugar])})</span></span>
@@ -287,7 +287,7 @@ function renderMatches() {
   // Typing a number *is* the accept action here — an empty box leaves the row
   // untouched, so a mention we resolved wrongly costs nothing.
   const needCountSection = needCount.length
-    ? `<section class="panel"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-mic"></use></svg>Mentioned — count missing</h2>
+    ? `<section class="panel"><h2 class="card-title">${icon("mic")}Mentioned — count missing</h2>
       <div class="hint">${needCount.length} item(s) you named without a number we could read. Type the count to apply it; leave blank to skip.</div>
       <div class="grid">${needCount.map((m) => {
         const item = byId.get(m.idx);
@@ -307,12 +307,12 @@ function renderMatches() {
   // Whatever is left really is unmatched — no row, nothing to apply.
   const stillUnmatched = mentions.filter((m) => !Number.isInteger(m.idx) || !byId.has(m.idx));
 
-  target.innerHTML = `<section class="panel"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-circle-check"></use></svg>Detected items</h2>${
+  target.innerHTML = `<section class="panel"><h2 class="card-title">${icon("circle-check")}Detected items</h2>${
     zoneSections || emptyStateEl("mic", "No recognised items.").outerHTML
   }</section>
   ${needCountSection}
   ${unseenSection}
-  ${stillUnmatched.length ? `<section class="panel"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-circle-alert"></use></svg>Unmatched mentions</h2>${stillUnmatched.map((m) => `<div class="meta">${html(m.phrase)} · ${html(m.note)}</div>`).join("")}</section>` : ""}`;
+  ${stillUnmatched.length ? `<section class="panel"><h2 class="card-title">${icon("circle-alert")}Unmatched mentions</h2>${stillUnmatched.map((m) => `<div class="meta">${html(m.phrase)} · ${html(m.note)}</div>`).join("")}</section>` : ""}`;
   if (apply) apply.disabled = !matched.length && !unseen.length && !needCount.length;
 }
 

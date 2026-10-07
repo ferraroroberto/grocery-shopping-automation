@@ -29,6 +29,7 @@ Comprehensive household inventory management across multiple operational modes. 
   - `voice_command.py` — voice-command bridge for the HA Voice PE pucks (home-automation#315): `POST /api/voice/command` takes free Spanish text with an intent (`add` / `target` / `stock` / `query`), parses items + quantities against the inventory via the hub LLM, applies through `data.py`, and returns a short ready-to-speak `speech` reply. The intent is chosen by Home Assistant's deterministic sentence match — the LLM never picks the operation.
   - `audio_audit_core.py` — UI-agnostic transcript cleaning + audit-log writer shared by the PWA and the legacy Streamlit mode.
   - `net.py` — LAN-IP / port-probe helpers shared by the FastAPI and Streamlit front ends.
+  - `certs.py` — the one `cert.pem`/`key.pem` lookup (`webapp/certificates/`, then `certificates/`) the router, tray manager and tunnel launcher share.
   - `webapp_config.py` — remote-access (token/password) config loader.
   - `config.example.json` — committed template; copied to `src/config.json` (gitignored) on first run.
 - **`automation/`** — Playwright + real-Chrome browser cart automation for Mercadona, Ametller and Carrefour (see `automation/README.md`).

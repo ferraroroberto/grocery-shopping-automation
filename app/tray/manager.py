@@ -26,6 +26,7 @@ from typing import Any, Dict, List, Optional
 import requests
 
 from app.tray.single_instance import cross_process_lock
+from src.certs import cert_paths
 from src.no_window import NEW_PROCESS_GROUP_NO_WINDOW, NO_WINDOW
 
 logger = logging.getLogger(__name__)
@@ -64,20 +65,6 @@ def load_config() -> WebappManagerConfig:
     return WebappManagerConfig()
 
 
-def cert_paths(project_root: Optional[Path] = None) -> Optional[tuple[Path, Path]]:
-    """Mirrors ``webapp.bat``'s cert resolution: ``webapp/certificates``
-    first, falling back to the repo-root ``certificates/`` directory."""
-    root = project_root or PROJECT_ROOT
-    cert_dir = root / "webapp" / "certificates"
-    cert, key = cert_dir / "cert.pem", cert_dir / "key.pem"
-    if not cert.exists():
-        cert_dir = root / "certificates"
-        cert, key = cert_dir / "cert.pem", cert_dir / "key.pem"
-    if cert.exists() and key.exists():
-        return cert, key
-    return None
-
-
 def cert_hostname(project_root: Optional[Path] = None) -> Optional[str]:
     """The ``.ts.net`` DNS SAN of the served cert — the URL other devices use.
 
@@ -85,7 +72,7 @@ def cert_hostname(project_root: Optional[Path] = None) -> Optional[str]:
     ``cryptography`` package (the generator's own dependency) is unavailable.
     Mirrors ``facilitation-suite``'s ``src/certs.py::cert_hostname``.
     """
-    pair = cert_paths(project_root)
+    pair = cert_paths(project_root or PROJECT_ROOT)
     if pair is None:
         return None
     try:
@@ -162,7 +149,7 @@ class WebappManager:
 
     @property
     def base_url(self) -> str:
-        scheme = "https" if cert_paths() else "http"
+        scheme = "https" if cert_paths(PROJECT_ROOT) else "http"
         return _probe_url(scheme, self.config.host, self.config.port)
 
     @property
@@ -312,7 +299,7 @@ class WebappManager:
             "--log-level",
             "warning",
         ]
-        certs = cert_paths()
+        certs = cert_paths(PROJECT_ROOT)
         if certs is not None:
             cert, key = certs
             cmd.extend([

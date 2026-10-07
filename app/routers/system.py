@@ -13,19 +13,13 @@ from app import login_check_runner
 from app.api_common import REPO_ROOT, STATIC_DIR, inventory_error
 from app.static_files import BUILD_INFO
 from automation.bootstrap_session import launch_bootstrap_chrome
+from src.certs import cert_paths
 from src.data import CONFIG
 from src.data import open_spreadsheet as open_spreadsheet_file
 from src.net import local_ip
 from src.webapp_config import WebappConfig, append_auth_token
 
 router = APIRouter()
-
-
-def _https_cert_present() -> bool:
-    return (
-        (REPO_ROOT / "webapp" / "certificates" / "cert.pem").exists()
-        or (REPO_ROOT / "certificates" / "cert.pem").exists()
-    )
 
 
 @router.get("/", include_in_schema=False)
@@ -115,7 +109,7 @@ def health() -> dict[str, str]:
 @router.get("/api/access")
 def access_urls(request: Request) -> dict[str, Any]:
     cfg: WebappConfig = request.app.state.webapp_config
-    scheme = "https" if _https_cert_present() else "http"
+    scheme = "https" if cert_paths() else "http"
     local = f"{scheme}://127.0.0.1:{cfg.port}"
     lan = f"{scheme}://{local_ip()}:{cfg.port}"
     cloudflare_url = ""

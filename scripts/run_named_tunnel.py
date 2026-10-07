@@ -17,6 +17,7 @@ import yaml
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from src.certs import cert_paths  # noqa: E402
 from src.no_window import NEW_PROCESS_GROUP_NO_WINDOW  # noqa: E402
 from src.webapp_config import append_auth_token, load_webapp_config  # noqa: E402
 
@@ -40,16 +41,8 @@ def _find_python() -> Path:
     return Path(sys.executable)
 
 
-def _cert_pair() -> tuple[Path, Path]:
-    cert = PROJECT_ROOT / "webapp" / "certificates" / "cert.pem"
-    key = PROJECT_ROOT / "webapp" / "certificates" / "key.pem"
-    if cert.exists() and key.exists():
-        return cert, key
-    return PROJECT_ROOT / "certificates" / "cert.pem", PROJECT_ROOT / "certificates" / "key.pem"
-
-
 def _spawn_uvicorn(port: int) -> subprocess.Popen:
-    cert, key = _cert_pair()
+    certs = cert_paths()
     cmd = [
         str(_find_python()),
         "-m",
@@ -62,7 +55,8 @@ def _spawn_uvicorn(port: int) -> subprocess.Popen:
         "--log-level",
         "warning",
     ]
-    if cert.exists() and key.exists():
+    if certs is not None:
+        cert, key = certs
         cmd.extend(["--ssl-keyfile", str(key), "--ssl-certfile", str(cert)])
     logger.info("Starting uvicorn on :%s", port)
     return subprocess.Popen(cmd, cwd=str(PROJECT_ROOT), creationflags=NEW_PROCESS_GROUP_NO_WINDOW)

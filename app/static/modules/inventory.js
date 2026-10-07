@@ -2,7 +2,7 @@
 // per-row edit form, and the add form (with the product-search host above it).
 import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
 import { activePaneBody, c, filteredItems, items, state } from "./core.js";
-import { esc, html, qtyMarkup, text } from "./dom.js";
+import { esc, html, icon, qtyMarkup, text } from "./dom.js";
 
 function summaryRow(label, value) {
   return `<div class="summary-row"><dt>${label}</dt><dd class="summary-value">${value}</dd></div>`;
@@ -37,7 +37,7 @@ export function renderDashboard() {
     <details id="dash-items" class="card card--collapsible"${itemsOpen ? " open" : ""}>
       <summary class="collapse-summary">
         <span class="collapse-main">
-          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-package"></use></svg>
+          ${icon("package")}
           <h3 class="collapse-title">All items</h3>
           <span class="collapse-count">${source.length}</span>
         </span>
@@ -91,15 +91,15 @@ export function renderAudit(targetsOnly = false) {
     .sort((a, b) => text(a[cols.comida]).localeCompare(text(b[cols.comida])));
   const header = targetsOnly ? "in stock − + · in stock/target · target − + · need" : "in stock/target · target − + · need";
   const controlsClass = targetsOnly ? "audit-controls audit-controls--full" : "audit-controls audit-controls--targets";
-  activePaneBody().innerHTML = `<section class="panel"><div class="row"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-${targetsOnly ? "list-checks" : "package"}"></use></svg>${targetsOnly ? "Audit inventory" : "Edit targets"}</h2><span class="hint">${html(state.zone)} · ${source.length} items</span></div>${zoneTabs()}<div class="hint">${header}</div></section>
+  activePaneBody().innerHTML = `<section class="panel"><div class="row"><h2 class="card-title">${icon(targetsOnly ? "list-checks" : "package")}${targetsOnly ? "Audit inventory" : "Edit targets"}</h2><span class="hint">${html(state.zone)} · ${source.length} items</span></div>${zoneTabs()}<div class="hint">${header}</div></section>
     <section class="grid">${source.map((item) => `
       <article class="item audit-item" data-id="${item.id}">
         <div class="audit-name"><h3>${html(item[cols.comida])}</h3><div class="meta">${html(item[cols.super])}</div></div>
         <div class="${controlsClass}">
-          ${targetsOnly ? `<button type="button" class="icon-button" data-action="current-minus" aria-label="Decrease in stock" title="Decrease in stock"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-minus"></use></svg></button><button type="button" class="icon-button" data-action="current-plus" aria-label="Increase in stock" title="Increase in stock"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg></button>` : ""}
+          ${targetsOnly ? `<button type="button" class="icon-button" data-action="current-minus" aria-label="Decrease in stock" title="Decrease in stock">${icon("minus")}</button><button type="button" class="icon-button" data-action="current-plus" aria-label="Increase in stock" title="Increase in stock">${icon("plus")}</button>` : ""}
           <span class="qty">${qtyMarkup(item[cols.tenemos], item[cols.cantidad])}</span>
-          <button type="button" class="icon-button" data-action="target-minus" aria-label="Decrease target" title="Decrease target"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-minus"></use></svg></button>
-          <button type="button" class="icon-button" data-action="target-plus" aria-label="Increase target" title="Increase target"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg></button>
+          <button type="button" class="icon-button" data-action="target-minus" aria-label="Decrease target" title="Decrease target">${icon("minus")}</button>
+          <button type="button" class="icon-button" data-action="target-plus" aria-label="Increase target" title="Increase target">${icon("plus")}</button>
           <span class="audit-verdict ${Number(item[cols.comprar]) > 0 ? "buy" : "ok"}">${Number(item[cols.comprar]) > 0 ? `−${item[cols.comprar]}` : "OK"}</span>
         </div>
       </article>`).join("") || emptyStateEl("package", "No items in this zone.").outerHTML}</section>`;
@@ -138,7 +138,7 @@ export function renderAdd() {
   const stores = state.payload.summary.supermarkets;
   activePaneBody().innerHTML = `<section id="product-search" class="panel" aria-label="Find a store product"></section>
   <section class="panel">
-    <h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg>Add item</h2>
+    <h2 class="card-title">${icon("plus")}Add item</h2>
     <form id="add-form" class="form">
       <div class="three">
         ${labelled("Item", `<input class="field" name="comida" placeholder="Item name" required />`)}
