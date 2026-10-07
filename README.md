@@ -194,11 +194,13 @@ Edit `src/config.json` to customize:
 
 ### Telegram notifications
 
-The app can push short Telegram messages (e.g. purchase/delivery alerts) through
-the universal `src/notify/` component, vendored verbatim from
-`project-scaffolding` (see `src/notify/README.md`). This step only wires up the
-notifier and proves delivery works — no alert content or trigger is wired to it
-yet.
+The app can push short Telegram messages through the universal `src/notify/`
+component, vendored verbatim from `project-scaffolding` (see
+`src/notify/README.md`). Today the only alerts wired to it come from the
+Gmail order-confirmation check below: a scheduled or manual check that finds
+a dropped or unrecognized item in the confirmation email, and the Settings
+**Email watch** card's *Test last email* action. See the "Read-only Gmail
+order-confirmation check" section below for what triggers a notification.
 
 Configure credentials by copying `config/notify_config.sample.json` to
 gitignored `config/notify_config.json` and filling in `bot_token` + `chat_id`
