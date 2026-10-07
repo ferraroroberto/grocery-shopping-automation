@@ -46,6 +46,7 @@
   --log-bg: var(--card-off);
   --log-ink: var(--ink);
   /* radii (rounded scale) */
+  --radius-sm: 8px;         /* rounded.sm — read by the vendored icon-button */
   --radius-md: 12px;
   --radius: 16px;           /* rounded.lg — cards */
   --radius-pill: 9999px;
@@ -68,6 +69,8 @@
      Got it side by side, and design.md "Touch targets" requires real
      geometry (not ::before expansion) for adjacent clusters. */
   --control-h: 44px;
+  /* components.hit-target.min — the vendored icon-button grows its hit area to this floor */
+  --hit-min: 44px;
   /* components.button-primary.height — a view's primary / submit action */
   --primary-h: 48px;
   /* repeated-list row heights (flat separator-row canon, app-launcher#365) */
@@ -79,8 +82,8 @@
   --font-heading-xl: 2rem;
   --font-heading-lg: 1.5rem;
   --font-body: 1rem;
-  --font-label: 0.92rem;
-  --font-caption: 0.78rem;
+  --font-label: 0.875rem;
+  --font-caption: 0.75rem;
   /* canonical icon sizes (design.md icons.size) */
   --icon-inline: 16px;
   --icon-title: 18px;
