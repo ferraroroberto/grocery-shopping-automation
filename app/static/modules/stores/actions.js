@@ -7,7 +7,7 @@ import { PICKS_KEY, local, setPick, storeName, writeStored } from "./state.js";
 
 const REFRESH_STEPS = [
   "In Claude Code, in the grocery-shopping-automation repo, run /supermarket-benchmark (about an hour; it asks you to confirm the quality specs).",
-  "Come back to Items → Stores and tap \"Import latest run\".",
+  "Come back to the Stores view under Items and tap \"Import latest run\".",
   "Review the \"Needs checking\" items.",
 ];
 

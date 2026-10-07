@@ -247,7 +247,7 @@ async function transcribeSearchClip(mime) {
     if (!res.ok) throw new Error(body.detail || `HTTP ${res.status}`);
     s.term = (body.transcript || "").trim();
     renderSearch();
-    if (s.term) startProductSearch(); // speak → auto-search, per the on-demand flow
+    if (s.term) startProductSearch(); // speak, then auto-search, per the on-demand flow
   } catch (err) {
     s.error = `Couldn't transcribe: ${err.message}`;
     renderSearchStatus();
@@ -417,7 +417,7 @@ export async function useCandidate(cardEl) {
     s.resolved[candidateKey(payload.term, payload.product_url)] = true;
     s.confirming = "";
     s.draft = null;
-    s.notice = `Updated: ${payload.name} (${payload.store}) → ${payload.lugar || "no zone"} · ${payload.tenemos}/${payload.cantidad}`;
+    s.notice = `Updated: ${payload.name} (${payload.store}), zone ${payload.lugar || "none"} · ${payload.tenemos}/${payload.cantidad}`;
     renderSearch();
   } catch (err) {
     s.error = `Couldn't save: ${err.message}`;

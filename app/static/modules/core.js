@@ -87,8 +87,8 @@ function pageHeaderHtml({ icon: iconName, title, contextId, context, themeToggle
               title="Toggle theme" aria-label="Toggle dark mode">
         <!-- Sprite moon + sun; CSS shows the glyph for the *action* keyed
              on html[data-theme]. -->
-        ${icon("moon", "icon theme-icon-moon")}
-        ${icon("sun", "icon theme-icon-sun")}
+        ${icon("moon", "theme-icon-moon")}
+        ${icon("sun", "theme-icon-sun")}
       </button>
       <button class="home-toggle home-settings" type="button" title="Settings" aria-label="Settings">
         ${icon("settings")}
