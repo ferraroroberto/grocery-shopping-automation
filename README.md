@@ -191,7 +191,8 @@ Edit `src/config.json` to customize:
 - **Data Paths** — Excel file location and column mappings
 - **UI Settings** — Page config, mode labels, layout
 - **Logging** — Log level and format
-- **Benchmark runs** *(optional)* — `benchmark.runs_dir`, where the store-links simulator reads benchmark runs (default `benchmark_runs/` in the repo)
+- **Benchmark runs** *(optional)* — `benchmark.runs_dir`, the one directory every benchmark CLI writes to and the store-links simulator reads from (default `benchmark_runs/` in the repo; set it and the runs, `_state/` mappings, history and per-store Chrome profiles all live there)
+- **Served host/port** *(optional)* — `config/webapp_config.json` (`host`/`port`, default `0.0.0.0:8502`) is what `tray.bat`, `webapp.bat`, `/api/access` and the named tunnel all follow; the `:8502` quoted throughout this README is that default
 
 ### Telegram notifications
 

@@ -241,7 +241,7 @@ def render(run_dir: Path) -> str:
                   f"<a href='{e(u['url'])}'>{e(u['name'])}</a> · {eur(u['monthly'], 2)} a month "
                   f"({'+' if u['delta_vs_today'] > 0 else '−'}{eur(abs(u['delta_vs_today']), 2)} vs today)</li>"
                   for u in sc.get("upgrades", []))
-    runs = history.load_history(history.HISTORY_PATH)
+    runs = history.load_history()
     hrows = "".join(
         f"<tr><td>{e(r['run_date'])}</td><td class='num'>{r['items']}</td>"
         f"<td class='num'>{eur(r['status_quo']['total_optimised'])}</td>"

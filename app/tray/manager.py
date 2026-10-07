@@ -28,6 +28,7 @@ import requests
 from app.tray.single_instance import cross_process_lock
 from src.certs import cert_paths
 from src.no_window import NEW_PROCESS_GROUP_NO_WINDOW, NO_WINDOW
+from src.webapp_config import DEFAULT_HOST, DEFAULT_PORT, load_webapp_config
 
 logger = logging.getLogger(__name__)
 
@@ -40,12 +41,12 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 @dataclass(frozen=True)
 class WebappManagerConfig:
-    """Runtime knobs for the tray-owned webapp. Grocery has no config.json
-    ``webapp`` section (unlike sibling apps) so these are fixed to match
-    ``webapp.bat``'s hardcoded ``:8502``."""
+    """Runtime knobs for the tray-owned webapp. ``host``/``port`` come from
+    ``config/webapp_config.json`` (``src.webapp_config``) via :func:`load_config`;
+    the defaults match that file's own."""
 
-    host: str = "0.0.0.0"
-    port: int = 8502
+    host: str = DEFAULT_HOST
+    port: int = DEFAULT_PORT
     startup_timeout_seconds: float = 15.0
     request_timeout_seconds: float = 1.0
     poll_interval_seconds: float = 0.4
@@ -62,7 +63,10 @@ class WebappStatus:
 
 
 def load_config() -> WebappManagerConfig:
-    return WebappManagerConfig()
+    """The tray's bind address: ``host``/``port`` from ``webapp_config`` — the same
+    values ``/api/access``, the named tunnel and ``webapp.bat`` read."""
+    cfg = load_webapp_config()
+    return WebappManagerConfig(host=cfg.host, port=cfg.port)
 
 
 def cert_hostname(project_root: Optional[Path] = None) -> Optional[str]:

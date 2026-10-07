@@ -9,24 +9,26 @@ from pathlib import Path
 import pytest
 
 from benchmark import history, report, score
+from src import data
 from tests.test_benchmark_score import run_dir  # noqa: F401  (fixture)
 
 
 @pytest.fixture()
 def scored_run(run_dir: Path, tmp_path: Path, monkeypatch) -> Path:  # noqa: F811
-    monkeypatch.setattr(history, "HISTORY_PATH", tmp_path / "_state" / "history.jsonl")
-    monkeypatch.setattr(history, "PRICES_PATH", tmp_path / "_state" / "prices.csv")
+    monkeypatch.setitem(data.CONFIG, "benchmark", {"runs_dir": str(tmp_path / "runs")})
     (run_dir / "scenarios.json").write_text(json.dumps(score.score(run_dir)), encoding="utf-8")
     return run_dir
 
 
-def test_record_is_idempotent_per_run(scored_run: Path):
-    history.record(scored_run, history.HISTORY_PATH, history.PRICES_PATH)
-    history.record(scored_run, history.HISTORY_PATH, history.PRICES_PATH)
-    runs = history.load_history(history.HISTORY_PATH)
+def test_record_is_idempotent_per_run(scored_run: Path, tmp_path: Path):
+    history.record(scored_run)
+    history.record(scored_run)
+    # the configured runs_dir, not <repo>/benchmark_runs
+    assert history.history_path() == tmp_path / "runs" / "_state" / "history.jsonl"
+    runs = history.load_history()
     assert [r["run_date"] for r in runs] == ["2026-09-27"]
     assert runs[0]["recommended"]["stores"]
-    with history.PRICES_PATH.open(encoding="utf-8", newline="") as fh:
+    with history.prices_path().open(encoding="utf-8", newline="") as fh:
         rows = list(csv.DictReader(fh))
     # 3 baseline rows + every other-store record (mercadona ham, cheap × 3)
     assert len(rows) == 3 + 1 + 3
@@ -34,7 +36,7 @@ def test_record_is_idempotent_per_run(scored_run: Path):
 
 
 def test_report_renders_plan_history_and_notes(scored_run: Path):
-    history.record(scored_run, history.HISTORY_PATH, history.PRICES_PATH)
+    history.record(scored_run)
     (scored_run / "report_notes.json").write_text(json.dumps(
         {"findings": [{"title": "Deli surprise.", "text": "Not 98%."}],
          "caveats": [{"title": "Produce taste.", "text": "Not measured."}]}), encoding="utf-8")

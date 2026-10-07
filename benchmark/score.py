@@ -47,11 +47,11 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from benchmark import history  # noqa: E402
+from benchmark.paths import mappings_dir  # noqa: E402
 from benchmark.results import MATCHED  # noqa: E402
 
 logger = logging.getLogger("benchmark.score")
 
-MAPPINGS_DIR = _REPO_ROOT / "benchmark_runs" / "_state" / "mappings"
 # A low-confidence match on food can't prove it clears its quality bar, so it
 # doesn't count as an offer (reported as "unverified" instead). Commodity
 # (tier D) matches still count at low confidence.
@@ -553,7 +553,8 @@ def promote(run_dir: Path, stores: dict[str, dict]) -> list[Path]:
     priced candidate instead of re-searching for the ones it would lose.
     """
     fields = ("status", "confidence", "name", "brand", "url", "ean", "pack_size", "unit")
-    MAPPINGS_DIR.mkdir(parents=True, exist_ok=True)
+    target = mappings_dir()
+    target.mkdir(parents=True, exist_ok=True)
     written = []
     for store, doc in stores.items():
         mapping = {}
@@ -563,7 +564,7 @@ def promote(run_dir: Path, stores: dict[str, dict]) -> list[Path]:
                 continue
             first, *others = [{f: c.get(f) for f in fields} for c in candidates]
             mapping[key] = first | ({"alternatives": others} if others else {}) | {"verified_run": run_dir.name}
-        path = MAPPINGS_DIR / f"{store}.json"
+        path = target / f"{store}.json"
         path.write_text(json.dumps(mapping, ensure_ascii=False, indent=2), encoding="utf-8")
         written.append(path)
     return written
@@ -573,7 +574,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("run_dir", type=Path)
     parser.add_argument("--promote", action="store_true",
-                        help="Finalise the run: write verified matches to benchmark_runs/_state/mappings/ "
+                        help="Finalise the run: write verified matches to <runs_dir>/_state/mappings/ "
                              "and record it in the run history (benchmark.history).")
     args = parser.parse_args(argv)
     for stream in (sys.stdout, sys.stderr):
@@ -588,7 +589,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         for p in promote(args.run_dir, load_run(args.run_dir)[1]):
             logger.info("✅ Promoted mapping %s", p)
         history.record(args.run_dir)
-        logger.info("✅ Recorded run in %s and %s", history.HISTORY_PATH.name, history.PRICES_PATH.name)
+        logger.info("✅ Recorded run in %s and %s", history.history_path().name, history.prices_path().name)
     print(report)
     return 0
 

@@ -67,3 +67,9 @@ def append_auth_token(url: str, token: Optional[str]) -> str:
 def _validate(cfg: WebappConfig) -> None:
     if not (1 <= cfg.port <= 65535):
         raise ValueError(f"port out of range: {cfg.port}")
+
+
+if __name__ == "__main__":
+    # ``webapp.bat`` / ``tray.bat`` read the bind address from here: "<host> <port>".
+    _cfg = load_webapp_config()
+    print(_cfg.host, _cfg.port)
