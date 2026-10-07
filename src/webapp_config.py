@@ -8,7 +8,6 @@ from typing import Optional
 from urllib.parse import urlencode, urlparse, urlunparse
 
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "webapp_config.json"
-SAMPLE_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "webapp_config.sample.json"
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8502
 
