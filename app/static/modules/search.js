@@ -12,7 +12,7 @@
 //     POST /api/items shape /select would build.
 import { authFetch, fetchJson } from "./api.js";
 import { c, defaultZone, items, state } from "./core.js";
-import { formatElapsed, html, text } from "./dom.js";
+import { esc, formatElapsed, html, text } from "./dom.js";
 import { pickAudioMime } from "./media.js";
 
 // Local to this module — `items` holds the merged status entries (one per
@@ -60,7 +60,7 @@ export function renderSearch() {
         <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-mic"></use></svg>
       </button>
       <input id="search-term" class="search-term" type="search" enterkeyhint="search" autocomplete="off"
-             aria-label="Product to search" placeholder="e.g. sandía" value="${html(s.term)}"${s.running ? " disabled" : ""} />
+             aria-label="Product to search" placeholder="e.g. sandía" value="${esc(s.term)}"${s.running ? " disabled" : ""} />
       <button id="search-run" class="big-btn"${s.running ? " disabled" : ""} type="button">
         <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-search"></use></svg>Search
       </button>
@@ -161,7 +161,7 @@ function candidateConfirmPanel() {
   const zoneField = zones.length
     ? `<select class="field" data-confirm="lugar" aria-label="Zone">${zones.map((z) =>
         `<option value="${html(z)}"${z === d.lugar ? " selected" : ""}>${html(z)}</option>`).join("")}</select>`
-    : `<input class="field" data-confirm="lugar" value="${html(d.lugar)}" placeholder="Zone" aria-label="Zone" />`;
+    : `<input class="field" data-confirm="lugar" value="${esc(d.lugar)}" placeholder="Zone" aria-label="Zone" />`;
   return `<div class="candidate-confirm">
     <label class="field-label">Zone ${zoneField}</label>
     <label class="field-label">In stock

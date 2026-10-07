@@ -2,7 +2,7 @@
 // per-row edit form, and the add form (with the product-search host above it).
 import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
 import { activePaneBody, c, filteredItems, items, state } from "./core.js";
-import { html, qtyMarkup, text } from "./dom.js";
+import { esc, html, qtyMarkup, text } from "./dom.js";
 
 function summaryRow(label, value) {
   return `<div class="summary-row"><dt>${label}</dt><dd class="summary-value">${value}</dd></div>`;
@@ -117,14 +117,14 @@ export function renderEdit() {
       <form class="form edit-form">
         <div class="row"><h3>${html(item[cols.comida])}</h3><button class="danger" type="button" data-action="delete">Delete</button></div>
         <div class="three">
-          ${labelled("Item", `<input class="field" name="comida" value="${html(item[cols.comida])}" placeholder="Item" />`)}
-          ${labelled("Supermarket", `<input class="field" name="super" value="${html(item[cols.super])}" placeholder="Supermarket" />`)}
-          ${labelled("Zone", `<input class="field" name="lugar" value="${html(item[cols.lugar])}" placeholder="Zone" />`)}
+          ${labelled("Item", `<input class="field" name="comida" value="${esc(item[cols.comida])}" placeholder="Item" />`)}
+          ${labelled("Supermarket", `<input class="field" name="super" value="${esc(item[cols.super])}" placeholder="Supermarket" />`)}
+          ${labelled("Zone", `<input class="field" name="lugar" value="${esc(item[cols.lugar])}" placeholder="Zone" />`)}
         </div>
         <div class="three-link">
-          ${labelled("Target", `<input class="field" name="cantidad" type="number" min="0" value="${html(item[cols.cantidad])}" placeholder="Target" />`)}
-          ${labelled("In stock", `<input class="field" name="tenemos" type="number" min="0" value="${html(item[cols.tenemos])}" placeholder="In stock" />`)}
-          ${labelled("URL", `<input class="field" name="buscador" value="${html(item[cols.buscador])}" placeholder="URL" />`)}
+          ${labelled("Target", `<input class="field" name="cantidad" type="number" min="0" value="${esc(item[cols.cantidad])}" placeholder="Target" />`)}
+          ${labelled("In stock", `<input class="field" name="tenemos" type="number" min="0" value="${esc(item[cols.tenemos])}" placeholder="In stock" />`)}
+          ${labelled("URL", `<input class="field" name="buscador" value="${esc(item[cols.buscador])}" placeholder="URL" />`)}
         </div>
         <button class="primary" type="submit">Save</button>
       </form>

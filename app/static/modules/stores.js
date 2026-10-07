@@ -11,7 +11,7 @@ import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
 import { setSwitch } from "../_vendored/switch/switch.js";
 import { fetchJson } from "./api.js";
 import { activePaneBody, c, filteredItems, render, state } from "./core.js";
-import { switchMarkup } from "./dom.js";
+import { esc, switchMarkup } from "./dom.js";
 
 const PICKS_KEY = "grocery.storePicks";
 const FREQ_KEY = "grocery.storeFrequency";
@@ -111,14 +111,6 @@ function storedStores() {
 }
 
 // --------------------------------------------------------------- helpers
-function esc(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
-}
-
 function icon(name, cls = "icon") {
   return `<svg class="${cls}" aria-hidden="true" focusable="false"><use href="#i-${name}"></use></svg>`;
 }

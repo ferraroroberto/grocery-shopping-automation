@@ -8,12 +8,19 @@ export function text(value) {
   return value === null || value === undefined || value === "" ? "-" : String(value);
 }
 
-export function html(value) {
-  return text(value)
+// Raw HTML escape: null/undefined become "", never the "-" placeholder. Use it
+// for editable `value=` attributes, where a "-" would be posted back as data
+// (#228); `html()` is for read-only display text.
+export function esc(value) {
+  return String(value ?? "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+export function html(value) {
+  return esc(text(value));
 }
 
 // Colour-coded current/target, mirroring app/ui_helpers.qty_html:
