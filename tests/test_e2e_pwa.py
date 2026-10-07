@@ -395,9 +395,16 @@ def test_add_item_increases_count(page):
     before = int(page.locator(".summary-value").first.inner_text())
     goto_mode(page, "add")
     page.fill("#add-form input[name='comida']", "zzz e2e item")
-    page.fill("#add-form input[name='super']", "mercadona")
-    page.fill("#add-form input[name='lugar']", "nevera")
-    page.click("#add-form button[type='submit']")
+    # Zone and Supermarket are native pickers of the existing values (#241) —
+    # no typing; the text box behind them stays hidden.
+    page.select_option("#add-form [data-picker] select >> nth=0", "mercadona")
+    page.select_option("#add-form [data-picker] select >> nth=1", "nevera")
+    assert not page.locator("#add-form input[name='super']").is_visible()
+    assert not page.locator("#add-form input[name='lugar']").is_visible()
+    with page.expect_response(lambda r: r.url.endswith("/api/items") and r.request.method == "POST") as resp:
+        page.click("#add-form button[type='submit']")
+    body = resp.value.request.post_data_json
+    assert (body["super"], body["lugar"]) == ("mercadona", "nevera")
     # Mutations report a transient "Saved" toast (#200); the resting count only
     # shows on Home (the repeated "Loaded N items" line was UI noise).
     page.wait_for_function("document.querySelector('#toast')?.textContent?.includes('Saved')")
@@ -405,6 +412,25 @@ def test_add_item_increases_count(page):
     page.wait_for_selector(".summary")
     after = int(page.locator(".summary-value").first.inner_text())
     assert after == before + 1
+
+
+@pytest.mark.e2e
+def test_add_item_new_zone_and_supermarket(page):
+    """"New…" in the pickers reveals a text box so a first-time zone or
+    supermarket can still be entered (#241); the typed values are what saves."""
+    goto_mode(page, "add")
+    form = page.locator("#add-form")
+    form.locator("[name='comida']").fill("zzz new place item")
+    form.locator("[data-picker] select").nth(0).select_option(label="New supermarket…")
+    form.locator("[data-picker] select").nth(1).select_option(label="New zone…")
+    form.locator("input[name='super']").fill("zzz lidl e2e")
+    form.locator("input[name='lugar']").fill("zzz balcon e2e")
+    with page.expect_response(lambda r: r.url.endswith("/api/items") and r.request.method == "POST") as resp:
+        form.locator("button[type='submit']").click()
+    body = resp.value.request.post_data_json
+    assert (body["super"], body["lugar"]) == ("zzz lidl e2e", "zzz balcon e2e")
+    assert resp.value.ok
+    assert page._js_errors == [], f"JS errors: {page._js_errors}"
 
 
 @pytest.mark.e2e
@@ -840,7 +866,7 @@ def test_add_item_product_search(page, server):
     assert form.locator("[name='buscador']").input_value() == new_url
     assert form.locator("[name='cantidad']").input_value() == "1"
     assert not [i for i in page.request.get(inventory).json()["items"] if i["comida"] == "zzz sandia e2e"]
-    form.locator("[name='lugar']").fill("nevera")
+    form.locator("[data-picker] select").nth(1).select_option("nevera")
     form.locator("button[type='submit']").click()
     new_card.locator("button:has-text('Added')").wait_for()
     created = [i for i in page.request.get(inventory).json()["items"] if i["comida"] == "zzz sandia e2e"]

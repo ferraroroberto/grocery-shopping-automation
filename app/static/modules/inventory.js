@@ -1,8 +1,8 @@
 // The four inventory views: the Home dashboard, the audit/target editors, the
 // per-row edit form, and the add form (with the product-search host above it).
 import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
-import { activePaneBody, c, filteredItems, items, state } from "./core.js";
-import { esc, html, icon, qtyMarkup, text } from "./dom.js";
+import { activePaneBody, c, defaultZone, filteredItems, items, state } from "./core.js";
+import { esc, html, icon, pickerMarkup, qtyMarkup, text } from "./dom.js";
 
 function summaryRow(label, value) {
   return `<div class="summary-row"><dt>${label}</dt><dd class="summary-value">${value}</dd></div>`;
@@ -142,8 +142,8 @@ export function renderAdd() {
     <form id="add-form" class="form">
       <div class="three">
         ${labelled("Item", `<input class="field" name="comida" placeholder="Item name" required />`)}
-        ${labelled("Supermarket", `<input class="field" name="super" list="stores" placeholder="Supermarket" required />`)}
-        ${labelled("Zone", `<input class="field" name="lugar" list="zones" placeholder="Zone" required />`)}
+        ${pickerMarkup("super", "Supermarket", stores, stores[0], "New supermarket…")}
+        ${pickerMarkup("lugar", "Zone", zones, defaultZone(), "New zone…")}
       </div>
       <div class="three-link">
         ${labelled("Target", `<input class="field" name="cantidad" type="number" min="0" value="0" placeholder="Target" />`)}
@@ -152,7 +152,5 @@ export function renderAdd() {
       </div>
       <button class="big-btn" type="submit">Add item</button>
     </form>
-    <datalist id="stores">${stores.map((x) => `<option value="${html(x)}"></option>`).join("")}</datalist>
-    <datalist id="zones">${zones.map((x) => `<option value="${html(x)}"></option>`).join("")}</datalist>
   </section>`;
 }

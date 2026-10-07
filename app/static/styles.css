@@ -663,6 +663,8 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 /* The zone combo matches the quantity inputs exactly: same 36px box, radius,
    and font (kills the taller native menulist look). Custom chevron replaces
    the native indicator; #6e7681 reads as muted in both themes. */
+.picker { display: grid; gap: var(--space-xs); align-content: start; }
+.picker select.field,
 .candidate-confirm select.field {
   appearance: none;
   height: var(--control-h);

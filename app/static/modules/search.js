@@ -12,7 +12,7 @@
 //     POST /api/items shape /select would build.
 import { authFetch, fetchJson } from "./api.js";
 import { c, defaultZone, items, state } from "./core.js";
-import { esc, formatElapsed, html, icon, text } from "./dom.js";
+import { esc, formatElapsed, html, icon, setPickerValue, text } from "./dom.js";
 import { pickAudioMime } from "./media.js";
 
 // Local to this module — `items` holds the merged status entries (one per
@@ -346,7 +346,7 @@ function prefillAddForm(cardEl) {
   if (!form) return;
   const f = form.elements;
   f.comida.value = cardEl.dataset.term;
-  f.super.value = cardEl.dataset.store.toLowerCase();
+  setPickerValue(f.super.closest("[data-picker]"), cardEl.dataset.store.toLowerCase());
   f.buscador.value = cardEl.dataset.url;
   if (!(Number(f.cantidad.value) > 0)) f.cantidad.value = "1";
   search.prefilled = { key: candidateKey(cardEl.dataset.term, cardEl.dataset.url), url: cardEl.dataset.url, name: cardEl.dataset.name, store: cardEl.dataset.store };

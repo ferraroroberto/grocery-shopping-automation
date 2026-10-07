@@ -282,7 +282,9 @@ Search for any item and edit all its fields (name, supermarket, zone, URL, quant
 
 ### ➕ Add item
 Add new items to the inventory via a form (name, supermarket, zone, target,
-current, URL). Above the form, **Find a store product** searches the stores for
+current, URL). Supermarket and Zone are pickers of the values already in the
+sheet (no typing on a phone); choose **New supermarket…** / **New zone…** to
+enter a first-time one. Above the form, **Find a store product** searches the stores for
 you (below) and can fill the form in.
 
 #### 🔎 Find a store product (Items → Add item)
