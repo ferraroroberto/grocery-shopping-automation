@@ -51,13 +51,10 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from benchmark.ametller_guest import GuestSession  # noqa: E402
+from benchmark.paths import runs_dir, state_dir  # noqa: E402
 from src import data  # noqa: E402
 
 logger = logging.getLogger("benchmark.build_basket")
-
-RUNS_DIR = _REPO_ROOT / "benchmark_runs"
-STATE_DIR = RUNS_DIR / "_state"
-SPECS_PATH = STATE_DIR / "quality_specs.json"
 
 _DAYS_PER_MONTH = 30.44
 _HTTP_HEADERS = {
@@ -331,8 +328,9 @@ def fetch_ametller_batch(product_ids: list[str]) -> dict[str, dict]:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def load_specs(path: Path = SPECS_PATH) -> dict:
+def load_specs(path: Optional[Path] = None) -> dict:
     """Human-reviewed tier/spec overrides, keyed by item key."""
+    path = path or state_dir() / "quality_specs.json"
     if not path.exists():
         return {}
     return json.loads(path.read_text(encoding="utf-8"))
@@ -441,7 +439,7 @@ def build(run_date: str) -> Path:
         "excluded": [{"key": it["key"], "reason": specs[it["key"]].get("reason", "")} for it in excluded],
         "items": items,
     }
-    out_dir = RUNS_DIR / run_date
+    out_dir = runs_dir() / run_date
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / "basket.json"
     out.write_text(json.dumps(basket, ensure_ascii=False, indent=2), encoding="utf-8")

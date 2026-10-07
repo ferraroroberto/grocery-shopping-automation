@@ -6,7 +6,7 @@ launch config (:func:`automation.browser._open_context`) and prints the result,
 so a store-research agent can keep working over "HTTP" semantics.
 
 Each store gets its **own** throwaway profile under
-``benchmark_runs/_state/chrome/<store>/`` — never the shared store-login
+``<runs_dir>/_state/chrome/<store>/`` — never the shared store-login
 profile — so parallel agents (one per store) don't collide and cookies a store
 sets on first visit (postal code, consent) persist across calls.
 
@@ -37,10 +37,10 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from automation.browser import _open_context  # noqa: E402
+from benchmark.paths import state_dir  # noqa: E402
 
 logger = logging.getLogger("benchmark.browser_fetch")
 
-PROFILES_DIR = _REPO_ROOT / "benchmark_runs" / "_state" / "chrome"
 _SETTLE_S = 3.0
 
 _FETCH_JS = """async (url) => {
@@ -56,7 +56,7 @@ def fetch(store: str, url: str, mode: str = "text", home: Optional[str] = None,
     Returns ``(status, body)``: the page text (``text``), full HTML (``html``)
     or the in-page ``fetch`` response body (``api``).
     """
-    profile = PROFILES_DIR / store
+    profile = state_dir() / "chrome" / store
     profile.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as pw:
         context, page = _open_context(pw, headless=headless, user_data_dir=profile)

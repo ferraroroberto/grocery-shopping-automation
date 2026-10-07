@@ -68,9 +68,9 @@ from pandas.api.types import is_object_dtype, is_string_dtype
 
 from benchmark import score as bscore
 from benchmark.build_basket import item_key
+from benchmark.paths import mappings_dir, runs_dir
 from src.data import (
     COLUMNS,
-    CONFIG,
     REPO_ROOT,
     InventoryFileError,
     SpreadsheetLockedError,
@@ -83,7 +83,6 @@ from src.data import (
 logger = logging.getLogger(__name__)
 
 STORES_REGISTRY_PATH = REPO_ROOT / "benchmark" / "stores.json"
-DEFAULT_RUNS_DIR = REPO_ROOT / "benchmark_runs"
 _RUN_DIR_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # A store-search results page rather than a product: bot-protected stores
 # (Bonpreu, Alcampo) left the benchmark only their search URL.
@@ -154,15 +153,6 @@ def load_registry() -> dict[str, dict]:
     return json.loads(STORES_REGISTRY_PATH.read_text(encoding="utf-8"))["stores"]
 
 
-def runs_dir() -> Path:
-    """The benchmark runs directory: ``benchmark.runs_dir`` in config, else ``<repo>/benchmark_runs``."""
-    raw = (CONFIG.get("benchmark") or {}).get("runs_dir")
-    if not raw:
-        return DEFAULT_RUNS_DIR
-    path = Path(raw).expanduser()
-    return path if path.is_absolute() else (REPO_ROOT / path).resolve()
-
-
 def latest_run_dir(base: Optional[Path] = None) -> Optional[Path]:
     """Newest ``YYYY-MM-DD`` run that has been scored, or None.
 
@@ -191,7 +181,7 @@ def _require_run(run_dir: Optional[Path]) -> Path:
 
 def load_mappings(base: Optional[Path] = None) -> dict[str, dict[str, dict]]:
     """Store → {item key → mapping} from ``_state/mappings/*.json``."""
-    mdir = (base or runs_dir()) / "_state" / "mappings"
+    mdir = base / "_state" / "mappings" if base else mappings_dir()
     out: dict[str, dict[str, dict]] = {}
     for path in sorted(mdir.glob("*.json")) if mdir.is_dir() else []:
         try:

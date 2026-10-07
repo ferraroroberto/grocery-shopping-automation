@@ -94,7 +94,10 @@ if not exist "%TRAY_PS%" (
 
 REM === ADAPT (4/4): replace __OWNED_PORTS__ with this tray's exclusively-owned
 REM     ports as a comma list, e.g. 8445,8446 . Exclude any mutex-shared port. ===
+REM  The port follows config\webapp_config.json (default 8502), the same source
+REM  the tray's uvicorn binds; if that read fails, keep the default.
 set "OWNED_PORTS=8502"
+for /f "usebackq tokens=2" %%p in (`"%TRAY_VENV%\Scripts\python.exe" -m src.webapp_config`) do set "OWNED_PORTS=%%p"
 REM Optional override for the restart-verification probe. Leave blank and the
 REM helper probes https:// then http:// on 127.0.0.1:<first-owned-port>/api/version
 REM (HTTPS first because fleet PWAs are HTTPS; loopback so an auth-gated endpoint

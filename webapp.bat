@@ -1,6 +1,7 @@
 @echo off
 chcp 65001 >nul
-REM Standalone FastAPI/PWA launcher for grocery (:8502).
+REM Standalone FastAPI/PWA launcher for grocery (default :8502; host/port follow
+REM config\webapp_config.json, the same source the tray uses).
 
 setlocal
 set "SCRIPT_DIR=%~dp0"
@@ -21,16 +22,25 @@ if not exist "%CERT%" if exist "%SCRIPT_DIR%certificates\cert.pem" (
     set "KEY=%SCRIPT_DIR%certificates\key.pem"
 )
 
+REM Bind address from config\webapp_config.json ("<host> <port>"); if the read
+REM fails (error shown above) fall back to the defaults.
+set "BIND_HOST=0.0.0.0"
+set "BIND_PORT=8502"
+for /f "usebackq tokens=1,2" %%a in (`"%VENV_PY%" -m src.webapp_config`) do (
+    set "BIND_HOST=%%a"
+    set "BIND_PORT=%%b"
+)
+
 REM Auto-renew Tailscale cert if expiring within 30 days.
 "%VENV_PY%" "%SCRIPT_DIR%scripts\gen_tailscale_cert.py" --check
 
 if exist "%CERT%" (
-    echo [INFO] Starting HTTPS FastAPI webapp on :8502.
-    "%VENV_PY%" -m uvicorn app.api:app --host 0.0.0.0 --port 8502 --ssl-keyfile "%KEY%" --ssl-certfile "%CERT%"
+    echo [INFO] Starting HTTPS FastAPI webapp on %BIND_HOST%:%BIND_PORT%.
+    "%VENV_PY%" -m uvicorn app.api:app --host %BIND_HOST% --port %BIND_PORT% --ssl-keyfile "%KEY%" --ssl-certfile "%CERT%"
 ) else (
-    echo [INFO] No HTTPS cert found; starting HTTP FastAPI webapp on :8502.
+    echo [INFO] No HTTPS cert found; starting HTTP FastAPI webapp on %BIND_HOST%:%BIND_PORT%.
     echo        Run ^& .\.venv\Scripts\python.exe src\gen_ssl_cert.py to enable HTTPS.
-    "%VENV_PY%" -m uvicorn app.api:app --host 0.0.0.0 --port 8502
+    "%VENV_PY%" -m uvicorn app.api:app --host %BIND_HOST% --port %BIND_PORT%
 )
 
 exit /b %ERRORLEVEL%

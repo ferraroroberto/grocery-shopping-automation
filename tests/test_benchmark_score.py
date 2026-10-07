@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from benchmark import results, score
+from src import data, store_links
 
 
 def _item(key: str, store: str, packs: float, size: float, price: float, unit: str = "kg") -> dict:
@@ -245,11 +246,13 @@ def test_add_alternative_promotes_over_not_found_and_appends_to_a_match():
 
 
 def test_promote_keeps_alternatives_and_confidence(tmp_path: Path, monkeypatch):
-    monkeypatch.setattr(score, "MAPPINGS_DIR", tmp_path / "mappings")
+    monkeypatch.setitem(data.CONFIG, "benchmark", {"runs_dir": str(tmp_path / "runs")})
     rec = {**_rec(0.3, 0.9), "confidence": "high", "alternatives": [{**_rec(1.0, 1.5), "url": "https://big"}]}
     stores = {"big": {"items": {"peas": rec, "gone": {"status": "not_found"}}}}
     score.promote(tmp_path / "2026-09-27", stores)
-    mapping = json.loads((tmp_path / "mappings" / "big.json").read_text(encoding="utf-8"))
+    # written where the app's "Import latest run" reads: <runs_dir>/_state/mappings
+    mapping = json.loads((tmp_path / "runs" / "_state" / "mappings" / "big.json").read_text(encoding="utf-8"))
+    assert store_links.load_mappings()["big"] == mapping
     assert list(mapping) == ["peas"]
     assert mapping["peas"]["confidence"] == "high"
     assert [a["url"] for a in mapping["peas"]["alternatives"]] == ["https://big"]

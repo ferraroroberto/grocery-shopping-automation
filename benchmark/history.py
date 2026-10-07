@@ -1,7 +1,8 @@
 """Run history for the supermarket benchmark (issue #145).
 
 Every finished run is recorded into two append-only-by-run files under
-``benchmark_runs/_state/`` (gitignored — prices are household data):
+``<runs_dir>/_state/`` (default ``benchmark_runs/``; gitignored — prices are
+household data):
 
 * ``history.jsonl`` — one summary line per run: status-quo and recommended
   totals, the recommended/max-savings store sets, and per-store coverage,
@@ -26,10 +27,8 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent
-STATE_DIR = _REPO_ROOT / "benchmark_runs" / "_state"
-HISTORY_PATH = STATE_DIR / "history.jsonl"
-PRICES_PATH = STATE_DIR / "prices.csv"
+from benchmark.paths import state_dir
+
 PRICE_FIELDS = ["run_date", "store", "key", "comida", "tier", "baseline", "status", "confidence",
                 "name", "url", "pack_size", "unit", "pack_price", "unit_price"]
 
@@ -90,16 +89,29 @@ def price_rows(run_date: str, basket: dict, stores: dict[str, dict]) -> list[dic
     return rows
 
 
-def load_history(path: Path = HISTORY_PATH) -> list[dict]:
+def history_path() -> Path:
+    """``<runs_dir>/_state/history.jsonl``."""
+    return state_dir() / "history.jsonl"
+
+
+def prices_path() -> Path:
+    """``<runs_dir>/_state/prices.csv``."""
+    return state_dir() / "prices.csv"
+
+
+def load_history(path: Optional[Path] = None) -> list[dict]:
     """Every recorded run summary, oldest first."""
+    path = path or history_path()
     if not path.exists():
         return []
     runs = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
     return sorted(runs, key=lambda r: r["run_date"])
 
 
-def record(run_dir: Path, history_path: Path = HISTORY_PATH, prices_path: Path = PRICES_PATH) -> dict:
+def record(run_dir: Path, history_file: Optional[Path] = None, prices_file: Optional[Path] = None) -> dict:
     """Record (or re-record) one scored run into both history files."""
+    history_file = history_file or history_path()
+    prices_file = prices_file or prices_path()
     scenarios = json.loads((run_dir / "scenarios.json").read_text(encoding="utf-8"))
     basket = json.loads((run_dir / "basket.json").read_text(encoding="utf-8"))
     stores = {p.stem: json.loads(p.read_text(encoding="utf-8"))
@@ -107,16 +119,16 @@ def record(run_dir: Path, history_path: Path = HISTORY_PATH, prices_path: Path =
     summary = summarise(scenarios, basket)
     run_date = summary["run_date"]
 
-    history_path.parent.mkdir(parents=True, exist_ok=True)
-    runs = [r for r in load_history(history_path) if r["run_date"] != run_date] + [summary]
-    history_path.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n"
+    history_file.parent.mkdir(parents=True, exist_ok=True)
+    runs = [r for r in load_history(history_file) if r["run_date"] != run_date] + [summary]
+    history_file.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n"
                                     for r in sorted(runs, key=lambda r: r["run_date"])), encoding="utf-8")
 
     kept: list[dict] = []
-    if prices_path.exists():
-        with prices_path.open(encoding="utf-8", newline="") as fh:
+    if prices_file.exists():
+        with prices_file.open(encoding="utf-8", newline="") as fh:
             kept = [row for row in csv.DictReader(fh) if row["run_date"] != run_date]
-    with prices_path.open("w", encoding="utf-8", newline="") as fh:
+    with prices_file.open("w", encoding="utf-8", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=PRICE_FIELDS)
         writer.writeheader()
         writer.writerows(kept + price_rows(run_date, basket, stores))
@@ -133,7 +145,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         if not args.run_dir:
             parser.error("record needs a run_dir")
         s = record(args.run_dir)
-        print(f"✅ recorded {s['run_date']} into {HISTORY_PATH.name} and {PRICES_PATH.name}")
+        print(f"✅ recorded {s['run_date']} into {history_path().name} and {prices_path().name}")
         return 0
     for r in load_history():
         rec = r.get("recommended") or {}

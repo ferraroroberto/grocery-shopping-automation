@@ -150,6 +150,13 @@ per-unit comparison, max-savings + recommended plan"]
 _state/history.jsonl + prices.csv (every run)"]
     BREPORT["report.py
 HTML report (plan, evidence, Over time)"]
+    BPATHS["paths.py
+the one benchmark.runs_dir resolver (+ _state/)"]
+    BBASKET --> BPATHS
+    BFETCH --> BPATHS
+    BHIST --> BPATHS
+    BSCORE --> BPATHS
+    STORELINKS --> BPATHS
     BSCORE -->|--promote| BHIST
     BREPORT --> BSCORE
     BREPORT --> BHIST
