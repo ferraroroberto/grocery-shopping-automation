@@ -96,4 +96,4 @@ The baseline store's own items are never researched: the scorer uses `basket.jso
 
 ## Practical costs the numbers don't include
 
-Any store other than Mercadona or Ametller has no cart-automation handler (`automation/`) and no confirmation-email parser, so switching means either building one or going back to filling the cart by hand. The recommendation has to weigh that against the monthly saving.
+Mercadona, Ametller and Carrefour have a cart-automation handler (`automation/`); Ametller and Carrefour also have a confirmation-email parser (`automation/email_parsers/`). Any other store has neither, so switching means either building both or going back to filling the cart by hand — see `automation/README.md` for the current per-store coverage. The recommendation has to weigh that against the monthly saving.
