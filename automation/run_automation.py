@@ -24,6 +24,7 @@ from typing import Optional
 
 from automation import ametller, carrefour, mercadona
 from automation.browser import (
+    ProfileBusyError,
     ProfileNotInitializedError,
     StoreAccessError,
     human_delay,
@@ -167,10 +168,14 @@ def _process_store_live(
     before the context closes and the next store starts.
     """
     handler = HANDLERS[store]
-    try:
-        playwright, context, page = launch_context(headless=headless)
-    except ProfileNotInitializedError:
-        raise
+
+    def on_wait(delay_s: int, attempt: int, total: int) -> None:
+        logger.info(
+            "⏳ [%s] waiting for the browser — another job is using it (retry %d/%d in %ds)",
+            store, attempt, total, delay_s,
+        )
+
+    playwright, context, page = launch_context(headless=headless, wait_for_profile=True, on_wait=on_wait)
     try:
         before = _read_cart_total_safe(handler, page, store)
         if before is not None:
@@ -281,6 +286,12 @@ def main(argv: Optional[list[str]] = None) -> int:
             except ProfileNotInitializedError as err:
                 logger.error("❌ %s", err)
                 return 2
+            except ProfileBusyError as err:
+                # Keep going: earlier stores' adds must still reach the summary
+                # and the purchase log, and a later store may find the profile free.
+                logger.error("❌ [%s] %s", store, err)
+                for item in group:
+                    report.errors.append((item, "Chrome profile busy (held by another job)"))
 
     report.print_summary()
     _write_purchase_log_if_live(report, args.dry_run)

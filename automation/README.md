@@ -91,6 +91,13 @@ Each handler is **idempotent** — it reads the current cart quantity and only
 adds what is missing, so a re-run after a partial failure is safe. Existing
 cart contents are never wiped.
 
+The run shares one Chrome profile with product search and the store-login
+check. If another of those jobs holds it, the run waits (5 → 15 → 30 → 60 → 120 s,
+~4 minutes, logged as `waiting for the browser`) rather than killing the
+holder; if it is still held after that, that store's items are reported as
+errors (`Chrome profile busy (held by another job)`), the run carries on to the
+next store, and the exit code is 1.
+
 ### Purchase log
 
 Every **live** (non-dry-run) run writes one JSON file per store that had at
