@@ -12,7 +12,7 @@
 //     POST /api/items shape /select would build.
 import { authFetch, fetchJson } from "./api.js";
 import { c, defaultZone, items, state } from "./core.js";
-import { esc, formatElapsed, html, text } from "./dom.js";
+import { esc, formatElapsed, html, icon, text } from "./dom.js";
 import { pickAudioMime } from "./media.js";
 
 // Local to this module — `items` holds the merged status entries (one per
@@ -53,16 +53,16 @@ export function renderSearch() {
   if (!node || state.mode !== "add") return; // a background poll must never clobber another pane
   const s = search;
   node.innerHTML = `
-    <h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-search"></use></svg>Find a store product</h2>
+    <h2 class="card-title">${icon("search")}Find a store product</h2>
     <div class="hint">Say or type a product in Spanish. Searches Mercadona and Carrefour — pick the right one to add it to the list, or to link an item that is already on it.</div>
     <div class="search-bar">
       <button id="search-record" class="icon-button${s.recording ? " recording" : ""}" type="button" aria-pressed="${s.recording}" aria-label="Dictate a product" title="Dictate">
-        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-mic"></use></svg>
+        ${icon("mic")}
       </button>
       <input id="search-term" class="search-term" type="search" enterkeyhint="search" autocomplete="off"
              aria-label="Product to search" placeholder="e.g. sandía" value="${esc(s.term)}"${s.running ? " disabled" : ""} />
       <button id="search-run" class="big-btn"${s.running ? " disabled" : ""} type="button">
-        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-search"></use></svg>Search
+        ${icon("search")}Search
       </button>
     </div>
     <div id="search-status" class="panel-status" role="status" aria-live="polite"></div>
@@ -185,7 +185,7 @@ function candidateRow(cand, item) {
     ? `<img class="candidate-thumb" src="${html(cand.thumbnail)}" alt="" loading="lazy" />`
     : `<div class="candidate-thumb candidate-thumb-empty" aria-hidden="true"></div>`;
   // New items hand off to the Add Item form (no confirm row to expand).
-  const useLabel = done ? `${isNew ? "Added" : "Updated"} <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-check"></use></svg>` : "Use";
+  const useLabel = done ? `${isNew ? "Added" : "Updated"} ${icon("check")}` : "Use";
   const expanded = isNew ? "" : ` aria-expanded="${open}"`;
   return `<article class="candidate${open ? " confirming" : ""}" data-term="${html(item.term)}" data-idx="${isNew ? "" : item.inventory_idx}"
       data-store="${html(cand.store)}" data-url="${html(cand.product_url)}" data-name="${html(cand.name)}">
@@ -196,7 +196,7 @@ function candidateRow(cand, item) {
     </div>
     <div class="candidate-actions">
       <a class="icon-button" href="${html(cand.product_url)}" target="_blank" rel="noopener" aria-label="Open product" title="Open">
-        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-external-link"></use></svg>
+        ${icon("external-link")}
       </a>
       <button class="secondary candidate-use" type="button" data-action="search-use"${expanded}${done ? " disabled" : ""}>${useLabel}</button>
     </div>

@@ -6,7 +6,7 @@
 // cadence, and shows the last-check log. "Test last email" re-processes the
 // newest confirmation even if already seen — the end-to-end dry run.
 import { fetchJson } from "./api.js";
-import { fmtBuildTime, html, switchMarkup, switchOn, text } from "./dom.js";
+import { fmtBuildTime, html, icon, switchMarkup, switchOn, text } from "./dom.js";
 
 const EMAIL_INTERVALS = [
   [15, "Every 15 min"], [30, "Every 30 min"], [60, "Every hour"],
@@ -27,7 +27,7 @@ function emailMonitorCard() {
   return `<details id="email-monitor" class="card card--collapsible">
     <summary class="collapse-summary">
       <span class="collapse-main">
-        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-mail"></use></svg>
+        ${icon("mail")}
         <h3 class="collapse-title">Email watch</h3>
         <span class="collapse-count" id="email-monitor-count"></span>
       </span>
@@ -77,8 +77,8 @@ async function refreshEmailMonitor() {
       <select id="email-poller-interval">${intervalOptions}</select>
     </label>
     <div class="email-actions">
-      <button id="email-check-now" class="secondary btn-block" type="button"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-refresh-cw"></use></svg>Check now</button>
-      <button id="email-check-test" class="secondary btn-block" type="button"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-play"></use></svg>Test last email</button>
+      <button id="email-check-now" class="secondary btn-block" type="button">${icon("refresh-cw")}Check now</button>
+      <button id="email-check-test" class="secondary btn-block" type="button">${icon("play")}Test last email</button>
     </div>
     <div id="email-monitor-status" class="panel-status">${emailNextCheckText(s)}</div>
     ${checkRows ? `<div class="field-label">Last checks</div><div class="zone-items">${checkRows}</div>` : ""}`;

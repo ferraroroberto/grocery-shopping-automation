@@ -3,7 +3,7 @@
 // (persisted via core's shopping state) over the server's buy list.
 import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
 import { activePaneBody, c, items, state } from "./core.js";
-import { html, text } from "./dom.js";
+import { html, icon, text } from "./dom.js";
 
 function shoppingItems() {
   const cols = c();
@@ -32,7 +32,7 @@ export function renderShopping() {
   // Header panel only when it has something to say (unmark-all / warnings) —
   // an empty card under the page title is noise.
   const header = (boughtCount || missingLink.length) ? `<section class="panel">
-    <div class="row"><h2 class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-shopping-cart"></use></svg>Shopping</h2>${boughtCount ? `<button class="secondary" id="shopping-unmark-all" type="button">Unmark all</button>` : ""}</div>
+    <div class="row"><h2 class="card-title">${icon("shopping-cart")}Shopping</h2>${boughtCount ? `<button class="secondary" id="shopping-unmark-all" type="button">Unmark all</button>` : ""}</div>
     ${missingLink.length ? `<div class="panel-status error">${missingLink.length} item(s) missing a buy link — their Buy button is disabled.</div>` : ""}
   </section>` : "";
   const paneBody = activePaneBody();
@@ -53,7 +53,7 @@ export function renderShopping() {
     return `<details class="card card--collapsible" data-store="${html(store)}"${openStores.has(store) ? " open" : ""}>
       <summary class="collapse-summary">
         <span class="collapse-main">
-          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-shopping-basket"></use></svg>
+          ${icon("shopping-basket")}
           <h3 class="collapse-title">${html(store)}</h3>
           <span class="collapse-count">${doneItems}/${totalItems} items · ${doneUnits}/${totalUnits} units</span>
         </span>

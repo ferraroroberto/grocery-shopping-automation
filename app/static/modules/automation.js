@@ -4,7 +4,7 @@
 // this module — nothing else in the app reads it.
 import { fetchJson } from "./api.js";
 import { state, storedToken } from "./core.js";
-import { formatElapsed, html, switchMarkup, switchOn } from "./dom.js";
+import { formatElapsed, html, icon, switchMarkup, switchOn } from "./dom.js";
 
 const run = {
   source: null,
@@ -26,7 +26,7 @@ export function renderFillCarts({ force = false } = {}) {
   if (!node || (node.firstElementChild && !force)) return;
   const stores = state.payload.summary.supermarkets;
   node.innerHTML = `<section id="fill-carts" class="panel" aria-labelledby="fill-carts-title">
-    <h2 id="fill-carts-title" class="card-title"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-bot"></use></svg>Fill carts</h2>
+    <h2 id="fill-carts-title" class="card-title">${icon("bot")}Fill carts</h2>
     <div class="hint">Fills the store carts from this list via Chrome automation. You still confirm and pay in the browser.</div>
     <div class="two">
       <label class="field-label">Store
@@ -44,8 +44,8 @@ export function renderFillCarts({ force = false } = {}) {
       <pre id="automation-command" class="log"></pre>
     </details>
     <div class="actions">
-      <button id="automation-start" class="big-btn btn-block" type="button"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-play"></use></svg>Run automation</button>
-      <button id="automation-stop" class="danger btn-block" type="button" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-square"></use></svg>Stop</button>
+      <button id="automation-start" class="big-btn btn-block" type="button">${icon("play")}Run automation</button>
+      <button id="automation-stop" class="danger btn-block" type="button" hidden>${icon("square")}Stop</button>
       <button id="automation-dismiss" class="secondary btn-block" type="button" hidden>Dismiss</button>
     </div>
     <div id="automation-elapsed" class="panel-status"></div>

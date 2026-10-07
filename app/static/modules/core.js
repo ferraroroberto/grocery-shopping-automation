@@ -5,7 +5,7 @@
 // modules each own theirs. What is left is genuinely app-wide: the loaded
 // inventory payload, the active mode/zone/query, and the shopping progress
 // (read by both the shopping view and the dashboard's store cards).
-import { text } from "./dom.js";
+import { icon, text } from "./dom.js";
 
 export const TOKEN_KEY = "grocery.authToken";
 export const SHOP_STATE_KEY = "grocery.shoppingState";
@@ -76,10 +76,10 @@ const PAGE_HEADERS = [
   { tab: "settings", icon: "settings", title: "Settings" },
 ];
 
-function pageHeaderHtml({ icon, title, contextId, context, themeToggleId }) {
+function pageHeaderHtml({ icon: iconName, title, contextId, context, themeToggleId }) {
   return `<div class="card home-head">
       <h1 class="home-title">
-        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-${icon}"></use></svg>
+        ${icon(iconName)}
         ${title}
       </h1>
       ${contextId ? `<span id="${contextId}" class="status" role="status">${context || ""}</span>` : ""}
@@ -87,11 +87,11 @@ function pageHeaderHtml({ icon, title, contextId, context, themeToggleId }) {
               title="Toggle theme" aria-label="Toggle dark mode">
         <!-- Sprite moon + sun; CSS shows the glyph for the *action* keyed
              on html[data-theme]. -->
-        <svg class="icon theme-icon-moon" aria-hidden="true" focusable="false"><use href="#i-moon"></use></svg>
-        <svg class="icon theme-icon-sun" aria-hidden="true" focusable="false"><use href="#i-sun"></use></svg>
+        ${icon("moon", "icon theme-icon-moon")}
+        ${icon("sun", "icon theme-icon-sun")}
       </button>
       <button class="home-toggle home-settings" type="button" title="Settings" aria-label="Settings">
-        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-settings"></use></svg>
+        ${icon("settings")}
       </button>
     </div>`;
 }
