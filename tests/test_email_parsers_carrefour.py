@@ -24,7 +24,6 @@ from automation.email_parsers.carrefour import (
     ConfirmedLine,
     parse_confirmed_items,
     parse_confirmed_lines,
-    parse_order_number,
 )
 
 FIXTURE = Path(__file__).parent / "fixtures" / "carrefour_order_prepared.txt"
@@ -32,14 +31,6 @@ FIXTURE = Path(__file__).parent / "fixtures" / "carrefour_order_prepared.txt"
 
 def _body() -> str:
     return FIXTURE.read_text(encoding="utf-8")
-
-
-def test_parse_order_number():
-    assert parse_order_number(_body()) == "00000000"
-
-
-def test_parse_order_number_missing():
-    assert parse_order_number("no order number here") is None
 
 
 def test_lines_carry_ordered_and_delivered_quantities():

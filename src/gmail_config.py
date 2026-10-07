@@ -2,11 +2,11 @@
 
 Wires the app's own config layer to the vendored, domain-free
 ``gmail_readonly`` package (see ``gmail_readonly/README.md`` in
-``docs/gmail-reuse.md`` upstream). Credential/token paths default to
-``auth/gmail/`` (a gitignored directory whose OAuth client + refresh token are
-reused verbatim from the ``whatsapp-radar`` sister repo — same Google account,
-same read-only ``gmail.readonly`` scope) and may be overridden with
-``GMAIL_CREDENTIALS_PATH`` / ``GMAIL_TOKEN_PATH``. The sender whitelist comes
+``docs/gmail-reuse.md`` upstream). The token path defaults to
+``auth/gmail/token.json`` (a gitignored directory whose OAuth client + refresh
+token are reused verbatim from the ``whatsapp-radar`` sister repo — same Google
+account, same read-only ``gmail.readonly`` scope) and may be overridden with
+``GMAIL_TOKEN_PATH``. The sender whitelist comes
 from the gitignored ``config/gmail_config.json``; a missing file just resolves
 to an empty whitelist. ``config/gmail_config.sample.json`` is the committed
 template.
@@ -33,7 +33,6 @@ from gmail_readonly import (
 logger = logging.getLogger("gmail_config")
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_CREDENTIALS_PATH = _REPO_ROOT / "auth" / "gmail" / "credentials.json"
 DEFAULT_TOKEN_PATH = _REPO_ROOT / "auth" / "gmail" / "token.json"
 DEFAULT_WHITELIST_PATH = _REPO_ROOT / "config" / "gmail_config.json"
 
@@ -147,18 +146,8 @@ def _resolved_path(env_var: str, default: Path) -> Path:
     return Path(override) if override else default
 
 
-def credentials_path() -> Path:
-    return _resolved_path("GMAIL_CREDENTIALS_PATH", DEFAULT_CREDENTIALS_PATH)
-
-
 def token_path() -> Path:
     return _resolved_path("GMAIL_TOKEN_PATH", DEFAULT_TOKEN_PATH)
-
-
-def is_gmail_configured(path: Optional[Path] = None) -> bool:
-    """True when a token file exists and at least one sender is whitelisted."""
-
-    return token_path().is_file() and bool(load_gmail_senders(path))
 
 
 def build_gmail_read_client() -> GmailReadClient:

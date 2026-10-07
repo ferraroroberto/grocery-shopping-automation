@@ -21,7 +21,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-_ORDER_NUMBER_RE = re.compile(r"Pedido\s+n[º°o]\s*(\d+)", re.IGNORECASE)
 # "Pedido  1\tEntregado  1" or, for weighed goods,
 # "Pedido  1 (1 kg) \tEntregado  1 (1,027 kg)".
 _QUANTITY_LINE_RE = re.compile(
@@ -46,12 +45,6 @@ class ConfirmedLine:
 def _clean_line(raw: str) -> str:
     """Drop a reply/forward ``>`` prefix, then collapse whitespace."""
     return _NBSP_RE.sub(" ", _QUOTE_PREFIX_RE.sub("", raw)).strip()
-
-
-def parse_order_number(body_text: str) -> str | None:
-    """Return the order number (e.g. ``93752541``), or ``None`` if absent."""
-    match = _ORDER_NUMBER_RE.search(body_text)
-    return match.group(1) if match else None
 
 
 def parse_confirmed_lines(body_text: str) -> list[ConfirmedLine]:

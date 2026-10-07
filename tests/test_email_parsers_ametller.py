@@ -10,21 +10,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from automation.email_parsers.ametller import parse_confirmed_items, parse_order_number
+from automation.email_parsers.ametller import parse_confirmed_items
 
 FIXTURE = Path(__file__).parent / "fixtures" / "ametller_order_prepared.txt"
 
 
 def _body() -> str:
     return FIXTURE.read_text(encoding="utf-8")
-
-
-def test_parse_order_number():
-    assert parse_order_number(_body()) == "AO00000000"
-
-
-def test_parse_order_number_missing():
-    assert parse_order_number("no order number here") is None
 
 
 def test_parse_confirmed_items_count_and_order():

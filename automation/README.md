@@ -199,9 +199,10 @@ and matches it against the latest purchase log so a dropped item is visible.
   refresh token as `whatsapp-radar` (same Google account, same scope) —
   copy `auth/gmail/credentials.json` and `auth/gmail/token.json` from that
   repo's `auth/gmail/` into this repo's gitignored `auth/gmail/`; no new
-  Google Cloud registration or consent flow is needed. Override the paths
-  with `GMAIL_CREDENTIALS_PATH` / `GMAIL_TOKEN_PATH` in `.env` if reusing a
-  different token.
+  Google Cloud registration or consent flow is needed. Override the token
+  path with `GMAIL_TOKEN_PATH` in `.env` if reusing a different token (the
+  app never reads `credentials.json` itself — only the one-off OAuth helper
+  does, via its `--credentials` argument).
 - **Sender whitelist**: copy `config/gmail_config.sample.json` to gitignored
   `config/gmail_config.json` and list the sender(s) to read from (today:
   Ametller Origen, `noreply@news.ametllerorigen.cat`, and Carrefour,
