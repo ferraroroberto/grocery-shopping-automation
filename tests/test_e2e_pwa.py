@@ -379,6 +379,10 @@ def test_phone_geometry_fits_and_targets_meet_the_floor(browser, server):
         for mode in ["dashboard", "shopping", "audit", "audio", "targets", "edit", "add", "stores", "settings"]:
             goto_mode(pg, mode)
             assert_no_horizontal_overflow(pg)
+            # --control-h is the spec's 36px (#230): every control still presents a >=44px
+            # effective target, via the shared ::before hit area or real 44px geometry.
+            assert_min_target(pg.locator("button:visible, select:visible, textarea:visible, summary:visible, "
+                                         "input:not([type=hidden]):visible"))
         goto_mode(pg, "dashboard")
         for selector in ("[data-tab]:visible", ".home-head button:visible"):
             targets = pg.locator(selector)
@@ -706,7 +710,7 @@ _DIALOG_CONTROLS_PROBE = r"""(id) => {
   };
   const expect = Object.fromEntries(Object.entries(tiers).map(([k, [bg, fg, border]]) =>
     [k, { bg: color(bg), fg: color(fg), border: color(border) }]));
-  const radius = len('--radius-md'), controlH = len('--control-h'), primaryH = len('--primary-h');
+  const radius = len('--radius-md'), controlH = len('--control-h'), fieldH = len('--field-h'), primaryH = len('--primary-h');
   const field = { bg: color('--input-bg'), border: color('--control-border') };
   probe.remove();
 
@@ -728,7 +732,10 @@ _DIALOG_CONTROLS_PROBE = r"""(id) => {
     if (!tier) bad.push(`${name(b)} wears no button tier: ${JSON.stringify(got)}`);
     if (Math.abs(parseFloat(s.borderTopLeftRadius) - radius) > 0.5) bad.push(`${name(b)} radius ${s.borderTopLeftRadius}`);
     if (box.height < controlH - 0.5) bad.push(`${name(b)} is ${box.height}px tall`);
-    if (b.scrollHeight > b.clientHeight + 1 || b.scrollWidth > b.clientWidth + 1) bad.push(`${name(b)} label overflows`);
+    // the label's own box, not scrollWidth: the ::before hit area (#230) extends the scrollable overflow
+    const range = document.createRange(); range.selectNodeContents(b);
+    const label = range.getBoundingClientRect();
+    if (label.height > b.clientHeight + 1 || label.width > b.clientWidth + 1) bad.push(`${name(b)} label overflows`);
     inside(b, box);
   }
   const footer = card.querySelector('.detail-actions');
@@ -744,7 +751,7 @@ _DIALOG_CONTROLS_PROBE = r"""(id) => {
   const fields = [...card.querySelectorAll('select, .input-native')].filter(shown);
   for (const f of fields) {
     const s = getComputedStyle(f), box = f.getBoundingClientRect();
-    if (Math.abs(box.height - controlH) > 0.5) bad.push(`${name(f)} is ${box.height}px tall`);
+    if (Math.abs(box.height - fieldH) > 0.5) bad.push(`${name(f)} is ${box.height}px tall`);
     if (s.backgroundColor !== field.bg) bad.push(`${name(f)} fill ${s.backgroundColor}`);
     if (s.borderTopColor !== field.border) bad.push(`${name(f)} border ${s.borderTopColor}`);
     if (Math.abs(parseFloat(s.borderTopLeftRadius) - radius) > 0.5) bad.push(`${name(f)} radius ${s.borderTopLeftRadius}`);
