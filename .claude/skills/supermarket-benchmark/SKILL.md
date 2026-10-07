@@ -1,6 +1,6 @@
 ---
 name: supermarket-benchmark
-description: Re-run the quality-locked supermarket price benchmark (issue #145) — rebuild the monthly basket from list.xlsx + purchase_logs, fan out one Sonnet research agent per store, score split scenarios deterministically, review, and publish a recommendation. E.g. "/supermarket-benchmark", "/supermarket-benchmark carrefour dia" (only those stores), "re-run the supermarket benchmark".
+description: 'Re-run the quality-locked supermarket price benchmark (issue #145) — rebuild the monthly basket from list.xlsx + purchase_logs, fan out one Sonnet research agent per store, score split scenarios deterministically, review, and publish a recommendation. E.g. "/supermarket-benchmark", "/supermarket-benchmark carrefour dia" (only those stores), "re-run the supermarket benchmark".'
 ---
 
 # supermarket-benchmark
