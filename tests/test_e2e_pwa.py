@@ -339,6 +339,33 @@ def test_item_forms_label_every_field(page):
 
 
 @pytest.mark.e2e
+def test_edit_item_keeps_blank_cells_blank(page, server):
+    """Edit item pre-fills a blank cell as an empty box, never the "-" display
+    placeholder, so saving a row with no URL doesn't write "-" into the sheet (#228)."""
+    name = "zzz e2e blank url"
+    created = page.request.post(
+        f"{server.url}/api/items",
+        data={"super": "mercadona", "lugar": "nevera", "comida": name, "cantidad": 1, "tenemos": 0, "buscador": ""},
+    )
+    assert created.ok, created.text()
+    page.reload()
+    page.wait_for_selector("[data-tab='audit']")
+    goto_mode(page, "edit")
+    form = page.locator(".edit-form", has=page.locator(f"input[name='comida'][value='{name}']"))
+    form.wait_for()
+    assert form.locator("input[name='buscador']").input_value() == ""
+    form.locator("input[name='cantidad']").fill("2")  # change only the target
+    form.get_by_role("button", name="Save").click()
+    page.wait_for_function("document.querySelector('#toast')?.textContent?.includes('Saved')")
+    payload = page.request.get(f"{server.url}/api/inventory").json()
+    cols = payload["columns"]
+    row = next(i for i in payload["items"] if i[cols["comida"]] == name)
+    assert row[cols["cantidad"]] == 2
+    assert row[cols["buscador"]] in (None, ""), row[cols["buscador"]]
+    assert page._js_errors == [], f"JS errors: {page._js_errors}"
+
+
+@pytest.mark.e2e
 def test_add_item_increases_count(page):
     goto_mode(page, "dashboard")
     page.wait_for_selector(".summary")

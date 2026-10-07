@@ -14,11 +14,14 @@ from typing import Optional
 
 import yaml
 
-from src.webapp_config import append_auth_token, load_webapp_config
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.no_window import NEW_PROCESS_GROUP_NO_WINDOW  # noqa: E402
+from src.webapp_config import append_auth_token, load_webapp_config  # noqa: E402
 
 logger = logging.getLogger("run_named_tunnel")
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CONFIG = PROJECT_ROOT / "webapp" / "cloudflared.yml"
 SAMPLE_CONFIG = PROJECT_ROOT / "webapp" / "cloudflared.sample.yml"
 TUNNEL_URL_FILE = PROJECT_ROOT / "webapp" / "last_tunnel_url.txt"
@@ -62,10 +65,7 @@ def _spawn_uvicorn(port: int) -> subprocess.Popen:
     if cert.exists() and key.exists():
         cmd.extend(["--ssl-keyfile", str(key), "--ssl-certfile", str(cert)])
     logger.info("Starting uvicorn on :%s", port)
-    kwargs: dict = {"cwd": str(PROJECT_ROOT)}
-    if sys.platform == "win32":
-        kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
-    return subprocess.Popen(cmd, **kwargs)
+    return subprocess.Popen(cmd, cwd=str(PROJECT_ROOT), creationflags=NEW_PROCESS_GROUP_NO_WINDOW)
 
 
 def _wait_for_uvicorn(port: int, timeout: float = 15.0) -> bool:
