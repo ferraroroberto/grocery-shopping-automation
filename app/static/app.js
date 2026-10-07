@@ -54,7 +54,7 @@ import {
   useCandidateClick,
 } from "./modules/search.js";
 import { renderShopping, shoppingStoreCount } from "./modules/shopping.js";
-import { onStoresChange, onStoresClick, renderStores, repaintStoresList } from "./modules/stores.js";
+import { onStoresChange, onStoresClick, renderStores, repaintStoresList } from "./modules/stores/index.js";
 
 // Page-header context lines for the four non-Home panes (#153 J-04) — Home's
 // own #status is driven by idleStatus()/setStatus() below, unchanged. Each
