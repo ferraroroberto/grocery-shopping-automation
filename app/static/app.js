@@ -40,6 +40,7 @@ import {
   TAB_KEY,
   THEME_KEY,
 } from "./modules/core.js";
+import { syncPicker } from "./modules/dom.js";
 import { isEmailControl, pushEmailMonitorConfig, renderEmailWatch, runEmailCheck } from "./modules/email.js";
 import { renderAdd, renderAudit, renderDashboard, renderEdit } from "./modules/inventory.js";
 import {
@@ -290,6 +291,10 @@ el.app.addEventListener("change", (event) => {
   }
   if (isEmailControl(event.target)) {
     pushEmailMonitorConfig();
+    return;
+  }
+  if (event.target.matches("[data-picker] select")) {
+    syncPicker(event.target.closest("[data-picker]"));
     return;
   }
   const action = event.target.dataset.action;

@@ -35,6 +35,48 @@ export function qtyMarkup(current, target) {
   return `<span class="${cls}">${html(current)}</span><span class="meta">/${html(target)}</span>`;
 }
 
+// A pick-from-a-list field with a "New…" escape hatch, for values that live in
+// the sheet (zone, supermarket) so nobody types them on a phone (#241). The
+// named text input is the one source of truth the form posts; the <select>
+// only fills it, and stays hidden until "New…" is chosen. A required input
+// that is hidden would silently block submit, so `required` follows visibility.
+const PICKER_NEW = "__new__";
+
+export function pickerMarkup(name, caption, values, selected, newLabel) {
+  const known = values.includes(selected) ? selected : (values[0] ?? PICKER_NEW);
+  const options = values.map((v) => `<option value="${esc(v)}"${v === known ? " selected" : ""}>${html(v)}</option>`).join("")
+    + `<option value="${PICKER_NEW}"${known === PICKER_NEW ? " selected" : ""}>${html(newLabel)}</option>`;
+  const isNew = known === PICKER_NEW;
+  return `<div class="picker" data-picker>
+    <label class="field-label">${caption}<select class="field" aria-label="${esc(caption)}">${options}</select></label>
+    <input class="field" name="${name}" value="${isNew ? "" : esc(known)}" placeholder="${esc(newLabel)}" aria-label="${esc(newLabel)}"${isNew ? " required" : " hidden"} />
+  </div>`;
+}
+
+// Mirror the <select> into its text input: a listed value is copied in, "New…"
+// empties the input and reveals it for typing.
+export function syncPicker(picker) {
+  const select = picker.querySelector("select");
+  const input = picker.querySelector("input");
+  const isNew = select.value === PICKER_NEW;
+  input.hidden = !isNew;
+  input.required = isNew;
+  input.value = isNew ? "" : select.value;
+  if (isNew) input.focus();
+}
+
+// Programmatic fill (a product-search pick): select the matching option, or
+// fall through to "New…" with the value typed in when the list doesn't have it.
+export function setPickerValue(picker, value) {
+  const select = picker.querySelector("select");
+  const input = picker.querySelector("input");
+  const match = [...select.options].find((o) => o.value === value && o.value !== PICKER_NEW);
+  select.value = match ? match.value : PICKER_NEW;
+  input.hidden = !!match;
+  input.required = !match;
+  input.value = value;
+}
+
 // String-building renderers can't attach listeners, so switches render as
 // canonical vendored markup (switchEl → outerHTML) and one delegated click
 // handler on .app flips them via setSwitch — the single write path.

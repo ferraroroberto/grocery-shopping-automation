@@ -526,7 +526,7 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 
 .form { display: grid; gap: var(--space-sm); }
 .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-sm); }
-.three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-sm); }
+.three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-sm); align-items: start; }
 .three-link { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr); gap: var(--space-sm); }
 .row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
 
@@ -663,6 +663,8 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 /* The zone combo matches the quantity inputs exactly: same 36px box, radius,
    and font (kills the taller native menulist look). Custom chevron replaces
    the native indicator; #6e7681 reads as muted in both themes. */
+.picker { display: grid; gap: var(--space-xs); align-content: start; }
+.picker select.field,
 .candidate-confirm select.field {
   appearance: none;
   height: var(--control-h);
