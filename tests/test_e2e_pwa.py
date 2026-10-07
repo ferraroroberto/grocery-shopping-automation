@@ -25,6 +25,7 @@ from src.inventory_extract import ExtractionResult
 
 pytest.importorskip("playwright.sync_api")
 from playwright.sync_api import sync_playwright  # noqa: E402
+from tests.e2e._geometry import assert_min_target, assert_no_horizontal_overflow, assert_no_overlap  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE = REPO_ROOT / "tests" / "list_test_fixture.xlsx"
@@ -363,6 +364,28 @@ def test_edit_item_keeps_blank_cells_blank(page, server):
     assert row[cols["cantidad"]] == 2
     assert row[cols["buscador"]] in (None, ""), row[cols["buscador"]]
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
+
+
+@pytest.mark.e2e
+def test_phone_geometry_fits_and_targets_meet_the_floor(browser, server):
+    """Rendered geometry at phone width (design-lint `rendered-leg`,
+    project-scaffolding#157): no view scrolls sideways, and the nav tabs and the
+    header buttons keep a >=44px effective target without overlapping."""
+    pg = browser.new_page(viewport={"width": 390, "height": 844})
+    try:
+        pg.goto(server.url)
+        pg.wait_for_selector("[data-tab='audit']")
+        pg.wait_for_function("document.querySelector('#status')?.textContent?.includes('Loaded')")
+        for mode in ["dashboard", "shopping", "audit", "audio", "targets", "edit", "add", "stores", "settings"]:
+            goto_mode(pg, mode)
+            assert_no_horizontal_overflow(pg)
+        goto_mode(pg, "dashboard")
+        for selector in ("[data-tab]:visible", ".home-head button:visible"):
+            targets = pg.locator(selector)
+            assert_min_target(targets)
+            assert_no_overlap(targets)
+    finally:
+        pg.close()
 
 
 @pytest.mark.e2e
