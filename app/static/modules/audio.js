@@ -245,7 +245,7 @@ function renderMatches() {
     const badge = (match.zone && match.zone !== item[cols.lugar]) ? ` <span class="meta">(list: ${html(item[cols.lugar])})</span>` : "";
     return `<div class="item">
       <span><strong>${html(item[cols.comida])}</strong>${badge}<span class="meta"> ${html(match.evidence || "")}</span></span>
-      <span class="match-figures"><span class="meta">${current} →</span> <strong>${proposed}</strong> <span class="${delta > 0 ? "buy" : "meta"}">${deltaTxt}</span>
+      <span class="match-figures"><span class="meta">${current} ${icon("arrow-right")}</span> <strong>${proposed}</strong> <span class="${delta > 0 ? "buy" : "meta"}">${deltaTxt}</span>
         ${switchMarkup(true, `Accept ${text(item[cols.comida])}`, { "data-audio-idx": match.idx, "data-count": proposed })}</span>
     </div>`;
   };
@@ -279,7 +279,7 @@ function renderMatches() {
       <div class="hint">${unseen.length} item(s) in the zones you walked but didn't name. Tick to set them to 0.</div>
       <div class="grid">${unseen.map((item) =>
         `<div class="item"><span><strong>${html(item[cols.comida])}</strong> <span class="meta">(list: ${html(item[cols.lugar])})</span></span>
-          <span class="match-figures"><span class="meta">${Number(item[cols.tenemos])} → <strong>0</strong></span>
+          <span class="match-figures"><span class="meta">${Number(item[cols.tenemos])} ${icon("arrow-right")} <strong>0</strong></span>
             ${switchMarkup(false, `Set ${text(item[cols.comida])} to zero`, { "data-audio-zero": item.id })}</span></div>`,
       ).join("")}</div></section>`
     : "";
@@ -296,7 +296,7 @@ function renderMatches() {
           ? ` <span class="meta">heard “${html(m.phrase)}”</span>` : "";
         return `<div class="item">
           <span><strong>${html(item[cols.comida])}</strong> <span class="meta">(list: ${html(item[cols.lugar])})</span>${heard}</span>
-          <span class="match-figures"><span class="meta">${current} →</span>
+          <span class="match-figures"><span class="meta">${current} ${icon("arrow-right")}</span>
             <input class="field count-input hit-target" type="number" inputmode="numeric" min="0" step="1"
               value="${Number.isInteger(m.approx_count) ? m.approx_count : ""}"
               placeholder="?" aria-label="Count for ${text(item[cols.comida])}" data-audio-count-idx="${m.idx}"></span>

@@ -4,6 +4,9 @@
 // components.
 import { switchEl } from "../_vendored/switch/switch.js";
 
+// The fleet's one icon helper (vendored); re-exported so view modules keep a single import site.
+export { icon } from "../_vendored/icons/icons.js";
+
 export function text(value) {
   return value === null || value === undefined || value === "" ? "-" : String(value);
 }
@@ -21,12 +24,6 @@ export function esc(value) {
 
 export function html(value) {
   return esc(text(value));
-}
-
-// Sprite icon markup (the <symbol>s live in the page shell); `cls` adds
-// modifier classes, e.g. icon("moon", "icon theme-icon-moon").
-export function icon(name, cls = "icon") {
-  return `<svg class="${cls}" aria-hidden="true" focusable="false"><use href="#i-${name}"></use></svg>`;
 }
 
 // Colour-coded current/target, mirroring app/ui_helpers.qty_html:
