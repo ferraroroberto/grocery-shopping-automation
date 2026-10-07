@@ -379,6 +379,10 @@ def test_phone_geometry_fits_and_targets_meet_the_floor(browser, server):
         for mode in ["dashboard", "shopping", "audit", "audio", "targets", "edit", "add", "stores", "settings"]:
             goto_mode(pg, mode)
             assert_no_horizontal_overflow(pg)
+            # --control-h is the spec's 36px (#230): every control still presents a >=44px
+            # effective target, via the shared ::before hit area or real 44px geometry.
+            assert_min_target(pg.locator("button:visible, select:visible, textarea:visible, summary:visible, "
+                                         "input:not([type=hidden]):visible"))
         goto_mode(pg, "dashboard")
         for selector in ("[data-tab]:visible", ".home-head button:visible"):
             targets = pg.locator(selector)

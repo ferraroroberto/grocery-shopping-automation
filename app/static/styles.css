@@ -64,13 +64,15 @@
      design_lint's desktop-measure contract matches the literal only. */
   --layout-measure: 772px;
   --layout-rail: 80px;
-  /* shared height for inline controls (buttons / pills / select / input).
-     44px = components.hit-target.min as real geometry: rows put Buy /
-     Got it side by side, and design.md "Touch targets" requires real
-     geometry (not ::before expansion) for adjacent clusters. */
-  --control-h: 44px;
+  /* components.control.height — the visual height of an inline button / pill /
+     chip. Its effective tap area is grown to --hit-min by the hit-area rule
+     in the utilities section (design.md "Touch targets"). */
+  --control-h: 36px;
   /* components.hit-target.min — the vendored icon-button grows its hit area to this floor */
   --hit-min: 44px;
+  /* Text inputs / selects / textareas cannot carry a ::before hit area, so they
+     reach the floor with real geometry instead. */
+  --field-h: var(--hit-min);
   /* components.button-primary.height — a view's primary / submit action */
   --primary-h: 48px;
   /* repeated-list row heights (flat separator-row canon, app-launcher#365) */
@@ -237,6 +239,20 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
    to 44px invisibly instead. Co-apply, never re-inline per control. */
 .hit-target { position: relative; }
 .hit-target::before { content: ""; position: absolute; inset: -5px; }
+/* The same expansion for every control drawn at --control-h: (36 - 44) / 2 = -4px
+   a side. Neighbours keep >= 8px between them (--space-sm) so the expanded
+   rectangles touch but never overlap. */
+:is(.primary, .secondary, .danger, .pill, .store-chip, .button-surface) {
+  position: relative;
+}
+:is(.primary, .secondary, .danger, .pill, .store-chip, .button-surface)::before {
+  content: "";
+  position: absolute;
+  inset: calc((var(--control-h) - var(--hit-min)) / 2);
+}
+/* Abutting segments (the text-size control) have no gap for an expansion to
+   live in, so they use real 44px geometry instead (design.md "Adjacent cluster"). */
+.range-tabs { --control-h: var(--hit-min); }
 /* Read by assistive tech, never drawn (a table header, a copy buffer). */
 .visually-hidden {
   position: absolute;
@@ -291,6 +307,9 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 }
 .zone-pills::-webkit-scrollbar { display: none; }
 .zone-pills .pill { flex: none; padding: 0 12px; }
+/* The vendored native field recipes are drawn at --control-h; a field uses real
+   44px geometry (--field-h) since an input / select cannot carry a ::before. */
+.input-native, .select-native { height: var(--field-h); }
 .pill {
   min-height: var(--control-h);
   border-radius: var(--radius-pill);
@@ -425,8 +444,8 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
   justify-content: end;
   gap: var(--space-xs);
 }
-.audit-controls--targets { grid-template-columns: 44px var(--control-h) var(--control-h) 36px; }
-.audit-controls--full { grid-template-columns: var(--control-h) var(--control-h) 44px var(--control-h) var(--control-h) 36px; }
+.audit-controls--targets { grid-template-columns: 44px var(--hit-min) var(--hit-min) 36px; }
+.audit-controls--full { grid-template-columns: var(--hit-min) var(--hit-min) 44px var(--hit-min) var(--hit-min) 36px; }
 .audit-controls .qty { min-width: 0; }
 .audit-verdict { text-align: right; font-size: var(--font-label); font-weight: 700; }
 .qty { min-width: 76px; text-align: right; font-weight: 700; }
@@ -471,7 +490,7 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
 .big-btn.danger:active { background: var(--danger-soft); }
 /* Glyph-only rows sit at the control height: the icon-button box is the 44px
    floor, so neighbours at the row gap never overlap targets. */
-.audit-controls, .search-bar, .candidate-actions, .review-cell-edit, .store-row-head { --icon-btn-box: var(--control-h); }
+.audit-controls, .search-bar, .candidate-actions, .review-cell-edit, .store-row-head { --icon-btn-box: var(--hit-min); }
 
 /* Accent-ghost feature button — home-automation's .big-btn recipe verbatim
    (Net tab "Run speed test"): accent tint fill, accent text, soft accent
@@ -511,7 +530,7 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
 
 .search, .field, textarea, select {
   width: 100%;
-  min-height: var(--control-h);
+  min-height: var(--field-h);
   border: 1px solid var(--control-border);
   border-radius: var(--radius-md);
   padding: 0 10px;
@@ -596,7 +615,7 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 .search-term {
   flex: 1 1 auto;
   min-width: 0;
-  height: var(--control-h);
+  height: var(--field-h);
   padding: 0 12px;
   border: 1px solid var(--control-border);
   border-radius: var(--radius-md);
@@ -609,7 +628,7 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 .search-bar .big-btn {
   flex: 0 0 auto;
   width: auto;
-  min-height: var(--control-h);
+  min-height: var(--field-h);
   padding: 0 var(--space-md);
   font-size: var(--font-label);
   display: inline-flex;
@@ -656,7 +675,7 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 .candidate-confirm .candidate-confirm-new {
   grid-column: 1 / -1;
   width: 100%;
-  min-height: var(--control-h);
+  min-height: var(--field-h);
   padding: 0 var(--space-md);
   font-size: var(--font-label);
 }
@@ -667,7 +686,7 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 .picker select.field,
 .candidate-confirm select.field {
   appearance: none;
-  height: var(--control-h);
+  height: var(--field-h);
   padding: 0 28px 0 10px;
   font-size: inherit;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236e7681' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
@@ -845,7 +864,7 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  min-height: var(--control-h);
+  min-height: var(--hit-min);
   font-size: var(--font-label);
   font-weight: 600;
   cursor: pointer;
@@ -895,7 +914,7 @@ details[open] > summary .inline-chevron { transform: rotate(90deg); }
 .review-subtitle { font-weight: 700; }
 .review-head { display: grid; gap: var(--space-sm); }
 .review-head .hint { margin: 0; }
-.review-checked { display: flex; align-items: center; gap: var(--space-sm); min-height: var(--control-h); }
+.review-checked { display: flex; align-items: center; gap: var(--space-sm); min-height: var(--hit-min); }
 .review-checked-label { font-weight: 600; cursor: pointer; }
 .review-badges { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
 .review-warn, .review-note { display: flex; align-items: flex-start; gap: var(--space-xs); margin: 0; font-size: var(--font-label); }
@@ -919,7 +938,7 @@ details[open] > summary .inline-chevron { transform: rotate(90deg); }
 .review-stores col.col-store { width: 14%; }
 .review-stores col.col-num { width: 9%; }
 .review-stores col.col-status { width: 12%; }
-.review-stores col.col-edit { width: calc(var(--control-h) + var(--space-sm)); }
+.review-stores col.col-edit { width: calc(var(--hit-min) + var(--space-sm)); }
 .review-stores th, .review-stores td {
   padding: var(--space-sm) var(--space-xs);
   text-align: left;
@@ -944,7 +963,7 @@ details[open] > summary .inline-chevron { transform: rotate(90deg); }
   .review-stores colgroup, .review-stores thead { display: none; }
   .review-stores .review-store {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) var(--control-h);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) var(--hit-min);
     gap: var(--space-sm) var(--gap);
     padding: var(--gap) 0;
     border-top: 1px solid var(--line-muted);
