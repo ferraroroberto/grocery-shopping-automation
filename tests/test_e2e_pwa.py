@@ -694,7 +694,8 @@ def test_stores_plan_simulate_and_apply(page, server):
 # against the vendored recipes (#207: select-native/, button/, modal/), with
 # the expected values resolved from the theme's own tokens -- never hard-coded.
 # A button must match one button.css tier (or the shared disabled recipe);
-# glyph-only controls (the x close, .icon-button) and switches are out of scope.
+# glyph-only controls (.icon-button) and switches are out of scope; the x close
+# is only checked for being unpainted.
 _DIALOG_CONTROLS_PROBE = r"""(id) => {
   const dialog = document.getElementById(id);
   const card = dialog.querySelector('.detail-card');
@@ -737,6 +738,13 @@ _DIALOG_CONTROLS_PROBE = r"""(id) => {
     const label = range.getBoundingClientRect();
     if (label.height > b.clientHeight + 1 || label.width > b.clientWidth + 1) bad.push(`${name(b)} label overflows`);
     inside(b, box);
+  }
+  // the x close is an .icon-button (project-scaffolding#339): unpainted at rest
+  const close = card.querySelector('.detail-close');
+  if (!close) bad.push('no close button');
+  else {
+    const s = getComputedStyle(close);
+    if (s.backgroundColor !== 'rgba(0, 0, 0, 0)' || s.borderTopWidth !== '0px') bad.push(`close is painted: ${s.backgroundColor} ${s.borderTopWidth}`);
   }
   const footer = card.querySelector('.detail-actions');
   const save = footer?.querySelector('.detail-save-btn');
