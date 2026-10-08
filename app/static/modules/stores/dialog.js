@@ -13,7 +13,7 @@ export function dialogShell(id, title, saveLabel, init) {
   dialog.innerHTML = `<div class="detail-card">
       <div class="detail-header">
         <h2 id="${id}-title">${esc(title)}</h2>
-        <button type="button" class="detail-close" aria-label="Close" data-dialog-close>${icon("x")}</button>
+        <button type="button" class="icon-button detail-close" aria-label="Close" data-dialog-close>${icon("x")}</button>
       </div>
       <div class="stores-dialog-body"></div>
       <div class="panel-status error stores-dialog-status" role="status"></div>

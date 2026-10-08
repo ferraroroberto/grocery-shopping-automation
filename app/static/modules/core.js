@@ -83,14 +83,14 @@ function pageHeaderHtml({ icon: iconName, title, contextId, context, themeToggle
         ${title}
       </h1>
       ${contextId ? `<span id="${contextId}" class="status" role="status">${context || ""}</span>` : ""}
-      <button ${themeToggleId ? `id="${themeToggleId}" ` : ""}class="home-toggle theme-toggle" type="button"
+      <button ${themeToggleId ? `id="${themeToggleId}" ` : ""}class="icon-button home-toggle theme-toggle" type="button"
               title="Toggle theme" aria-label="Toggle dark mode">
         <!-- Sprite moon + sun; CSS shows the glyph for the *action* keyed
              on html[data-theme]. -->
         ${icon("moon", "theme-icon-moon")}
         ${icon("sun", "theme-icon-sun")}
       </button>
-      <button class="home-toggle home-settings" type="button" title="Settings" aria-label="Settings">
+      <button class="icon-button home-toggle home-settings" type="button" title="Settings" aria-label="Settings">
         ${icon("settings")}
       </button>
     </div>`;

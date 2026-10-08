@@ -11,9 +11,9 @@ port         = 8502
 
 [vendored]
 single_instance = { src = "app/tray/single_instance.py", sha = "c493e1ab36f464be046856e12171bdc79a1b959f", dest = "app/tray/single_instance.py" }
-home-head = { src = "app/webapp/static/_vendored/home-head", sha = "28c3e2c09a6bdc224a2188dfd2abcea2d99744f7", dest = "app/static/_vendored/home-head" }
+home-head = { src = "app/webapp/static/_vendored/home-head", sha = "aa820f1215151087588433f290cd2ba55b34658d", dest = "app/static/_vendored/home-head" }
 icon-button = { src = "app/webapp/static/_vendored/icon-button", sha = "aa820f1215151087588433f290cd2ba55b34658d", dest = "app/static/_vendored/icon-button" }
-modal = { src = "app/webapp/static/_vendored/modal", sha = "28c3e2c09a6bdc224a2188dfd2abcea2d99744f7", dest = "app/static/_vendored/modal" }
+modal = { src = "app/webapp/static/_vendored/modal", sha = "aa820f1215151087588433f290cd2ba55b34658d", dest = "app/static/_vendored/modal" }
 select-native = { src = "app/webapp/static/_vendored/select-native", sha = "28c3e2c09a6bdc224a2188dfd2abcea2d99744f7", dest = "app/static/_vendored/select-native" }
 button = { src = "app/webapp/static/_vendored/button", sha = "28c3e2c09a6bdc224a2188dfd2abcea2d99744f7", dest = "app/static/_vendored/button" }
 nav = { src = "app/webapp/static/_vendored/nav", sha = "f70569640ebaf251ab0ed5f5daadd6055953a8c9", dest = "app/static/_vendored/nav" }
@@ -23,6 +23,7 @@ disclosure = { src = "app/webapp/static/_vendored/disclosure", sha = "f70569640e
 card = { src = "app/webapp/static/_vendored/card", sha = "f70569640ebaf251ab0ed5f5daadd6055953a8c9", dest = "app/static/_vendored/card" }
 empty-state = { src = "app/webapp/static/_vendored/empty-state", sha = "f70569640ebaf251ab0ed5f5daadd6055953a8c9", dest = "app/static/_vendored/empty-state" }
 geometry = { src = "tests/e2e/_geometry.py", sha = "f70569640ebaf251ab0ed5f5daadd6055953a8c9", dest = "tests/e2e/_geometry.py" }
+notify = { src = "src/notify", sha = "aa820f1215151087588433f290cd2ba55b34658d", dest = "src/notify" }
 
 [[design.accepted]]
 rule   = "LAYOUT-03"
