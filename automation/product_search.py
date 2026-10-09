@@ -92,11 +92,13 @@ _CARREFOUR_CARD_JS = """els => els.map(el => {
   const nameEl = el.querySelector('[data-test="result-title"] p') || el.querySelector('[data-test="result-title"]');
   const priceEl = el.querySelector('[data-test="result-current-price"]');
   const imgEl = el.querySelector('img[data-test="result-picture-image"]');
+  const addEl = el.querySelector('[data-test="result-add-to-cart"]');
   return {
     href: linkEl ? (linkEl.getAttribute('href') || '') : '',
     name: (nameEl ? nameEl.textContent : (imgEl ? imgEl.getAttribute('alt') : '')) || '',
     price_text: priceEl ? priceEl.textContent : '',
     image: imgEl ? (imgEl.getAttribute('src') || '') : '',
+    add_disabled: addEl ? addEl.disabled : false,
   };
 })"""
 
@@ -179,13 +181,26 @@ def _parse_carrefour_price(text: str) -> Optional[float]:
     return float(f"{m.group(1)}.{m.group(2)}")
 
 
+def _carrefour_card_unorderable(raw: dict) -> bool:
+    """True when the card's add control is disabled ("Agotado temporalmente").
+
+    Verified live 2026-10-09 (issue #249): every such card's product page
+    redirects off the product (the cart run's ``ProductUnavailableError``), so
+    the pick could never be ordered. A card with no add control at all is not
+    this signal and is kept.
+    """
+    return bool(raw.get("add_disabled"))
+
+
 def _parse_carrefour_card(raw: dict) -> Optional[dict]:
     """Turn one extracted search-result card into a candidate dict, or ``None``.
 
     Pure — no browser/page dependency, so it is unit-tested with recorded card
     data (see ``tests/test_product_search.py``) rather than a live Cloudflare
     fetch. Returns ``None`` for a card with no product id or no name (e.g. a
-    sponsored banner tile that isn't a real result).
+    sponsored banner tile that isn't a real result), and for a card the store
+    shows as unorderable (:func:`_carrefour_card_unorderable`, issue #249) so
+    the app never offers a pick the cart run would find unavailable.
     """
     href = str(raw.get("href") or "")
     pid = carrefour.product_id_from_url(href)
@@ -193,6 +208,8 @@ def _parse_carrefour_card(raw: dict) -> Optional[dict]:
     # stores don't, so trim it for a consistent look across cards.
     name = re.sub(r"\.\s*$", "", str(raw.get("name") or "").strip())
     if not pid or not name:
+        return None
+    if _carrefour_card_unorderable(raw):
         return None
     url = href if href.startswith("http") else f"{carrefour.BASE_URL}{href}"
     return {
@@ -226,8 +243,9 @@ def search_carrefour(page: Page, query: str, limit: int) -> list[Candidate]:
         _rank(query, "carrefour", c["name"], c["url"], c["price"], c["image"], i)
         for i, c in enumerate(parsed_cards[:limit])
     ]
-    logger.info("ℹ️ Carrefour search %r: %d card(s), %d usable, %d returned",
-                query, len(raw_cards), len(parsed_cards), len(out))
+    unorderable = sum(1 for c in raw_cards if _carrefour_card_unorderable(c))
+    logger.info("ℹ️ Carrefour search %r: %d card(s), %d usable, %d returned, %d skipped as unorderable",
+                query, len(raw_cards), len(parsed_cards), len(out), unorderable)
     return out
 
 
