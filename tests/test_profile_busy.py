@@ -70,11 +70,11 @@ def test_cart_run_waits_for_the_profile_and_reports_a_busy_store(monkeypatch):
     monkeypatch.setattr(run_automation, "read_cart_items", lambda store: [_item("mercadona", "leche"), _item("ametller", "pan")])
     monkeypatch.setattr(run_automation, "launch_context", busy_launch)
     written = []
-    monkeypatch.setattr(run_automation, "_write_purchase_log_if_live", lambda report, dry: written.append(report) or [])
+    monkeypatch.setattr(run_automation, "_write_purchase_log_if_live", lambda report, dry, text="": written.append(report) or [])
 
     assert run_automation.main([]) == 1  # errors → non-zero, but the run still finishes
     assert [kw["wait_for_profile"] for kw in launches] == [True, True]  # both stores waited, none crashed the run
     report = written[0]
-    assert {item.comida for item, _msg in report.errors} == {"leche", "pan"}
-    assert all("held by another job" in msg for _item, msg in report.errors)
+    assert {o.item.comida for o in report.missing} == {"leche", "pan"}
+    assert all("held by another job" in o.message for o in report.missing)
     assert report.added == []

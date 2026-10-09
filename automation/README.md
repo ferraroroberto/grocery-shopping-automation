@@ -98,6 +98,37 @@ holder; if it is still held after that, that store's items are reported as
 errors (`Chrome profile busy (held by another job)`), the run carries on to the
 next store, and the exit code is 1.
 
+### Cart guard: retry, verify, report (issue #247)
+
+What the run says is in the cart must be in the cart, so every live run:
+
+1. **Retries once.** An add that fails for a transient reason (a click that
+   never registered, a timeout, an unexpected store answer) is retried once at
+   the end of the store's pass. Out-of-stock and unavailable items, and a lost
+   login, are not retried: a retry can't help them.
+2. **Verifies against the final cart.** After each store's pass the store's
+   own cart is read (Carrefour: the cart API; Mercadona: the cart JSON its home
+   page fetches) and every intended item is reconciled against it. That check,
+   not the handler's own "added", decides the outcome: `added_verified`,
+   `added_not_in_cart` (the add "worked" but the cart is short), `out_of_stock`,
+   `unavailable`, `no_url` or `error`. A store with no cart reader (Ametller),
+   or a cart that can't be read, leaves its adds `added_unverified`: reported
+   as **not confirmed**, never as verified.
+3. **Suggests a replacement** for out-of-stock/unavailable items: the store's
+   best other search hit, plus any other store the row has a `url_<store>` for.
+   Nothing is auto-added.
+4. **Reports loudly.** The summary lists verified items and every item NOT in
+   the cart with its reason, retry and suggestion, and ends on a
+   `🚨 RUN INCOMPLETE` banner when anything is missing. The same summary goes
+   through the app's Telegram notifier (`config/notify_config.json`; silent
+   when unconfigured), and the app's Fill carts panel shows it above the log.
+   Exit code: `0` every item verified, `1` something is not in the cart, `3`
+   nothing missing but some adds not confirmed (`2`: profile not initialized).
+
+Each store logs what the guard cost (`⏱️ [store] cart guard: … retry(ies) …s,
+cart check …s, suggestions …s`): one cart read per store, plus one add per
+retried item and one search per unavailable item.
+
 ### Purchase log
 
 Every **live** (non-dry-run) run writes one JSON file per store that had at
@@ -109,7 +140,16 @@ gitignored — mirrors the `audio_audit_logs/` convention). The file is named
 order-confirmation email check below diffs against (issue #72). The URL is
 what could let a later step resolve back to the actual product instead of
 matching on name alone. Dry runs and stores with zero added items produce no
-file.
+file. Only items in the cart are logged (verified, or not confirmed where the
+cart couldn't be read). A second run on the same day merges into that day's
+file — a re-added item takes the new quantity — instead of overwriting it.
+
+**Run records.** Beside it, every live run writes `runs/<date>T<hhmmss>_<store>.json`
+(one per store, per run — never overwritten): every intended item with its
+outcome, message, retry count, final cart quantity and suggestion, the
+before/after totals and the verified cart snapshot. The run's console output
+goes to `runs/<date>T<hhmmss>.log`. Readers of `<date>_<store>.json` don't see
+the `runs/` folder.
 
 `--keep-open` pauses after each store's cart is filled and waits for **Enter**
 in the terminal — so you can open the cart, review it, and pay before the
