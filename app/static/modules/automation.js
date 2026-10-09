@@ -49,6 +49,7 @@ export function renderFillCarts({ force = false } = {}) {
       <button id="automation-dismiss" class="secondary btn-block" type="button" hidden>Dismiss</button>
     </div>
     <div id="automation-elapsed" class="panel-status"></div>
+    <pre id="automation-summary" class="log" hidden></pre>
     <pre id="automation-log" class="log">${IDLE_LOG}</pre>
   </section>`;
   updateAutomationCommand();
@@ -106,14 +107,33 @@ function applyAutomationStatus(status) {
   if (stop) stop.hidden = !status.running;
   if (dismiss) dismiss.hidden = !finished;
   const elapsed = document.querySelector("#automation-elapsed");
+  const summary = document.querySelector("#automation-summary");
+  if (summary) summary.hidden = true;
   if (elapsed && finished) {
     stopAutomationTimer();
-    elapsed.className = `panel-status ${status.returncode === 0 ? "ok" : "error"}`;
-    elapsed.textContent = status.returncode === 0
-      ? "Automation finished — exit 0. Review and pay in the browser."
-      : `Automation exited with code ${status.returncode}. See the log above.`;
+    const [tone, text] = RUN_OUTCOME[status.returncode]
+      || ["error", `Automation exited with code ${status.returncode}. See the log below.`];
+    elapsed.className = `panel-status ${tone}`;
+    elapsed.textContent = text;
+    // The run's own end-of-run summary (#247), lifted out of the long log so a
+    // miss is in front of the user, not scrolled away.
+    const lines = status.lines || [];
+    const start = lines.lastIndexOf(SUMMARY_HEADER);
+    if (summary && start >= 0) {
+      summary.textContent = lines.slice(start).join("\n");
+      summary.hidden = false;
+    }
   }
 }
+
+// Exit codes from automation/run_automation.py (#247): 0 every item verified in
+// the cart, 1 some item is NOT in the cart, 3 added but the cart couldn't be read.
+const RUN_OUTCOME = {
+  0: ["ok", "Every item is verified in the cart. Review and pay in the browser."],
+  1: ["error", "Some items are NOT in the cart — see the summary. Sort them out before paying."],
+  3: ["warn", "Items added but NOT confirmed — the store cart couldn't be read. Check it before paying."],
+};
+const SUMMARY_HEADER = "── Cart automation summary ──";
 
 function startAutomationTimer() {
   if (run.timer) return;

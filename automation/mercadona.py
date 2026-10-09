@@ -266,6 +266,59 @@ def read_cart_total(page: Page) -> int:
     return _read_cart_badge(page)
 
 
+# The cart JSON the storefront home GETs on every load (seen live 2026-10-09,
+# issue #247) — read from the page's own response, so no auth is re-implemented.
+_CART_API_RE = re.compile(r"/api/customers/[^/]+/cart/$")
+_CART_RESPONSE_TIMEOUT_MS = 20000
+
+
+def cart_key(url: str) -> str:
+    """The product id in a ``/product/<id>/<slug>`` URL — :func:`read_cart_lines`' key."""
+    match = re.search(r"/product/(\d+)", url or "")
+    return match.group(1) if match else ""
+
+
+def cart_lines_from_json(cart: object) -> dict[str, float]:
+    """Product id → quantity from the cart JSON's ``lines``.
+
+    Each line names its product as ``product_id`` or ``product.id``. A line
+    with neither means the shape changed: raise, so the run reports the cart
+    as unread rather than every item as missing.
+
+    Raises:
+        ValueError: the JSON has no ``lines`` list, or a line names no product.
+    """
+    lines = cart.get("lines") if isinstance(cart, dict) else None
+    if not isinstance(lines, list):
+        raise ValueError("Mercadona cart JSON has no 'lines' list")
+    out: dict[str, float] = {}
+    for line in lines:
+        pid = str(line.get("product_id") or (line.get("product") or {}).get("id") or "")
+        if not pid:
+            raise ValueError(f"Mercadona cart line names no product (keys: {sorted(line)})")
+        out[pid] = out.get(pid, 0) + float(line.get("quantity") or 0)
+    return out
+
+
+def read_cart_lines(page: Page) -> dict[str, float]:
+    """The whole cart as product id → quantity, for the run's final check (#247).
+
+    Read-only: loads the storefront home and parses the cart JSON that page
+    load itself fetches.
+
+    Raises:
+        SessionExpiredError: navigation was redirected to the login page.
+        PlaywrightTimeoutError: the page never fetched its cart.
+        ValueError: the cart JSON's shape is not the expected one.
+    """
+    with page.expect_response(
+        lambda r: r.request.method == "GET" and bool(_CART_API_RE.search(r.url.split("?")[0])),
+        timeout=_CART_RESPONSE_TIMEOUT_MS,
+    ) as response:
+        goto_with_login_check(page, "mercadona", HOME_URL)
+    return cart_lines_from_json(response.value.json())
+
+
 def clear_cart(page: Page) -> int:
     """Empty the Mercadona cart completely, returning the unit count removed.
 

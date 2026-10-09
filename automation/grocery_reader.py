@@ -18,7 +18,7 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from src.data import COLUMNS, load_inventory_data  # noqa: E402
+from src.data import COLUMNS, load_inventory_data, store_url_columns  # noqa: E402
 
 from automation.models import CartItem  # noqa: E402
 
@@ -68,14 +68,20 @@ def read_cart_items(store: Optional[str] = None) -> list[CartItem]:
     if store is not None:
         pending = pending[pending[col_super].astype(str).str.lower() == store.lower()]
 
+    url_cols = store_url_columns(df)
     items: list[CartItem] = []
     for _, row in pending.iterrows():
+        super_name = str(row[col_super]).strip()
         items.append(
             CartItem(
-                super_name=str(row[col_super]).strip(),
+                super_name=super_name,
                 comida=str(row[col_comida]).strip(),
                 comprar=int(row[col_comprar]),
                 buscador=_clean_url(row[col_buscador]),
+                alt_stores=tuple(
+                    s for s, col in url_cols.items()
+                    if s != super_name.lower() and _clean_url(row[col])
+                ),
             )
         )
 

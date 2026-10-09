@@ -418,6 +418,26 @@ def read_cart_total(page: Page) -> int:
     return sum(line["units"] for line in _read_cart(page).values())
 
 
+def cart_key(url: str) -> str:
+    """The key :func:`read_cart_lines` files ``url``'s product under."""
+    return product_id_from_url(url)
+
+
+def read_cart_lines(page: Page) -> dict[str, float]:
+    """The whole food cart as product id → units, for the run's final check (#247).
+
+    Read-only: one page load and the cart API GET.
+
+    Raises:
+        StoreAccessError: the saved profile is not logged in, or the store
+            answered with a challenge or an unexpected response.
+    """
+    goto_with_login_check(page, STORE, HOME_URL)
+    human_delay(*_NAV_SETTLE)
+    _require_session(page)
+    return {pid: line["units"] for pid, line in _read_cart(page).items()}
+
+
 def clear_cart(page: Page) -> int:
     """Empty the Carrefour food cart, returning the unit count removed.
 

@@ -21,6 +21,12 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE = REPO_ROOT / "tests" / "list_test_fixture.xlsx"
 
 
+@pytest.fixture(autouse=True)
+def no_cart_run_notifications(monkeypatch):
+    """The cart run never messages anyone from a test — its notifier is always off."""
+    monkeypatch.setattr("automation.run_automation.build_notify_notifier", lambda: None, raising=False)
+
+
 @pytest.fixture()
 def temp_env(tmp_path: Path):
     """Redirect the data layer + audit logs at a throwaway temp dir."""

@@ -6,6 +6,7 @@ from pathlib import Path
 
 from automation.models import CartItem
 from automation.purchase_log import write_purchase_logs
+from automation.report import ADDED_VERIFIED, OUT_OF_STOCK
 from automation.run_automation import RunReport, _write_purchase_log_if_live
 
 
@@ -55,7 +56,7 @@ def test_persist_purchase_log_skips_dry_run(tmp_path, monkeypatch):
     monkeypatch.setattr("automation.run_automation.REPO_ROOT", tmp_path)
 
     report = RunReport()
-    report.added.append(CartItem("mercadona", "yogur", 2, "https://example.com/yogur"))
+    report.record(CartItem("mercadona", "yogur", 2, "https://example.com/yogur"), ADDED_VERIFIED)
 
     written = _write_purchase_log_if_live(report, dry_run=True)
 
@@ -70,14 +71,44 @@ def test_persist_purchase_log_writes_on_live_run(tmp_path, monkeypatch):
     monkeypatch.setattr("automation.run_automation.REPO_ROOT", tmp_path)
 
     report = RunReport()
-    report.added.append(CartItem("mercadona", "yogur", 2, "https://example.com/yogur"))
+    report.record(CartItem("mercadona", "yogur", 2, "https://example.com/yogur"), ADDED_VERIFIED)
+    report.record(CartItem("mercadona", "sal", 1, "https://example.com/sal"), OUT_OF_STOCK, "out of stock")
 
-    written = _write_purchase_log_if_live(report, dry_run=False)
+    written = _write_purchase_log_if_live(report, dry_run=False, console_text="console line")
 
-    assert len(written) == 1
-    assert written[0].parent == tmp_path / "logs"
-    log = json.loads(written[0].read_text(encoding="utf-8"))
+    purchase, record, console = written
+    assert purchase.parent == tmp_path / "logs"
+    log = json.loads(purchase.read_text(encoding="utf-8"))
     assert log["store"] == "mercadona"
     assert log["items"] == [
         {"comida": "yogur", "comprar": 2, "buscador": "https://example.com/yogur"}
+    ]  # only what is in the cart
+    run = json.loads(record.read_text(encoding="utf-8"))
+    assert record.parent == tmp_path / "logs" / "runs"
+    assert [(i["comida"], i["status"]) for i in run["items"]] == [("yogur", "added_verified"), ("sal", "out_of_stock")]
+    assert console.read_text(encoding="utf-8") == "console line"
+
+
+def test_two_runs_on_one_day_merge_the_purchase_log_and_keep_two_records(tmp_path: Path):
+    from datetime import datetime
+
+    from automation.purchase_log import write_run_records
+
+    logs_dir = tmp_path / "logs"
+    first, second = RunReport(), RunReport()
+    first.record(CartItem("carrefour", "kiwi", 1, "https://example.com/kiwi"), ADDED_VERIFIED)
+    second.record(CartItem("carrefour", "quinoa", 2, "https://example.com/quinoa"), ADDED_VERIFIED)
+    second.record(CartItem("carrefour", "kiwi", 2, "https://example.com/kiwi"), ADDED_VERIFIED)
+
+    for report, at in ((first, datetime(2026, 10, 6, 18, 0, 0)), (second, datetime(2026, 10, 6, 19, 17, 1))):
+        write_purchase_logs(report.added, logs_dir, today=at.date())
+        write_run_records(report, logs_dir, "", now=at)
+
+    log = json.loads((logs_dir / "2026-10-06_carrefour.json").read_text(encoding="utf-8"))
+    assert [(i["comida"], i["comprar"]) for i in log["items"]] == [("kiwi", 2), ("quinoa", 2)]
+    assert sorted(p.name for p in (logs_dir / "runs").glob("*.json")) == [
+        "2026-10-06T180000_carrefour.json", "2026-10-06T191701_carrefour.json",
     ]
+    # The existing reader still picks the day's log, not a run record.
+    from automation.item_matching import load_latest_purchase_log
+    assert {i.comida for i in load_latest_purchase_log("carrefour", logs_dir)} == {"kiwi", "quinoa"}

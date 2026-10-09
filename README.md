@@ -423,6 +423,14 @@ and **after**, plus the units the automation added — e.g.
 `🛒 mercadona: cart 7 → 12 (automation +5)` — so you can confirm end-to-end that
 the cart changed by the expected amount.
 
+Every live run then **checks the store's final cart against the list**: a failed
+add is retried once, every item is reconciled with the cart, unavailable items
+get a suggested alternative, and the run ends with a summary of verified items
+and every item **not** in the cart with its reason — in the Fill carts panel and
+through the Telegram notifier. A run with misses exits non-zero and never reads
+as a clean success. Each run also leaves a record under `purchase_logs/runs/`.
+Details: [`automation/README.md`](automation/README.md) → "Cart guard".
+
 A walk-through of how this automation was built, store quirk by store quirk,
 is in [`docs/browser-automation-build.md`](docs/browser-automation-build.md).
 

@@ -16,9 +16,12 @@ class CartItem:
         buscador: Product URL. Empty string when the inventory row has no
             usable URL — some rows carry an uppercase product description
             instead of a link.
+        alt_stores: Other stores this row has a ``url_<store>`` for — named in
+            the run summary as a fallback when the item can't be bought here.
     """
 
     super_name: str
     comida: str
     comprar: int
     buscador: str
+    alt_stores: tuple[str, ...] = ()
