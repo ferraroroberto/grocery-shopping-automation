@@ -297,7 +297,9 @@ budget (`audio_audit.product_search_parse_timeout`, default 20 s, no retries),
 falling back to searching your raw text if the hub is slow or down. The app
 then searches **Mercadona** (its Algolia search endpoint) and **Carrefour** (a
 real-Chrome DOM read of its results grid, Cloudflare-gated like its cart
-handler), driving the logged-in Chrome profile. (Ametller left product search in
+handler), driving the logged-in Chrome profile. Carrefour cards whose add
+button is disabled (*Agotado temporalmente*) are skipped: their product page
+redirects away, so the cart run could never add them (#249). (Ametller left product search in
 #211; its cart handler and stored links are unchanged.) Each store's cards
 appear **as soon as that store answers**, under one line per store — *waiting
 for the browser*, *searching…*, *N results*, *no results*, or *couldn't search*

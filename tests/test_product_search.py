@@ -145,6 +145,17 @@ _CARD_NO_PRODUCT_ID = {
 }
 
 
+# A card whose add control is disabled ("Agotado temporalmente"): its product
+# page redirects away, so the cart run could never add it (issue #249).
+_CARD_UNORDERABLE = {
+    "href": "/supermercado/galletas-ejemplo-200-g/R-prod1000001/p",
+    "name": "Galletas ejemplo 200 g.",
+    "price_text": "5,95 €",
+    "image": "",
+    "add_disabled": True,
+}
+
+
 def test_parse_carrefour_price():
     assert product_search._parse_carrefour_price("0,84 €") == 0.84
     assert product_search._parse_carrefour_price("4,50 €/kg") == 4.50
@@ -169,6 +180,27 @@ def test_parse_carrefour_card_on_sale_reads_current_price():
 
 def test_parse_carrefour_card_skips_non_product_card():
     assert product_search._parse_carrefour_card(_CARD_NO_PRODUCT_ID) is None
+
+
+def test_parse_carrefour_card_skips_unorderable_card():
+    assert product_search._parse_carrefour_card(_CARD_UNORDERABLE) is None
+
+
+def test_parse_carrefour_card_keeps_card_without_add_state():
+    # No `add_disabled` key (older recorded cards) or an enabled control → kept.
+    assert product_search._parse_carrefour_card(_CARD_PLAIN) is not None
+    assert product_search._parse_carrefour_card({**_CARD_PLAIN, "add_disabled": False}) is not None
+
+
+def test_search_carrefour_skips_unorderable_and_backfills_to_limit():
+    page = FakeCarrefourPage([_CARD_UNORDERABLE, _CARD_PLAIN, _CARD_ON_SALE])
+    out = product_search.search_carrefour(page, "avena", 2)
+    assert [c.product_url.rsplit("/", 2)[-2] for c in out] == ["R-641402048", "R-VC4AECOMM-360916"]
+
+
+def test_carrefour_card_js_reads_the_add_control_state():
+    assert "result-add-to-cart" in product_search._CARREFOUR_CARD_JS
+    assert "add_disabled" in product_search._CARREFOUR_CARD_JS
 
 
 def test_search_carrefour_parses_cards():
