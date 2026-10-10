@@ -1,5 +1,6 @@
-// Items → Stores (issue #148): every item's per-store product links, a what-if
-// store picker, and the monthly cost simulator priced from the latest
+// Items → Prices (issue #148; the Stores mode until #256): every item's
+// per-store product links, a what-if store picker, and the monthly cost
+// simulator priced from the latest
 // supermarket-benchmark run. Picks are a local what-if — nothing is written to
 // the spreadsheet until the Review & apply dialog posts them.
 //

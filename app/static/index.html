@@ -275,11 +275,16 @@
              (#153 J-04): the search box and the pills below read as its body. -->
         <h2 class="pane-title">Overview</h2>
         <!-- Search shows only on the modes that filter the item list
-             (dashboard / audit / targets / edit) — app.js re-homes this node
-             into the active pane BELOW the sub-mode pills, so the pills never
-             move vertically when the search appears/disappears. -->
+             (dashboard / audit / Items' list / Prices) — app.js re-homes this
+             node into the active pane BELOW the segmented control, so the
+             control never moves vertically when the search appears/disappears.
+             On Items' list the Add item button shares its row (#256). -->
         <section id="toolbar" class="toolbar" aria-label="Inventory search" hidden>
-          <input id="search" class="search" type="search" placeholder="Search item, zone, or supermarket" autocomplete="off" />
+          <input id="search" class="search" type="search" placeholder="Search item, zone, store" aria-label="Search by item, zone or supermarket" autocomplete="off" />
+          <button id="items-add" class="button-tint" type="button" aria-haspopup="dialog" hidden>
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg>
+            Add item
+          </button>
         </section>
         <div class="pane-body"></div>
       </section>
@@ -304,11 +309,10 @@
       </section>
       <section id="pane-items" class="pane" role="tabpanel" aria-labelledby="tabItems" aria-label="Items" hidden>
         <h2 class="pane-title">Manage items</h2>
-        <div class="pills subnav" role="group" aria-label="Item modes">
-          <button type="button" class="pill" data-mode="targets">Targets</button>
-          <button type="button" class="pill" data-mode="edit">Edit item</button>
-          <button type="button" class="pill" data-mode="add">Add item</button>
-          <button type="button" class="pill" data-mode="stores">Stores</button>
+        <!-- Two peer segments (#256): the item list and the store prices. -->
+        <div class="segmented subnav" role="group" aria-label="Items view">
+          <button type="button" class="segmented-item" aria-pressed="true" data-mode="list">Items</button>
+          <button type="button" class="segmented-item" aria-pressed="false" data-mode="stores">Prices</button>
         </div>
         <div class="pane-body"></div>
       </section>

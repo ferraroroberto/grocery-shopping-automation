@@ -14,21 +14,20 @@ export const SUB_KEY_PREFIX = "grocery.sub.";
 export const THEME_KEY = "grocery.theme";
 
 // Modes whose content the search box filters — it hides everywhere else.
-export const SEARCHABLE_MODES = new Set(["dashboard", "audit", "targets", "edit", "stores"]);
+export const SEARCHABLE_MODES = new Set(["dashboard", "audit", "list", "stores"]);
 
-// The 9 modes group into the fleet nav's 4 tabs plus Settings, which is never a
-// tab (#200): its pane is opened by the header gear. audit/items tabs re-home
-// their modes as a segmented control / sub-pills (static markup in index.html). Product search lives
-// inside Items → Add Item, cart automation ("Fill carts") at the bottom of
-// Shop, Email Watch in Settings (#182).
+// The 7 modes group into the fleet nav's 4 tabs plus Settings, which is never a
+// tab (#200): its pane is opened by the header gear. The audit and items tabs
+// switch their two modes with a segmented control (static markup in
+// index.html): Items is the item list ("list") and Prices ("stores", #256).
+// Product search lives in the Add item sheet the list opens, cart automation
+// ("Fill carts") at the bottom of Shop, Email Watch in Settings (#182).
 export const MODE_TO_TAB = {
   dashboard: "inventory",
   shopping: "shopping",
   audit: "audit",
   audio: "audit",
-  targets: "items",
-  edit: "items",
-  add: "items",
+  list: "items",
   stores: "items",
   settings: "settings",
 };
@@ -36,15 +35,21 @@ export const TAB_DEFAULT_MODE = {
   inventory: "dashboard",
   shopping: "shopping",
   audit: "audit",
-  items: "targets",
+  items: "list",
 };
+
+// Items' modes retired in #256 → the segment that now holds them: Targets and
+// Edit item folded into the list's item sheet, Add item into its Add item
+// sheet. A PWA last closed on one still has it saved under grocery.sub.items;
+// restoreSubMode() rewrites it, so the tab never opens on an empty pane.
+const RETIRED_MODES = { targets: "list", edit: "list", add: "list" };
 
 // Tabs retired in #182 → their content's new home. A PWA that last closed on
 // one still has it saved in TAB_KEY; the vendored nav would silently fall
 // back to Home, so migrateRetiredTab() rewrites it before the nav boots.
 // `reveal` is the section scrolled into view once the pane has rendered.
 export const RETIRED_TABS = {
-  search: { tab: "items", mode: "add", reveal: null }, // search heads the Add Item pane
+  search: { tab: "items", mode: "list", reveal: "#items-add" }, // the Add item sheet holds the search
   automation: { tab: "shopping", mode: "shopping", reveal: "#fill-carts" },
 };
 
@@ -104,6 +109,7 @@ export const el = {
   status: document.querySelector("#status"),
   search: document.querySelector("#search"),
   toolbar: document.querySelector("#toolbar"),
+  itemsAdd: document.querySelector("#items-add"),
   buildReadout: document.querySelector("#build-readout"),
   app: document.querySelector("main.app"),
   openSheet: document.querySelector("#open-sheet"),
@@ -159,7 +165,7 @@ export function setContextLine(selector, exceptions, fallback) {
 }
 
 // The pane body a mode renders into (each tab's <section class="pane"> holds
-// one .pane-body; audit/items also carry a static sub-pill row above it).
+// one .pane-body; audit/items also carry a static segmented control above it).
 export function activePaneBody() {
   const tab = MODE_TO_TAB[state.mode] || "inventory";
   return document.querySelector(`#pane-${tab} .pane-body`);
@@ -253,6 +259,10 @@ export function restoreSubMode(tab) {
   let stored = null;
   try {
     stored = localStorage.getItem(SUB_KEY_PREFIX + tab);
+    if (RETIRED_MODES[stored]) {
+      stored = RETIRED_MODES[stored];
+      localStorage.setItem(SUB_KEY_PREFIX + tab, stored);
+    }
   } catch (_) {
     return fallback;
   }

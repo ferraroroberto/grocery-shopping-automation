@@ -43,21 +43,10 @@ import {
   TAB_KEY,
   THEME_KEY,
 } from "./modules/core.js";
-import { syncPicker } from "./modules/dom.js";
+import { openAddSheet } from "./modules/add-sheet.js";
 import { isEmailControl, pushEmailMonitorConfig, renderEmailWatch, runEmailCheck } from "./modules/email.js";
-import { renderAdd, renderAudit, renderDashboard, renderEdit } from "./modules/inventory.js";
+import { renderAudit, renderDashboard, renderItems } from "./modules/inventory.js";
 import { openItemSheet } from "./modules/item-sheet.js";
-import {
-  cancelProductSearch,
-  handleSearchInput,
-  markPrefillAdded,
-  renderSearch,
-  startProductSearch,
-  toggleSearchRecording,
-  addCandidateAsNew,
-  useCandidate,
-  useCandidateClick,
-} from "./modules/search.js";
 import { renderShopping, shoppingMissingLinkCount } from "./modules/shopping.js";
 import {
   loadStoresChecks,
@@ -87,24 +76,20 @@ function render() {
   setStatus(idleStatus());
   updatePageHeaderContexts();
   // Re-home the (single) search node into the active pane, above its body but
-  // BELOW the sub-mode pills — the pills stay pinned to the top and never
-  // shift when the search appears/disappears across sub-modes.
+  // BELOW the segmented control — the control stays pinned to the top and
+  // never shifts when the search appears/disappears across modes.
   const pane = document.querySelector(`#pane-${MODE_TO_TAB[state.mode] || "inventory"}`);
   const paneBody = pane?.querySelector(".pane-body");
   if (paneBody && el.toolbar.parentElement !== pane) pane.insertBefore(el.toolbar, paneBody);
   el.toolbar.hidden = !SEARCHABLE_MODES.has(state.mode);
-  // Audit's modes are a segmented control (aria-pressed is its state); Items'
-  // are still pills (.active) until their own step.
+  el.itemsAdd.hidden = state.mode !== "list";
+  // Audit's and Items' modes are segmented controls: aria-pressed is the state.
   el.app.querySelectorAll(".subnav [data-mode]").forEach((button) => {
-    const on = button.dataset.mode === state.mode;
-    if (button.classList.contains("segmented-item")) button.setAttribute("aria-pressed", String(on));
-    else button.classList.toggle("active", on);
+    button.setAttribute("aria-pressed", String(button.dataset.mode === state.mode));
   });
   if (state.mode === "dashboard") renderDashboard();
-  if (state.mode === "audit") renderAudit(true);
-  if (state.mode === "targets") renderAudit(false);
-  if (state.mode === "edit") renderEdit();
-  if (state.mode === "add") { renderAdd(); renderSearch(); }
+  if (state.mode === "audit") renderAudit();
+  if (state.mode === "list") renderItems();
   if (state.mode === "shopping") { renderShopping(); renderFillCarts(); }
   if (state.mode === "audio") renderAudio();
   if (state.mode === "settings") renderEmailWatch();
@@ -202,7 +187,7 @@ function toggleTheme() {
 }
 
 // ------------------------------------------------------- event delegation
-// Sub-mode pills (static markup in the audit/items panes).
+// Mode segments (static markup in the audit/items panes).
 el.app.addEventListener("click", (event) => {
   const button = event.target.closest(".subnav [data-mode]");
   if (!button) return;
@@ -270,13 +255,6 @@ el.app.addEventListener("click", async (event) => {
 
 el.app.addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (event.target.matches("#add-form")) {
-    const data = Object.fromEntries(new FormData(event.target).entries());
-    data.cantidad = Number(data.cantidad);
-    data.tenemos = Number(data.tenemos);
-    await mutate("/api/items", data);
-    markPrefillAdded(data.buscador); // a product-search pick that filled this form → Added
-  }
   if (event.target.matches(".quick-add")) {
     const panel = event.target.closest("[data-store]");
     const store = panel.dataset.store;
@@ -301,10 +279,6 @@ el.app.addEventListener("change", (event) => {
   }
   if (isEmailControl(event.target)) {
     pushEmailMonitorConfig();
-    return;
-  }
-  if (event.target.matches("[data-picker] select")) {
-    syncPicker(event.target.closest("[data-picker]"));
     return;
   }
   const action = event.target.dataset.action;
@@ -340,27 +314,12 @@ el.app.addEventListener("click", async (event) => {
   if (id === "apply-audio") await applyAudio();
   if (id === "audio-clear") clearAudio();
   if (id === "audio-cancel") cancelAudioRequest();
-  if (id === "search-record") await toggleSearchRecording(button);
-  if (id === "search-run") await startProductSearch();
-  if (id === "search-cancel") await cancelProductSearch();
-  if (button?.dataset.action === "search-use") useCandidateClick(button.closest(".candidate"));
-  if (button?.dataset.action === "search-confirm") await useCandidate(button.closest(".candidate"));
-  if (button?.dataset.action === "search-add-new") addCandidateAsNew(button.closest(".candidate"));
+  if (id === "items-add") openAddSheet();
 });
 
-// Items → Stores: the view owns its data-stores-* hooks (store_links, #148).
+// Items → Prices: the view owns its data-stores-* hooks (store_links, #148).
 el.app.addEventListener("click", onStoresClick);
 el.app.addEventListener("change", onStoresChange);
-
-// Product-search term box: keep state in sync while typing; Enter runs the search.
-// The confirm-row fields persist into the draft so a poll re-render keeps them.
-el.app.addEventListener("input", (event) => handleSearchInput(event.target));
-el.app.addEventListener("keydown", (event) => {
-  if (event.target.id === "search-term" && event.key === "Enter") {
-    event.preventDefault();
-    startProductSearch();
-  }
-});
 
 // ------------------------------------------------------- top-bar controls
 el.search.addEventListener("input", () => {
@@ -424,11 +383,12 @@ loadInventory().then(() => {
 fetchVersion();
 
 // No manual refresh button: refetch when the PWA returns to the foreground.
-// Only on the read-only list modes — a re-render on edit/add/audio would wipe
-// in-progress form input or a pasted transcript.
+// Only on the read-only list modes — a re-render on Voice would wipe a pasted
+// transcript. The item and Add item sheets sit outside the panes, so a
+// refetch behind them never touches what they staged.
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible") return;
   fetchVersion();
-  if (["dashboard", "shopping", "audit", "targets"].includes(state.mode)) loadInventory();
+  if (["dashboard", "shopping", "audit", "list"].includes(state.mode)) loadInventory();
   if (state.mode === "shopping") syncFillCarts();
 });

@@ -1,5 +1,6 @@
 // On-demand product search (issue #87) — the "Find a store product" section at
-// the top of Items → Add Item (#182; it was the Search tab).
+// the top of the Add item sheet (add-sheet.js, #256; it was the Search tab,
+// then the top of Items → Add item).
 //
 // Speak or type a product (Spanish — the stores are); search every store; the
 // user validates a candidate card (each with a link to see it). Nothing is
@@ -7,9 +8,9 @@
 //   - a term already on the list → "Use" opens a confirm row (zone / have /
 //     target) and "Update item" posts /api/product-search/select, which fills
 //     that row's `super` + `buscador`;
-//   - a new term → "Use" pre-fills the Add Item form below (name, store, link,
-//     target 1) and the form's own "Add Item" creates the row — the same
-//     POST /api/items shape /select would build.
+//   - a new term → "Use" pre-fills the sheet's Add by hand form below (name,
+//     store, link, target 1) and the sheet's "Add item" creates the row — the
+//     same POST /api/items shape /select would build.
 import { authFetch, fetchJson } from "./api.js";
 import { c, defaultZone, items, state } from "./core.js";
 import { chip, esc, formatElapsed, html, icon, setPickerValue, text } from "./dom.js";
@@ -17,7 +18,7 @@ import { pickAudioMime } from "./media.js";
 
 // Local to this module — `items` holds the merged status entries (one per
 // searched term, each with its candidate cards). `prefilled` is the candidate
-// key last copied into the Add Item form, marked Added once that form saves it.
+// key last copied into the Add by hand form, marked Added once that form saves it.
 const search = {
   term: "", running: false, items: [], error: "", startedAt: 0,
   pollTimer: null, recorder: null, chunks: [], recording: false, notice: "",
@@ -46,15 +47,16 @@ function searchStage(elapsed) {
   return search.pendingStart ? `Reading “${search.term}”… (${t})` : `Starting the search… (${t})`;
 }
 
-// Renders into the #product-search host that renderAdd() lays out, never the
-// whole pane body — a search poll must not wipe what you typed in the form.
+// Renders into the #product-search host the Add item sheet lays out, never
+// the whole sheet — a search poll must not wipe what you typed in the form.
+// A closed sheet is skipped; opening it paints the run's latest state.
 export function renderSearch() {
   const node = document.querySelector("#product-search");
-  if (!node || state.mode !== "add") return; // a background poll must never clobber another pane
+  if (!node?.closest("dialog")?.open) return;
   const s = search;
   node.innerHTML = `
-    <h2 class="card-title">${icon("search")}Find a store product</h2>
-    <div class="hint">Say or type a product in Spanish. Searches Mercadona and Carrefour — pick the right one to add it to the list, or to link an item that is already on it.</div>
+    <h3 class="card-title">${icon("search")}Find a store product</h3>
+    <div class="hint">Say or type a product in Spanish to search Mercadona and Carrefour.</div>
     <div class="search-bar">
       <button id="search-record" class="icon-button${s.recording ? " recording" : ""}" type="button" aria-pressed="${s.recording}" aria-label="Dictate a product" title="Dictate">
         ${icon("mic")}
@@ -184,7 +186,7 @@ function candidateRow(cand, item) {
   const thumb = cand.thumbnail
     ? `<img class="candidate-thumb" src="${html(cand.thumbnail)}" alt="" loading="lazy" />`
     : `<div class="candidate-thumb candidate-thumb-empty" aria-hidden="true"></div>`;
-  // New items hand off to the Add Item form (no confirm row to expand).
+  // New items hand off to the Add by hand form (no confirm row to expand).
   const useLabel = done ? `${isNew ? "Added" : "Updated"} ${icon("check")}` : "Use";
   const expanded = isNew ? "" : ` aria-expanded="${open}"`;
   return `<article class="candidate${open ? " confirming" : ""}" data-term="${html(item.term)}" data-idx="${isNew ? "" : item.inventory_idx}"
@@ -324,7 +326,7 @@ export async function cancelProductSearch() {
   renderSearch();
 }
 
-// "Use" on a card: a new term pre-fills the Add Item form; an item already on
+// "Use" on a card: a new term pre-fills the Add by hand form; an item already on
 // the list opens (or closes) its confirm row, prefilled from the current row.
 export function useCandidateClick(cardEl) {
   if (!cardEl) return;
@@ -337,10 +339,10 @@ export function addCandidateAsNew(cardEl) {
   if (cardEl) prefillAddForm(cardEl);
 }
 
-// Copy the candidate into the Add Item form: the name is the searched term
+// Copy the candidate into the Add by hand form: the name is the searched term
 // (what /select names a new row), the store and link come from the card, and
 // the target starts at 1 — a target of 0 would leave it unbuyable. The zone
-// and quantities stay yours to set; nothing is saved until "Add Item".
+// and quantities stay yours to set; nothing is saved until "Add item".
 function prefillAddForm(cardEl) {
   const form = document.querySelector("#add-form");
   if (!form) return;
@@ -353,12 +355,20 @@ function prefillAddForm(cardEl) {
   search.confirming = "";
   search.draft = null;
   search.error = "";
-  search.notice = `Filled in the Add Item form below with ${cardEl.dataset.name} (${cardEl.dataset.store}) — pick a zone, then tap Add Item.`;
+  search.notice = `Filled in Add by hand below with ${cardEl.dataset.name} (${cardEl.dataset.store}) — pick a zone, then tap Add item.`;
   renderSearchStatus();
-  (form.closest(".panel") || form).scrollIntoView({ behavior: "smooth", block: "start" });
+  (form.closest("section") || form).scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-// Called after the Add Item form saved: if it saved the pre-filled candidate
+// The Add item sheet opened with a fresh form: a pre-fill the last one held
+// was discarded with it, so its "Filled in…" notice goes too.
+export function forgetPrefill() {
+  if (!search.prefilled) return;
+  search.prefilled = null;
+  search.notice = "";
+}
+
+// Called after the Add by hand form saved: if it saved the pre-filled candidate
 // (same link), mark that card Added so it can't be added twice.
 export function markPrefillAdded(savedUrl) {
   const p = search.prefilled;
