@@ -413,6 +413,39 @@ def test_item_sheet_opens_everywhere_edits_and_deletes(page, server):
     saved, cols = row()
     assert saved[cols["cantidad"]] == 1
 
+    # The buy link opens from the sheet (#264): a real http(s) URL gets a
+    # trailing open button on its row and an Open link action on its page, both
+    # new-tab links apart from the row's tap that edits; blank or a search term
+    # gets neither. Staged only, so Esc leaves the cell as it was. Phone width too.
+    sheet = _open_sheet_from(page, "edit", name)
+    row_open = sheet.locator("[data-open-link-row]")
+    page_open = sheet.locator("[data-open-link-page]")
+    assert row_open.inner_text() == "" and page_open.inner_text() == ""
+    sheet.locator("[data-page-to='link']").click()
+    field = sheet.locator("[data-page='link'] input[name='buscador']")
+    field.fill("leche entera")
+    assert page_open.inner_text() == "" and not sheet.locator("a[data-open-link-row]").count()
+    field.fill("https://example.com/p/1")
+    assert page_open.get_attribute("href") == "https://example.com/p/1"
+    assert page_open.get_attribute("target") == "_blank" and "noopener" in page_open.get_attribute("rel")
+    assert page_open.inner_text() == "Open link"
+    sheet.locator("[data-sheet-back]").click()
+    assert row_open.get_attribute("href") == "https://example.com/p/1"
+    assert row_open.get_attribute("target") == "_blank" and "noopener" in row_open.get_attribute("rel")
+    assert row_open.get_attribute("aria-label") == f"Open buy link for {name}"
+    page.set_viewport_size({"width": 390, "height": 844})
+    box, edit_box = row_open.bounding_box(), sheet.locator("[data-page-to='link']").bounding_box()
+    assert box["width"] >= 44 and box["height"] >= 44, box
+    assert box["x"] >= edit_box["x"] + edit_box["width"] - 1, (box, edit_box)  # beside the edit tap, not over it
+    assert box["x"] + box["width"] <= 390
+    page.set_viewport_size({"width": 1100, "height": 950})
+    sheet.locator("[data-page-to='link']").click()  # the row's own tap still edits
+    assert sheet.get_attribute("data-page") == "link"
+    page.keyboard.press("Escape")
+    sheet.wait_for(state="hidden")
+    saved, cols = row()
+    assert saved[cols["buscador"]] in (None, ""), saved[cols["buscador"]]
+
     # Target, in stock and zone are staged, then saved as one row; the blank
     # buy link stays blank.
     sheet = _open_sheet_from(page, "edit", name)
