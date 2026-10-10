@@ -62,7 +62,7 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from src.data import CONFIG, REPO_ROOT  # noqa: E402
+from src.data import purchase_logs_dir  # noqa: E402
 from src.notify import NotifierError  # noqa: E402
 from src.notify_config import build_notify_notifier  # noqa: E402
 
@@ -402,7 +402,7 @@ def _write_purchase_log_if_live(report: RunReport, dry_run: bool, console_text: 
     """Persist the purchase log and this run's record, skipping dry runs entirely."""
     if dry_run:
         return []
-    logs_dir = REPO_ROOT / CONFIG["automation"].get("purchase_logs_dir", "purchase_logs")
+    logs_dir = purchase_logs_dir()
     return write_purchase_logs(report.added, logs_dir) + write_run_records(report, logs_dir, console_text)
 
 

@@ -133,6 +133,16 @@ def resolve_xlsx_path(xlsx_path: Optional[str] = None) -> Path:
     return p
 
 
+def purchase_logs_dir() -> Path:
+    """``automation.purchase_logs_dir`` from config (relative to the repo), else ``<repo>/purchase_logs``.
+
+    The one place that decides: the cart automation writes its purchase logs
+    and run records there, and the benchmark and the app's Shop glance read them.
+    """
+    p = Path(CONFIG.get("automation", {}).get("purchase_logs_dir", "purchase_logs")).expanduser()
+    return p if p.is_absolute() else (REPO_ROOT / p).resolve()
+
+
 def open_spreadsheet(xlsx_path: Optional[str] = None) -> Path:
     """Open the configured (or given) xlsx in the OS default application.
 

@@ -172,18 +172,22 @@ def checks() -> dict[str, Any]:
     return _call(store_links.checks, df)
 
 
+def store_directory() -> list[dict[str, Any]]:
+    """Every registered store: its key, display name, shop URL and whether Fill carts can fill it."""
+    handlers = _handler_stores()
+    return [
+        {"key": key, "name": entry.get("name", key), "shop_url": entry.get("shop_url", ""),
+         "has_handler": key in handlers}
+        for key, entry in store_links.load_registry().items()
+    ]
+
+
 @router.get("/api/stores")
 def stores() -> dict[str, Any]:
-    registry = store_links.load_registry()
-    handlers = _handler_stores()
     return {
         # run_date, age_days, next_due, stores_covered, overrides (#165)
         **store_links.run_status(),
-        "stores": [
-            {"key": key, "name": entry.get("name", key), "shop_url": entry.get("shop_url", ""),
-             "has_handler": key in handlers}
-            for key, entry in registry.items()
-        ],
+        "stores": store_directory(),
         "frequencies": store_links.FREQUENCIES,
         "default_frequency": store_links.DEFAULT_FREQUENCY,
     }

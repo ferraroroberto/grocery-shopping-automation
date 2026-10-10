@@ -21,7 +21,8 @@ export const SEARCHABLE_MODES = new Set(["dashboard", "audit", "list", "stores"]
 // switch their two modes with a segmented control (static markup in
 // index.html): Items is the item list ("list") and Prices ("stores", #256).
 // Product search lives in the Add item sheet the list opens, cart automation
-// ("Fill carts") at the bottom of Shop, Email Watch in Settings (#182).
+// ("Fill carts") in the carts glance that leads Shop (#258), Email Watch in
+// Settings (#182).
 export const MODE_TO_TAB = {
   dashboard: "inventory",
   shopping: "shopping",

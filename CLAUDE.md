@@ -19,7 +19,7 @@
   - app/static/**/*.css
   - app/static/**/*.{js,html}
 - key views:                      # single tabbed SPA served at `/`
-  - /          (Home · Shop · Audit · Items tabs, bottom-pill nav, Settings behind the header gear; Items is Items · Prices, Prices leading with its Monthly cost glance card and the Benchmark sheet, product search in the Add item sheet, Fill carts in Shop, Email Watch + text size in Settings)
+  - /          (Home · Shop · Audit · Items tabs, bottom-pill nav, Settings behind the header gear; Items is Items · Prices, Prices leading with its Monthly cost glance card and the Benchmark sheet, product search in the Add item sheet, Shop leading with its Carts glance card (Fill carts, the Options sheet) above folded store groups and their store sheet, Email Watch + text size in Settings)
 
 ## This repository
 Household grocery inventory + shopping list web app, backed by an Excel file. Primary surface: FastAPI + vanilla-JS PWA on `:8502` (`app/api.py`); legacy Streamlit app on `:8501` (`app/app.py`) drives the same modes. Voice-narrated audit mode uses a local whisper-server and the `local-llm-hub` sibling's LLM hub. Windows + PowerShell. See `README.md`.

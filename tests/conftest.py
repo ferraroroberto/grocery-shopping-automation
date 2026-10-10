@@ -1,8 +1,9 @@
 """Shared pytest fixtures for the grocery PWA test suite.
 
 Every fixture points the data layer at a throwaway copy of the committed Excel
-fixture and redirects the audio-audit logs to a temp dir, so tests never read or
-write the real grocery spreadsheet or litter `audio_audit_logs/`.
+fixture and redirects the audio-audit logs and the cart-run records to a temp
+dir, so tests never read or write the real grocery spreadsheet, the real
+`purchase_logs/`, or litter `audio_audit_logs/`.
 """
 
 from __future__ import annotations
@@ -29,18 +30,24 @@ def no_cart_run_notifications(monkeypatch):
 
 @pytest.fixture()
 def temp_env(tmp_path: Path):
-    """Redirect the data layer + audit logs at a throwaway temp dir."""
+    """Redirect the data layer, audit logs and cart-run records at a throwaway temp dir."""
     xlsx = tmp_path / "inv.xlsx"
     shutil.copyfile(FIXTURE, xlsx)
     orig_xlsx = data.CONFIG["data"]["xlsx_file"]
     orig_logs = data.CONFIG["audio_audit"]["logs_dir"]
+    orig_purchase = data.CONFIG["automation"].get("purchase_logs_dir")
     data.CONFIG["data"]["xlsx_file"] = str(xlsx)
     data.CONFIG["audio_audit"]["logs_dir"] = str(tmp_path / "logs")
+    data.CONFIG["automation"]["purchase_logs_dir"] = str(tmp_path / "purchase_logs")
     try:
         yield tmp_path
     finally:
         data.CONFIG["data"]["xlsx_file"] = orig_xlsx
         data.CONFIG["audio_audit"]["logs_dir"] = orig_logs
+        if orig_purchase is None:
+            data.CONFIG["automation"].pop("purchase_logs_dir", None)
+        else:
+            data.CONFIG["automation"]["purchase_logs_dir"] = orig_purchase
 
 
 @pytest.fixture()

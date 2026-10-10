@@ -438,3 +438,22 @@ def test_check_logins_route_reports_a_failed_check(client, monkeypatch):
     resp = client.post("/api/actions/check-logins")
     assert resp.status_code == 502
     assert "without a result" in resp.json()["detail"]
+
+
+def test_automation_fills_names_stores_and_the_last_fill(client, temp_env):
+    """#258: the carts glance gets display names + which stores Fill carts can
+    fill, and no last fill until a live run has written a record."""
+    body = client.get("/api/automation/fills").json()
+    assert body["last_fill"] is None
+    by_key = {s["key"]: s for s in body["stores"]}
+    assert by_key["mercadona"]["name"] == "Mercadona" and by_key["mercadona"]["has_handler"] is True
+
+    runs = temp_env / "purchase_logs" / "runs"
+    runs.mkdir(parents=True)
+    (runs / "2026-10-06T191701_mercadona.json").write_text(json.dumps({
+        "run": "2026-10-06T191701", "store": "mercadona", "cart_mode": "keep",
+        "items": [{"status": "added_verified"}, {"status": "out_of_stock"}],
+    }), encoding="utf-8")
+    last = client.get("/api/automation/fills").json()["last_fill"]
+    assert last == {"run": "2026-10-06T191701", "date": "2026-10-06",
+                    "stores": {"mercadona": {"in_cart": 1, "unconfirmed": 0, "missing": 1, "cart_mode": "keep"}}}

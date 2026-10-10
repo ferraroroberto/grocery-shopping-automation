@@ -13,6 +13,9 @@ from pydantic import BaseModel
 
 from app import automation_runner
 from app.api_common import inventory_error
+from app.routers.stores import store_directory
+from automation.purchase_log import read_last_fill
+from src.data import purchase_logs_dir
 
 router = APIRouter()
 
@@ -71,6 +74,12 @@ def automation_reset() -> dict[str, Any]:
 def automation_command(store: str = "all", dry_run: bool = True, cart_mode: str = "keep") -> dict[str, str]:
     """Preview the exact argv a run would spawn (mirrors the Streamlit command preview)."""
     return {"command": " ".join(automation_runner.build_command(store, dry_run, cart_mode))}
+
+
+@router.get("/api/automation/fills")
+def automation_fills() -> dict[str, Any]:
+    """Shop's carts glance (#258): the stores Fill carts knows, and the last fill's outcome per store."""
+    return {"stores": store_directory(), "last_fill": read_last_fill(purchase_logs_dir())}
 
 
 @router.get("/api/automation/status")

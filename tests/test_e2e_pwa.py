@@ -84,6 +84,29 @@ def open_benchmark_sheet(page):
     return sheet
 
 
+def open_fill_options(page):
+    """Shop -> the carts glance's Options row -> the Fill carts options sheet (#258)."""
+    if not page.locator("#pane-shopping #fill-carts").is_visible():
+        goto_mode(page, "shopping")
+    page.click("#automation-options")
+    sheet = page.locator("#fill-carts-options")
+    sheet.wait_for()
+    return sheet
+
+
+def open_store_sheet(page, store: str = "mercadona"):
+    """Shop -> a store group -> its Store options row -> the store sheet (#258)."""
+    if not page.locator("#pane-shopping").is_visible():
+        goto_mode(page, "shopping")
+    group = page.locator(f"#pane-shopping details[data-store='{store}']")
+    if group.get_attribute("open") is None:
+        group.locator("> summary").click()
+    group.locator("[data-store-sheet]").click()
+    sheet = page.locator("#store-sheet")
+    sheet.wait_for()
+    return sheet
+
+
 def _free_port() -> int:
     sock = socket.socket()
     sock.bind(("127.0.0.1", 0))
@@ -155,6 +178,15 @@ def server(tmp_path_factory):
     product_options.DEFAULT_OPTIONS_PATH = options
     data.CONFIG["data"]["xlsx_file"] = str(xlsx)
     data.CONFIG["audio_audit"]["logs_dir"] = str(logs_dir)
+    # An invented last fill (#258): Mercadona's run left one item out, so Shop's
+    # glance, header and tab badge have a miss to show. Never the real records.
+    purchase_logs = tmp / "purchase_logs"
+    (purchase_logs / "runs").mkdir(parents=True)
+    (purchase_logs / "runs" / "2026-10-06T191701_mercadona.json").write_text(
+        '{"run": "2026-10-06T191701", "store": "mercadona", "cart_mode": "keep",'
+        ' "items": [{"status": "added_verified"}, {"status": "out_of_stock"}]}', encoding="utf-8")
+    orig_purchase = data.CONFIG["automation"].get("purchase_logs_dir")
+    data.CONFIG["automation"]["purchase_logs_dir"] = str(purchase_logs)
     if not LIVE:
         audio_router.extract = _stub_extract
 
@@ -177,6 +209,10 @@ def server(tmp_path_factory):
         thread.join(timeout=5)
         data.CONFIG["data"]["xlsx_file"], data.CONFIG["audio_audit"]["logs_dir"], audio_router.extract = orig
         product_options.DEFAULT_OPTIONS_PATH = orig_options
+        if orig_purchase is None:
+            data.CONFIG["automation"].pop("purchase_logs_dir", None)
+        else:
+            data.CONFIG["automation"]["purchase_logs_dir"] = orig_purchase
         if orig_benchmark is None:
             data.CONFIG.pop("benchmark", None)
         else:
@@ -241,7 +277,8 @@ def test_four_tab_nav_and_relocated_sections(page, pw, server):
     pane. Then the WebKit 390px nav check."""
     tabs = page.locator("nav.tabs .tab")
     assert tabs.count() == 4
-    assert tabs.locator(".tab-label").all_inner_texts() == ["Home", "Shop", "Audit", "Items"]
+    # A label may also carry the badge's spoken count (", 1 not in cart", #258).
+    assert [t.split(",")[0] for t in tabs.locator(".tab-label").all_inner_texts()] == ["Home", "Shop", "Audit", "Items"]
     assert page.locator("nav.tabs [data-tab='settings']").count() == 0
 
     # J-04 (#153) + #200: every pane opens on its own page header, not a bare
@@ -271,23 +308,76 @@ def test_four_tab_nav_and_relocated_sections(page, pw, server):
     page.keyboard.press("Escape")
     sheet.wait_for(state="hidden")
 
+    # #258: the last fill left an item out, and Shop hasn't been seen since --
+    # the Shop tab carries the count badge, spoken as part of its name.
+    shop_tab = page.locator("nav.tabs [data-tab='shopping']")
+    shop_tab.locator(".tab-badge").wait_for()
+    assert shop_tab.locator(".tab-badge").inner_text() == "1"
+    assert "Shop, 1 not in cart" in shop_tab.evaluate("t => t.textContent.replace(/\\s+/g, ' ')")
+
     goto_mode(page, "shopping")
     fill = page.locator("#pane-shopping #fill-carts")
     fill.wait_for()
-    for control in ("#automation-store", "#automation-cart-mode", "#automation-dry-run", "#automation-start"):
-        assert fill.locator(control).is_visible(), f"{control} missing from Fill carts"
-    # The raw pythonw ... argv is folded under "Command", not shown as a label.
-    assert not fill.locator("#automation-command").is_visible()
+    # The carts glance leads Shop: first card under the header, one row per
+    # store on the list by display name, the miss as a danger chip, the one
+    # Fill carts button and the Options row. Seeing Shop clears the badge.
+    assert page.locator("#pane-shopping > :nth-child(2)").get_attribute("id") == "fill-carts-host"
+    rows = fill.locator("#carts-stores .action-row")
+    assert rows.locator(".action-row-title").all_inner_texts() == ["Ametller Origen", "Mercadona"]
+    assert rows.nth(1).locator(".chip[data-tone='danger']").inner_text() == "1 not in cart"
+    assert "1 in cart" in rows.nth(1).locator(".action-row-meta").inner_text()
+    assert fill.locator("#carts-last-fill").inner_text() == "Last fill Tue 6 Oct"
+    assert page.locator("#shop-context").inner_text().startswith("1 not in cart")
+    assert fill.locator("#automation-start").inner_text().strip() == "Fill carts"
+    assert shop_tab.locator(".tab-badge").count() == 0
+    # Options in a sheet: every pick still there, "what will run" in words --
+    # never the interpreter command line or a lower-case store key.
+    sheet = open_fill_options(page)
+    for control in ("#automation-store", "#automation-cart-mode", "#automation-dry-run"):
+        assert sheet.locator(control).is_visible(), f"{control} missing from the options"
+    assert sheet.locator("#automation-store option").all_inner_texts() == ["All stores", "Ametller Origen", "Mercadona"]
+    plan = sheet.locator("#automation-plan").inner_text()
+    assert plan.startswith("Adds 41 items to the Ametller Origen and Mercadona carts"), plan
+    assert "python" not in sheet.inner_text().lower() and page.locator("#automation-command").count() == 0
+    # Clean cart: Fill carts waits for the confirm, which the sheet asks for.
+    sheet.locator("#automation-cart-mode").select_option("clean")
+    sheet.locator("#automation-clean-confirm").wait_for()
+    assert sheet.locator("#automation-plan").inner_text().startswith("Empties the")
+    page.keyboard.press("Escape")
+    sheet.wait_for(state="hidden")
+    assert fill.locator("#automation-start").is_disabled()
+    assert fill.locator("#automation-blocked").is_visible()
+    assert fill.locator("#automation-options-value").inner_text() == "All stores · Clean cart"
     # A shopping-list re-render (Got it) must not reset the run picks.
-    fill.locator("#automation-cart-mode").select_option("clean")
-    page.locator("#pane-shopping details[data-store] > summary").first.click()
-    page.locator("#pane-shopping [data-action='mark-buy']").first.click()
-    page.locator("#pane-shopping [data-action='undo-buy']").first.wait_for()
+    group = page.locator("#pane-shopping details[data-store='mercadona']")
+    assert group.locator(".collapse-title").inner_text() == "Mercadona"
+    group.locator("> summary").click()
+    group.locator("[data-action='mark-buy']").first.click()
+    group.locator("[data-action='undo-buy']").first.wait_for()
     # Got it is the row's leading check (#254): pressed, and the name struck.
-    got = page.locator("#pane-shopping .item-row", has=page.locator("[data-action='undo-buy']")).first
+    got = group.locator(".item-row", has=page.locator("[data-action='undo-buy']")).first
     assert got.locator(".action-row-check").get_attribute("aria-pressed") == "true"
     assert got.locator(".action-row-title s").count() == 1
-    assert fill.locator("#automation-cart-mode").input_value() == "clean"
+    assert fill.locator("#automation-options-value").inner_text() == "All stores · Clean cart"
+    assert open_fill_options(page).locator("#automation-cart-mode").input_value() == "clean"
+    page.keyboard.press("Escape")
+    # Quick-add is the group's "Add to <store>" row; its Remove, the cart
+    # offsets and Unmark all live in the store sheet (#252 decision 6).
+    group.locator(".store-add-row input[name='name']").fill("Invented extra")
+    group.locator(".store-add-row button[type='submit']").click()
+    extra = group.locator(".item-row", has_text="Invented extra")
+    extra.wait_for()
+    assert extra.locator("[data-action='remove-extra']").count() == 0
+    store_sheet = open_store_sheet(page)
+    assert store_sheet.locator("#store-sheet-title").inner_text() == "Mercadona"
+    store_sheet.locator("[data-action='offset-items']").fill("2")
+    store_sheet.locator("[data-action='offset-items']").dispatch_event("change")
+    assert group.locator("[data-store-sheet] .sheet-link-value").inner_text() == "2 already in cart"
+    store_sheet.locator("[data-action='remove-extra']").click()
+    extra.wait_for(state="detached")
+    store_sheet.locator("[data-store-unmark]").click()
+    group.locator("[data-action='undo-buy']").wait_for(state="detached")
+    page.keyboard.press("Escape")
 
     # Theme toggle works from every pane's own header, not just Home's
     # (#theme-toggle id stays on Home's for back-compat; the rest share the
@@ -577,7 +667,19 @@ def test_phone_geometry_fits_and_targets_meet_the_floor(browser, server):
             pg.locator("#pane-items .item-row .action-row-main").first.click()
             return pg.locator("#item-sheet")
 
-        for opener in (open_item_sheet, lambda: open_add_sheet(pg), lambda: open_benchmark_sheet(pg)):
+        # #258: Shop's Fill carts options and store sheets too, and an open
+        # store group's "Add to <store>" row keeps its controls apart.
+        goto_mode(pg, "shopping")
+        group = pg.locator("#pane-shopping details[data-store='mercadona']")
+        group.locator("> summary").click()
+        add_row = group.locator(".store-add-row")
+        assert_min_target(add_row.locator("button:visible, input:visible"))
+        assert_no_overlap(add_row.locator("button:visible, input:visible"))
+        assert_no_horizontal_overflow(pg)
+        for opener in (open_item_sheet, lambda: open_add_sheet(pg), lambda: open_benchmark_sheet(pg),
+                       lambda: open_fill_options(pg), lambda: open_store_sheet(pg)):
+            if opener is open_item_sheet:
+                goto_mode(pg, "list")
             sheet = opener()
             sheet.wait_for()
             assert_min_target(sheet.locator("button:visible"))
@@ -1258,11 +1360,9 @@ _ACCENT_PROBE = """() => {
 def test_switch_on_track_is_the_accent(page, theme):
     """#200: an on switch is the accent blue in both themes, never success green."""
     page.evaluate("t => { localStorage.setItem('grocery.theme', t); document.documentElement.dataset.theme = t; }", theme)
-    goto_mode(page, "shopping")
-    dry_run = page.locator("#automation-dry-run")
-    dry_run.wait_for()
+    dry_run = open_fill_options(page).locator("#automation-dry-run")
     if dry_run.get_attribute("aria-checked") != "true":
-        dry_run.click()  # client-side only: it just rewrites the command preview
+        dry_run.click()  # client-side only: it just rewrites "what will run"
     page.wait_for_timeout(400)  # the track's 0.15s background transition must settle
     probe = page.evaluate(_ACCENT_PROBE)
     assert probe["on"], "no switch is on to measure"
@@ -1407,12 +1507,13 @@ def test_labels_are_sentence_case(page):
 
 @pytest.mark.e2e
 def test_empty_automation_log_says_what_fills_it(page):
-    """J-09: the idle Fill carts log names the control that fills it."""
+    """J-09: the idle run log names the control that fills it -- the carts
+    glance's Fill carts (#258)."""
     goto_mode(page, "shopping")
     log = page.locator("#automation-log")
     log.wait_for(state="attached")
-    text = log.inner_text()
-    assert "Run automation" in text and "progress appears here" in text
+    text = log.text_content()
+    assert "Fill carts" in text and "progress appears here" in text
 
 
 _FIRST_AFTER_HEADER_JS = r"""

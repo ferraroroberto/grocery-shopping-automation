@@ -381,7 +381,7 @@ def build(run_date: str) -> Path:
     df = data.load_inventory_data()
     if df is None:
         raise SystemExit("Inventory could not be loaded — see log above.")
-    logs_dir = _REPO_ROOT / data.CONFIG["automation"].get("purchase_logs_dir", "purchase_logs")
+    logs_dir = data.purchase_logs_dir()
     qty_by_key, freq = monthly_quantities(load_purchase_logs(logs_dir))
     items = select_items(df, qty_by_key)
     logger.info("ℹ️ %d basket items (%d from logs, %d from targets)", len(items),
