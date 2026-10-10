@@ -4,24 +4,27 @@
 // supermarket-benchmark run. Picks are a local what-if — nothing is written to
 // the spreadsheet until the Review & apply dialog posts them.
 //
-// The per-item review (#165): the row's pencil opens the item sheet (#255) on
-// its Stores & prices page — every store's product / pack / price with your
-// overrides beside the benchmark's values, and the server-side Checked mark;
-// its Quantity check page has the quantity maths in real units — and the list
-// filters to the items that still need checking.
+// The glance card (#257) leads: the monthly cost, its delta and the one
+// action; its footer row opens the Benchmark sheet (the run's status, the
+// plan actions, the cost breakdown). The per-item review (#165): a row tap
+// opens the item sheet (#255) on its Stores & prices page — every store's
+// product / pack / price with your overrides beside the benchmark's values,
+// and the server-side Checked mark; its Quantity check page has the quantity
+// maths in real units — and the list filters to the items that still need
+// checking.
 //
 // The view is split across this folder: state (shared what-if state + helpers), simulator
-// (loading + the Monthly cost card), list (rows + filters), actions (header/actions buttons),
-// dialog + dialogs (apply / baseline), review (the item sheet's two store pages). This file is the
-// facade app.js imports and owns the pane render + event delegation.
+// (loading + the glance card), benchmark (the Benchmark sheet), list (rows + filters), actions
+// (import / plan / copy), dialog + dialogs (apply / baseline), review (the item sheet's two store
+// pages). This file is the facade app.js imports and owns the pane render + event delegation.
 import { emptyStateEl } from "../../_vendored/empty-state/empty-state.js";
 import { activePaneBody, render, state } from "../core.js";
 import { icon, switchMarkup } from "../dom.js";
-import { openItemSheet } from "../item-sheet.js";
 import { copySteps, importLatest, loadRecommended, resetPicks } from "./actions.js";
+import { openBenchmarkSheet } from "./benchmark.js";
 import { openApplyReview, openSetBaselineConfirm, resetBaseline } from "./dialogs.js";
 import { paintFilter, paintList, repaintRow } from "./list.js";
-import { actionsMarkup, headMarkup, loadChecks, loadMeta, paintActions, paintSim, paintUnpriced, scheduleSimulate } from "./simulator.js";
+import { loadChecks, loadMeta, paintActions, paintSim, scheduleSimulate } from "./simulator.js";
 import { FILTER_KEY, FREQ_KEY, SHOW_ALL_KEY, STORE_FILTER_KEY, TARGET_ONLY_KEY, local, setPick, writeStored } from "./state.js";
 
 export function renderStores() {
@@ -36,12 +39,8 @@ export function renderStores() {
     body.replaceChildren(block);
     return;
   }
-  const howtoOpen = !!body.querySelector(".stores-howto[open]");
   body.innerHTML = `
-    <section class="card stores-head">${headMarkup(howtoOpen)}</section>
-    <section id="stores-sim" class="card stores-sim"></section>
-    <div id="stores-unpriced"></div>
-    <section class="card stores-actions">${actionsMarkup()}</section>
+    <section id="stores-sim" class="card stores-glance"></section>
     <section class="card stores-list-card">
       <div class="card-head">
         <h2 class="card-title">${icon("package")}Items</h2>
@@ -53,10 +52,9 @@ export function renderStores() {
         <div class="flag-row">${switchMarkup(local.targetOnly, "Only items I buy", { "data-stores-targetonly": "" })}<span>Only items I buy (target above 0)</span></div>
         <div class="flag-row">${switchMarkup(local.showAll, "Show all stores", { "data-stores-showall": "" })}<span>Show all stores, not only the ones in your list</span></div>
       </div>
-      <ul id="stores-list" class="store-rows"></ul>
+      <ul id="stores-list" class="action-rows store-rows"></ul>
     </section>`;
   paintSim();
-  paintUnpriced();
   paintFilter();
   paintList();
   if (!local.sim && local.simState !== "empty") scheduleSimulate(0);
@@ -121,8 +119,14 @@ export async function onStoresClick(event) {
     return;
   }
   const button = event.target.closest("[data-stores-action]");
-  if (!button) return;
+  if (button) await runStoresAction(button);
+}
+
+// The view's one dispatcher for its data-stores-action buttons — the pane's
+// (delegated from app.js) and the Benchmark sheet's (its own listener).
+export async function runStoresAction(button) {
   const action = button.dataset.storesAction;
+  if (action === "benchmark") openBenchmarkSheet();
   if (action === "import") await importLatest(button);
   if (action === "copy-steps") await copySteps();
   if (action === "recommended") await loadRecommended();
@@ -131,7 +135,6 @@ export async function onStoresClick(event) {
   if (action === "retry-sim") scheduleSimulate(0);
   if (action === "set-baseline") openSetBaselineConfirm();
   if (action === "reset-baseline") await resetBaseline();
-  if (action === "detail") await openItemSheet(Number(button.closest("[data-item-id]").dataset.itemId), "prices");
 }
 
 // Search-only repaint (#193): a keystroke in the shared search box must not
@@ -154,10 +157,9 @@ export function loadStoresChecks() {
 
 export function onStoresChange(event) {
   if (state.mode !== "stores" || !event.target.matches("[data-stores-pick]")) return;
-  const id = Number(event.target.closest("[data-item-id]").dataset.itemId);
+  const id = Number(event.target.closest("[data-id]").dataset.id);
   setPick(id, event.target.value);
   repaintRow(id);
-  local.actionNote = null;
   paintActions();
   scheduleSimulate();
 }

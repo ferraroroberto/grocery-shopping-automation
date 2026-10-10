@@ -238,13 +238,15 @@ function storeRowMarkup(d, s) {
     s.is_list_store ? chip("in list") : "",
     s.is_basket_store ? chip("benchmarked from") : "",
   ].join("");
+  // Labelled 44px links, not the raw URL (TOUCH-01, #257): the address
+  // itself is one tap away in the edit form, and in the link's tooltip.
   const link = s.url
-    ? `<a class="review-url" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.url)}</a>`
+    ? reviewLink(s.url, `Open at ${s.store_name}`)
     : `<span class="meta">No link yet</span>`;
   const kind = s.url_kind && s.url_kind !== "product"
     ? `<span class="review-note">${icon(s.url_kind === "search" ? "search" : "circle-alert")}This link ${esc(LINK_NOTE[s.url_kind] || "may not open the product")}</span>` : "";
   const benchLink = s.benchmark_url && s.benchmark_url !== s.url
-    ? `<span class="review-note">Benchmark priced <a class="review-url" href="${esc(s.benchmark_url)}" target="_blank" rel="noopener noreferrer">${esc(s.benchmark_url)}</a></span>` : "";
+    ? reviewLink(s.benchmark_url, "Open the product the benchmark priced") : "";
   const changed = s.benchmark_changed
     ? `<span class="review-warn">${icon("circle-alert")}The benchmark changed since you saved this override.</span>` : "";
   const unit = s.unit || "";
@@ -263,6 +265,10 @@ function storeRowMarkup(d, s) {
         aria-expanded="${editing}" aria-label="Edit ${esc(s.store_name)}">${icon(editing ? "x" : "pencil")}</button></td>
   </tr>`;
   return editing ? row + `<tr class="review-edit-row"><td colspan="8">${editFormMarkup(d, s)}</td></tr>` : row;
+}
+
+function reviewLink(url, label) {
+  return `<a class="review-url" href="${esc(url)}" target="_blank" rel="noopener noreferrer" title="${esc(url)}">${icon("external-link")}<span>${esc(label)}</span></a>`;
 }
 
 // A page option the cart automation picks for this product (#179), e.g. the

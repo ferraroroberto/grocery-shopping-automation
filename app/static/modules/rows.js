@@ -7,25 +7,28 @@
 import { chip, esc, html, icon } from "./dom.js";
 
 // `lead`: { pressed, action, label } for the leading check (an item got), or
-// null. `chip`: { label, tone } closing the meta line, for an exception only.
-// `trail`: the markup of the one trailing item (stepper(), rowValue(),
-// rowLink(), rowVerb()). `attrs`: the row's data-* hooks. `open: false` keeps
-// the row inert (a free-text quick-add has no item to open).
-export function itemRow({ title, meta = "", chip: status = null, lead = null, trail = "", attrs = "", open = true, struck = false }) {
+// null. `chip`: { label, tone, title? } closing the meta line, for an
+// exception only. `trail`: the markup of the one trailing item (stepper(),
+// rowValue(), rowLink(), rowVerb(), a picker). `attrs`: the row's data-*
+// hooks. `open: false` keeps the row inert (a free-text quick-add has no item
+// to open). Optional, for Prices (#257): `page`, the item sheet page a row tap
+// opens; `className`, an extra class on the row; `after`, a full-width line
+// under the row (the store reference pills).
+export function itemRow({ title, meta = "", chip: status = null, lead = null, trail = "", attrs = "", open = true, struck = false, page = "", className = "", after = "" }) {
   const name = struck ? `<s>${html(title)}</s>` : html(title);
   const metaLine = meta || status
-    ? `<span class="action-row-meta">${esc(meta)}${status ? `${meta ? " " : ""}${chip(status.label, status.tone)}` : ""}</span>`
+    ? `<span class="action-row-meta">${esc(meta)}${status ? `${meta ? " " : ""}${chip(status.label, status.tone, status.title)}` : ""}</span>`
     : "";
   const body = `<span class="action-row-title">${name}</span>${metaLine}`;
   const main = open
-    ? `<button type="button" class="action-row-main" data-action="open-item" aria-haspopup="dialog">${body}</button>`
+    ? `<button type="button" class="action-row-main" data-action="open-item"${page ? ` data-sheet-page="${page}"` : ""} aria-haspopup="dialog">${body}</button>`
     : `<div class="action-row-main">${body}</div>`;
   const check = lead
     ? `<button type="button" class="icon-button action-row-check" data-action="${lead.action}" aria-pressed="${lead.pressed}" aria-label="${esc(lead.label)}">
         ${icon("circle", "action-row-check-off")}${icon("circle-check", "action-row-check-on")}
       </button>`
     : "";
-  return `<li class="action-row item-row" ${attrs}>${check}${main}${trail}</li>`;
+  return `<li class="action-row item-row${className ? ` ${className}` : ""}" ${attrs}>${check}${main}${trail}${after}</li>`;
 }
 
 // The list the rows sit in: a full-bleed action-list card, or bare rows when
