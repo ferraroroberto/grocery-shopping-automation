@@ -234,8 +234,9 @@ el.app.addEventListener("click", async (event) => {
   if (action === "current-plus") await mutate(`/api/items/${id}/current-delta`, { delta: 1 });
   if (action === "target-minus") await mutate(`/api/items/${id}/target-delta`, { delta: -1 });
   if (action === "target-plus") await mutate(`/api/items/${id}/target-delta`, { delta: 1 });
-  // A row tap opens the item sheet (#255), wherever the row is.
-  if (action === "open-item") await openItemSheet(id);
+  // A row tap opens the item sheet (#255), wherever the row is; a Prices row
+  // opens it on Stores & prices (#257).
+  if (action === "open-item") await openItemSheet(id, event.target.closest("[data-sheet-page]")?.dataset.sheetPage);
   if (action === "mark-buy") { state.shopping.bought.add(id); saveShoppingState(); render(); }
   if (action === "undo-buy") { state.shopping.bought.delete(id); saveShoppingState(); render(); }
   const extraCard = event.target.closest("[data-extra-id]");

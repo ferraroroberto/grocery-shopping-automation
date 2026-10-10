@@ -348,6 +348,5 @@ function onSheetClose() {
   showPage("main");
   if (state.mode === "stores") paintList();
   else render();
-  (document.querySelector(`.store-row[data-item-id="${id}"] [data-stores-action="detail"]`)
-    || document.querySelector(`.item-row[data-id="${id}"] .action-row-main`))?.focus();
+  document.querySelector(`.item-row[data-id="${id}"] .action-row-main`)?.focus();
 }

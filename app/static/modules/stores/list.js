@@ -2,7 +2,8 @@
 // repaint helpers the rest of the view calls after a change.
 import { emptyStateEl } from "../../_vendored/empty-state/empty-state.js";
 import { c, filteredItems, state } from "../core.js";
-import { chip, esc, icon } from "../dom.js";
+import { esc, icon } from "../dom.js";
+import { itemRow } from "../rows.js";
 import { FILTERS, STORE_FILTER_KEY, currentStore, eur, itemById, local, pickFor, plural, storeName, writeStored } from "./state.js";
 
 // Review flags (src/store_links.CHECK_FLAGS): badge wording + the longer reason.
@@ -62,10 +63,17 @@ export function flagLabel(flag) {
 // Checked filter still lists them.
 function reviewBadge(item) {
   const flags = reviewState(item) === "needs" ? local.checks.checks[String(item.id)] : [];
-  if (!flags.length) return "";
-  return chip(`${flagLabel(flags[0])}${flags.length > 1 ? ` +${flags.length - 1}` : ""}`, "attention", flags.map(flagLabel).join(", "));
+  if (!flags.length) return null;
+  return {
+    label: `${flagLabel(flags[0])}${flags.length > 1 ? ` +${flags.length - 1}` : ""}`,
+    tone: "attention",
+    title: flags.map(flagLabel).join(", "),
+  };
 }
 
+// One Prices row (#257) on the shared item row: a tap opens the item sheet on
+// Stores & prices (it replaced the pencil), the what-if picker is the one
+// trailing item, and the store links wrap under it as reference pills.
 function rowMarkup(item, inUse = storesInUse()) {
   const cols = c();
   const today = currentStore(item);
@@ -77,16 +85,15 @@ function rowMarkup(item, inUse = storesInUse()) {
   const name = item[cols.comida] ?? "";
   const options = [...new Set([today, ...Object.keys(urls)].filter(Boolean))];
   const meta = !options.length || !Object.keys(item.urls || {}).length
-    ? `${today ? `${esc(storeName(today))} · ` : ""}No store links yet`
-    : pick !== today ? `What-if · in list ${esc(storeName(today))}` : `Bought at ${esc(storeName(today))}`;
+    ? `${today ? `${storeName(today)} · ` : ""}No store links yet`
+    : pick !== today ? `What-if · in list ${storeName(today)}` : `Bought at ${storeName(today)}`;
   const select = options.length > 1
-    ? `<select class="field store-pick" data-stores-pick aria-label="Buy ${esc(name)} at">${options.map((key) =>
+    ? `<select class="field store-pick action-row-trail" data-stores-pick aria-label="Buy ${esc(name)} at">${options.map((key) =>
         `<option value="${esc(key)}"${key === pick ? " selected" : ""}>${esc(storeName(key))}${key === today ? " (in list)" : ""}</option>`).join("")}</select>`
     : "";
-  // The picked store leads, then the cheapest: with up to nine links on one
-  // swipeable line, what matters must not start off-screen (LAYOUT-03,
-  // accepted in .fleet.toml — issue #194: one-tap product links per store
-  // are how the list is used, so each chip opens that store's product page).
+  // The picked store leads, then the cheapest (LAYOUT-03, accepted in
+  // .fleet.toml — issue #194: one-tap product links per store are how the
+  // list is used, so each pill opens that store's product page).
   const rank = ([key]) => (key === pick ? -1 : prices[key] ?? Number.MAX_VALUE);
   const chips = Object.entries(urls).sort((a, b) => rank(a) - rank(b)).map(([key, url]) => {
     const price = prices[key];
@@ -100,17 +107,16 @@ function rowMarkup(item, inUse = storesInUse()) {
       ? `<a class="${cls}" href="${esc(url)}" target="_blank" rel="noopener noreferrer" aria-label="${esc(label)}"${kind ? ` title="${esc(LINK_NOTE[kind])}"` : ""}>${body}</a>`
       : `<span class="${cls}"${kind ? ` title="${esc(LINK_NOTE[kind])}"` : ""}>${body}</span>`;
   }).join("");
-  return `<li class="store-row" data-item-id="${item.id}">
-    <div class="store-row-head">
-      <div class="store-row-text">
-        <span class="store-row-title">${esc(name)}</span>
-        <span class="store-row-line">${reviewBadge(item)}<span class="store-row-meta">${meta}</span></span>
-      </div>
-      ${select}
-      <button type="button" class="icon-button" data-stores-action="detail" aria-label="Review ${esc(name)}: stores, packs and prices">${icon("pencil")}</button>
-    </div>
-    ${chips ? `<div class="store-chips">${chips}</div>` : ""}
-  </li>`;
+  return itemRow({
+    title: name,
+    meta,
+    chip: reviewBadge(item),
+    trail: select,
+    attrs: `data-id="${item.id}"`,
+    page: "prices",
+    className: "store-row",
+    after: chips ? `<div class="store-chips">${chips}</div>` : "",
+  });
 }
 
 // All · Needs checking (n) · Checked (n) — composes with the search box and
@@ -187,11 +193,11 @@ export function paintList() {
 }
 
 export function repaintRow(id) {
-  const row = document.querySelector(`.store-row[data-item-id="${id}"]`);
+  const row = document.querySelector(`.store-row[data-id="${id}"]`);
   const item = itemById(id);
   if (!row || !item) return;
   const hadFocus = row.contains(document.activeElement);
   row.outerHTML = rowMarkup(item);
   // The picker was just used — keep keyboard focus on it across the repaint.
-  if (hadFocus) document.querySelector(`.store-row[data-item-id="${id}"] [data-stores-pick]`)?.focus();
+  if (hadFocus) document.querySelector(`.store-row[data-id="${id}"] [data-stores-pick]`)?.focus();
 }

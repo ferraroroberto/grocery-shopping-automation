@@ -35,8 +35,7 @@ export const local = {
   filter: storedFilter(),                   // all | needs | checked
   stores: storedStores(),                   // list stores the rows are narrowed to; none = every store
   targetOnly: readStored(TARGET_ONLY_KEY, false) === true, // only rows with a target (cantidad) above 0
-  note: null,         // { kind: "ok" | "error", text, warning? } — header feedback
-  actionNote: null,   // { kind, text } — actions card feedback
+  note: null,         // { kind: "ok" | "error", text, warning? } — the last import, on the Benchmark sheet
   timer: 0,
   seq: 0,
   preview: [],        // apply-preview changes shown in the apply dialog

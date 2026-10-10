@@ -502,7 +502,7 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
 .big-btn.danger:active { background: var(--danger-soft); }
 /* Glyph-only rows sit at the control height: the icon-button box is the 44px
    floor, so neighbours at the row gap never overlap targets. */
-.search-bar, .candidate-actions, .review-cell-edit, .store-row-head { --icon-btn-box: var(--hit-min); }
+.search-bar, .candidate-actions, .review-cell-edit { --icon-btn-box: var(--hit-min); }
 
 /* Accent-ghost feature button — home-automation's .big-btn recipe verbatim
    (Net tab "Run speed test"): accent tint fill, accent text, soft accent
@@ -733,13 +733,27 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 .chip[data-tone="attention"] { background: color-mix(in srgb, var(--attention) 16%, transparent); color: var(--attention-text); }
 .chip[data-tone="danger"] { background: var(--danger-soft); color: var(--danger-text); }
 
-/* ------------------------------------------------- Items → Stores (#148) */
-.stores-head > * + *,
-.stores-sim > * + *,
-.stores-actions > * + * { margin-top: var(--gap); }
-.stores-head p, .stores-sim p { margin-bottom: 0; }
-#stores-unpriced:empty { display: none; }  /* no empty grid slot (double gap) */
+/* ------------------------------------------------- Items → Prices (#148) */
+/* The glance card (#257): the figure and its delta, the frequency, the one
+   action, then the footer row to the Benchmark sheet on a hairline. */
+.stores-glance > * + * { margin-top: var(--gap); }
+.stores-glance p { margin-bottom: 0; }
+.stores-glance-foot { margin-bottom: calc(-1 * var(--space-xs)); border-top: 1px solid var(--line-muted); }
+.stores-glance-foot .action-row { padding: 0; }
 .panel-status.warn { color: var(--attention); display: flex; align-items: center; gap: var(--space-xs); }
+.panel-status.warn .icon { width: var(--icon-inline); height: var(--icon-inline); }
+
+/* The Benchmark sheet: overline-headed sections, the run as label/value rows. */
+.benchmark-sheet .stores-dialog-body { display: grid; gap: var(--space-lg); }
+.benchmark-section { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-sm); }
+.benchmark-section p { margin: 0; }
+.benchmark-rows { margin: 0; }
+.benchmark-row { display: flex; align-items: center; justify-content: space-between; gap: var(--gap); min-height: var(--row-sm); }
+.benchmark-row + .benchmark-row { border-top: 1px solid var(--line-muted); }
+.benchmark-row dt { font-weight: 600; color: var(--ink); }
+.benchmark-row dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.benchmark-actions { display: grid; gap: var(--space-sm); }
+.stores-unpriced { border-top: 1px solid var(--line-muted); }
 
 .stores-total { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-sm); flex-wrap: wrap; }
 .stores-total strong { display: block; font-size: var(--font-heading-lg); font-variant-numeric: tabular-nums; }
@@ -761,39 +775,26 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 .stores-store-name { font-weight: 600; }
 .stores-store-figures { flex-basis: 100%; color: var(--muted); font-size: var(--font-label); font-variant-numeric: tabular-nums; }
 
-.stores-buttons { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-sm); }
-.stores-buttons .big-btn { font-size: var(--font-label); }
-
-/* Item list: flat list-rows on a hairline (design.md list-row / action-row).
-   Head = name + one meta line, then the what-if picker and the 44px edit
-   button; the store links follow on one swipeable line so a row never
-   grows past the phone width. */
 /* LAYOUT-02: the re-homed global search (app.js) lives here, in the list's
    own card, instead of the toolbar section above the pane — so it filters
-   the Stores list without a second, duplicate search box on screen. */
+   the Prices list without a second, duplicate search box on screen. */
 #stores-search-slot:not(:empty) { margin-top: var(--gap); }
-.store-rows { list-style: none; margin: 0; padding: 0; }
-.store-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-sm); padding: 12px 0; }
-.store-row + .store-row { border-top: 1px solid var(--line-muted); }
-.store-row-head { display: flex; align-items: center; gap: var(--space-sm); min-height: var(--row-sm); }
-.store-row-text { flex: 1; min-width: 0; display: grid; }
-.store-row-line { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; }
-.store-row-title, .store-row-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.store-row-line .store-row-meta { flex: 0 1 auto; min-width: 0; }
-.store-row-line .chip { flex: none; }
-.store-row-title { font-weight: 600; }
-.store-row-meta { color: var(--muted); font-size: var(--font-label); }
-.store-row-head .store-pick { flex: 0 1 auto; width: auto; max-width: 45%; }
+/* Prices rows (#257): the shared item row — a tap opens the item sheet on
+   Stores & prices, the what-if picker is the one trailing item — with the
+   store links wrapping under it as reference pills. The rows bleed to the
+   card's edges like a disclosure body's, so the text lines up with it. */
+.stores-list-card > .store-rows { margin: var(--space-sm) -14px 0; }
+.store-row { flex-wrap: wrap; }
+.store-row .store-pick { flex: 0 1 auto; width: auto; max-width: 45%; }
+/* The top padding holds the pills' 4px hit-area expansion, so it never
+   reaches into the row's own tap target above (TOUCH-02). */
 .store-chips {
+  flex: 0 0 100%;
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: var(--space-sm);
-  overflow-x: auto;
-  scrollbar-width: none;
-  padding: 2px;          /* room for the focus ring inside the scroller */
-  margin: -2px;
+  padding: var(--space-xs) 10px 12px;
 }
-.store-chips::-webkit-scrollbar { display: none; }
 .store-chip {
   flex: none;
   display: inline-flex;
@@ -836,7 +837,7 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 .detail-card .apply-row .row { border-top: 0; padding: var(--space-xs) 0 0; }
 .detail-card .apply-row .row .input-native:is(.apply-qty, .apply-stock) { min-width: 0; width: 96px; text-align: center; font-weight: 700; }
 .apply-flag { margin: 0; display: flex; align-items: flex-start; gap: var(--space-xs); color: var(--attention); font-size: var(--font-label); }
-.apply-flag .icon { flex: none; margin-top: 0.2em; }
+.apply-flag .icon { flex: none; width: var(--icon-inline); height: var(--icon-inline); margin-top: 0.1em; }
 .apply-row.is-blocked .apply-row-title { color: var(--muted); }
 .apply-row-names { overflow-wrap: anywhere; }
 
@@ -844,7 +845,7 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
    header stays short on a phone. */
 .stores-status { margin: 0; color: var(--muted); font-size: var(--font-label); }
 .stores-due { color: var(--attention); font-weight: 600; }
-.stores-due .icon { margin-right: var(--space-xs); }
+.stores-due .icon { width: var(--icon-inline); height: var(--icon-inline); margin-right: var(--space-xs); }
 .stores-howto { border-top: 1px solid var(--line-muted); border-bottom: 1px solid var(--line-muted); }
 .stores-howto[open] { padding-bottom: var(--gap); }
 .stores-howto > * + * { margin-top: var(--space-sm); }
@@ -986,7 +987,7 @@ a.button-tint[data-open-link-page] {
 .review-warn, .review-note { display: flex; align-items: flex-start; gap: var(--space-xs); margin: 0; font-size: var(--font-label); }
 .review-warn { color: var(--attention); }
 .review-note { color: var(--muted); }
-.review-warn .icon, .review-note .icon { flex: none; margin-top: 0.2em; }
+.review-warn .icon, .review-note .icon { flex: none; width: var(--icon-inline); height: var(--icon-inline); margin-top: 0.1em; }
 
 /* Quantity check: label / value lines, then target + stock with their pack,
    each as the sheet holds it, beside the suggestion it can take. */
@@ -1021,7 +1022,19 @@ a.button-tint[data-open-link-page] {
 .review-cell-product > * + * { margin-top: var(--space-xs); }
 .review-product-name { font-weight: 600; }
 .review-option { display: block; margin: 4px 0; }
-.review-url { color: var(--accent); overflow-wrap: anywhere; }
+/* A store's product link: a labelled 44px target, never the raw URL (TOUCH-01, #257). */
+.review-cell-product > .review-url {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  width: fit-content;
+  max-width: 100%;
+  min-height: var(--hit-min);
+  color: var(--accent-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+.review-url .icon { flex: none; width: var(--icon-inline); height: var(--icon-inline); }
 .review-bench { display: block; color: var(--muted); }
 .review-cell-num .chip { margin-top: var(--space-xs); }
 .review-cell-edit { text-align: right; }

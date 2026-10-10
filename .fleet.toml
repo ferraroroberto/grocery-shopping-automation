@@ -29,7 +29,7 @@ notify = { src = "src/notify", sha = "aa820f1215151087588433f290cd2ba55b34658d",
 
 [[design.accepted]]
 rule   = "LAYOUT-03"
-reason = "Stores rows keep one-tap product links per store beside the picker and the edit button — household decision (the #153 round had made them labels)"
+reason = "Prices rows keep one-tap product links per store as wrapping pills under the picker, the row tap opening the item sheet (#257) — household decision (the #153 round had made them labels)"
 record = "https://github.com/ferraroroberto/grocery-shopping-automation/issues/194"
 
 # [design.review] -- the rendered design review's walk (fleet-config
@@ -51,12 +51,12 @@ theme_storage_key = "grocery.theme"
 # starts a recording, spends money, or launches an external process/window.
 no_go = [
     ".detail-save-btn",                       # every dialog's Save/Apply (login Unlock, Set baseline, Review & apply's Apply, the item sheet's Save, the Add item sheet's Add item)
-    '[data-stores-action="review"]',          # Items -> Prices: Review & apply...
-    '[data-stores-action="set-baseline"]',    # Items -> Prices: Set as baseline
-    '[data-stores-action="reset-baseline"]',  # Items -> Prices: Reset to benchmark
-    '[data-stores-action="import"]',          # Items -> Prices: Import latest run
-    '[data-stores-action="recommended"]',     # Items -> Prices: Load recommended plan
-    '[data-stores-action="reset"]',           # Items -> Prices: Reset to my list
+    '[data-stores-action="review"]',          # Items -> Prices glance: Review & apply
+    '[data-stores-action="set-baseline"]',    # Prices -> Benchmark sheet: Set as baseline
+    '[data-stores-action="reset-baseline"]',  # Prices -> Benchmark sheet: Reset to benchmark
+    '[data-stores-action="import"]',          # Prices -> Benchmark sheet: Import latest run (also its footer primary)
+    '[data-stores-action="recommended"]',     # Prices glance + Benchmark sheet: Load recommended plan
+    '[data-stores-action="reset"]',           # Prices -> Benchmark sheet: Reset to my list
     "[data-review-checked]",                  # item sheet > Stores & prices: Checked toggle
     "[data-review-reset]",                    # item sheet > Stores & prices: per-store Reset to benchmark
     '.review-edit button[type="submit"]',     # item sheet > Stores & prices: per-store override Save
@@ -110,14 +110,22 @@ id        = "stores"
 click     = '#pane-items [data-mode="stores"]'
 synthetic = false
 
-# Stores takes a moment to load its price simulator (GET /api/stores then
-# /api/stores/checks) before a row's pencil attaches -- relies on the walk's
-# own 5s STEP_TARGET_WAIT_MS rather than a hand-added wait. The pencil opens
-# the item sheet (#255) on its Stores & prices page.
+# Prices takes a moment to load its price simulator (GET /api/stores then
+# /api/stores/checks) before its rows attach -- relies on the walk's own 5s
+# STEP_TARGET_WAIT_MS rather than a hand-added wait. A row tap opens the item
+# sheet (#255) on its Stores & prices page (#257).
 [[design.review.extra_steps]]
 tab       = "items"
 id        = "stores-detail"
-clicks    = ['#pane-items [data-mode="stores"]', '[data-stores-action="detail"]']
+clicks    = ['#pane-items [data-mode="stores"]', '#pane-items .store-row .action-row-main']
+synthetic = false
+
+# The Benchmark sheet (#257) the glance card's footer row opens. Opening it
+# only reads; its import, plan and baseline buttons are no_go.
+[[design.review.extra_steps]]
+tab       = "items"
+id        = "stores-benchmark"
+clicks    = ['#pane-items [data-mode="stores"]', '[data-stores-action="benchmark"]']
 synthetic = false
 
 # The item sheet (#255) every item row opens: its main page (steppers, link

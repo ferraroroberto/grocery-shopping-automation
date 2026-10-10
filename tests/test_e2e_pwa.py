@@ -74,6 +74,16 @@ def open_add_sheet(page):
     return sheet
 
 
+def open_benchmark_sheet(page):
+    """Items -> Prices -> the glance card's Benchmark row -> its sheet (#257)."""
+    if not page.locator("#pane-items .stores-glance").is_visible():
+        goto_mode(page, "stores")
+    page.click("[data-stores-action='benchmark']")
+    sheet = page.locator("#stores-benchmark-sheet")
+    sheet.wait_for()
+    return sheet
+
+
 def _free_port() -> int:
     sock = socket.socket()
     sock.bind(("127.0.0.1", 0))
@@ -410,7 +420,7 @@ def _open_sheet_from(page, mode: str, name: str):
 def test_item_sheet_opens_everywhere_edits_and_deletes(page, server):
     """The item sheet (#255) is the one place an item is edited, opened from
     every row that shows it: Home, Shop, Audit, the Items list (#256), and
-    the Prices list's pencil (onto its Stores & prices page). Its staged
+    a Prices row (onto its Stores & prices page, #257). Its staged
     Save posts the whole row as the old Edit item form did: a blank cell stays
     blank, never the "-" placeholder (#228), and Esc discards. Delete asks in
     the in-app confirm sheet, never the browser's confirm() (#254)."""
@@ -437,7 +447,10 @@ def test_item_sheet_opens_everywhere_edits_and_deletes(page, server):
         sheet.wait_for(state="hidden")
     page.fill("#search", "")
     goto_mode(page, "stores")
-    page.locator(".store-row", has_text=name).locator("[data-stores-action='detail']").click()
+    # The row tap replaced the pencil (#257): no edit button left on the row.
+    store_row = page.locator(".store-row", has_text=name)
+    assert store_row.locator(".icon-button").count() == 0
+    store_row.locator(".action-row-main").click()
     sheet = page.locator("#item-sheet")
     sheet.wait_for()
     assert sheet.get_attribute("data-page") == "prices"
@@ -545,9 +558,9 @@ def test_phone_geometry_fits_and_targets_meet_the_floor(browser, server):
             # effective target, via the shared ::before hit area or real 44px geometry.
             assert_min_target(pg.locator("button:visible, select:visible, textarea:visible, summary:visible, "
                                          "input:not([type=hidden]):visible"))
-            if mode in ("audit", "list"):
-                # J-01/J-10 (#252): one stepper (or value) per row leaves the
-                # item's name the room to be read at 390px.
+            if mode in ("audit", "list", "stores"):
+                # J-01/J-10 (#252): one stepper (or value, or Prices' picker,
+                # #257) per row leaves the item's name the room to be read at 390px.
                 widths = pg.locator("main > .pane:not([hidden]) .item-row .action-row-title").evaluate_all(
                     "els => els.map((e) => e.getBoundingClientRect().width)")
                 assert widths and min(widths) >= 150, f"{mode}: name squeezed to {min(widths or [0]):.0f}px"
@@ -557,13 +570,14 @@ def test_phone_geometry_fits_and_targets_meet_the_floor(browser, server):
         search, add = pg.locator("#search").bounding_box(), pg.locator("#items-add").bounding_box()
         assert abs(search["y"] - add["y"]) < 1 and search["x"] + search["width"] <= add["x"], (search, add)
         assert search["width"] > add["width"] and add["x"] + add["width"] <= 390, (search, add)
-        # The item sheet (#255) and the Add item sheet (#256): every button
-        # keeps the floor without overlapping, and neither sheet scrolls sideways.
+        # The item sheet (#255), the Add item sheet (#256) and the Benchmark
+        # sheet (#257): every button keeps the floor without overlapping, and
+        # no sheet scrolls sideways.
         def open_item_sheet():
             pg.locator("#pane-items .item-row .action-row-main").first.click()
             return pg.locator("#item-sheet")
 
-        for opener in (open_item_sheet, lambda: open_add_sheet(pg)):
+        for opener in (open_item_sheet, lambda: open_add_sheet(pg), lambda: open_benchmark_sheet(pg)):
             sheet = opener()
             sheet.wait_for()
             assert_min_target(sheet.locator("button:visible"))
@@ -697,11 +711,31 @@ def test_stores_plan_simulate_and_apply(page, server):
     the burger to Carrefour, its target converted by pack size (3 × 0.3 kg →
     2 × 0.6 kg). Then the per-item review (#165): the moved burger needs
     checking; its detail shows the quantity maths, a price override moves the
-    simulator and the chip until it is reset, and Checked clears it."""
+    simulator and the chip until it is reset, and Checked clears it.
+
+    The glance card (#257) leads with the cost, its delta and the one action;
+    the run's status, the import, the plan actions and the breakdown live in
+    the Benchmark sheet its footer row opens."""
     goto_mode(page, "stores")
-    page.click("[data-stores-action='import']")
-    page.wait_for_selector(".stores-head .panel-status.ok")
+    glance = page.locator("#stores-sim")
+    assert glance.evaluate("el => el.closest('.pane-body').firstElementChild === el"), "glance card is not first"
+    bench = open_benchmark_sheet(page)
+    bench.locator(".detail-save-btn").click()  # Import latest run, the sheet's one primary
+    bench.locator(".panel-status.ok").wait_for()
     page.wait_for_selector("#stores-sim[data-state='ready']")
+    # Benchmark status: run date and the review due 90 days later, plus the copyable steps.
+    bench.locator(".stores-status").wait_for()
+    status = bench.locator(".stores-status").inner_text()
+    assert "2026-01-15" in status and "2026-04-15" in status
+    assert bench.locator("[data-stores-action='copy-steps']").count() == 1
+    assert "Pricing" not in bench.locator(".benchmark-section", has_text="Cost breakdown").inner_text()
+    bench.locator("[data-dialog-close]").click()
+    bench.wait_for(state="hidden")
+    # The footer row names the run's exception (the fixture's review is overdue).
+    foot = glance.locator("[data-stores-action='benchmark'] .sheet-link-value")
+    assert (foot.inner_text(), foot.get_attribute("data-tone")) == ("Review due", "attention")
+    # One primary on the glance card: the recommended plan until a pick differs.
+    assert glance.locator(".button-primary").all_inner_texts() == ["Load recommended plan"]
     # LAYOUT-02: the Stores list gets its own filter input in the list's own
     # card (the re-homed global toolbar search), not a second search box.
     assert page.locator(".stores-list-card input[type='search']").count() == 1
@@ -738,20 +772,21 @@ def test_stores_plan_simulate_and_apply(page, server):
     assert page.evaluate("document.querySelector('#stores-sim')?.__regression193") is True
     page.fill("#search", "")
     page.wait_for_function(f"document.querySelectorAll('.store-row').length === {all_row_count}")
-    # Benchmark status: run date and the review due 90 days later, plus the copyable steps.
-    status = page.locator(".stores-status").inner_text()
-    assert "2026-01-15" in status and "2026-04-15" in status
-    assert page.locator("[data-stores-action='copy-steps']").count() == 1
     today_total = page.locator(".stores-total strong").inner_text()
 
-    page.click("[data-stores-action='recommended']")
+    glance.locator("[data-stores-action='recommended']").click()
     page.wait_for_function(
         "(before) => document.querySelector('.stores-total strong')?.textContent !== before", arg=today_total,
     )
     assert "Saves" in page.locator(".stores-delta").inner_text()
+    # The plan differs from the list now, so the one action is Review & apply.
+    page.wait_for_function("document.querySelector('#stores-sim .button-primary')?.dataset.storesAction === 'review'")
+    assert glance.locator(".button-primary").count() == 1
 
-    # Back to the list, then one what-if pick: nothing is written until Apply.
-    page.click("[data-stores-action='reset']")
+    # Back to the list (from the Benchmark sheet, which closes), then one
+    # what-if pick: nothing is written until Apply.
+    open_benchmark_sheet(page).locator("[data-stores-action='reset']").click()
+    bench.wait_for(state="hidden")
     page.wait_for_function(
         "(before) => document.querySelector('.stores-total strong')?.textContent === before", arg=today_total,
     )
@@ -761,20 +796,26 @@ def test_stores_plan_simulate_and_apply(page, server):
     page.click("[data-stores-showall]")
     page.wait_for_selector(".store-row .store-chip:has-text('Carrefour')")
     burger = page.locator(".store-row", has_text="burguer ternera").first
+    # The store links wrap as reference pills (#257): none starts off-screen.
+    assert burger.locator(".store-chips").evaluate("el => el.scrollWidth <= el.clientWidth")
+    # TOUCH-02: the pills' expanded hit areas never reach into the row's tap target.
+    assert_no_overlap(burger.locator(".action-row-main, .store-chip, [data-stores-pick]"))
     burger.locator("[data-stores-pick]").select_option("carrefour")
     page.wait_for_function(
         "(before) => document.querySelector('.stores-total strong')?.textContent !== before", arg=today_total,
     )
     assert burger.locator(".store-chip.is-picked").inner_text().startswith("Carrefour")
 
-    page.click("[data-stores-action='review']")
+    assert glance.locator(".button-primary").inner_text() == "Review & apply (1)"
+    glance.locator("[data-stores-action='review']").click()
     row = page.locator("#stores-apply-dialog .apply-row")
     row.first.wait_for()
     assert row.count() == 1
     assert row.first.locator(".apply-qty").input_value() == "2"
     page.click("#stores-apply-dialog .detail-save-btn")
-    page.wait_for_selector("#stores-action-status.ok")
+    page.wait_for_function("document.querySelector('#toast')?.textContent === 'Applied 1 change'")
     assert not page.locator("#stores-apply-dialog").is_visible()
+    assert glance.locator(".button-primary").inner_text() == "Load recommended plan"
 
     item = next(i for i in page.request.get(f"{server.url}/api/inventory").json()["items"]
                 if i["comida"] == "burguer ternera")
@@ -820,34 +861,44 @@ def test_stores_plan_simulate_and_apply(page, server):
     assert burger.locator(".chip[data-tone='attention']").inner_text().startswith("Moved store")
     assert page.locator("#items-context").inner_text() == "1 needs checking"
 
-    # ── Baseline (#183): freeze the list as the new "today", confirm shows the
-    # unchecked count, then reset restores the exact prior simulate result.
-    hint = page.locator("#stores-sim .hint").first
-    assert "benchmarked" in hint.inner_text()
+    # ── Baseline (#183), in the Benchmark sheet's cost breakdown: freeze the
+    # list as the new "today", confirm shows the unchecked count (over the
+    # sheet), then reset restores the exact prior simulate result.
+    bench = open_benchmark_sheet(page)
+    hint = "document.querySelector('#stores-benchmark-sheet .stores-today')?.textContent"
+    assert "benchmarked" in bench.locator(".stores-today").inner_text()
     before_baseline_total = page.locator(".stores-total strong").inner_text()
-    page.click("[data-stores-action='set-baseline']")
+    bench.locator("[data-stores-action='set-baseline']").click()
     baseline_dialog = page.locator("#stores-baseline-dialog")
     baseline_dialog.wait_for()
     assert "1 item" in baseline_dialog.inner_text() and "checking" in baseline_dialog.inner_text()
     baseline_dialog.locator(".detail-save-btn").click()
     page.wait_for_function("() => !document.querySelector('#stores-baseline-dialog').open")
-    page.wait_for_function("() => document.querySelector('#stores-sim .hint')?.textContent.includes('baseline')")
+    page.wait_for_function(f"() => {hint}.includes('baseline')")
+    assert bench.is_visible()
     assert "Same as today" in page.locator(".stores-delta").inner_text()
-    page.click("[data-stores-action='reset-baseline']")
-    page.wait_for_function("() => !document.querySelector('#stores-sim .hint')?.textContent.includes('baseline')")
+    bench.locator("[data-stores-action='reset-baseline']").click()
+    page.wait_for_function(f"() => !{hint}.includes('baseline')")
     page.wait_for_function(
         "(before) => document.querySelector('.stores-total strong')?.textContent === before", arg=before_baseline_total,
     )
+    bench.locator("[data-dialog-close]").click()
+    bench.wait_for(state="hidden")
     total = page.locator(".stores-total strong").inner_text()
 
-    # The pencil opens the item sheet (#255) straight onto Stores & prices.
-    burger.locator("[data-stores-action='detail']").click()
+    # A row tap opens the item sheet (#255) straight onto Stores & prices (#257).
+    burger.locator(".action-row-main").click()
     dialog = page.locator("#item-sheet")
     dialog.locator("tr[data-review-store='carrefour']").wait_for()
     assert dialog.get_attribute("data-page") == "prices"
     # The cut the cart picks for that product is shown on its store row (#179).
     assert dialog.locator("tr[data-review-store='carrefour'] .review-option").inner_text().startswith("Cut: Fileteado")
     assert dialog.locator("tr[data-review-store='ametller'] .review-option").count() == 0
+    # TOUCH-01 (#257): a store's link is a labelled 44px target, not the raw URL.
+    link = dialog.locator("tr[data-review-store='ametller'] .review-url").first
+    assert link.inner_text() == "Open at Ametller Origen"
+    assert link.get_attribute("href").startswith("https://www.ametllerorigen.com/")
+    assert link.bounding_box()["height"] >= 44
     # Wide on a desktop, no sideways scroll on a phone.
     page.set_viewport_size({"width": 1280, "height": 900})
     assert dialog.bounding_box()["width"] >= 900
@@ -898,7 +949,7 @@ def test_stores_plan_simulate_and_apply(page, server):
     assert (saved["super"], saved["buscador"]) == ("carrefour", item["buscador"])
 
     # Checked is stored server-side and empties the Needs-checking filter.
-    burger.locator("[data-stores-action='detail']").click()
+    burger.locator(".action-row-main").click()
     dialog.locator("[data-review-checked]").click()
     page.wait_for_function(f"({count})('needs') === '0' && ({count})('checked') === '1'")
     assert dialog.locator("[data-review-checked]").get_attribute("aria-checked") == "true"
@@ -1026,17 +1077,23 @@ def test_dialog_controls_are_styled(page, theme):
     assert found["buttons"] == ["Search", "Add item"] and found["selects"] == 2, found
     page.keyboard.press("Escape")
 
-    goto_mode(page, "stores")
-    page.click("[data-stores-action='import']")
+    # The Benchmark sheet (#257): the plan and baseline buttons, full width so
+    # no label wraps (COMP-07), and the import as its one footer primary.
+    bench = open_benchmark_sheet(page)
+    bench.locator(".detail-save-btn").click()
     page.wait_for_selector("#stores-sim[data-state='ready']")
+    bench.locator("[data-stores-action='set-baseline']").wait_for()
+    assert check("stores-benchmark-sheet")["buttons"] == [
+        "Copy steps", "Load recommended plan", "Reset to my list", "Set as baseline", "Import latest run"]
 
-    page.click("[data-stores-action='set-baseline']")
+    bench.locator("[data-stores-action='set-baseline']").click()
     page.locator("#stores-baseline-dialog").wait_for()
     assert check("stores-baseline-dialog")["buttons"] == ["Set baseline"]
     page.locator("#stores-baseline-dialog [data-dialog-close]").click()
+    bench.locator("[data-dialog-close]").click()
 
     burger = page.locator(".store-row", has_text="burguer ternera")
-    burger.locator("[data-stores-action='detail']").click()
+    burger.locator(".action-row-main").click()
     # The item sheet (#255): its Stores & prices page with a store's editor
     # open, its main page (the in-body Delete), and a picker page.
     detail = page.locator("#item-sheet")
@@ -1055,7 +1112,7 @@ def test_dialog_controls_are_styled(page, theme):
     pick = burger.locator("[data-stores-pick]")
     other = pick.evaluate("s => [...s.options].map((o) => o.value).find((v) => v && v !== s.value)")
     pick.select_option(other)
-    page.click("[data-stores-action='review']")
+    page.click("#stores-sim [data-stores-action='review']")
     page.locator("#stores-apply-dialog .apply-row").first.wait_for()
     found = check("stores-apply-dialog")
     assert len(found["buttons"]) == 1 and found["buttons"][0].startswith("Apply") and found["inputs"] >= 2, found

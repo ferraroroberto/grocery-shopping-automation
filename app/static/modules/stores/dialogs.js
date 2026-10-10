@@ -1,5 +1,6 @@
-// Stores: the "Review & apply" dialog (#148) and the baseline confirm/reset (#183).
+// Prices: the "Review & apply" dialog (#148) and the baseline confirm/reset (#183).
 import { emptyStateEl } from "../../_vendored/empty-state/empty-state.js";
+import { showToast } from "../../_vendored/toast/toast.js";
 import { fetchJson } from "../api.js";
 import { render, state } from "../core.js";
 import { esc, icon } from "../dom.js";
@@ -35,7 +36,7 @@ async function submitSetBaseline(dialog) {
   try {
     await fetchJson("/api/stores/baseline", { method: "POST" });
     dialog.close();
-    local.note = { kind: "ok", text: "Baseline set." };
+    showToast("Baseline set");
     render();
     scheduleSimulate(0);
   } catch (error) {
@@ -47,9 +48,9 @@ async function submitSetBaseline(dialog) {
 export async function resetBaseline() {
   try {
     await fetchJson("/api/stores/baseline", { method: "DELETE" });
-    local.note = { kind: "ok", text: "Baseline reset to the benchmark." };
+    showToast("Baseline reset to the benchmark");
   } catch (error) {
-    local.note = { kind: "error", text: error.message };
+    showToast(error.message, "error");
   }
   render();
   scheduleSimulate(0);
@@ -140,7 +141,7 @@ async function submitApply(dialog) {
     state.payload = payload;
     for (const change of changes) delete local.picks[change.id];
     writeStored(PICKS_KEY, local.picks);
-    local.actionNote = { kind: "ok", text: `Applied ${applied} change${applied === 1 ? "" : "s"}` };
+    showToast(`Applied ${applied} change${applied === 1 ? "" : "s"}`);
     dialog.close();
     render();
     scheduleSimulate(0);
