@@ -19,7 +19,7 @@ import { copySteps, importLatest, loadRecommended, resetPicks } from "./actions.
 import { openApplyReview, openSetBaselineConfirm, resetBaseline } from "./dialogs.js";
 import { paintFilter, paintList, repaintRow } from "./list.js";
 import { openItemDetail } from "./review.js";
-import { actionsMarkup, headMarkup, loadMeta, paintActions, paintSim, paintUnpriced, scheduleSimulate } from "./simulator.js";
+import { actionsMarkup, headMarkup, loadChecks, loadMeta, paintActions, paintSim, paintUnpriced, scheduleSimulate } from "./simulator.js";
 import { FILTER_KEY, FREQ_KEY, SHOW_ALL_KEY, STORE_FILTER_KEY, TARGET_ONLY_KEY, local, setPick, writeStored } from "./state.js";
 
 export function renderStores() {
@@ -76,11 +76,7 @@ export async function onStoresClick(event) {
   if (freq) {
     local.frequency = freq.dataset.storesFreq;
     writeStored(FREQ_KEY, local.frequency);
-    document.querySelectorAll("[data-stores-freq]").forEach((b) => {
-      const on = b === freq;
-      b.classList.toggle("active", on);
-      b.setAttribute("aria-checked", String(on));
-    });
+    document.querySelectorAll("[data-stores-freq]").forEach((b) => b.setAttribute("aria-pressed", String(b === freq)));
     scheduleSimulate();
     return;
   }
@@ -143,6 +139,19 @@ export async function onStoresClick(event) {
 export function repaintStoresList() {
   paintList();
 }
+
+// For Items' page header (#254): what still needs checking, once the review
+// state has been read; loadStoresChecks() reads it the first time Items opens.
+export function storesNeedsChecking() {
+  return local.checks?.counts?.needs_checking || 0;
+}
+
+export function loadStoresChecks() {
+  if (!local.checks) loadChecks();
+}
+
+// The item detail opens from any row (#254); the item sheet replaces it (#255).
+export { openItemDetail };
 
 export function onStoresChange(event) {
   if (state.mode !== "stores" || !event.target.matches("[data-stores-pick]")) return;

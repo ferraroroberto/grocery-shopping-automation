@@ -5,7 +5,7 @@
 // modules each own theirs. What is left is genuinely app-wide: the loaded
 // inventory payload, the active mode/zone/query, and the shopping progress
 // (read by both the shopping view and the dashboard's store cards).
-import { icon, text } from "./dom.js";
+import { esc, icon, text } from "./dom.js";
 
 export const TOKEN_KEY = "grocery.authToken";
 export const SHOP_STATE_KEY = "grocery.shoppingState";
@@ -18,7 +18,7 @@ export const SEARCHABLE_MODES = new Set(["dashboard", "audit", "targets", "edit"
 
 // The 9 modes group into the fleet nav's 4 tabs plus Settings, which is never a
 // tab (#200): its pane is opened by the header gear. audit/items tabs re-home
-// their modes as sub-pills (static markup in index.html). Product search lives
+// their modes as a segmented control / sub-pills (static markup in index.html). Product search lives
 // inside Items → Add Item, cart automation ("Fill carts") at the bottom of
 // Shop, Email Watch in Settings (#182).
 export const MODE_TO_TAB = {
@@ -128,6 +128,34 @@ export function setRenderer(fn) {
 
 export function render() {
   renderImpl();
+}
+
+// The page-header lines (app.js owns them) through the same indirection, for
+// a module that changes a count they name without a full render() — a match
+// result, a fresh review read.
+let headerImpl = () => {};
+
+export function setHeaderUpdater(fn) {
+  headerImpl = fn;
+}
+
+export function updateHeaders() {
+  headerImpl();
+}
+
+// One page-header context line (design.md "page header"): the exceptions that
+// apply, each in its tone's text colour (at most two, so a 390px header never
+// cuts the part that matters), else the plain fallback in muted.
+// `exceptions` is [[count, noun, tone], ...] — noun a word, or [one, many] when
+// it agrees with the count; a zero count is not an exception.
+export function setContextLine(selector, exceptions, fallback) {
+  const node = document.querySelector(selector);
+  if (!node) return;
+  const word = (noun, count) => (Array.isArray(noun) ? noun[count === 1 ? 0 : 1] : noun);
+  const parts = exceptions.filter(([count]) => count > 0).slice(0, 2);
+  node.innerHTML = parts.length
+    ? parts.map(([count, noun, tone]) => `<span class="status-part" data-tone="${tone}">${count} ${esc(word(noun, count))}</span>`).join(" · ")
+    : esc(fallback);
 }
 
 // The pane body a mode renders into (each tab's <section class="pane"> holds

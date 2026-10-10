@@ -26,13 +26,12 @@ export function html(value) {
   return esc(text(value));
 }
 
-// Colour-coded current/target, mirroring app/ui_helpers.qty_html:
-// green when stocked (current ≥ target), amber when low, red when empty.
-export function qtyMarkup(current, target) {
-  const cur = Number(current) || 0;
-  const tgt = Number(target) || 0;
-  const cls = cur >= tgt ? "qty-ok" : (cur > 0 ? "qty-low" : "qty-zero");
-  return `<span class="${cls}">${html(current)}</span><span class="meta">/${html(target)}</span>`;
+// The one status chip (design.md "status chip", #254): one class, the tone in
+// data-tone — neutral (a plain fact), accent (work in progress), attention
+// (needs you soon) or danger (broken). Exceptions only: a normal state gets no
+// chip, and success is never one. `title` carries the longer reason, if any.
+export function chip(label, tone = "neutral", title = "") {
+  return `<span class="chip" data-tone="${tone}"${title ? ` title="${esc(title)}"` : ""}>${esc(label)}</span>`;
 }
 
 // A pick-from-a-list field with a "New…" escape hatch, for values that live in

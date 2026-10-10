@@ -7,7 +7,7 @@
 // the canonical transcript. grocery only proxies — VT owns the audio.
 import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
 import { authFetch, fetchJson } from "./api.js";
-import { activePaneBody, c, items, render, state, storedToken } from "./core.js";
+import { activePaneBody, c, items, render, state, storedToken, updateHeaders } from "./core.js";
 import { formatBytes, formatElapsed, html, icon, switchMarkup, text } from "./dom.js";
 import { pickAudioMime } from "./media.js";
 
@@ -169,8 +169,7 @@ export function renderAudio() {
       ).join("")}</div>
     </details>`;
   }).join("");
-  activePaneBody().innerHTML = `<section class="panel">
-    <h2 class="card-title">${icon("mic")}Audio audit</h2>
+  activePaneBody().innerHTML = `<section class="panel" aria-label="Record">
     <div id="audio-health-banner" class="panel-status"></div>
     <div class="hint">Keep the checklist visible while recording. Announce the zone, then item counts in Spanish.</div>
     <button id="record-toggle" class="primary btn-block" type="button">Start recording</button>
@@ -211,7 +210,15 @@ export function setAudioModel(value) {
   renderAudioContext();
 }
 
+// The Audit header's exception (#254): mentions the match tied to no row at all.
+export function audioUnmatchedCount() {
+  if (!audio.matches) return 0;
+  const ids = new Set(items().map((item) => item.id));
+  return (audio.matches.unmatched_mentions || []).filter((m) => !Number.isInteger(m.idx) || !ids.has(m.idx)).length;
+}
+
 function renderMatches() {
+  updateHeaders();
   const target = document.querySelector("#match-results");
   const apply = document.querySelector("#apply-audio");
   if (!target) return;

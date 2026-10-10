@@ -2,7 +2,7 @@
 // repaint helpers the rest of the view calls after a change.
 import { emptyStateEl } from "../../_vendored/empty-state/empty-state.js";
 import { c, filteredItems, state } from "../core.js";
-import { esc, icon } from "../dom.js";
+import { chip, esc, icon } from "../dom.js";
 import { FILTERS, STORE_FILTER_KEY, currentStore, eur, itemById, local, pickFor, plural, storeName, writeStored } from "./state.js";
 
 // Review flags (src/store_links.CHECK_FLAGS): badge wording + the longer reason.
@@ -57,12 +57,13 @@ export function flagLabel(flag) {
   return FLAG_LABELS[flag]?.[0] || flag;
 }
 
+// The reason a row needs checking, as the attention status chip (#254). A
+// checked row is the normal state: no chip (success is never one) — the
+// Checked filter still lists them.
 function reviewBadge(item) {
-  const review = reviewState(item);
-  if (review === "checked") return `<span class="review-badge is-checked">${icon("check")}Checked</span>`;
-  const flags = review ? local.checks.checks[String(item.id)] : [];
+  const flags = reviewState(item) === "needs" ? local.checks.checks[String(item.id)] : [];
   if (!flags.length) return "";
-  return `<span class="review-badge" title="${esc(flags.map(flagLabel).join(", "))}">${esc(flagLabel(flags[0]))}${flags.length > 1 ? ` +${flags.length - 1}` : ""}</span>`;
+  return chip(`${flagLabel(flags[0])}${flags.length > 1 ? ` +${flags.length - 1}` : ""}`, "attention", flags.map(flagLabel).join(", "));
 }
 
 function rowMarkup(item, inUse = storesInUse()) {

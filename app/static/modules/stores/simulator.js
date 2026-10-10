@@ -2,8 +2,8 @@
 // header / actions / Monthly cost cards it paints.
 import { emptyStateEl } from "../../_vendored/empty-state/empty-state.js";
 import { fetchJson } from "../api.js";
-import { render, state } from "../core.js";
-import { esc, icon } from "../dom.js";
+import { render, state, updateHeaders } from "../core.js";
+import { chip, esc, icon } from "../dom.js";
 import { paintFilter, paintList } from "./list.js";
 import { activePicks, eur, frequency, hasHandler, jsonInit, local, plural, storeName } from "./state.js";
 
@@ -31,6 +31,7 @@ export async function loadChecks() {
   } catch (_) {
     // keep what we had — the list still works without the review state
   }
+  updateHeaders(); // Items' header counts what needs checking
   if (state.mode !== "stores") return;
   paintFilter();
   paintList();
@@ -122,9 +123,9 @@ export function paintActions() {
 
 function freqMarkup() {
   const current = frequency();
-  return `<div class="stores-freq" role="radiogroup" aria-label="Ordering frequency">${
+  return `<div class="segmented" role="group" aria-label="Ordering frequency">${
     Object.keys(local.meta.frequencies).map((key) =>
-      `<button type="button" class="pill${key === current ? " active" : ""}" role="radio" aria-checked="${key === current}" data-stores-freq="${esc(key)}">${esc(FREQ_LABELS[key] || key)}</button>`,
+      `<button type="button" class="segmented-item" aria-pressed="${key === current}" data-stores-freq="${esc(key)}">${esc(FREQ_LABELS[key] || key)}</button>`,
     ).join("")}</div>`;
 }
 
@@ -154,7 +155,7 @@ export function paintSim() {
   ].map(([label, key]) => `<tr><th scope="row">${label}</th><td>${eur(whatIf[key])}</td><td>${eur(today[key])}</td></tr>`).join("");
   const perStore = Object.entries(whatIf.per_store).map(([key, s]) => `<li>
       <span class="stores-store-name">${esc(storeName(key))}</span>
-      ${hasHandler(key) ? "" : `<span class="chip chip-neutral">manual order</span>`}
+      ${hasHandler(key) ? "" : chip("manual order")}
       <span class="stores-store-figures">${eur(s.goods)} goods · ${s.orders} orders · ${eur(s.monthly_fee)} fees</span>
     </li>`).join("");
   const stale = local.simState === "stale"
