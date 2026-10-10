@@ -420,6 +420,7 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
    trailing items (a buy link, a quick-add's remove, the stepper's − and +)
    take the row's 44px box, like the row's own accessories. */
 .item-row .action-row-trail.icon-button,
+.item-sheet-links .action-row-trail.icon-button,
 .stepper { --icon-btn-box: var(--row-sm); }
 /* Bare rows in a disclosure body bleed to its edges: the row's own 14px inset
    (4px + the main button's 10px) lines the text up with the body's. */
@@ -906,6 +907,20 @@ details[open] > summary .inline-chevron { transform: rotate(90deg); }
 }
 .sheet-link-value[data-tone="attention"] { color: var(--attention-text); }
 .sheet-link-chevron { flex: none; width: var(--icon-inline); height: var(--icon-inline); color: var(--muted); }
+/* #264: the open-link action on the Buy link page; its empty slot takes no
+   room in the page grid. */
+[data-open-link-page]:empty { display: none; }
+a.button-tint[data-open-link-page] {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  min-height: var(--primary-h);
+  padding: 0 var(--space-md);
+  font-size: var(--font-body);
+  text-decoration: none;
+}
 /* The in-body danger action (design.md "dense collection"): the destructive
    tint at the 48px primary height, never a competing footer primary. */
 .item-sheet-delete {

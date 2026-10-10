@@ -14,7 +14,7 @@ import { fetchJson } from "./api.js";
 import { confirmSheet } from "./confirm.js";
 import { c, render, state } from "./core.js";
 import { esc, icon, pickerMarkup, syncPicker, text } from "./dom.js";
-import { stepper } from "./rows.js";
+import { rowLink, stepper } from "./rows.js";
 import { dialogShell, setDialogStatus } from "./stores/dialog.js";
 import { paintList } from "./stores/list.js";
 import { afterReviewChange, closeReview, onReviewClick, onReviewSubmit, openReview, paintQuantity, reviewSummary } from "./stores/review.js";
@@ -90,7 +90,7 @@ function pagesMarkup() {
         <span class="action-row-title">${label}</span>
         <span class="sheet-link-value" data-link-value="${page}"></span>
         ${icon("chevron-right", "sheet-link-chevron")}
-      </button>
+      </button>${page === "link" ? "<span data-open-link-row></span>" : ""}
     </li>`).join("");
   return `<div class="item-sheet-page" data-page="main">
       <div class="item-sheet-qty" data-sheet-qty="tenemos"><span class="item-sheet-label">In stock</span></div>
@@ -120,7 +120,8 @@ function paintFieldPages() {
   d.querySelector('[data-page="link"]').innerHTML = `<label class="field-label">Buy link
       <input class="field" name="buscador" value="${esc(value("buscador"))}" placeholder="https://…"
              inputmode="url" autocomplete="off" spellcheck="false" data-sheet-field="buscador">
-    </label>`;
+    </label>
+    <span data-open-link-page></span>`;
   d.querySelector('[data-page="name"]').innerHTML = `<label class="field-label">Name
       <input class="field" name="comida" value="${esc(value("comida"))}" autocomplete="off" data-sheet-field="comida" required>
     </label>`;
@@ -152,6 +153,31 @@ function buyLinkValue() {
   }
 }
 
+// The buy link as a page to open: only a real http(s) URL qualifies — a blank
+// cell or a plain search term (some rows hold one) has nothing to open (#264).
+function openableUrl(raw) {
+  try {
+    const url = new URL(raw.trim());
+    return url.protocol === "http:" || url.protocol === "https:" ? url.href : "";
+  } catch (_) {
+    return "";
+  }
+}
+
+// The two ways out to the product page, repainted with the field: a trailing
+// icon beside the Buy link row (its own target, apart from the row's tap that
+// edits the link) and an Open link action on the link page.
+function paintOpenLink(d) {
+  const url = openableUrl(value("buscador"));
+  const name = text(value("comida"));
+  d.querySelector("[data-open-link-row]").outerHTML = url
+    ? rowLink(url, `Open buy link for ${name}`).replace("<a ", "<a data-open-link-row ")
+    : "<span data-open-link-row></span>";
+  d.querySelector("[data-open-link-page]").outerHTML = url
+    ? `<a class="button-tint" data-open-link-page href="${esc(url)}" target="_blank" rel="noopener noreferrer">${icon("external-link")}Open link</a>`
+    : "<span data-open-link-page></span>";
+}
+
 // Everything that shows a value: the steppers' figures, each link row's muted
 // value, the title, and whether there is anything to Save.
 function paintValues() {
@@ -175,6 +201,7 @@ function paintValues() {
     if (tone) node.dataset.tone = tone;
     else delete node.dataset.tone;
   }
+  paintOpenLink(d);
   paintTitle();
   d.querySelector(".detail-save-btn").disabled = !changed();
 }
