@@ -254,6 +254,10 @@ def test_four_tab_nav_and_relocated_sections(page, pw, server):
     page.locator("#pane-shopping details[data-store] > summary").first.click()
     page.locator("#pane-shopping [data-action='mark-buy']").first.click()
     page.locator("#pane-shopping [data-action='undo-buy']").first.wait_for()
+    # Got it is the row's leading check (#254): pressed, and the name struck.
+    got = page.locator("#pane-shopping .item-row", has=page.locator("[data-action='undo-buy']")).first
+    assert got.locator(".action-row-check").get_attribute("aria-pressed") == "true"
+    assert got.locator(".action-row-title s").count() == 1
     assert fill.locator("#automation-cart-mode").input_value() == "clean"
 
     # Theme toggle works from every pane's own header, not just Home's
@@ -363,6 +367,24 @@ def test_edit_item_keeps_blank_cells_blank(page, server):
     row = next(i for i in payload["items"] if i[cols["comida"]] == name)
     assert row[cols["cantidad"]] == 2
     assert row[cols["buscador"]] in (None, ""), row[cols["buscador"]]
+
+    # Delete asks in the in-app confirm sheet, never the browser's confirm()
+    # (#254): the × keeps the item, the sheet's Delete removes it.
+    native: list[str] = []
+    page.on("dialog", lambda d: (native.append(d.message), d.dismiss()))
+    card = page.locator("article[data-id]", has=page.locator(f"input[name='comida'][value='{name}']"))
+    sheet = page.locator("#confirm-dialog")
+    card.locator("[data-action='delete']").click()
+    sheet.wait_for()
+    assert name in sheet.locator(".confirm-message").inner_text()
+    sheet.locator("[data-confirm='no']").click()
+    assert not sheet.is_visible()
+    assert any(i[cols["comida"]] == name for i in page.request.get(f"{server.url}/api/inventory").json()["items"])
+    card.locator("[data-action='delete']").click()
+    with page.expect_response(lambda r: r.request.method == "DELETE"):
+        sheet.locator("[data-confirm='yes']").click()
+    assert not any(i[cols["comida"]] == name for i in page.request.get(f"{server.url}/api/inventory").json()["items"])
+    assert native == [], f"native dialog shown: {native}"
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
 
 
@@ -383,6 +405,12 @@ def test_phone_geometry_fits_and_targets_meet_the_floor(browser, server):
             # effective target, via the shared ::before hit area or real 44px geometry.
             assert_min_target(pg.locator("button:visible, select:visible, textarea:visible, summary:visible, "
                                          "input:not([type=hidden]):visible"))
+            if mode in ("audit", "targets"):
+                # J-01/J-10 (#252): one stepper per row leaves the item's name the
+                # room to be read at 390px.
+                widths = pg.locator("main > .pane:not([hidden]) .item-row .action-row-title").evaluate_all(
+                    "els => els.map((e) => e.getBoundingClientRect().width)")
+                assert widths and min(widths) >= 150, f"{mode}: name squeezed to {min(widths or [0]):.0f}px"
         goto_mode(pg, "dashboard")
         for selector in ("[data-tab]:visible", ".home-head button:visible"):
             targets = pg.locator(selector)
@@ -614,7 +642,10 @@ def test_stores_plan_simulate_and_apply(page, server):
     page.click("[data-stores-filter='needs']")
     burger = page.locator(".store-row", has_text="burguer ternera").first
     assert page.locator(".store-row").count() == 1
-    assert burger.locator(".review-badge").inner_text().startswith("Moved store")
+    # The reason is the one status chip, in the attention tone (#254), and the
+    # Items header names the exception instead of the mode.
+    assert burger.locator(".chip[data-tone='attention']").inner_text().startswith("Moved store")
+    assert page.locator("#items-context").inner_text() == "1 needs checking"
 
     # ── Baseline (#183): freeze the list as the new "today", confirm shows the
     # unchecked count, then reset restores the exact prior simulate result.
@@ -685,6 +716,8 @@ def test_stores_plan_simulate_and_apply(page, server):
     dialog.locator("[data-review-checked]").click()
     page.wait_for_function(f"({count})('needs') === '0' && ({count})('checked') === '1'")
     assert dialog.locator("[data-review-checked]").get_attribute("aria-checked") == "true"
+    # Nothing left to check: the header falls back to the plain count.
+    assert page.locator("#items-context").inner_text().endswith(" items")
     dialog.locator("[data-dialog-close]").click()
     assert page.locator(".store-row").count() == 0
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
@@ -1083,6 +1116,7 @@ def test_visible_copy_has_no_developer_terms(page):
 _CASE_JS = r"""
 () => [...document.querySelectorAll('main > section.pane:not([hidden]) button, main > section.pane:not([hidden]) summary, main > section.pane:not([hidden]) h1, main > section.pane:not([hidden]) h2')]
   .filter((e) => e.getClientRects().length)
+  .filter((e) => !e.matches('.action-row-main'))
   .map((e) => e.textContent.replace(/\s+/g, ' ').trim())
   .filter(Boolean)
 """
@@ -1092,7 +1126,8 @@ _PROPER = {"Ametller", "Origen", "Mercadona", "Carrefour", "CSV"}
 @pytest.mark.e2e
 def test_labels_are_sentence_case(page):
     """J-08: buttons, summaries and headings use sentence case (first word
-    capitalised, the rest lower) — store names and CSV aside — on every view."""
+    capitalised, the rest lower) — store names and CSV aside — on every view.
+    An item row's tap target is skipped: its text is the item's own name (#254)."""
     mixed = {}
     for mode in _ALL_MODES:
         goto_mode(page, mode)

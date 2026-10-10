@@ -3,11 +3,11 @@
 import { emptyStateEl } from "../../_vendored/empty-state/empty-state.js";
 import { setSwitch } from "../../_vendored/switch/switch.js";
 import { fetchJson } from "../api.js";
-import { c, state } from "../core.js";
-import { esc, icon, switchMarkup } from "../dom.js";
+import { c, render, state } from "../core.js";
+import { chip, esc, icon, switchMarkup } from "../dom.js";
 import { dialogShell, setDialogStatus } from "./dialog.js";
 import { FLAG_LABELS, LINK_NOTE, flagLabel } from "./list.js";
-import { loadChecks, scheduleSimulate } from "./simulator.js";
+import { loadChecks, loadMeta, scheduleSimulate } from "./simulator.js";
 import { eur, itemById, jsonInit, local, num, plural, storeName } from "./state.js";
 
 const DETAIL_ID = "stores-detail-dialog";
@@ -41,10 +41,14 @@ function detailDialog() {
       const form = event.target.closest("[data-review-form]");
       if (form) saveStoreEdit(form);
     });
-    // A pane repaint may have replaced the opener; hand focus back to its row.
+    // A pane repaint may have replaced the opener; hand focus back to its row
+    // (a Stores row's pencil, or an item row opened from another tab, #254).
+    // Off Stores, repaint so a saved target / in-stock shows in that list.
     dialog.addEventListener("close", () => {
       local.editing = null;
-      document.querySelector(`.store-row[data-item-id="${local.detailId}"] [data-stores-action="detail"]`)?.focus();
+      if (state.mode !== "stores") render();
+      (document.querySelector(`.store-row[data-item-id="${local.detailId}"] [data-stores-action="detail"]`)
+        || document.querySelector(`.item-row[data-id="${local.detailId}"] .action-row-main`))?.focus();
     });
   });
 }
@@ -59,6 +63,8 @@ export async function openItemDetail(id) {
   setDialogStatus(dialog, "");
   paintDetail();
   dialog.showModal();
+  // Opened from a row outside Stores, the store names may not be loaded yet.
+  if (!local.meta && local.metaState !== "loading") await loadMeta();
   await loadDetail();
 }
 
@@ -112,7 +118,7 @@ function paintDetail() {
 
 function reviewHeadMarkup(d) {
   const badges = d.flags.map((f) =>
-    `<span class="review-badge" title="${esc(FLAG_LABELS[f]?.[1] || "")}">${esc(flagLabel(f))}</span>`).join("");
+    chip(flagLabel(f), "attention", FLAG_LABELS[f]?.[1] || "")).join("");
   return `<div class="review-checked">
       ${switchMarkup(!!d.checked, `Checked ${d.comida}`, { id: "review-checked-switch", "data-review-checked": "" })}
       <label for="review-checked-switch" class="review-checked-label">Checked</label>
@@ -196,7 +202,7 @@ function isSet(value) {
 // "yours" beside a value the household overrode, with the benchmark's value.
 function yoursMarkup(s, fields, benchText) {
   if (!s.override || !fields.some((f) => isSet(s.override[f]))) return "";
-  return ` <span class="chip chip-match">yours</span>${benchText ? ` <span class="review-bench">benchmark ${esc(benchText)}</span>` : ""}`;
+  return ` ${chip("yours")}${benchText ? ` <span class="review-bench">benchmark ${esc(benchText)}</span>` : ""}`;
 }
 
 function storesMarkup(d) {
@@ -213,8 +219,8 @@ function storeRowMarkup(d, s) {
   const editing = local.editing === s.store;
   const bench = s.benchmark || {};
   const markers = [
-    s.is_list_store ? `<span class="chip chip-match">in list</span>` : "",
-    s.is_basket_store ? `<span class="chip chip-neutral">benchmarked from</span>` : "",
+    s.is_list_store ? chip("in list") : "",
+    s.is_basket_store ? chip("benchmarked from") : "",
   ].join("");
   const link = s.url
     ? `<a class="review-url" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.url)}</a>`
@@ -249,7 +255,7 @@ function optionsMarkup(s) {
   const cut = s.options?.cut;
   if (!cut) return "";
   const note = s.options.note ? ` <span class="meta">${esc(s.options.note)}</span>` : "";
-  return `<span class="review-option"><span class="chip chip-neutral">Cut: ${esc(cut)}</span>${note}
+  return `<span class="review-option">${chip(`Cut: ${cut}`)}${note}
     <span class="review-bench">The cart picks this cut. Set in config/product_options.json.</span></span>`;
 }
 
@@ -321,7 +327,7 @@ function evidenceMarkup(d, open) {
       <div class="review-evidence-body">
         ${d.tier || d.spec ? `<p>${d.tier ? `<strong>Tier ${esc(d.tier)}</strong>${d.spec ? " · " : ""}` : ""}${esc(d.spec || "")}</p>` : ""}
         ${stores.length ? `<ul class="review-evidence-list">${stores.map((s) => `<li>
-            <strong>${esc(s.store_name)}</strong>${s.quality_vs_current ? ` <span class="chip chip-neutral">quality: ${esc(s.quality_vs_current)}</span>` : ""}
+            <strong>${esc(s.store_name)}</strong>${s.quality_vs_current ? ` ${chip(`quality: ${s.quality_vs_current}`)}` : ""}
             ${s.evidence ? `<p>${esc(s.evidence)}</p>` : ""}${s.notes ? `<p class="hint">${esc(s.notes)}</p>` : ""}
           </li>`).join("")}</ul>` : ""}
       </div>

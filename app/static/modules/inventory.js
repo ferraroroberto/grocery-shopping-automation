@@ -2,7 +2,8 @@
 // per-row edit form, and the add form (with the product-search host above it).
 import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
 import { activePaneBody, c, defaultZone, filteredItems, items, state } from "./core.js";
-import { esc, html, icon, pickerMarkup, qtyMarkup, text } from "./dom.js";
+import { esc, html, icon, pickerMarkup, text } from "./dom.js";
+import { itemList, itemRow, rowValue, stepper } from "./rows.js";
 
 function summaryRow(label, value) {
   return `<div class="summary-row"><dt>${label}</dt><dd class="summary-value">${value}</dd></div>`;
@@ -26,7 +27,7 @@ function renderSummary() {
 export function renderDashboard() {
   const cols = c();
   const source = filteredItems();
-  const cards = source.map((item) => itemCard(item, cols)).join("");
+  const rows = source.map((item) => dashboardRow(item, cols)).join("");
   const body = activePaneBody();
   // The full item list folds by default (home-automation pattern: heavy cards
   // are disclosures). A re-render must not slam it shut, so harvest the live
@@ -43,7 +44,7 @@ export function renderDashboard() {
         </span>
         <span class="collapse-chevron" aria-hidden="true">›</span>
       </summary>
-      <div class="collapse-body"><section class="grid">${cards || emptyStateEl("search", "No matching items.").outerHTML}</section></div>
+      <div class="collapse-body">${rows ? itemList(rows, { bare: true }) : emptyStateEl("search", "No matching items.").outerHTML}</div>
     </details>`;
 }
 
@@ -67,12 +68,20 @@ function renderStoreCards() {
   }).join("")}</article>`;
 }
 
-function itemCard(item, cols) {
+// "Buy 2" closes a row's meta line while the item is short; a stocked item
+// says nothing (a normal state gets no mark, design.md status chip).
+function buyNote(item, cols) {
   const buy = Number(item[cols.comprar]) || 0;
-  return `<article class="item" data-id="${item.id}">
-    <div><h3>${html(item[cols.comida])}</h3><div class="meta">${html(item[cols.lugar])} · ${html(item[cols.super])}</div></div>
-    <div class="qty"><div>${qtyMarkup(item[cols.tenemos], item[cols.cantidad])}</div><div class="${buy > 0 ? "buy" : "ok"}">${buy > 0 ? `Buy ${buy}` : "Stocked"}</div></div>
-  </article>`;
+  return buy > 0 ? ` · buy ${buy}` : "";
+}
+
+function dashboardRow(item, cols) {
+  return itemRow({
+    title: item[cols.comida],
+    meta: `${text(item[cols.lugar])} · ${text(item[cols.super])}${buyNote(item, cols)}`,
+    trail: rowValue(`${text(item[cols.tenemos])}/${text(item[cols.cantidad])}`),
+    attrs: `data-id="${item.id}"`,
+  });
 }
 
 function zoneTabs() {
@@ -83,26 +92,26 @@ function zoneTabs() {
   ).join("")}</div>`;
 }
 
-export function renderAudit(targetsOnly = false) {
+// The manual Audit (stock = true) and Items → Targets share one list: the
+// zone's items, each with ONE stepper — the in-stock count while auditing, the
+// target under Targets (#252 decision 3) — and the other figure in its meta.
+// The audit counts only what is kept (target above 0); Targets lists the whole
+// zone, so a target can be set on an item that has none yet.
+export function renderAudit(stock = false) {
   const cols = c();
   const source = filteredItems(items()
     .filter((item) => item[cols.lugar] === state.zone)
-    .filter((item) => !targetsOnly || Number(item[cols.cantidad]) > 0))
+    .filter((item) => !stock || Number(item[cols.cantidad]) > 0))
     .sort((a, b) => text(a[cols.comida]).localeCompare(text(b[cols.comida])));
-  const header = targetsOnly ? "in stock − + · in stock/target · target − + · need" : "in stock/target · target − + · need";
-  const controlsClass = targetsOnly ? "audit-controls audit-controls--full" : "audit-controls audit-controls--targets";
-  activePaneBody().innerHTML = `<section class="panel"><div class="row"><h2 class="card-title">${icon(targetsOnly ? "list-checks" : "package")}${targetsOnly ? "Audit inventory" : "Edit targets"}</h2><span class="hint">${html(state.zone)} · ${source.length} items</span></div>${zoneTabs()}<div class="hint">${header}</div></section>
-    <section class="grid">${source.map((item) => `
-      <article class="item audit-item" data-id="${item.id}">
-        <div class="audit-name"><h3>${html(item[cols.comida])}</h3><div class="meta">${html(item[cols.super])}</div></div>
-        <div class="${controlsClass}">
-          ${targetsOnly ? `<button type="button" class="icon-button" data-action="current-minus" aria-label="Decrease in stock" title="Decrease in stock">${icon("minus")}</button><button type="button" class="icon-button" data-action="current-plus" aria-label="Increase in stock" title="Increase in stock">${icon("plus")}</button>` : ""}
-          <span class="qty">${qtyMarkup(item[cols.tenemos], item[cols.cantidad])}</span>
-          <button type="button" class="icon-button" data-action="target-minus" aria-label="Decrease target" title="Decrease target">${icon("minus")}</button>
-          <button type="button" class="icon-button" data-action="target-plus" aria-label="Increase target" title="Increase target">${icon("plus")}</button>
-          <span class="audit-verdict ${Number(item[cols.comprar]) > 0 ? "buy" : "ok"}">${Number(item[cols.comprar]) > 0 ? `−${item[cols.comprar]}` : "OK"}</span>
-        </div>
-      </article>`).join("") || emptyStateEl("package", "No items in this zone.").outerHTML}</section>`;
+  const rows = source.map((item) => itemRow({
+    title: item[cols.comida],
+    meta: stock
+      ? `Target ${text(item[cols.cantidad])} · ${text(item[cols.super])}${buyNote(item, cols)}`
+      : `In stock ${text(item[cols.tenemos])} · ${text(item[cols.super])}`,
+    trail: stepper(stock ? "current" : "target", text(stock ? item[cols.tenemos] : item[cols.cantidad]), text(item[cols.comida])),
+    attrs: `data-id="${item.id}"`,
+  })).join("");
+  activePaneBody().innerHTML = `${zoneTabs()}${rows ? itemList(rows) : emptyStateEl("package", "No items in this zone.").outerHTML}`;
 }
 
 // A visible caption above a form input (wrapping <label>, so the name is
@@ -137,8 +146,7 @@ export function renderAdd() {
   const zones = state.payload.summary.zones;
   const stores = state.payload.summary.supermarkets;
   activePaneBody().innerHTML = `<section id="product-search" class="panel" aria-label="Find a store product"></section>
-  <section class="panel">
-    <h2 class="card-title">${icon("plus")}Add item</h2>
+  <section class="panel" aria-label="Add by hand">
     <form id="add-form" class="form">
       <div class="three">
         ${labelled("Item", `<input class="field" name="comida" placeholder="Item name" required />`)}

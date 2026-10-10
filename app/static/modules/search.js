@@ -12,7 +12,7 @@
 //     POST /api/items shape /select would build.
 import { authFetch, fetchJson } from "./api.js";
 import { c, defaultZone, items, state } from "./core.js";
-import { esc, formatElapsed, html, icon, setPickerValue, text } from "./dom.js";
+import { chip, esc, formatElapsed, html, icon, setPickerValue, text } from "./dom.js";
 import { pickAudioMime } from "./media.js";
 
 // Local to this module — `items` holds the merged status entries (one per
@@ -106,7 +106,7 @@ function searchItemGroup(item) {
   // The header names exactly what was looked up (issue #214); a matched row is
   // only a hint — the query is never that row's name.
   const matched = item.inventory_idx != null;
-  const tag = matched ? "" : '<span class="chip chip-new">New</span>';
+  const tag = matched ? "" : chip("New");
   const hint = matched
     ? `<div class="meta search-group-hint">Matches your item <strong>${html(item.inventory_name || "on the list")}</strong> — pick one to update it, or add as new.</div>`
     : "";
@@ -180,7 +180,7 @@ function candidateRow(cand, item) {
   const done = search.resolved[key];
   const open = search.confirming === key;
   const isNew = item.inventory_idx == null;
-  const chip = cand.match === "strong" ? '<span class="chip chip-match">Match</span>' : "";
+  const match = cand.match === "strong" ? chip("Match") : "";
   const thumb = cand.thumbnail
     ? `<img class="candidate-thumb" src="${html(cand.thumbnail)}" alt="" loading="lazy" />`
     : `<div class="candidate-thumb candidate-thumb-empty" aria-hidden="true"></div>`;
@@ -191,7 +191,7 @@ function candidateRow(cand, item) {
       data-store="${html(cand.store)}" data-url="${html(cand.product_url)}" data-name="${html(cand.name)}">
     ${thumb}
     <div class="candidate-main">
-      <div class="candidate-name">${html(cand.name)}${chip}</div>
+      <div class="candidate-name">${html(cand.name)}${match}</div>
       <div class="meta">${html(cand.store)}${cand.price_text ? " · " + html(cand.price_text) : ""}</div>
     </div>
     <div class="candidate-actions">

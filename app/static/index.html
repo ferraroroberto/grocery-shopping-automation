@@ -37,6 +37,8 @@
     <link rel="stylesheet" href="/static/_vendored/select-native/select-native.css" />
     <link rel="stylesheet" href="/static/_vendored/button/button.css" />
     <link rel="stylesheet" href="/static/_vendored/icon-button/icon-button.css" />
+    <link rel="stylesheet" href="/static/_vendored/action-row/action-row.css" />
+    <link rel="stylesheet" href="/static/_vendored/segmented/segmented.css" />
     <link rel="stylesheet" href="/static/_vendored/modal/modal.css" />
     <link rel="stylesheet" href="/static/_vendored/switch/switch.css" />
     <link rel="stylesheet" href="/static/_vendored/empty-state/empty-state.css" />
@@ -123,6 +125,9 @@
         <path d="M4.5 15.5h15" />
         <path d="m5 11 4-7" />
         <path d="m9 11 1 9" />
+      </symbol>
+      <symbol id="i-circle" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="10" />
       </symbol>
       <symbol id="i-circle-check" viewBox="0 0 24 24" fill="none">
         <circle cx="12" cy="12" r="10" />
@@ -256,9 +261,11 @@
       </section>
       <section id="pane-audit" class="pane" role="tabpanel" aria-labelledby="tabAudit" aria-label="Audit" hidden>
         <h2 class="pane-title">Check your stock</h2>
-        <div class="pills subnav" role="group" aria-label="Audit modes">
-          <button type="button" class="pill" data-mode="audit">Audit</button>
-          <button type="button" class="pill" data-mode="audio">Audio audit</button>
+        <!-- Vendored segmented control (#254): two peer modes; the raised
+             segment is the state, kept in step by app.js render(). -->
+        <div class="segmented subnav" role="group" aria-label="Audit mode">
+          <button type="button" class="segmented-item" aria-pressed="true" data-mode="audit">Manual</button>
+          <button type="button" class="segmented-item" aria-pressed="false" data-mode="audio">Voice</button>
         </div>
         <div class="pane-body"></div>
       </section>
