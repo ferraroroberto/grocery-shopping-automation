@@ -861,21 +861,63 @@ details[open] > summary .inline-chevron { transform: rotate(90deg); }
   font-variant-numeric: tabular-nums;
 }
 
-/* ----------------------------------------- item-detail review dialog (#165)
-   Wide on desktop (every store as a table row), a full-height sheet on a
-   phone (one flat block per store). Only width/height change here — the
-   vendored shell's anchoring and scroll-lock rules stay untouched. */
-.detail-dialog.review-dialog { width: min(960px, calc(100vw - 2 * var(--gap))); }
+/* --------------------------------------------------- item sheet (#255)
+   item-sheet.js on the vendored modal shell: the detail sheet every item row
+   opens. A full-height sheet on a phone; on a desktop the Stores & prices
+   page widens to fit every store as a table row (one flat block per store on
+   a phone). Only width/height change here — the vendored shell's anchoring
+   and scroll-lock rules stay untouched. */
+.detail-dialog.item-sheet[data-page="prices"] { width: min(960px, calc(100vw - 2 * var(--gap))); }
 @media (max-width: 520px) {
   /* Clamped by the vendored max-height, so the sheet fills the screen. */
-  .detail-dialog.review-dialog { height: 100dvh; }
-  .review-dialog .detail-card { min-height: 100%; display: flex; flex-direction: column; }
-  .review-dialog .stores-dialog-body { flex: 1; }
+  .detail-dialog.item-sheet { height: 100dvh; }
+  .item-sheet .detail-card { min-height: 100%; display: flex; flex-direction: column; }
+  .item-sheet .stores-dialog-body { flex: 1; }
 }
-.review-dialog .detail-header { gap: var(--gap); }
-.review-dialog .detail-header h2 { overflow-wrap: anywhere; }
-.review-dialog .stores-dialog-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-lg); align-content: start; }
-.review-dialog .stores-dialog-status { margin-top: var(--gap); }
+.item-sheet .detail-header { gap: var(--space-sm); }
+.item-sheet .detail-header h2 { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.item-sheet-back { margin-left: -6px; }
+.item-sheet-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-lg); align-content: start; }
+.item-sheet-page[hidden] { display: none; }
+.item-sheet .stores-dialog-status { margin-top: var(--gap); }
+/* Main page: the two staged figures, label left and the one stepper right,
+   on the modal's row rhythm; then the link rows, then Delete. */
+.item-sheet-page[data-page="main"] { gap: 0; }
+.item-sheet-qty { display: flex; align-items: center; justify-content: space-between; gap: var(--gap); min-height: var(--row-md); }
+.item-sheet-qty + .item-sheet-qty { border-top: 1px solid var(--line-muted); }
+.item-sheet-qty .stepper { margin-right: 0; }
+.item-sheet-label { font-weight: 600; }
+/* Link rows (design.md "settings group", the link row inside a detail
+   sheet): glyph, label, the value muted — it ellipsizes before the label
+   gives way — and a chevron to the page. */
+.item-sheet-links { margin: var(--space-sm) 0 var(--space-lg); border-top: 1px solid var(--line-muted); border-bottom: 1px solid var(--line-muted); }
+.item-sheet-links .action-row { padding: 0; }
+.sheet-link { flex-direction: row; align-items: center; justify-content: flex-start; gap: var(--space-sm); padding-inline: 0; }
+.sheet-link .action-row-title { flex: 1 0 auto; }
+.sheet-link-icon { flex: none; width: var(--icon-title); height: var(--icon-title); color: var(--muted); }
+.sheet-link-value {
+  min-width: 0;
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: var(--font-body-sm);
+}
+.sheet-link-value[data-tone="attention"] { color: var(--attention-text); }
+.sheet-link-chevron { flex: none; width: var(--icon-inline); height: var(--icon-inline); color: var(--muted); }
+/* The in-body danger action (design.md "dense collection"): the destructive
+   tint at the 48px primary height, never a competing footer primary. */
+.item-sheet-delete {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  min-height: var(--primary-h);
+  padding: 0 var(--space-md);
+  font-size: var(--font-body);
+}
 .review-section { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
 .review-subtitle { font-weight: 700; }
 .review-head { display: grid; gap: var(--space-sm); }
@@ -888,15 +930,17 @@ details[open] > summary .inline-chevron { transform: rotate(90deg); }
 .review-note { color: var(--muted); }
 .review-warn .icon, .review-note .icon { flex: none; margin-top: 0.2em; }
 
-/* Quantity check: label / value lines, then target + stock with their pack. */
+/* Quantity check: label / value lines, then target + stock with their pack,
+   each as the sheet holds it, beside the suggestion it can take. */
 .review-qty-lines { margin: 0; display: grid; gap: var(--space-xs); font-variant-numeric: tabular-nums; }
 .review-qty-lines > div { display: grid; grid-template-columns: 5.5em minmax(0, 1fr); gap: var(--space-sm); align-items: baseline; }
 .review-qty-lines dt { color: var(--muted); font-size: var(--font-label); font-weight: 600; }
 .review-qty-lines dd { margin: 0; overflow-wrap: anywhere; }
 .review-qty-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: var(--gap); }
 .review-qty-field { display: grid; gap: var(--space-xs); }
-.review-qty-control { display: flex; align-items: center; gap: var(--space-sm); }
-.review-num { flex: none; width: 96px; text-align: center; font-weight: 700; }
+.review-qty-label { color: var(--muted); font-size: var(--font-label); font-weight: 600; }
+.review-qty-control { display: flex; align-items: center; gap: var(--space-sm); min-height: var(--hit-min); }
+.review-num { flex: none; min-width: 2.25em; font-size: var(--font-body); font-weight: 700; font-variant-numeric: tabular-nums; }
 .review-suggest { flex: 0 1 auto; min-width: 0; }
 
 /* Stores: a fixed-layout table so long URLs wrap inside the product column. */

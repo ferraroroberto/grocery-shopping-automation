@@ -3,22 +3,23 @@
 // supermarket-benchmark run. Picks are a local what-if — nothing is written to
 // the spreadsheet until the Review & apply dialog posts them.
 //
-// The per-item review (#165): the row's pencil opens the item-detail dialog —
-// the quantity check in real units, every store's product / pack / price with
-// your overrides beside the benchmark's values, and the server-side Checked
-// mark — and the list filters to the items that still need checking.
+// The per-item review (#165): the row's pencil opens the item sheet (#255) on
+// its Stores & prices page — every store's product / pack / price with your
+// overrides beside the benchmark's values, and the server-side Checked mark;
+// its Quantity check page has the quantity maths in real units — and the list
+// filters to the items that still need checking.
 //
 // The view is split across this folder: state (shared what-if state + helpers), simulator
 // (loading + the Monthly cost card), list (rows + filters), actions (header/actions buttons),
-// dialog + dialogs (apply / baseline), review (the item-detail dialog). This file is the
+// dialog + dialogs (apply / baseline), review (the item sheet's two store pages). This file is the
 // facade app.js imports and owns the pane render + event delegation.
 import { emptyStateEl } from "../../_vendored/empty-state/empty-state.js";
 import { activePaneBody, render, state } from "../core.js";
 import { icon, switchMarkup } from "../dom.js";
+import { openItemSheet } from "../item-sheet.js";
 import { copySteps, importLatest, loadRecommended, resetPicks } from "./actions.js";
 import { openApplyReview, openSetBaselineConfirm, resetBaseline } from "./dialogs.js";
 import { paintFilter, paintList, repaintRow } from "./list.js";
-import { openItemDetail } from "./review.js";
 import { actionsMarkup, headMarkup, loadChecks, loadMeta, paintActions, paintSim, paintUnpriced, scheduleSimulate } from "./simulator.js";
 import { FILTER_KEY, FREQ_KEY, SHOW_ALL_KEY, STORE_FILTER_KEY, TARGET_ONLY_KEY, local, setPick, writeStored } from "./state.js";
 
@@ -129,7 +130,7 @@ export async function onStoresClick(event) {
   if (action === "retry-sim") scheduleSimulate(0);
   if (action === "set-baseline") openSetBaselineConfirm();
   if (action === "reset-baseline") await resetBaseline();
-  if (action === "detail") await openItemDetail(Number(button.closest("[data-item-id]").dataset.itemId));
+  if (action === "detail") await openItemSheet(Number(button.closest("[data-item-id]").dataset.itemId), "prices");
 }
 
 // Search-only repaint (#193): a keystroke in the shared search box must not
@@ -149,9 +150,6 @@ export function storesNeedsChecking() {
 export function loadStoresChecks() {
   if (!local.checks) loadChecks();
 }
-
-// The item detail opens from any row (#254); the item sheet replaces it (#255).
-export { openItemDetail };
 
 export function onStoresChange(event) {
   if (state.mode !== "stores" || !event.target.matches("[data-stores-pick]")) return;

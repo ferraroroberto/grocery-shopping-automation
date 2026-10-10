@@ -40,11 +40,10 @@ export const local = {
   timer: 0,
   seq: 0,
   preview: [],        // apply-preview changes shown in the apply dialog
-  detailId: null,     // item the detail dialog is showing
+  detailId: null,     // item the item sheet is showing (#255)
   detail: null,       // GET /api/items/{id}/store-detail
   detailError: "",
-  editing: null,      // store whose edit form is open in the detail dialog
-  qtyDraft: {},       // unsaved target / in-stock count typed in the detail dialog
+  editing: null,      // store whose edit form is open on the sheet's Stores & prices page
 };
 
 function readStored(key, fallback) {

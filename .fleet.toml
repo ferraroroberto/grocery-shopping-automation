@@ -50,16 +50,16 @@ theme_storage_key = "grocery.theme"
 # Never clicked: anything that mutates the spreadsheet or local what-if state,
 # starts a recording, spends money, or launches an external process/window.
 no_go = [
-    ".detail-save-btn",                       # every dialog's Save/Apply (login Unlock, Set baseline, Review & apply's Apply, item-detail's Save target & stock)
+    ".detail-save-btn",                       # every dialog's Save/Apply (login Unlock, Set baseline, Review & apply's Apply, the item sheet's Save)
     '[data-stores-action="review"]',          # Items -> Stores: Review & apply...
     '[data-stores-action="set-baseline"]',    # Items -> Stores: Set as baseline
     '[data-stores-action="reset-baseline"]',  # Items -> Stores: Reset to benchmark
     '[data-stores-action="import"]',          # Items -> Stores: Import latest run
     '[data-stores-action="recommended"]',     # Items -> Stores: Load recommended plan
     '[data-stores-action="reset"]',           # Items -> Stores: Reset to my list
-    "[data-review-checked]",                  # item-detail dialog: Checked toggle
-    "[data-review-reset]",                    # item-detail dialog: per-store Reset to benchmark
-    '.review-edit button[type="submit"]',     # item-detail dialog: per-store override Save
+    "[data-review-checked]",                  # item sheet > Stores & prices: Checked toggle
+    "[data-review-reset]",                    # item sheet > Stores & prices: per-store Reset to benchmark
+    '.review-edit button[type="submit"]',     # item sheet > Stores & prices: per-store override Save
     "#automation-start",                      # Shop -> Fill carts: Run automation
     '[data-action="current-minus"]',
     '[data-action="current-plus"]',
@@ -68,7 +68,8 @@ no_go = [
     '[data-action="mark-buy"]',
     '[data-action="mark-extra"]',             # Shop's "Got it" checkboxes
     '[data-action="remove-extra"]',           # Shop's quick-add Remove
-    '[data-action="delete"]',                 # Items -> Edit item: Delete
+    "[data-sheet-delete]",                    # item sheet: Delete item (opens the confirm)
+    '[data-confirm="yes"]',                   # the confirm sheet's Delete
     "#record-toggle",                         # Audit -> Audio audit: Start recording
     "#search-record",                         # Items -> Add item: product-search mic
     "#search-run",                            # Items -> Add item: product-search Search
@@ -112,11 +113,26 @@ synthetic = false
 
 # Stores takes a moment to load its price simulator (GET /api/stores then
 # /api/stores/checks) before a row's pencil attaches -- relies on the walk's
-# own 5s STEP_TARGET_WAIT_MS rather than a hand-added wait.
+# own 5s STEP_TARGET_WAIT_MS rather than a hand-added wait. The pencil opens
+# the item sheet (#255) on its Stores & prices page.
 [[design.review.extra_steps]]
 tab       = "items"
 id        = "stores-detail"
 clicks    = ['#pane-items [data-mode="stores"]', '[data-stores-action="detail"]']
+synthetic = false
+
+# The item sheet (#255) every item row opens: its main page (steppers, link
+# rows, Delete), and one field page (the Zone picker). Opening it only reads.
+[[design.review.extra_steps]]
+tab       = "items"
+id        = "item-sheet"
+clicks    = ['#pane-items [data-mode="edit"]', '#pane-items .item-row .action-row-main']
+synthetic = false
+
+[[design.review.extra_steps]]
+tab       = "items"
+id        = "item-sheet-zone"
+clicks    = ['#pane-items [data-mode="edit"]', '#pane-items .item-row .action-row-main', '#item-sheet [data-page-to="zone"]']
 synthetic = false
 
 # Settings is never a tab (#200): the walk reaches it through the header gear,
@@ -157,7 +173,8 @@ no_go = [
     '[data-action="mark-buy"]',
     '[data-action="mark-extra"]',
     '[data-action="remove-extra"]',
-    '[data-action="delete"]',
+    "[data-sheet-delete]",
+    '[data-confirm="yes"]',
     '[data-action="search-use"]',
     '[data-action="search-confirm"]',
     "#record-toggle",                         # needs a microphone
