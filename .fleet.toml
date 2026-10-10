@@ -16,7 +16,7 @@ icon-button = { src = "app/webapp/static/_vendored/icon-button", sha = "aa820f12
 modal = { src = "app/webapp/static/_vendored/modal", sha = "aa820f1215151087588433f290cd2ba55b34658d", dest = "app/static/_vendored/modal" }
 select-native = { src = "app/webapp/static/_vendored/select-native", sha = "28c3e2c09a6bdc224a2188dfd2abcea2d99744f7", dest = "app/static/_vendored/select-native" }
 button = { src = "app/webapp/static/_vendored/button", sha = "28c3e2c09a6bdc224a2188dfd2abcea2d99744f7", dest = "app/static/_vendored/button" }
-nav = { src = "app/webapp/static/_vendored/nav", sha = "f70569640ebaf251ab0ed5f5daadd6055953a8c9", dest = "app/static/_vendored/nav" }
+nav = { src = "app/webapp/static/_vendored/nav", sha = "92d16e00cd47561de647cda12faea7fcdb6f081b", dest = "app/static/_vendored/nav" }
 range-tab = { src = "app/webapp/static/_vendored/range-tab", sha = "f70569640ebaf251ab0ed5f5daadd6055953a8c9", dest = "app/static/_vendored/range-tab" }
 switch = { src = "app/webapp/static/_vendored/switch", sha = "f70569640ebaf251ab0ed5f5daadd6055953a8c9", dest = "app/static/_vendored/switch" }
 disclosure = { src = "app/webapp/static/_vendored/disclosure", sha = "f70569640ebaf251ab0ed5f5daadd6055953a8c9", dest = "app/static/_vendored/disclosure" }
@@ -60,14 +60,15 @@ no_go = [
     "[data-review-checked]",                  # item sheet > Stores & prices: Checked toggle
     "[data-review-reset]",                    # item sheet > Stores & prices: per-store Reset to benchmark
     '.review-edit button[type="submit"]',     # item sheet > Stores & prices: per-store override Save
-    "#automation-start",                      # Shop -> Fill carts: Run automation
+    "#automation-start",                      # Shop -> carts glance: Fill carts
     '[data-action="current-minus"]',
     '[data-action="current-plus"]',
     '[data-action="target-minus"]',
     '[data-action="target-plus"]',            # Audit's +/- steppers
     '[data-action="mark-buy"]',
     '[data-action="mark-extra"]',             # Shop's "Got it" checkboxes
-    '[data-action="remove-extra"]',           # Shop's quick-add Remove
+    '[data-action="remove-extra"]',           # Shop -> store sheet: a quick-add's Remove
+    "[data-store-unmark]",                    # Shop -> store sheet: Unmark all
     "[data-sheet-delete]",                    # item sheet: Delete item (opens the confirm)
     '[data-confirm="yes"]',                   # the confirm sheet's Delete
     "#record-toggle",                         # Audit -> Audio audit: Start recording
@@ -142,6 +143,21 @@ id        = "item-sheet-zone"
 clicks    = ['#pane-items [data-mode="list"]', '#pane-items .item-row .action-row-main', '#item-sheet [data-page-to="zone"]']
 synthetic = false
 
+# Shop's carts glance (#258): its Options row opens the Fill carts options
+# sheet, and a store group's Store options row opens the store sheet. Opening
+# either only reads; Fill carts itself, Unmark all and Remove are no_go.
+[[design.review.extra_steps]]
+tab       = "shopping"
+id        = "fill-carts-options"
+click     = "#automation-options"
+synthetic = false
+
+[[design.review.extra_steps]]
+tab       = "shopping"
+id        = "store-sheet"
+clicks    = ["#pane-shopping details[data-store] > summary", "#pane-shopping details[data-store] [data-store-sheet]"]
+synthetic = false
+
 # Settings is never a tab (#200): the walk reaches it through the header gear,
 # which also puts the text-size control on a screen (A11Y-02).
 [[design.review.extra_steps]]
@@ -180,6 +196,7 @@ no_go = [
     '[data-action="mark-buy"]',
     '[data-action="mark-extra"]',
     '[data-action="remove-extra"]',
+    "[data-store-unmark]",
     "[data-sheet-delete]",
     '[data-confirm="yes"]',
     '[data-action="search-use"]',

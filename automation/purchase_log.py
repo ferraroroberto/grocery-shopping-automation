@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Optional
 
 from automation.models import CartItem
-from automation.report import RunReport
+from automation.report import ADDED_UNVERIFIED, ADDED_VERIFIED, WOULD_ADD, RunReport
 
 logger = logging.getLogger(__name__)
 
@@ -112,3 +112,40 @@ def write_run_records(
     written.append(log_path)
     logger.info("📝 run record written to %s (%d store(s))", runs_dir, len(by_store))
     return written
+
+
+def read_last_fill(logs_dir: Path) -> Optional[dict]:
+    """The latest fill day's outcome per store, from the run records under ``runs/``.
+
+    A fill day is every record stamped with the newest record's date; a store
+    filled twice that day counts its later run. Per store: ``in_cart`` (verified),
+    ``unconfirmed`` (added, the cart unreadable), ``missing`` (not in the cart)
+    and that run's ``cart_mode``. ``run`` is the newest stamp, so a reader can
+    tell one fill from the next. ``None`` when no live run was ever recorded.
+    """
+    latest: dict[str, dict] = {}
+    for path in (logs_dir / RUNS_SUBDIR).glob("*_*.json"):
+        try:
+            record = json.loads(path.read_text(encoding="utf-8"))
+            stamp, store = str(record["run"]), str(record["store"])
+        except (OSError, ValueError, KeyError, TypeError) as err:
+            logger.warning("⚠️ run record %s unreadable, skipped: %s", path.name, err)
+            continue
+        if store not in latest or stamp > latest[store]["run"]:
+            latest[store] = record
+    if not latest:
+        return None
+    newest = max(record["run"] for record in latest.values())
+    day = newest[:10]
+    stores = {}
+    for store, record in latest.items():
+        if record["run"][:10] != day:
+            continue
+        statuses = [str(item.get("status")) for item in record.get("items") or []]
+        stores[store] = {
+            "in_cart": statuses.count(ADDED_VERIFIED),
+            "unconfirmed": statuses.count(ADDED_UNVERIFIED),
+            "missing": sum(s not in (ADDED_VERIFIED, ADDED_UNVERIFIED, WOULD_ADD) for s in statuses),
+            "cart_mode": record.get("cart_mode", "keep"),
+        }
+    return {"run": newest, "date": day, "stores": stores}

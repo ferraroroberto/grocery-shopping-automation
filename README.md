@@ -70,7 +70,7 @@ webapp.bat
 
 The FastAPI app on `:8502` covers the inventory dashboard, audit, target editing, item editing, item creation, shopping mode, automation controls, and the audio-audit workflow against the Excel-backed `src/data.py` layer. Open `http://127.0.0.1:8502` when no local cert exists, or `https://127.0.0.1:8502` after running `& .\.venv\Scripts\python.exe src\gen_ssl_cert.py`. Either launcher binds to `0.0.0.0`, so the same port is reachable over LAN or Tailscale from devices that can reach this PC.
 
-The PWA follows the fleet design system (`~/.claude/design.md` + `design.dark.md`): a floating bottom-tab pill on the phone (inline top tabs on desktop, a left icon-over-label rail on a desktop window 1100px or wider) with four tabs — **Home · Shop · Audit · Items** (Audit switches between **Manual** and **Voice** with a segmented control; Items switches between **Items**, one list grouped by zone, and **Prices** the same way; the store product search sits at the top of the **Add item** sheet the Items list opens, and the cart automation is the **Fill carts** section at the bottom of **Shop**) — vendored fleet components under `app/static/_vendored/`, and a **page header** atop every tab (icon, bold tab name, one live context line that names what needs you — e.g. Shop's "2 no link", Audit's "3 unmatched", Items' "4 need checking" — else a plain count, a light/dark **theme toggle**, moon/sun icon, that remembers your choice, and the **Settings gear**) so each tab opens the same way. Settings is never a tab: the gear beside the theme toggle opens it over whichever tab you are on (tap the gear again, or any tab, to leave). It holds the **text size** control (Small / Default / Large, remembered on the device and applied to every view), the utility actions (Open spreadsheet, Copy link, Export CSV, Log in to stores, Check store logins) and the **Email watch** card — Log in to stores opens the same plain Chrome window as `python -m automation.bootstrap_session` (see below) so a stale store login can be refreshed without a terminal; heavy cards (the dashboard item list, the per-store shopping panels, the audio zone checklist) are collapsible and folded by default; the search box appears only on the modes that filter the item list; every list of items shares one row (the manual Audit row has one in-stock stepper, an Items row its in-stock/target figures, a Shop row a leading Got-it check and a trailing buy link), and tapping a row anywhere opens the same **item sheet**: in-stock and target steppers, then Zone, Store, Buy link (a real web link also has an open-in-new-tab button beside it), Stores & prices, Quantity check and Name, each one tap away, and Delete — your changes stay staged until **Save** (Esc or × discards them), and deleting asks first in an in-app confirm sheet; the result of an action you started (Saved, Link copied, …) shows as a brief neutral toast above the nav. A footer line shows the running build (`Build: <git sha> · <time>`, from `/api/version`) so you always know which deploy the app is serving, and the shell auto-reloads once when it detects a newer build.
+The PWA follows the fleet design system (`~/.claude/design.md` + `design.dark.md`): a floating bottom-tab pill on the phone (inline top tabs on desktop, a left icon-over-label rail on a desktop window 1100px or wider) with four tabs — **Home · Shop · Audit · Items** (Audit switches between **Manual** and **Voice** with a segmented control; Items switches between **Items**, one list grouped by zone, and **Prices** the same way; the store product search sits at the top of the **Add item** sheet the Items list opens, and **Shop** opens on the **Carts** glance card: the last fill's outcome per store, the one **Fill carts** button, and an **Options** sheet for the store, cart mode and dry run) — vendored fleet components under `app/static/_vendored/`, and a **page header** atop every tab (icon, bold tab name, one live context line that names what needs you — e.g. Shop's "1 not in cart · 2 no link", Audit's "3 unmatched", Items' "4 need checking" — else a plain count, a light/dark **theme toggle**, moon/sun icon, that remembers your choice, and the **Settings gear**) so each tab opens the same way. Settings is never a tab: the gear beside the theme toggle opens it over whichever tab you are on (tap the gear again, or any tab, to leave). It holds the **text size** control (Small / Default / Large, remembered on the device and applied to every view), the utility actions (Open spreadsheet, Copy link, Export CSV, Log in to stores, Check store logins) and the **Email watch** card — Log in to stores opens the same plain Chrome window as `python -m automation.bootstrap_session` (see below) so a stale store login can be refreshed without a terminal; heavy cards (the dashboard item list, the per-store shopping panels, the audio zone checklist) are collapsible and folded by default; the search box appears only on the modes that filter the item list; every list of items shares one row (the manual Audit row has one in-stock stepper, an Items row its in-stock/target figures, a Shop row a leading Got-it check and a trailing buy link), and tapping a row anywhere opens the same **item sheet**: in-stock and target steppers, then Zone, Store, Buy link (a real web link also has an open-in-new-tab button beside it), Stores & prices, Quantity check and Name, each one tap away, and Delete — your changes stay staged until **Save** (Esc or × discards them), and deleting asks first in an in-app confirm sheet; the result of an action you started (Saved, Link copied, …) shows as a brief neutral toast above the nav. A footer line shows the running build (`Build: <git sha> · <time>`, from `/api/version`) so you always know which deploy the app is serving, and the shell auto-reloads once when it detects a newer build.
 
 ### Regenerate application icons
 
@@ -354,16 +354,13 @@ The **Prices** segment under **Items** (the Stores mode until #256) is where you
 **Quarterly flow:** run `/supermarket-benchmark` → open the app → **Items → Prices** → **Benchmark** → **Import latest run** → **Load recommended plan** → **Review & apply** → work through **Needs checking**, marking each item **Checked**.
 
 ### 🛒 Shopping List
-View items that need to be purchased, grouped by supermarket.
+**Fill carts first:** the **Shop** tab opens on the **Carts** glance card — one row per store on the list with what to buy and how the last fill went ("12 to buy · 11 in cart", a "1 not in cart" chip when it left something out), the one **Fill carts** button, the run's progress and outcome, and the run log folded underneath. Its **Options** row opens a sheet with the store, cart mode, dry run and the clean-cart confirm, and says in plain words what will run. When a fill leaves items out, Shop's header names them and the **Shop** tab carries a count badge until you next open Shop. The last fill is read from the run records under `purchase_logs/runs/`, so it survives a restart — see [Browser Automation](#-browser-automation).
 
-**Cart offset counters:**
-Each supermarket shows an editable `＋items` and `＋units` counter below its progress bar. Use these when items were already placed in the physical cart before opening the app — the bar and totals update immediately to reflect the combined count.
+**The list:** below the glance, the items to buy are grouped by supermarket, each group folded with its done/total count. A row has a leading Got-it check (tap again to undo) and a trailing buy link.
 
-**Quick-add items:**
-At the bottom of each supermarket's expander, a small inline form lets you add ad-hoc items (name + quantity). These are session-only and support the same Got-it check (tap again to undo) and a remove button. Works for both Ametller and Mercadona (and any other supermarket in the list).
+**Add to a store:** the last row of each group adds an ad-hoc item (name + quantity) to that store's list. These are session-only and support the same Got-it check.
 
-**Fill carts:**
-Below the store panels, the **Fill carts** section runs the cart automation from this list — see [Browser Automation](#-browser-automation).
+**Store options:** the row under it opens the store sheet — the **already in cart** items/units counters (for things put in the cart before you opened the app; the group's totals update at once), the ad-hoc items with their **Remove**, and **Unmark all** for that store.
 
 ### 💾 Save / Export
 Manual save to Excel or download as CSV, plus summary statistics.
@@ -401,13 +398,13 @@ app-run check: `logs/check_logins.log`). A failed cart run names its cause —
 login redirect, not logged in, bot challenge, or an unexpected API answer —
 see [`automation/README.md`](automation/README.md).
 
-**Start a cart run from the app:** the **Fill carts** section at the bottom of
-the PWA's **🛒 Shop** tab lets you pick a store (or "All stores"), choose a
-**cart mode**, optionally switch on *Dry run*, and click **Run automation**
-(nothing runs until you do). The exact command it will run is folded under
-**What will run**. Output streams live into the page and a **Stop** button cancels an
-in-progress run; the section keeps its picks and live log while you tick items
-off the list above it. The legacy Streamlit app offers the same
+**Start a cart run from the app:** the **Carts** glance card at the top of the
+PWA's **🛒 Shop** tab runs it with **Fill carts** (nothing runs until you tap
+it). Its **Options** sheet picks a store (or "All stores"), the **cart mode**
+and *Dry run*, and its **What will run** line says in words what the run will
+do. Progress streams into the folded run log and a **Stop** button cancels an
+in-progress run; the card keeps its picks and live log while you tick items
+off the list below it. The legacy Streamlit app offers the same
 controls under its **🛒 Shopping List** mode's **🤖 Run Automation** section.
 From a terminal you can also run
 `& .\.venv\Scripts\python.exe -m automation.run_automation --keep-open`, which
@@ -430,7 +427,7 @@ the cart changed by the expected amount.
 Every live run then **checks the store's final cart against the list**: a failed
 add is retried once, every item is reconciled with the cart, unavailable items
 get a suggested alternative, and the run ends with a summary of verified items
-and every item **not** in the cart with its reason — in the Fill carts panel and
+and every item **not** in the cart with its reason — in the Shop carts glance and
 through the Telegram notifier. A run with misses exits non-zero and never reads
 as a clean success. Each run also leaves a record under `purchase_logs/runs/`.
 Details: [`automation/README.md`](automation/README.md) → "Cart guard".

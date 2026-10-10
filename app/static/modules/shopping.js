@@ -1,10 +1,15 @@
-// The shopping list: one folding panel per store, with Got-it marks, manual
-// cart offsets and free-text quick-adds. All of it is client-side progress
+// The shopping list under Shop's carts glance (#258): one folding group per
+// store, with Got-it marks and free-text quick-adds. The list comes second —
+// the household fills the carts and rarely ticks items off after — so it stays
+// folded and plain. Each group ends on an "Add to <store>" row and a Store
+// options row opening the store sheet (store-sheet.js: the cart offsets, the
+// quick-adds' Remove, Unmark all). All of it is client-side progress
 // (persisted via core's shopping state) over the server's buy list.
 import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
+import { storeLabel } from "./automation.js";
 import { activePaneBody, c, items, state } from "./core.js";
-import { html, icon, text } from "./dom.js";
-import { itemList, itemRow, rowLink, rowVerb } from "./rows.js";
+import { esc, html, icon, text } from "./dom.js";
+import { itemList, itemRow, rowLink } from "./rows.js";
 
 function shoppingItems() {
   const cols = c();
@@ -26,22 +31,19 @@ export function shoppingMissingLinkCount() {
 export function renderShopping() {
   const cols = c();
   const base = shoppingItems();
-  const stores = [...new Set([...base.map((item) => item[cols.super]), ...Object.keys(state.shopping.extras)])].sort();
+  const stores = [...new Set([...base.map((item) => item[cols.super]), ...Object.keys(state.shopping.extras)])]
+    .sort((a, b) => storeLabel(a).localeCompare(storeLabel(b)));
   if (!stores.length) {
     activePaneBody().replaceChildren(emptyStateEl("circle-check", "All stocked up."));
     return;
   }
-  const boughtCount = state.shopping.bought.size + Object.values(state.shopping.extraBought || {}).reduce((n, list) => n + (list?.length || 0), 0);
-  // The missing-link count lives in the page header now (one home per fact),
-  // so the only thing left above the stores is Unmark all, once something is got.
-  const header = boughtCount ? `<div class="actions"><button class="secondary" id="shopping-unmark-all" type="button">Unmark all</button></div>` : "";
   const paneBody = activePaneBody();
   // Store panels fold by default (summary carries the done/total readout);
   // harvest the live open state so a Got-it re-render keeps your store open.
   const openStores = new Set(
     [...paneBody.querySelectorAll("details[data-store][open]")].map((d) => d.dataset.store),
   );
-  paneBody.innerHTML = header + stores.map((store) => {
+  paneBody.innerHTML = stores.map((store) => {
     const storeItems = base.filter((item) => item[cols.super] === store);
     const extras = state.shopping.extras[store] || [];
     const extraBought = new Set(state.shopping.extraBought[store] || []);
@@ -50,29 +52,20 @@ export function renderShopping() {
     const totalUnits = storeItems.reduce((n, item) => n + Number(item[cols.comprar] || 0), 0) + extras.reduce((n, item) => n + Number(item.qty || 0), 0);
     const doneItems = storeItems.filter((item) => state.shopping.bought.has(item.id)).length + extras.filter((item) => extraBought.has(item.id)).length + Number(offset.items || 0);
     const doneUnits = storeItems.filter((item) => state.shopping.bought.has(item.id)).reduce((n, item) => n + Number(item[cols.comprar] || 0), 0) + extras.filter((item) => extraBought.has(item.id)).reduce((n, item) => n + Number(item.qty || 0), 0) + Number(offset.units || 0);
+    const label = storeLabel(store);
+    const rows = storeItems.map((item) => shoppingRow(item, cols)).join("")
+      + extras.map((item) => extraRow(item, store, extraBought)).join("")
+      + addRow(label) + optionsRow(offset);
     return `<details class="card card--collapsible" data-store="${html(store)}"${openStores.has(store) ? " open" : ""}>
       <summary class="collapse-summary">
         <span class="collapse-main">
           ${icon("shopping-basket")}
-          <h3 class="collapse-title">${html(store)}</h3>
+          <h3 class="collapse-title" data-store-label="${esc(store)}">${html(label)}</h3>
           <span class="collapse-count">${doneItems}/${totalItems} items · ${doneUnits}/${totalUnits} units</span>
         </span>
         <span class="collapse-chevron" aria-hidden="true">›</span>
       </summary>
-      <div class="collapse-body">
-        <div class="two">
-          <label class="hint">Items already in cart<input class="field" data-action="offset-items" type="number" min="0" value="${Number(offset.items || 0)}"></label>
-          <label class="hint">Units already in cart<input class="field" data-action="offset-units" type="number" min="0" value="${Number(offset.units || 0)}"></label>
-        </div>
-        ${itemList(storeItems.map((item) => shoppingRow(item, cols)).join("") + extras.map((item) => extraRow(item, store, extraBought)).join(""), { bare: true })}
-        <form class="form quick-add">
-          <div class="three">
-            <input class="field" name="name" placeholder="Quick-add item" required>
-            <input class="field" name="qty" type="number" min="1" value="1">
-            <button class="secondary" type="submit">Add</button>
-          </div>
-        </form>
-      </div>
+      <div class="collapse-body">${itemList(rows, { bare: true })}</div>
     </details>`;
   }).join("");
 }
@@ -94,7 +87,8 @@ function shoppingRow(item, cols) {
   });
 }
 
-// A free-text quick-add: no spreadsheet row behind it, so nothing to open.
+// A free-text quick-add: no spreadsheet row behind it, so nothing to open. Its
+// Remove lives in the store sheet (#252 decision 6).
 function extraRow(item, store, extraBought) {
   const bought = extraBought.has(item.id);
   return itemRow({
@@ -102,8 +96,31 @@ function extraRow(item, store, extraBought) {
     struck: bought,
     meta: `Added here · buy ${item.qty}`,
     lead: { pressed: bought, action: bought ? "undo-extra" : "mark-extra", label: `Got ${item.name}` },
-    trail: rowVerb("remove-extra", `Remove ${item.name}`, "x"),
     attrs: `data-extra-id="${item.id}" data-store="${html(store)}"`,
     open: false,
   });
+}
+
+// The quick-add as the list's last row: a name, a quantity, one add button.
+function addRow(label) {
+  return `<li class="action-row store-add-row">
+      <form class="quick-add">
+        ${icon("plus", "store-add-icon")}
+        <input class="field" name="name" placeholder="Add to ${esc(label)}" aria-label="Item to add to ${esc(label)}" required>
+        <input class="field quick-add-qty" name="qty" type="number" min="1" value="1" aria-label="Quantity">
+        <button class="icon-button" type="submit" aria-label="Add to ${esc(label)}" title="Add">${icon("arrow-right")}</button>
+      </form>
+    </li>`;
+}
+
+function optionsRow(offset) {
+  const already = Number(offset.items || 0);
+  return `<li class="action-row">
+      <button type="button" class="action-row-main sheet-link" data-store-sheet aria-haspopup="dialog">
+        ${icon("sliders-horizontal", "sheet-link-icon")}
+        <span class="action-row-title">Store options</span>
+        <span class="sheet-link-value">${already ? `${already} already in cart` : ""}</span>
+        ${icon("chevron-right", "sheet-link-chevron")}
+      </button>
+    </li>`;
 }

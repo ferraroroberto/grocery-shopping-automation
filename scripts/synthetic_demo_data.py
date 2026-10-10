@@ -7,8 +7,8 @@ from the household's real list, purchases or accounts.
 Run from the demo instance's *code copy* (``python -m scripts.synthetic_demo_data
 <root>``), where ``src/config.json`` already points at ``<root>``: it writes the
 workbook and two benchmark runs, scores them with the app's own
-``benchmark.score``, and freezes a Stores baseline, so every tab, mode and
-dialog has content and a few corners are empty.
+``benchmark.score``, freezes a Stores baseline, and records a last Fill carts,
+so every tab, mode and dialog has content and a few corners are empty.
 """
 from __future__ import annotations
 
@@ -63,6 +63,13 @@ ROWS: List[Tuple[str, str, str, str, int, int, Optional[int], bool]] = [
 STORES = ("mercadona", "ametller", "carrefour")
 RUN_DATES = ("2026-08-01", "2026-09-01")      # two runs, so the Stores view has a price history
 BASKET_ROWS = 20                              # the first rows with a product link are priced
+# The last Fill carts (#258): one store wholly in its cart, one with a miss, so
+# Shop's glance, its header and its tab badge each have something to show.
+LAST_FILL_RUN = "2026-10-06T191701"
+LAST_FILL = {
+    "mercadona": ["added_verified", "added_verified", "out_of_stock"],
+    "carrefour": ["added_verified", "added_verified"],
+}
 DELIVERY = {
     "mercadona": {"delivers": "yes", "fee_tiers": [{"min_order": 0.0, "fee": 7.9}], "min_order": 40.0},
     "ametller": {"delivers": "yes", "fee_tiers": [{"min_order": 0.0, "fee": 5.95}, {"min_order": 60.0, "fee": 0.0}],
@@ -160,6 +167,16 @@ def write_run(runs: Path, date: str, price_factor: float) -> Path:
     return run
 
 
+def write_last_fill(logs: Path) -> None:
+    """Invented Fill carts run records under ``<purchase logs>/runs/`` (#258)."""
+    runs = logs / "runs"
+    runs.mkdir(parents=True, exist_ok=True)
+    for store, statuses in LAST_FILL.items():
+        record = {"run": LAST_FILL_RUN, "store": store, "cart_mode": "keep",
+                  "items": [{"comida": f"demo item {i + 1}", "status": s} for i, s in enumerate(statuses)]}
+        (runs / f"{LAST_FILL_RUN}_{store}.json").write_text(json.dumps(record, indent=2), encoding="utf-8")
+
+
 def seed(root: Path) -> None:
     """Write the workbook and benchmark state under ``root`` (the config already points there)."""
     from benchmark import score
@@ -172,6 +189,7 @@ def seed(root: Path) -> None:
         if score.main([str(run), "--promote"]) != 0:
             raise RuntimeError(f"scoring the demo run {date} failed")
     store_links.set_baseline(data.load_inventory_data(), runs / RUN_DATES[-1])
+    write_last_fill(data.purchase_logs_dir())
 
 
 def main(argv: Optional[List[str]] = None) -> int:

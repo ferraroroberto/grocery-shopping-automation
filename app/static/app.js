@@ -19,11 +19,14 @@ import {
 } from "./modules/audio.js";
 import {
   dismissAutomation,
+  fillMissingCount,
+  loadFills,
+  openFillOptions,
   renderFillCarts,
   startAutomation,
   stopAutomation,
   syncFillCarts,
-  updateAutomationCommand,
+  unseenFillMisses,
 } from "./modules/automation.js";
 import {
   captureTokenFromURL,
@@ -48,6 +51,7 @@ import { isEmailControl, pushEmailMonitorConfig, renderEmailWatch, runEmailCheck
 import { renderAudit, renderDashboard, renderItems } from "./modules/inventory.js";
 import { openItemSheet } from "./modules/item-sheet.js";
 import { renderShopping, shoppingMissingLinkCount } from "./modules/shopping.js";
+import { openStoreSheet } from "./modules/store-sheet.js";
 import {
   loadStoresChecks,
   onStoresChange,
@@ -61,10 +65,16 @@ import {
 // "page header"): the exception that needs you, in its tone, else the plain
 // count — never the mode name the segmented control already shows. Home's own
 // #status is driven by idleStatus()/setStatus() below, unchanged until Step 7.
+// The Shop tab also carries a badge while the last fill's misses are unseen
+// (#258, #252 decision 11).
 function updatePageHeaderContexts() {
   if (!state.payload) return;
   const total = `${state.payload.summary.total_items} items`;
-  setContextLine("#shop-context", [[shoppingMissingLinkCount(), "no link", "attention"]], `${state.payload.summary.shopping_items} to buy`);
+  setContextLine("#shop-context", [
+    [fillMissingCount(), "not in cart", "danger"],
+    [shoppingMissingLinkCount(), "no link", "attention"],
+  ], `${state.payload.summary.shopping_items} to buy`);
+  nav?.setBadge("shopping", unseenFillMisses(), "not in cart");
   setContextLine("#audit-context", [[audioUnmatchedCount(), "unmatched", "attention"]], total);
   setContextLine("#items-context", [[storesNeedsChecking(), ["needs checking", "need checking"], "attention"]], total);
 }
@@ -158,9 +168,10 @@ function onTabChange(tab) {
   // Leaving Settings: its pane is not a nav pane, so the nav never hides it.
   settingsPane.hidden = true;
   if (MODE_TO_TAB[state.mode] !== tab) state.mode = restoreSubMode(tab);
-  // Fill carts paints once (render → renderFillCarts, which fetches the run
-  // status itself) and then persists; re-entering Shop resyncs an already
-  // painted section. Before render(), so a first paint isn't fetched twice.
+  // The carts glance paints once (render → renderFillCarts, which fetches the
+  // run status itself) and then persists; entering Shop re-reads the last
+  // fill and resyncs an already painted glance. Before render(), so a first
+  // paint isn't fetched twice.
   if (tab === "shopping") syncFillCarts();
   // Items' header names the items that need checking, whichever mode opens.
   if (tab === "items") loadStoresChecks();
@@ -215,7 +226,6 @@ el.app.addEventListener("click", (event) => {
   const sw = event.target.closest('.toggle[role="switch"]');
   if (!sw) return;
   setSwitch(sw, sw.getAttribute("aria-checked") !== "true");
-  if (sw.id === "automation-dry-run" || sw.id === "automation-clean-confirm") updateAutomationCommand();
   if (isEmailControl(sw)) pushEmailMonitorConfig();
 });
 
@@ -239,13 +249,13 @@ el.app.addEventListener("click", async (event) => {
   if (action === "open-item") await openItemSheet(id, event.target.closest("[data-sheet-page]")?.dataset.sheetPage);
   if (action === "mark-buy") { state.shopping.bought.add(id); saveShoppingState(); render(); }
   if (action === "undo-buy") { state.shopping.bought.delete(id); saveShoppingState(); render(); }
+  // A quick-add's Got it; its Remove lives in the store sheet (#258).
   const extraCard = event.target.closest("[data-extra-id]");
   if (extraCard) {
     const store = extraCard.dataset.store;
     const extraId = Number(extraCard.dataset.extraId);
     state.shopping.extraBought[store] ||= [];
     const set = new Set(state.shopping.extraBought[store]);
-    if (action === "remove-extra") state.shopping.extras[store] = (state.shopping.extras[store] || []).filter((x) => x.id !== extraId);
     if (action === "mark-extra") set.add(extraId);
     if (action === "undo-extra") set.delete(extraId);
     state.shopping.extraBought[store] = [...set];
@@ -272,25 +282,7 @@ el.app.addEventListener("change", (event) => {
     setAudioModel(event.target.value);
     return;
   }
-  // The dry-run / clean-confirm switches fire through the click delegation
-  // above; only the two selects arrive here.
-  if (["automation-store", "automation-cart-mode"].includes(event.target.id)) {
-    updateAutomationCommand();
-    return;
-  }
-  if (isEmailControl(event.target)) {
-    pushEmailMonitorConfig();
-    return;
-  }
-  const action = event.target.dataset.action;
-  const panel = event.target.closest("[data-store]");
-  if (!panel || !action) return;
-  const store = panel.dataset.store;
-  state.shopping.offsets[store] ||= { items: 0, units: 0 };
-  if (action === "offset-items") state.shopping.offsets[store].items = Number(event.target.value || 0);
-  if (action === "offset-units") state.shopping.offsets[store].units = Number(event.target.value || 0);
-  saveShoppingState();
-  render();
+  if (isEmailControl(event.target)) pushEmailMonitorConfig();
 });
 
 el.app.addEventListener("click", async (event) => {
@@ -301,14 +293,10 @@ el.app.addEventListener("click", async (event) => {
   if (id === "automation-start") await startAutomation();
   if (id === "automation-stop") await stopAutomation();
   if (id === "automation-dismiss") await dismissAutomation();
+  if (id === "automation-options") openFillOptions();
+  if (button?.matches("[data-store-sheet]")) openStoreSheet(button.closest("[data-store]").dataset.store);
   if (id === "email-check-now") await runEmailCheck(false);
   if (id === "email-check-test") await runEmailCheck(true);
-  if (id === "shopping-unmark-all") {
-    state.shopping.bought.clear();
-    state.shopping.extraBought = {};
-    saveShoppingState();
-    render();
-  }
   if (id === "record-toggle") await toggleRecording(button);
   if (id === "audio-redo") await redoTranscribe();
   if (id === "match-transcript") await matchTranscript();
@@ -381,6 +369,9 @@ bindTextSize(document.querySelector("#textSizeControl"), "grocery");
 loadInventory().then(() => {
   if (retiredReveal) document.querySelector(retiredReveal)?.scrollIntoView({ block: "start" });
 });
+// The last fill feeds Shop's header and its tab badge from whichever tab
+// opens; a Shop that opens has already asked (onTabChange → syncFillCarts).
+if (nav.getTab() !== "shopping") loadFills();
 fetchVersion();
 
 // No manual refresh button: refetch when the PWA returns to the foreground.
@@ -392,4 +383,5 @@ document.addEventListener("visibilitychange", () => {
   fetchVersion();
   if (["dashboard", "shopping", "audit", "list"].includes(state.mode)) loadInventory();
   if (state.mode === "shopping") syncFillCarts();
+  else loadFills(); // a fill finished elsewhere: Shop's badge
 });

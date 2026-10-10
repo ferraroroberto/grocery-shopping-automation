@@ -738,8 +738,8 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
    action, then the footer row to the Benchmark sheet on a hairline. */
 .stores-glance > * + * { margin-top: var(--gap); }
 .stores-glance p { margin-bottom: 0; }
-.stores-glance-foot { margin-bottom: calc(-1 * var(--space-xs)); border-top: 1px solid var(--line-muted); }
-.stores-glance-foot .action-row { padding: 0; }
+.stores-glance-foot, .carts-glance-foot { margin-bottom: calc(-1 * var(--space-xs)); border-top: 1px solid var(--line-muted); }
+.stores-glance-foot .action-row, .carts-glance-foot .action-row { padding: 0; }
 .panel-status.warn { color: var(--attention); display: flex; align-items: center; gap: var(--space-xs); }
 .panel-status.warn .icon { width: var(--icon-inline); height: var(--icon-inline); }
 
@@ -868,8 +868,8 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 .stores-howto-summary > .icon { width: var(--icon-inline); height: var(--icon-inline); color: var(--muted); }
 .inline-chevron { margin-left: auto; color: var(--muted); font-size: var(--font-heading-lg); line-height: 1; transition: transform 0.15s ease; }
 details[open] > summary .inline-chevron { transform: rotate(90deg); }
-/* Fill carts' folded command preview (#182): a quiet row — the raw argv is a
-   detail for the curious, not a label — with the log spaced off its summary. */
+/* The carts glance's folded run log (#258): a quiet row, the log spaced off
+   its summary. */
 .inline-disclosure-summary { color: var(--muted); }
 .inline-disclosure[open] > .log { margin-top: var(--space-sm); }
 
@@ -1096,3 +1096,32 @@ a.button-tint[data-open-link-page] {
 
 /* ------------------------------------------------------------ login dialog */
 .login-error { min-height: 20px; color: var(--deficit); font-size: var(--font-label); }
+
+/* ------------------------------------------------------------ Shop (#258) */
+/* The carts glance: one row per store (text aligned with the card title, not
+   tappable), the run's status and the one action, the Options row on a
+   hairline, then the run log folded. */
+.carts-glance > * + * { margin-top: var(--gap); }
+.carts-glance .panel-status:empty, .carts-glance .panel-status[hidden] { display: none; }
+.carts-stores .action-row { padding: 0; }
+.carts-stores .action-row-main { padding-inline: 0; cursor: default; }
+.carts-stores .action-row-main:active { background: transparent; }
+.carts-actions { display: grid; gap: var(--space-sm); }
+.carts-actions > [hidden] { display: none; }
+
+/* A store group's last rows: "Add to <store>" (name, quantity, one add) and
+   the Store options link row. */
+.store-add-row .quick-add { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-sm); padding-left: 10px; }
+.store-add-row .quick-add > .field:first-of-type { flex: 1; min-width: 0; }
+.store-add-row .quick-add-qty { flex: none; width: 64px; text-align: center; }
+.store-add-row .icon-button { --icon-btn-box: var(--row-sm); }
+.store-add-icon { flex: none; width: var(--icon-inline); height: var(--icon-inline); color: var(--muted); }
+.collapse-body .sheet-link { padding-inline: 10px; }
+
+/* The Fill carts options and store sheets: overline-headed sections, the
+   switches as label-left rows, "what will run" as one muted paragraph. */
+.fill-options .stores-dialog-body, .store-sheet .stores-dialog-body { display: grid; gap: var(--space-md); }
+.fill-options .flag-row { min-height: var(--row-sm); justify-content: space-between; }
+.fill-options .panel-status[hidden] { display: none; }
+.fill-plan, .store-sheet-section { display: grid; gap: var(--space-sm); }
+.fill-plan .hint { margin: 0; }

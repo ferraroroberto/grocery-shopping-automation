@@ -9,7 +9,7 @@ import { chip, esc, html, icon } from "./dom.js";
 // `lead`: { pressed, action, label } for the leading check (an item got), or
 // null. `chip`: { label, tone, title? } closing the meta line, for an
 // exception only. `trail`: the markup of the one trailing item (stepper(),
-// rowValue(), rowLink(), rowVerb(), a picker). `attrs`: the row's data-*
+// rowValue(), rowLink(), a picker). `attrs`: the row's data-*
 // hooks. `open: false` keeps the row inert (a free-text quick-add has no item
 // to open). Optional, for Prices (#257): `page`, the item sheet page a row tap
 // opens; `className`, an extra class on the row; `after`, a full-width line
@@ -60,9 +60,4 @@ export function rowValue(value) {
 // A trailing link out (a product page), opened in a new tab.
 export function rowLink(url, label, glyph = "external-link") {
   return `<a class="icon-button action-row-trail" href="${esc(url)}" target="_blank" rel="noopener noreferrer" aria-label="${esc(label)}" title="${esc(label)}">${icon(glyph)}</a>`;
-}
-
-// A trailing glyph verb on the row's own hook (data-action).
-export function rowVerb(action, label, glyph) {
-  return `<button type="button" class="icon-button action-row-trail" data-action="${action}" aria-label="${esc(label)}" title="${esc(label)}">${icon(glyph)}</button>`;
 }

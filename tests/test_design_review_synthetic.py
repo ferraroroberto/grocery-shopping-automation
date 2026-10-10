@@ -104,6 +104,10 @@ def test_serves_the_invented_workbook(instance):
     assert not [m for m in REAL_LIST_MARKERS if m in json.dumps(body, ensure_ascii=False).lower()]
     assert (instance.root / "data" / "list.xlsx").is_file()                 # the workbook it serves is in the temp tree
     assert _call(instance.base, "GET", "/")[0] == 200
+    # Shop's carts glance (#258) reads an invented last fill from the temp tree.
+    _, fills = _call(instance.base, "GET", "/api/automation/fills")
+    assert fills["last_fill"]["run"] == demo_data.LAST_FILL_RUN
+    assert fills["last_fill"]["stores"]["mercadona"]["missing"] == 1
 
 
 def test_stores_tab_has_a_scored_run_and_baseline(instance):

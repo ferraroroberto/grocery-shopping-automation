@@ -52,8 +52,6 @@ def test_persist_purchase_log_skips_dry_run(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     import src.data as data
     monkeypatch.setitem(data.CONFIG["automation"], "purchase_logs_dir", str(tmp_path / "logs"))
-    monkeypatch.setattr("automation.run_automation.CONFIG", data.CONFIG)
-    monkeypatch.setattr("automation.run_automation.REPO_ROOT", tmp_path)
 
     report = RunReport()
     report.record(CartItem("mercadona", "yogur", 2, "https://example.com/yogur"), ADDED_VERIFIED)
@@ -67,8 +65,7 @@ def test_persist_purchase_log_skips_dry_run(tmp_path, monkeypatch):
 def test_persist_purchase_log_writes_on_live_run(tmp_path, monkeypatch):
     import src.data as data
     monkeypatch.setitem(data.CONFIG["automation"], "purchase_logs_dir", "logs")
-    monkeypatch.setattr("automation.run_automation.CONFIG", data.CONFIG)
-    monkeypatch.setattr("automation.run_automation.REPO_ROOT", tmp_path)
+    monkeypatch.setattr(data, "REPO_ROOT", tmp_path)
 
     report = RunReport()
     report.record(CartItem("mercadona", "yogur", 2, "https://example.com/yogur"), ADDED_VERIFIED)
@@ -112,3 +109,35 @@ def test_two_runs_on_one_day_merge_the_purchase_log_and_keep_two_records(tmp_pat
     # The existing reader still picks the day's log, not a run record.
     from automation.item_matching import load_latest_purchase_log
     assert {i.comida for i in load_latest_purchase_log("carrefour", logs_dir)} == {"kiwi", "quinoa"}
+
+
+def test_read_last_fill_counts_the_newest_day_per_store(tmp_path: Path):
+    """#258: Shop's glance reads the last fill day from the run records — a store
+    filled twice that day counts its later run, an older day is left out."""
+    from datetime import datetime
+
+    from automation.purchase_log import read_last_fill, write_run_records
+    from automation.report import ADDED_UNVERIFIED, ERROR
+
+    logs_dir = tmp_path / "logs"
+    assert read_last_fill(logs_dir) is None
+
+    old, morning, evening = RunReport(), RunReport(), RunReport(mode="clean")
+    old.record(CartItem("ametller", "pan", 1, "https://example.com/pan"), OUT_OF_STOCK)
+    morning.record(CartItem("carrefour", "kiwi", 1, "https://example.com/kiwi"), OUT_OF_STOCK)
+    evening.record(CartItem("carrefour", "kiwi", 1, "https://example.com/kiwi"), ADDED_VERIFIED)
+    evening.record(CartItem("carrefour", "quinoa", 2, "https://example.com/quinoa"), ADDED_UNVERIFIED)
+    evening.record(CartItem("Mercadona", "sal", 1, ""), ERROR, "no link")
+    for report, at in ((old, datetime(2026, 9, 29, 19, 0, 0)), (morning, datetime(2026, 10, 6, 9, 0, 0)),
+                       (evening, datetime(2026, 10, 6, 19, 17, 1))):
+        write_run_records(report, logs_dir, "", now=at)
+    (logs_dir / "runs" / "2026-10-07T080000_broken.json").write_text("{not json", encoding="utf-8")
+
+    assert read_last_fill(logs_dir) == {
+        "run": "2026-10-06T191701",
+        "date": "2026-10-06",
+        "stores": {
+            "carrefour": {"in_cart": 1, "unconfirmed": 1, "missing": 0, "cart_mode": "clean"},
+            "mercadona": {"in_cart": 0, "unconfirmed": 0, "missing": 1, "cart_mode": "clean"},
+        },
+    }
