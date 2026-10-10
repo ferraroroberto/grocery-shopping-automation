@@ -50,13 +50,13 @@ theme_storage_key = "grocery.theme"
 # Never clicked: anything that mutates the spreadsheet or local what-if state,
 # starts a recording, spends money, or launches an external process/window.
 no_go = [
-    ".detail-save-btn",                       # every dialog's Save/Apply (login Unlock, Set baseline, Review & apply's Apply, the item sheet's Save)
-    '[data-stores-action="review"]',          # Items -> Stores: Review & apply...
-    '[data-stores-action="set-baseline"]',    # Items -> Stores: Set as baseline
-    '[data-stores-action="reset-baseline"]',  # Items -> Stores: Reset to benchmark
-    '[data-stores-action="import"]',          # Items -> Stores: Import latest run
-    '[data-stores-action="recommended"]',     # Items -> Stores: Load recommended plan
-    '[data-stores-action="reset"]',           # Items -> Stores: Reset to my list
+    ".detail-save-btn",                       # every dialog's Save/Apply (login Unlock, Set baseline, Review & apply's Apply, the item sheet's Save, the Add item sheet's Add item)
+    '[data-stores-action="review"]',          # Items -> Prices: Review & apply...
+    '[data-stores-action="set-baseline"]',    # Items -> Prices: Set as baseline
+    '[data-stores-action="reset-baseline"]',  # Items -> Prices: Reset to benchmark
+    '[data-stores-action="import"]',          # Items -> Prices: Import latest run
+    '[data-stores-action="recommended"]',     # Items -> Prices: Load recommended plan
+    '[data-stores-action="reset"]',           # Items -> Prices: Reset to my list
     "[data-review-checked]",                  # item sheet > Stores & prices: Checked toggle
     "[data-review-reset]",                    # item sheet > Stores & prices: per-store Reset to benchmark
     '.review-edit button[type="submit"]',     # item sheet > Stores & prices: per-store override Save
@@ -71,10 +71,10 @@ no_go = [
     "[data-sheet-delete]",                    # item sheet: Delete item (opens the confirm)
     '[data-confirm="yes"]',                   # the confirm sheet's Delete
     "#record-toggle",                         # Audit -> Audio audit: Start recording
-    "#search-record",                         # Items -> Add item: product-search mic
-    "#search-run",                            # Items -> Add item: product-search Search
+    "#search-record",                         # Add item sheet: product-search mic
+    "#search-run",                            # Add item sheet: product-search Search
     '[data-action="search-use"]',
-    '[data-action="search-confirm"]',         # Items -> Add item: product-search Use / Update item
+    '[data-action="search-confirm"]',         # Add item sheet: product-search Use / Update item
     "#email-check-now",
     "#email-check-test",                      # Settings: Check now / Test last email
     "#open-sheet",                            # Settings: Open spreadsheet
@@ -87,22 +87,21 @@ id        = "audio"
 click     = '#pane-audit [data-mode="audio"]'
 synthetic = false
 
+# Items is two segments (#256): the item list ("list") and Prices ("stores").
+# Each Items step clicks its segment first -- a sub-mode saved by an earlier
+# step must not decide which segment the step lands on.
 [[design.review.extra_steps]]
 tab       = "items"
-id        = "targets"
-click     = '#pane-items [data-mode="targets"]'
+id        = "list"
+click     = '#pane-items [data-mode="list"]'
 synthetic = false
 
-[[design.review.extra_steps]]
-tab       = "items"
-id        = "edit"
-click     = '#pane-items [data-mode="edit"]'
-synthetic = false
-
+# The Add item sheet the list opens: the product search, then Add by hand.
+# Opening it only reads; its Search, mic and Add item are no_go.
 [[design.review.extra_steps]]
 tab       = "items"
 id        = "add"
-click     = '#pane-items [data-mode="add"]'
+clicks    = ['#pane-items [data-mode="list"]', "#items-add"]
 synthetic = false
 
 [[design.review.extra_steps]]
@@ -126,13 +125,13 @@ synthetic = false
 [[design.review.extra_steps]]
 tab       = "items"
 id        = "item-sheet"
-clicks    = ['#pane-items [data-mode="edit"]', '#pane-items .item-row .action-row-main']
+clicks    = ['#pane-items [data-mode="list"]', '#pane-items .item-row .action-row-main']
 synthetic = false
 
 [[design.review.extra_steps]]
 tab       = "items"
 id        = "item-sheet-zone"
-clicks    = ['#pane-items [data-mode="edit"]', '#pane-items .item-row .action-row-main', '#item-sheet [data-page-to="zone"]']
+clicks    = ['#pane-items [data-mode="list"]', '#pane-items .item-row .action-row-main', '#item-sheet [data-page-to="zone"]']
 synthetic = false
 
 # Settings is never a tab (#200): the walk reaches it through the header gear,

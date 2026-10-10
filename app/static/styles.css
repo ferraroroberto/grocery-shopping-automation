@@ -275,15 +275,30 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 :root[data-theme="dark"] .theme-icon-moon { display: none; }
 :root:not([data-theme="dark"]) .theme-icon-sun { display: none; }
 
-/* Search sits alone below the pills: full card width (a second grid track
-   would inset it by one gap and break the alignment with the cards below)
-   and disclosure-summary height so it reads as a peer of the cards. The
-   pane's own grid gap spaces it — no extra padding. */
+/* Search sits below the segmented control: full card width (a second grid
+   track would inset it by one gap and break the alignment with the cards
+   below) and disclosure-summary height so it reads as a peer of the cards.
+   The pane's own grid gap spaces it — no extra padding. */
 .toolbar .search {
   min-height: var(--row-md);
   border-radius: var(--radius);
   padding: 0 14px;
 }
+/* Items' list (#256): the Add item button shares the search's row, at its
+   height, so the filter sits straight above the list it filters. */
+.toolbar { display: flex; align-items: stretch; gap: var(--space-sm); }
+/* The display above would otherwise beat the UA's [hidden] rule. */
+.toolbar[hidden] { display: none; }
+.toolbar .search { flex: 1; min-width: 0; }
+.toolbar #items-add {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: var(--row-md);
+  padding: 0 var(--space-md);
+}
+.toolbar #items-add[hidden] { display: none; }
 
 /* settings tab — the old sidebar utilities as a 2-up action grid */
 .settings-actions {
@@ -422,6 +437,20 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
 .item-row .action-row-trail.icon-button,
 .item-sheet-links .action-row-trail.icon-button,
 .stepper { --icon-btn-box: var(--row-sm); }
+/* The overline type role (design.md typography): the one legal caps use, for
+   list group headers only. */
+.overline {
+  color: var(--muted);
+  font-size: var(--font-caption);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+/* Items' list (#256): one inset group per zone, its name as the overline
+   header over the group's card (design.md "settings group"). */
+.item-group { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-xs); }
+.item-group-head { padding: 0 var(--space-md); }
 /* Bare rows in a disclosure body bleed to its edges: the row's own 14px inset
    (4px + the main button's 10px) lines the text up with the body's. */
 .collapse-body > .action-rows { margin-inline: -14px; }
@@ -534,14 +563,10 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 .form { display: grid; gap: var(--space-sm); }
 .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-sm); }
 .three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-sm); align-items: start; }
-.three-link { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr); gap: var(--space-sm); }
 .row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
 
 @media (max-width: 560px) {
-  .two, .three, .three-link { grid-template-columns: 1fr; }
-  /* Target + In stock share a row, URL spans below — keeps the labelled item form short (#213). */
-  .three-link { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .three-link > :last-child { grid-column: 1 / -1; }
+  .two, .three { grid-template-columns: 1fr; }
 }
 
 /* ------------------------------------------------------------ statuses */
@@ -870,10 +895,11 @@ details[open] > summary .inline-chevron { transform: rotate(90deg); }
    and scroll-lock rules stay untouched. */
 .detail-dialog.item-sheet[data-page="prices"] { width: min(960px, calc(100vw - 2 * var(--gap))); }
 @media (max-width: 520px) {
-  /* Clamped by the vendored max-height, so the sheet fills the screen. */
-  .detail-dialog.item-sheet { height: 100dvh; }
-  .item-sheet .detail-card { min-height: 100%; display: flex; flex-direction: column; }
-  .item-sheet .stores-dialog-body { flex: 1; }
+  /* Clamped by the vendored max-height, so the sheet fills the screen — the
+     Add item sheet too, so arriving search results never grow it (#256). */
+  .detail-dialog:is(.item-sheet, .add-sheet) { height: 100dvh; }
+  :is(.item-sheet, .add-sheet) .detail-card { min-height: 100%; display: flex; flex-direction: column; }
+  :is(.item-sheet, .add-sheet) .stores-dialog-body { flex: 1; }
 }
 .item-sheet .detail-header { gap: var(--space-sm); }
 .item-sheet .detail-header h2 { flex: 1; min-width: 0; overflow-wrap: anywhere; }
@@ -933,6 +959,23 @@ a.button-tint[data-open-link-page] {
   padding: 0 var(--space-md);
   font-size: var(--font-body);
 }
+
+/* ------------------------------------------------- Add item sheet (#256)
+   add-sheet.js on the same modal shell: the product search, then Add by
+   hand, as two flat sections on a divider — no card nested in the sheet. */
+.add-sheet-section { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
+.add-sheet-section + .add-sheet-section {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--line-muted);
+}
+.add-sheet .search-bar { margin-top: 0; }
+/* Before a search there is no status line and no results: neither holds a
+   row of blank space above Add by hand. The live region stays rendered. */
+.add-sheet #search-status:empty { min-height: 0; }
+.add-sheet #search-results:empty { display: none; }
+/* Two short fields share a row at every width (the sheet is phone-narrow). */
+.add-form-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-sm); align-items: start; }
 .review-section { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
 .review-subtitle { font-weight: 700; }
 .review-head { display: grid; gap: var(--space-sm); }

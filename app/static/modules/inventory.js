@@ -1,9 +1,9 @@
-// The four inventory views: the Home dashboard, the audit/target editors, the
-// Edit item list (each row opens the item sheet, #255), and the add form (with
-// the product-search host above it).
+// The three inventory views: the Home dashboard, the manual Audit, and Items'
+// list (#256) — every item, grouped by zone; each row opens the item sheet
+// (#255), and the Add item sheet (add-sheet.js) adds one.
 import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
-import { activePaneBody, c, defaultZone, filteredItems, items, state } from "./core.js";
-import { html, icon, pickerMarkup, text } from "./dom.js";
+import { activePaneBody, c, filteredItems, items, state } from "./core.js";
+import { html, icon, text } from "./dom.js";
 import { itemList, itemRow, rowValue, stepper } from "./rows.js";
 
 function summaryRow(label, value) {
@@ -76,12 +76,14 @@ function buyNote(item, cols) {
   return buy > 0 ? ` · buy ${buy}` : "";
 }
 
-// Home's list and Edit item: the zone and store, the stock/target pair as
+// Home's list and Items' list: the zone and store, the stock/target pair as
 // the row's value; the tap opens the item sheet, where all of it is edited.
-function valueRow(item, cols) {
+// Under a zone's own group header the zone is left out of the meta.
+function valueRow(item, cols, { zone = true } = {}) {
+  const where = zone ? `${text(item[cols.lugar])} · ${text(item[cols.super])}` : text(item[cols.super]);
   return itemRow({
     title: item[cols.comida],
-    meta: `${text(item[cols.lugar])} · ${text(item[cols.super])}${buyNote(item, cols)}`,
+    meta: `${where}${buyNote(item, cols)}`,
     trail: rowValue(`${text(item[cols.tenemos])}/${text(item[cols.cantidad])}`),
     attrs: `data-id="${item.id}"`,
   });
@@ -95,58 +97,53 @@ function zoneTabs() {
   ).join("")}</div>`;
 }
 
-// The manual Audit (stock = true) and Items → Targets share one list: the
-// zone's items, each with ONE stepper — the in-stock count while auditing, the
-// target under Targets (#252 decision 3) — and the other figure in its meta.
-// The audit counts only what is kept (target above 0); Targets lists the whole
-// zone, so a target can be set on an item that has none yet.
-export function renderAudit(stock = false) {
+// The manual Audit: the zone's kept items (target above 0), each with ONE
+// in-stock stepper and the target in its meta (#252 decision 3; the target is
+// edited in the item sheet).
+export function renderAudit() {
   const cols = c();
   const source = filteredItems(items()
     .filter((item) => item[cols.lugar] === state.zone)
-    .filter((item) => !stock || Number(item[cols.cantidad]) > 0))
+    .filter((item) => Number(item[cols.cantidad]) > 0))
     .sort((a, b) => text(a[cols.comida]).localeCompare(text(b[cols.comida])));
   const rows = source.map((item) => itemRow({
     title: item[cols.comida],
-    meta: stock
-      ? `Target ${text(item[cols.cantidad])} · ${text(item[cols.super])}${buyNote(item, cols)}`
-      : `In stock ${text(item[cols.tenemos])} · ${text(item[cols.super])}`,
-    trail: stepper(stock ? "current" : "target", text(stock ? item[cols.tenemos] : item[cols.cantidad]), text(item[cols.comida])),
+    meta: `Target ${text(item[cols.cantidad])} · ${text(item[cols.super])}${buyNote(item, cols)}`,
+    trail: stepper("current", text(item[cols.tenemos]), text(item[cols.comida])),
     attrs: `data-id="${item.id}"`,
   })).join("");
   activePaneBody().innerHTML = `${zoneTabs()}${rows ? itemList(rows) : emptyStateEl("package", "No items in this zone.").outerHTML}`;
 }
 
-// A visible caption above a form input (wrapping <label>, so the name is
-// programmatic too) — placeholders alone vanish once the box holds a value (#213).
-const labelled = (caption, input) => `<label class="field-label">${caption}${input}</label>`;
-
-export function renderEdit() {
+// Items' list (#256): every item the search lets through, one group per zone
+// in the zones' own order, an overline header over each group's card
+// (design.md "settings group" inset groups), A–Z inside a group.
+export function renderItems() {
   const cols = c();
-  const source = filteredItems().sort((a, b) => text(a[cols.comida]).localeCompare(text(b[cols.comida])));
-  const rows = source.map((item) => valueRow(item, cols)).join("");
-  activePaneBody().innerHTML = rows ? itemList(rows) : emptyStateEl("search", "No matching items.").outerHTML;
+  const byZone = new Map();
+  for (const item of filteredItems()) {
+    const zone = text(item[cols.lugar]);
+    if (!byZone.has(zone)) byZone.set(zone, []);
+    byZone.get(zone).push(item);
+  }
+  const order = state.payload.summary.zones;
+  const zones = [...byZone.keys()].sort((a, b) => rank(order, a) - rank(order, b) || a.localeCompare(b));
+  const groups = zones.map((zone) => {
+    const rows = byZone.get(zone)
+      .sort((a, b) => text(a[cols.comida]).localeCompare(text(b[cols.comida])))
+      .map((item) => valueRow(item, cols, { zone: false }))
+      .join("");
+    return `<section class="item-group" aria-label="${html(zone)}">
+      <h3 class="overline item-group-head">${html(zone)}</h3>
+      ${itemList(rows)}
+    </section>`;
+  }).join("");
+  activePaneBody().innerHTML = groups
+    || emptyStateEl("search", state.query ? "No matching items." : "No items yet.").outerHTML;
 }
 
-// Add Item = the store product search (#182; search.js fills #product-search,
-// and a picked new product pre-fills this form) above the manual form.
-export function renderAdd() {
-  const zones = state.payload.summary.zones;
-  const stores = state.payload.summary.supermarkets;
-  activePaneBody().innerHTML = `<section id="product-search" class="panel" aria-label="Find a store product"></section>
-  <section class="panel" aria-label="Add by hand">
-    <form id="add-form" class="form">
-      <div class="three">
-        ${labelled("Item", `<input class="field" name="comida" placeholder="Item name" required />`)}
-        ${pickerMarkup("super", "Supermarket", stores, stores[0], "New supermarket…")}
-        ${pickerMarkup("lugar", "Zone", zones, defaultZone(), "New zone…")}
-      </div>
-      <div class="three-link">
-        ${labelled("Target", `<input class="field" name="cantidad" type="number" min="0" value="0" placeholder="Target" />`)}
-        ${labelled("In stock", `<input class="field" name="tenemos" type="number" min="0" value="0" placeholder="In stock" />`)}
-        ${labelled("URL", `<input class="field" name="buscador" placeholder="URL" />`)}
-      </div>
-      <button class="big-btn" type="submit">Add item</button>
-    </form>
-  </section>`;
+// A zone's place in the summary's order; one it doesn't list goes last.
+function rank(order, zone) {
+  const at = order.indexOf(zone);
+  return at === -1 ? order.length : at;
 }

@@ -34,25 +34,24 @@ BENCHMARK_RUNS = REPO_ROOT / "tests" / "fixtures" / "store_links"
 LIVE = os.environ.get("GROCERY_E2E_LIVE") == "1"
 TRANSCRIPT = "en la nevera, tengo dos yogures y un litro de leche. en el congelador, tres salmones."
 
-# 8 of the 9 modes group into the fleet nav's 4 tabs (mirrors MODE_TO_TAB in
-# modules/core.js); grouped modes are reached via a sub-pill inside their tab's
-# pane. Product search lives in Items -> Add Item and cart automation ("Fill
-# carts") at the bottom of Shop since the Search/Auto tabs were retired (#182).
-# Settings is the 9th and never a tab (#200): the header gear opens it.
+# 6 of the 7 modes group into the fleet nav's 4 tabs (mirrors MODE_TO_TAB in
+# modules/core.js); grouped modes are reached via a segment inside their tab's
+# pane -- Items is the item list ("list") and Prices ("stores", #256). Product
+# search lives in the list's Add item sheet and cart automation ("Fill carts")
+# at the bottom of Shop since the Search/Auto tabs were retired (#182).
+# Settings is the 7th and never a tab (#200): the header gear opens it.
 TAB_FOR_MODE = {
     "dashboard": "inventory",
     "shopping": "shopping",
     "audit": "audit",
     "audio": "audit",
-    "targets": "items",
-    "edit": "items",
-    "add": "items",
+    "list": "items",
     "stores": "items",
 }
 
 
 def goto_mode(page, mode: str) -> None:
-    """Navigate to a mode: click its nav tab, then its sub-pill when grouped.
+    """Navigate to a mode: click its nav tab, then its segment when grouped.
     Settings has no tab -- it opens from the gear in the visible page header."""
     if mode == "settings":
         if not page.locator("#pane-settings").is_visible():
@@ -60,10 +59,19 @@ def goto_mode(page, mode: str) -> None:
         page.wait_for_timeout(100)
         return
     page.click(f"[data-tab='{TAB_FOR_MODE[mode]}']")
-    pill = page.locator(f".subnav [data-mode='{mode}']")
-    if pill.count():
-        pill.click()
+    segment = page.locator(f".subnav [data-mode='{mode}']")
+    if segment.count():
+        segment.click()
     page.wait_for_timeout(100)
+
+
+def open_add_sheet(page):
+    """Items' list -> the Add item button -> the Add item sheet (#256)."""
+    goto_mode(page, "list")
+    page.click("#items-add")
+    sheet = page.locator("#add-sheet")
+    sheet.wait_for()
+    return sheet
 
 
 def _free_port() -> int:
@@ -194,9 +202,11 @@ def page(browser, server):
 
 @pytest.mark.e2e
 def test_all_tabs_render_without_js_errors(page):
-    for mode in ["dashboard", "audit", "targets", "edit", "add", "stores", "shopping", "audio", "settings"]:
+    for mode in ["dashboard", "audit", "list", "stores", "shopping", "audio", "settings"]:
         goto_mode(page, mode)
         page.wait_for_timeout(150)
+    open_add_sheet(page)
+    page.keyboard.press("Escape")
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
 
 
@@ -213,10 +223,12 @@ def test_standalone_page_head_meta(page):
 @pytest.mark.e2e
 def test_four_tab_nav_and_relocated_sections(page, pw, server):
     """#182 + #200: four tabs, and every capability of the retired Search/Auto
-    tabs in reach -- product search in Items -> Add Item, Fill carts at the
-    bottom of Shop, Email Watch in Settings (the header gear, never a tab) --
-    with a saved retired tab reopening on its new home instead of falling back
-    to Home. Then the WebKit 390px nav check."""
+    tabs in reach -- product search in Items' Add item sheet, Fill carts at
+    the bottom of Shop, Email Watch in Settings (the header gear, never a tab)
+    -- with a saved retired tab reopening on its new home instead of falling
+    back to Home. #256: Items is two segments, and a saved retired Items mode
+    (Targets / Edit item / Add item) reopens on the Items list, never an empty
+    pane. Then the WebKit 390px nav check."""
     tabs = page.locator("nav.tabs .tab")
     assert tabs.count() == 4
     assert tabs.locator(".tab-label").all_inner_texts() == ["Home", "Shop", "Audit", "Items"]
@@ -239,8 +251,15 @@ def test_four_tab_nav_and_relocated_sections(page, pw, server):
     assert page.locator(".home-head").count() == 5
     assert page.locator(".home-head:visible").count() == 1
 
-    goto_mode(page, "add")
-    assert page.locator("#pane-items #product-search #search-term").is_visible()
+    goto_mode(page, "list")
+    segments = page.locator("#pane-items .segmented [data-mode]")
+    assert segments.all_inner_texts() == ["Items", "Prices"]
+    assert segments.first.get_attribute("aria-pressed") == "true"
+    assert page.locator("#pane-items .item-group").count() >= 2  # one group per zone
+    sheet = open_add_sheet(page)
+    assert sheet.locator("#product-search #search-term").is_visible()
+    page.keyboard.press("Escape")
+    sheet.wait_for(state="hidden")
 
     goto_mode(page, "shopping")
     fill = page.locator("#pane-shopping #fill-carts")
@@ -274,7 +293,15 @@ def test_four_tab_nav_and_relocated_sections(page, pw, server):
     page.locator("#pane-settings #email-monitor").wait_for()
 
     # A PWA last closed on a retired tab reopens on that tab's new home.
-    for saved, tab, landing in (("search", "items", "#pane-items #search-term"),
+    list_segment = page.locator("#pane-items .subnav [data-mode='list']")
+    # A saved retired Items mode lands on the Items list, and is rewritten.
+    for old in ("targets", "edit", "add"):
+        page.evaluate("m => { localStorage.setItem('grocery.tab', 'items'); localStorage.setItem('grocery.sub.items', m); }", old)
+        page.reload()
+        page.locator("#pane-items .item-group .item-row").first.wait_for()
+        assert list_segment.get_attribute("aria-pressed") == "true", old
+        assert page.evaluate("() => localStorage.getItem('grocery.sub.items')") == "list", old
+    for saved, tab, landing in (("search", "items", "#pane-items #items-add"),
                                 ("automation", "shopping", "#pane-shopping #fill-carts")):
         page.evaluate("t => localStorage.setItem('grocery.tab', t)", saved)
         page.reload()
@@ -282,7 +309,7 @@ def test_four_tab_nav_and_relocated_sections(page, pw, server):
         assert page.locator("nav.tabs").get_attribute("data-active-tab") == tab
         assert page.evaluate("() => localStorage.getItem('grocery.tab')") == tab
         if saved == "search":
-            assert "active" in page.locator(".subnav [data-mode='add']").get_attribute("class")
+            assert list_segment.get_attribute("aria-pressed") == "true"
     page.wait_for_function(  # scrolled to Fill carts, below the store list
         "() => { const r = document.querySelector('#fill-carts').getBoundingClientRect();"
         " return r.top < innerHeight && r.bottom > 0; }")
@@ -322,6 +349,21 @@ def test_dashboard_shows_stocked_metric(page):
 def test_search_only_on_filterable_modes(page):
     goto_mode(page, "dashboard")
     assert page.locator("#toolbar").is_visible()
+    assert not page.locator("#items-add").is_visible()
+    # Items' list (#256): the search filters the one zone-grouped list, and
+    # Add item rides the search's row on this mode only.
+    goto_mode(page, "list")
+    assert page.locator("#toolbar").is_visible() and page.locator("#items-add").is_visible()
+    groups = page.locator("#pane-items .item-group")
+    assert groups.count() >= 2
+    page.fill("#search", "burguer")
+    assert groups.count() == 1 and groups.locator(".item-row").count() >= 1
+    assert all("burguer" in t.lower() for t in groups.locator(".action-row-title").all_inner_texts())
+    page.fill("#search", "zzz nothing matches")
+    assert page.locator("#pane-items .empty-state").inner_text().strip() == "No matching items."
+    page.fill("#search", "")
+    goto_mode(page, "stores")
+    assert not page.locator("#items-add").is_visible()
     goto_mode(page, "shopping")
     assert not page.locator("#toolbar").is_visible()
     goto_mode(page, "settings")
@@ -331,15 +373,14 @@ def test_search_only_on_filterable_modes(page):
 
 @pytest.mark.e2e
 def test_item_forms_label_every_field(page):
-    """Add item names all six fields (#213): the numbers read "Target" /
-    "In stock" even when the box holds a value. The item sheet (#255) names
-    the field on each of its pages the same way."""
-    goto_mode(page, "add")
-    form = page.locator("#add-form")
-    form.wait_for()
+    """The Add item sheet's form (#256) names all six fields (#213): the
+    numbers read "Target" / "In stock" even when the box holds a value. The
+    item sheet (#255) names the field on each of its pages the same way."""
+    form = open_add_sheet(page).locator("#add-form")
     for label in ["Item", "Supermarket", "Zone", "Target", "In stock", "URL"]:
         assert form.get_by_label(label, exact=True).count() == 1, label
-    goto_mode(page, "edit")
+    page.keyboard.press("Escape")
+    goto_mode(page, "list")
     page.locator("#pane-items .item-row .action-row-main").first.click()
     sheet = page.locator("#item-sheet")
     for to, label in (("zone", "Zone"), ("store", "Store"), ("link", "Buy link"), ("name", "Name")):
@@ -357,7 +398,7 @@ def _open_sheet_from(page, mode: str, name: str):
         page.locator("details[data-store='mercadona'] > summary").click()
     else:
         page.fill("#search", name)
-    if mode in ("audit", "targets"):
+    if mode == "audit":
         page.click("main > .pane:not([hidden]) [data-zone='nevera']")
     page.locator("main > .pane:not([hidden]) .item-row", has_text=name).locator(".action-row-main").click()
     sheet = page.locator("#item-sheet")
@@ -368,8 +409,8 @@ def _open_sheet_from(page, mode: str, name: str):
 @pytest.mark.e2e
 def test_item_sheet_opens_everywhere_edits_and_deletes(page, server):
     """The item sheet (#255) is the one place an item is edited, opened from
-    every row that shows it: Home, Shop, Audit, Items' Targets and Edit item,
-    and the Stores list's pencil (onto its Stores & prices page). Its staged
+    every row that shows it: Home, Shop, Audit, the Items list (#256), and
+    the Prices list's pencil (onto its Stores & prices page). Its staged
     Save posts the whole row as the old Edit item form did: a blank cell stays
     blank, never the "-" placeholder (#228), and Esc discards. Delete asks in
     the in-app confirm sheet, never the browser's confirm() (#254)."""
@@ -388,7 +429,7 @@ def test_item_sheet_opens_everywhere_edits_and_deletes(page, server):
         return next((i for i in payload["items"] if i[cols["comida"]] == name), None), cols
 
     title = page.locator("#item-sheet-title")
-    for mode in ("dashboard", "shopping", "audit", "targets", "edit"):
+    for mode in ("dashboard", "shopping", "audit", "list"):
         sheet = _open_sheet_from(page, mode, name)
         assert title.inner_text() == name, mode
         assert sheet.get_attribute("data-page") == "main", mode
@@ -405,7 +446,7 @@ def test_item_sheet_opens_everywhere_edits_and_deletes(page, server):
     sheet.wait_for(state="hidden")
 
     # Esc discards a staged change: nothing is written.
-    sheet = _open_sheet_from(page, "edit", name)
+    sheet = _open_sheet_from(page, "list", name)
     sheet.locator("[data-sheet-qty='cantidad'] [data-action='target-plus']").click()
     assert not sheet.locator(".detail-save-btn").is_disabled()
     page.keyboard.press("Escape")
@@ -417,7 +458,7 @@ def test_item_sheet_opens_everywhere_edits_and_deletes(page, server):
     # trailing open button on its row and an Open link action on its page, both
     # new-tab links apart from the row's tap that edits; blank or a search term
     # gets neither. Staged only, so Esc leaves the cell as it was. Phone width too.
-    sheet = _open_sheet_from(page, "edit", name)
+    sheet = _open_sheet_from(page, "list", name)
     row_open = sheet.locator("[data-open-link-row]")
     page_open = sheet.locator("[data-open-link-page]")
     assert row_open.inner_text() == "" and page_open.inner_text() == ""
@@ -448,7 +489,7 @@ def test_item_sheet_opens_everywhere_edits_and_deletes(page, server):
 
     # Target, in stock and zone are staged, then saved as one row; the blank
     # buy link stays blank.
-    sheet = _open_sheet_from(page, "edit", name)
+    sheet = _open_sheet_from(page, "list", name)
     assert sheet.locator("[data-link-value='link']").inner_text() == "No link"
     sheet.locator("[data-sheet-qty='cantidad'] [data-action='target-plus']").click()
     sheet.locator("[data-sheet-qty='tenemos'] [data-action='current-plus']").click()
@@ -469,7 +510,7 @@ def test_item_sheet_opens_everywhere_edits_and_deletes(page, server):
     # Delete: the x keeps the item, the confirm sheet's Delete removes it.
     native: list[str] = []
     page.on("dialog", lambda d: (native.append(d.message), d.dismiss()))
-    sheet = _open_sheet_from(page, "edit", name)
+    sheet = _open_sheet_from(page, "list", name)
     confirm = page.locator("#confirm-dialog")
     sheet.locator("[data-sheet-delete]").click()
     confirm.wait_for()
@@ -497,29 +538,39 @@ def test_phone_geometry_fits_and_targets_meet_the_floor(browser, server):
         pg.goto(server.url)
         pg.wait_for_selector("[data-tab='audit']")
         pg.wait_for_function("document.querySelector('#status')?.textContent?.includes('Loaded')")
-        for mode in ["dashboard", "shopping", "audit", "audio", "targets", "edit", "add", "stores", "settings"]:
+        for mode in ["dashboard", "shopping", "audit", "audio", "list", "stores", "settings"]:
             goto_mode(pg, mode)
             assert_no_horizontal_overflow(pg)
             # --control-h is the spec's 36px (#230): every control still presents a >=44px
             # effective target, via the shared ::before hit area or real 44px geometry.
             assert_min_target(pg.locator("button:visible, select:visible, textarea:visible, summary:visible, "
                                          "input:not([type=hidden]):visible"))
-            if mode in ("audit", "targets"):
-                # J-01/J-10 (#252): one stepper per row leaves the item's name the
-                # room to be read at 390px.
+            if mode in ("audit", "list"):
+                # J-01/J-10 (#252): one stepper (or value) per row leaves the
+                # item's name the room to be read at 390px.
                 widths = pg.locator("main > .pane:not([hidden]) .item-row .action-row-title").evaluate_all(
                     "els => els.map((e) => e.getBoundingClientRect().width)")
                 assert widths and min(widths) >= 150, f"{mode}: name squeezed to {min(widths or [0]):.0f}px"
-        # The item sheet (#255): steppers, link rows, Delete and Save each keep
-        # the floor without overlapping, and the sheet never scrolls sideways.
-        goto_mode(pg, "edit")
-        pg.locator("#pane-items .item-row .action-row-main").first.click()
-        sheet = pg.locator("#item-sheet")
-        sheet.wait_for()
-        assert_min_target(sheet.locator("button:visible"))
-        assert_no_overlap(sheet.locator("button:visible"))
-        assert sheet.evaluate("d => d.scrollWidth <= d.clientWidth"), "item sheet scrolls sideways at 390px"
-        pg.keyboard.press("Escape")
+        # Items' list (#256): the search and Add item share one row at 390px,
+        # side by side, the search still wider than the button.
+        goto_mode(pg, "list")
+        search, add = pg.locator("#search").bounding_box(), pg.locator("#items-add").bounding_box()
+        assert abs(search["y"] - add["y"]) < 1 and search["x"] + search["width"] <= add["x"], (search, add)
+        assert search["width"] > add["width"] and add["x"] + add["width"] <= 390, (search, add)
+        # The item sheet (#255) and the Add item sheet (#256): every button
+        # keeps the floor without overlapping, and neither sheet scrolls sideways.
+        def open_item_sheet():
+            pg.locator("#pane-items .item-row .action-row-main").first.click()
+            return pg.locator("#item-sheet")
+
+        for opener in (open_item_sheet, lambda: open_add_sheet(pg)):
+            sheet = opener()
+            sheet.wait_for()
+            assert_min_target(sheet.locator("button:visible"))
+            assert_no_overlap(sheet.locator("button:visible"))
+            assert sheet.evaluate("d => d.scrollWidth <= d.clientWidth"), "a sheet scrolls sideways at 390px"
+            pg.keyboard.press("Escape")
+            sheet.wait_for(state="hidden")
         goto_mode(pg, "dashboard")
         for selector in ("[data-tab]:visible", ".home-head button:visible"):
             targets = pg.locator(selector)
@@ -534,21 +585,25 @@ def test_add_item_increases_count(page):
     goto_mode(page, "dashboard")
     page.wait_for_selector(".summary")
     before = int(page.locator(".summary-value").first.inner_text())
-    goto_mode(page, "add")
-    page.fill("#add-form input[name='comida']", "zzz e2e item")
+    sheet = open_add_sheet(page)
+    sheet.locator("#add-form input[name='comida']").fill("zzz e2e item")
     # Zone and Supermarket are native pickers of the existing values (#241) —
     # no typing; the text box behind them stays hidden.
-    page.select_option("#add-form [data-picker] select >> nth=0", "mercadona")
-    page.select_option("#add-form [data-picker] select >> nth=1", "nevera")
-    assert not page.locator("#add-form input[name='super']").is_visible()
-    assert not page.locator("#add-form input[name='lugar']").is_visible()
+    sheet.locator("#add-form [data-picker] select").nth(0).select_option("mercadona")
+    sheet.locator("#add-form [data-picker] select").nth(1).select_option("nevera")
+    assert not sheet.locator("#add-form input[name='super']").is_visible()
+    assert not sheet.locator("#add-form input[name='lugar']").is_visible()
+    # The sheet's one footer primary submits the form (#256).
     with page.expect_response(lambda r: r.url.endswith("/api/items") and r.request.method == "POST") as resp:
-        page.click("#add-form button[type='submit']")
+        sheet.locator(".detail-save-btn").click()
     body = resp.value.request.post_data_json
     assert (body["super"], body["lugar"]) == ("mercadona", "nevera")
-    # Mutations report a transient "Saved" toast (#200); the resting count only
-    # shows on Home (the repeated "Loaded N items" line was UI noise).
-    page.wait_for_function("document.querySelector('#toast')?.textContent?.includes('Saved')")
+    # The sheet closes on success with a transient toast (#200); the new item
+    # is in the Items list under its zone's group.
+    sheet.wait_for(state="hidden")
+    page.wait_for_function("document.querySelector('#toast')?.textContent?.includes('zzz e2e item added')")
+    group = page.locator("#pane-items .item-group", has=page.locator(".item-row", has_text="zzz e2e item"))
+    assert group.locator(".item-group-head").inner_text().lower() == "nevera"
     goto_mode(page, "dashboard")
     page.wait_for_selector(".summary")
     after = int(page.locator(".summary-value").first.inner_text())
@@ -558,19 +613,28 @@ def test_add_item_increases_count(page):
 @pytest.mark.e2e
 def test_add_item_new_zone_and_supermarket(page):
     """"New…" in the pickers reveals a text box so a first-time zone or
-    supermarket can still be entered (#241); the typed values are what saves."""
-    goto_mode(page, "add")
-    form = page.locator("#add-form")
+    supermarket can still be entered (#241); the typed values are what saves.
+    A blank name is refused by the form itself: nothing is posted (#256)."""
+    sheet = open_add_sheet(page)
+    form = sheet.locator("#add-form")
+    posts: list[str] = []
+    page.on("request", lambda r: posts.append(r.url) if r.method == "POST" and r.url.endswith("/api/items") else None)
+    sheet.locator(".detail-save-btn").click()
+    page.wait_for_timeout(200)
+    assert posts == [] and sheet.is_visible()
     form.locator("[name='comida']").fill("zzz new place item")
     form.locator("[data-picker] select").nth(0).select_option(label="New supermarket…")
     form.locator("[data-picker] select").nth(1).select_option(label="New zone…")
     form.locator("input[name='super']").fill("zzz lidl e2e")
     form.locator("input[name='lugar']").fill("zzz balcon e2e")
     with page.expect_response(lambda r: r.url.endswith("/api/items") and r.request.method == "POST") as resp:
-        form.locator("button[type='submit']").click()
+        sheet.locator(".detail-save-btn").click()
     body = resp.value.request.post_data_json
     assert (body["super"], body["lugar"]) == ("zzz lidl e2e", "zzz balcon e2e")
     assert resp.value.ok
+    sheet.wait_for(state="hidden")
+    # A brand-new zone gets its own group in the Items list.
+    assert "zzz balcon e2e" in [t.lower() for t in page.locator("#pane-items .item-group-head").all_inner_texts()]
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
 
 
@@ -955,6 +1019,13 @@ def test_dialog_controls_are_styled(page, theme):
     assert check("login-dialog")["buttons"] == ["Unlock"]
     page.evaluate("document.getElementById('login-dialog').close()")
 
+    # The Add item sheet (#256): the search's tint button, the two pickers,
+    # and the footer primary that submits the form.
+    open_add_sheet(page)
+    found = check("add-sheet")
+    assert found["buttons"] == ["Search", "Add item"] and found["selects"] == 2, found
+    page.keyboard.press("Escape")
+
     goto_mode(page, "stores")
     page.click("[data-stores-action='import']")
     page.wait_for_selector("#stores-sim[data-state='ready']")
@@ -994,14 +1065,18 @@ def test_dialog_controls_are_styled(page, theme):
 
 @pytest.mark.e2e
 def test_add_item_product_search(page, server):
-    """Items -> Add Item carries the product search (#182; it was the Search
-    tab). The store search is stubbed at the HTTP seam (no Chrome): a new
-    term's "Use" pre-fills the Add Item form and nothing is saved until Add
-    Item; a term already on the list keeps its confirm row -> /select.
-    Last in the module on purpose: it adds a row to the shared fixture list."""
-    goto_mode(page, "add")
-    search = page.locator("#pane-items #product-search")
+    """The Add item sheet opens on the product search (#256; #182, it was the
+    Search tab). The store search is stubbed at the HTTP seam (no Chrome): a
+    new term's "Use" pre-fills Add by hand below it and nothing is saved until
+    the sheet's Add item, which closes it; reopened, the run is still there
+    with that card marked Added. A term already on the list keeps its confirm
+    row -> /select. Last in the module on purpose: it adds a row to the shared
+    fixture list."""
+    sheet = open_add_sheet(page)
+    search = sheet.locator("#product-search")
     search.locator("#search-term").wait_for()
+    # Search first, then adding by hand, in reading order.
+    assert sheet.locator(".add-sheet-section .card-title").all_inner_texts() == ["Find a store product", "Add by hand"]
     assert search.locator("#search-run").is_visible() and search.locator("#search-record").is_visible()
     assert search.locator(".card-title").inner_text().strip() == "Find a store product"
 
@@ -1038,14 +1113,17 @@ def test_add_item_product_search(page, server):
     assert "Ametller" not in search.locator(".hint").inner_text()
 
     new_card.locator("[data-action='search-use']").click()
-    form = page.locator("#add-form")
+    form = sheet.locator("#add-form")
     assert form.locator("[name='comida']").input_value() == "zzz sandia e2e"
     assert form.locator("[name='super']").input_value() == "carrefour"
     assert form.locator("[name='buscador']").input_value() == new_url
     assert form.locator("[name='cantidad']").input_value() == "1"
+    assert "Filled in Add by hand below" in search.locator("#search-status").inner_text()
     assert not [i for i in page.request.get(inventory).json()["items"] if i["comida"] == "zzz sandia e2e"]
     form.locator("[data-picker] select").nth(1).select_option("nevera")
-    form.locator("button[type='submit']").click()
+    sheet.locator(".detail-save-btn").click()
+    sheet.wait_for(state="hidden")
+    sheet = open_add_sheet(page)
     new_card.locator("button:has-text('Added')").wait_for()
     created = [i for i in page.request.get(inventory).json()["items"] if i["comida"] == "zzz sandia e2e"]
     assert [(i["super"], i["buscador"], i["cantidad"]) for i in created] == [("carrefour", new_url, 1)]
@@ -1057,7 +1135,7 @@ def test_add_item_product_search(page, server):
 
     old_card = page.locator(".candidate", has_text="Existing e2e")
     old_card.locator("[data-action='search-use']").click()
-    old_card.locator("[data-action='search-add-new']").click()  # → Add Item form, under the searched term
+    old_card.locator("[data-action='search-add-new']").click()  # → Add by hand, under the searched term
     assert form.locator("[name='comida']").input_value() == existing["comida"]
     assert form.locator("[name='buscador']").input_value() == existing["buscador"]
     old_card.locator("[data-action='search-use']").click()
@@ -1148,7 +1226,7 @@ _TEXT_PROBE = """() => {
   return out;
 }"""
 
-_ALL_MODES = ["dashboard", "shopping", "audit", "audio", "targets", "edit", "add", "stores", "settings"]
+_ALL_MODES = ["dashboard", "shopping", "audit", "audio", "list", "stores", "settings"]
 
 
 def _sample_view_at(page, mode, size):
@@ -1293,7 +1371,7 @@ _FIRST_AFTER_HEADER_JS = r"""
 
 
 @pytest.mark.e2e
-@pytest.mark.parametrize("mode,tab", [("dashboard", "inventory"), ("shopping", "shopping"), ("audit", "audit"), ("targets", "items")])
+@pytest.mark.parametrize("mode,tab", [("dashboard", "inventory"), ("shopping", "shopping"), ("audit", "audit"), ("list", "items")])
 def test_every_tab_opens_on_a_heading_not_a_control(page, mode, tab):
     """J-04: below the page header, a tab's first heading-or-control in reading
     order is a heading — never a mode pill, the search box or a collapsible
