@@ -1,16 +1,18 @@
-// Stores: the per-item review dialog (#165) — quantity check, every store's product / pack /
-// price with your overrides, the server-side Checked mark, and the link / override editors.
+// Stores: the item sheet's two store pages (#165, #255). Quantity check is the
+// quantity maths in real units with the suggested target / in stock; Stores &
+// prices is the server-side Checked mark, the flags, every store's product /
+// pack / price with your overrides, and the link / override editors.
+// item-sheet.js owns the <dialog>, the pages and the staged Save: a suggested
+// figure lands in its draft, while the store edits here save as they always did.
 import { emptyStateEl } from "../../_vendored/empty-state/empty-state.js";
 import { setSwitch } from "../../_vendored/switch/switch.js";
 import { fetchJson } from "../api.js";
-import { c, render, state } from "../core.js";
+import { state } from "../core.js";
 import { chip, esc, icon, switchMarkup } from "../dom.js";
-import { dialogShell, setDialogStatus } from "./dialog.js";
+import { setDialogStatus } from "./dialog.js";
 import { FLAG_LABELS, LINK_NOTE, flagLabel } from "./list.js";
 import { loadChecks, loadMeta, scheduleSimulate } from "./simulator.js";
-import { eur, itemById, jsonInit, local, num, plural, storeName } from "./state.js";
-
-const DETAIL_ID = "stores-detail-dialog";
+import { eur, jsonInit, local, num, plural, storeName } from "./state.js";
 
 const STATUS_TEXT = {
   baseline: "Current product",
@@ -23,49 +25,33 @@ const STATUS_TEXT = {
 
 const OVERRIDE_UNITS = ["kg", "l", "ud", "m"];
 
+const QTY_LABEL = { cantidad: "Target", tenemos: "In stock" };
+
+// The sheet these pages live in — { dialog, value(field), setDraft(field, n),
+// onDetail() } — handed over by openReview().
+let sheet = null;
+
 // After anything that can move prices or review flags: the checks (pills,
 // badges) and the simulator (totals, chip prices — it repaints the list).
-function afterReviewChange() {
+export function afterReviewChange() {
   loadChecks();
   scheduleSimulate(0);
 }
 
-function detailDialog() {
-  return dialogShell(DETAIL_ID, "", "Save target & in stock", (dialog) => {
-    dialog.classList.add("review-dialog");
-    dialog.querySelector(".detail-save-btn").addEventListener("click", saveQuantities);
-    dialog.addEventListener("click", onReviewClick);
-    dialog.addEventListener("input", onReviewInput);
-    dialog.addEventListener("submit", (event) => {
-      event.preventDefault();
-      const form = event.target.closest("[data-review-form]");
-      if (form) saveStoreEdit(form);
-    });
-    // A pane repaint may have replaced the opener; hand focus back to its row
-    // (a Stores row's pencil, or an item row opened from another tab, #254).
-    // Off Stores, repaint so a saved target / in-stock shows in that list.
-    dialog.addEventListener("close", () => {
-      local.editing = null;
-      if (state.mode !== "stores") render();
-      (document.querySelector(`.store-row[data-item-id="${local.detailId}"] [data-stores-action="detail"]`)
-        || document.querySelector(`.item-row[data-id="${local.detailId}"] .action-row-main`))?.focus();
-    });
-  });
-}
-
-export async function openItemDetail(id) {
+export async function openReview(id, hooks) {
+  sheet = hooks;
   local.detailId = id;
   local.detail = null;
   local.detailError = "";
   local.editing = null;
-  local.qtyDraft = {};
-  const dialog = detailDialog();
-  setDialogStatus(dialog, "");
-  paintDetail();
-  dialog.showModal();
+  paintReview();
   // Opened from a row outside Stores, the store names may not be loaded yet.
   if (!local.meta && local.metaState !== "loading") await loadMeta();
   await loadDetail();
+}
+
+export function closeReview() {
+  local.editing = null;
 }
 
 async function loadDetail() {
@@ -79,41 +65,70 @@ async function loadDetail() {
     if (id !== local.detailId) return;
     local.detailError = error.message;
   }
-  paintDetail();
+  paintReview();
 }
 
-function paintDetail() {
-  const dialog = document.getElementById(DETAIL_ID);
-  if (!dialog) return;
-  const body = dialog.querySelector(".stores-dialog-body");
-  const d = local.detail;
-  dialog.querySelector(`#${DETAIL_ID}-title`).textContent = d?.comida || itemById(local.detailId)?.[c().comida] || "Item";
-  if (!d) {
+function page(name) {
+  return sheet.dialog.querySelector(`[data-page="${name}"]`);
+}
+
+// Both pages: loading, or the error with its Retry, until the detail is read.
+function paintReview() {
+  if (!sheet) return;
+  if (local.detail) {
+    paintQuantity();
+    paintPrices();
+  } else {
     const failed = !!local.detailError;
-    const block = emptyStateEl(failed ? "circle-alert" : "refresh-cw",
-      failed ? "Couldn't read this item's store details." : "Reading the item's store details…",
-      failed ? { actionLabel: "Retry" } : undefined);
-    block.dataset.state = failed ? "error" : "loading";
-    block.querySelector(".empty-state-action")?.setAttribute("data-review-retry", "");
-    body.replaceChildren(block);
-    if (failed) setDialogStatus(dialog, local.detailError);
-    syncQtySave();
-    return;
+    for (const name of ["quantity", "prices"]) {
+      const block = emptyStateEl(failed ? "circle-alert" : "refresh-cw",
+        failed ? "Couldn't read this item's store details." : "Reading the item's store details…",
+        failed ? { actionLabel: "Retry" } : undefined);
+      block.dataset.state = failed ? "error" : "loading";
+      block.querySelector(".empty-state-action")?.setAttribute("data-review-retry", "");
+      page(name).replaceChildren(block);
+    }
+    if (failed) setDialogStatus(sheet.dialog, local.detailError);
   }
-  const evidenceOpen = !!body.querySelector(".review-evidence[open]");
-  body.innerHTML = `
+  sheet.onDetail();
+}
+
+// Repainted on its own when a suggestion is taken or the page is shown, so
+// the figures follow the sheet's draft.
+export function paintQuantity() {
+  if (sheet && local.detail) page("quantity").innerHTML = quantityMarkup(local.detail);
+}
+
+function paintPrices() {
+  const host = page("prices");
+  const d = local.detail;
+  const evidenceOpen = !!host.querySelector(".review-evidence[open]");
+  host.innerHTML = `
     <section class="review-head">${reviewHeadMarkup(d)}</section>
-    <section class="review-section" aria-labelledby="review-qty-title">
-      <h3 id="review-qty-title" class="review-subtitle">Quantity check</h3>
-      ${quantityMarkup(d)}
-    </section>
-    <section class="review-section" aria-labelledby="review-stores-title">
-      <h3 id="review-stores-title" class="review-subtitle">Stores</h3>
+    <section class="review-section" aria-label="Stores">
       ${storesMarkup(d)}
       ${addLinkMarkup(d)}
     </section>
     ${evidenceMarkup(d, evidenceOpen)}`;
-  syncQtySave();
+}
+
+// The muted values on the sheet's Stores & prices and Quantity check rows:
+// what needs checking, else how many stores; a suggested target the draft
+// doesn't hold yet, else the monthly use. Empty until the detail is read.
+export function reviewSummary() {
+  const d = local.detail;
+  if (!sheet || !d || d.id !== local.detailId) return { prices: { text: "" }, quantity: { text: "" } };
+  const prices = d.flags.length && !d.checked
+    ? { text: "Needs checking", tone: "attention" }
+    : { text: d.stores.length ? plural(d.stores.length, "store") : "No store links" };
+  const suggested = d.quantity.suggested?.cantidad;
+  let quantity = { text: "" };
+  if (suggested !== undefined && suggested !== null && suggested !== sheet.value("cantidad")) {
+    quantity = { text: `Suggests ${suggested}` };
+  } else if (d.monthly?.qty) {
+    quantity = { text: `≈ ${num(d.monthly.qty)}${d.monthly.unit ? ` ${d.monthly.unit}` : ""} a month` };
+  }
+  return { prices, quantity };
 }
 
 function reviewHeadMarkup(d) {
@@ -156,28 +171,29 @@ function quantityMarkup(d) {
   let note = "";
   if (!d.in_basket) note = "This item isn't in the benchmark basket, so there is no before to compare with.";
   else if (q.unit_mismatch) note = `The packs are in different units (${q.before.unit} before, ${q.now.unit} now), so the amounts can't be compared. Set the target by hand.`;
-  else if (!q.now.pack_size) note = "The pack size at your list's store is unknown. Save it as your override below to compare.";
+  else if (!q.now.pack_size) note = "The pack size at your list's store is unknown. Save it as your override in Stores & prices to compare.";
   const packCtx = q.now.pack_size ? `packs of ${num(q.now.pack_size)} ${q.now.unit || ""}` : "packs";
   const suggested = q.suggested || {};
   return `<dl class="review-qty-lines">${lines.map(([label, value]) =>
       `<div><dt>${label}</dt><dd>${esc(value)}</dd></div>`).join("")}</dl>
     ${note ? `<p class="review-warn">${icon("circle-alert")}${esc(note)}</p>` : ""}
     <div class="review-qty-fields">
-      ${qtyFieldMarkup("cantidad", "Target", d.list.cantidad, suggested.cantidad, packCtx)}
-      ${qtyFieldMarkup("tenemos", "In stock", d.list.tenemos, suggested.tenemos, packCtx)}
+      ${qtyRowMarkup("cantidad", suggested.cantidad, packCtx)}
+      ${qtyRowMarkup("tenemos", suggested.tenemos, packCtx)}
     </div>`;
 }
 
-function qtyFieldMarkup(field, label, saved, suggested, packCtx) {
-  const value = local.qtyDraft[field] ?? saved;
-  const suggest = suggested !== undefined && suggested !== null && suggested !== saved
+// One figure as the sheet holds it (its draft, else the saved value), and the
+// suggestion as a button that puts it in the draft — Save keeps it.
+function qtyRowMarkup(field, suggested, packCtx) {
+  const value = sheet.value(field);
+  const suggest = suggested !== undefined && suggested !== null && suggested !== value
     ? `<button type="button" class="button-surface review-suggest" data-review-suggest="${field}" data-value="${suggested}">Use suggested (${suggested})</button>`
     : "";
   return `<div class="review-qty-field">
-      <label class="field-label" for="review-${field}">${label} <span class="meta">${esc(packCtx)}</span></label>
+      <span class="review-qty-label">${QTY_LABEL[field]} <span class="meta">${esc(packCtx)}</span></span>
       <div class="review-qty-control">
-        <input id="review-${field}" class="field review-num" type="number" min="0" step="1" inputmode="numeric"
-               value="${esc(value)}" data-review-qty="${field}">
+        <output class="review-num" data-review-qty="${field}">${esc(value)}</output>
         ${suggest}
       </div>
     </div>`;
@@ -334,86 +350,71 @@ function evidenceMarkup(d, open) {
     </details>`;
 }
 
-function qtyValues() {
-  const d = local.detail;
-  return {
-    cantidad: local.qtyDraft.cantidad ?? String(d.list.cantidad),
-    tenemos: local.qtyDraft.tenemos ?? String(d.list.tenemos),
-  };
-}
-
-function syncQtySave() {
-  const save = document.querySelector(`#${DETAIL_ID} .detail-save-btn`);
-  if (!save) return;
-  const d = local.detail;
-  if (!d) {
-    save.disabled = true;
-    return;
-  }
-  const { cantidad, tenemos } = qtyValues();
-  save.disabled = cantidad === String(d.list.cantidad) && tenemos === String(d.list.tenemos);
-}
-
-function onReviewInput(event) {
-  const field = event.target.dataset?.reviewQty;
-  if (!field) return;
-  local.qtyDraft[field] = event.target.value.trim();
-  syncQtySave();
-}
-
-async function onReviewClick(event) {
+// The sheet's delegated click and submit for these two pages; anything that
+// is not one of their hooks returns false so the sheet handles it.
+export async function onReviewClick(event) {
   const target = event.target;
-  const dialog = document.getElementById(DETAIL_ID);
+  const dialog = sheet?.dialog;
+  if (!dialog) return false;
   if (target.closest("[data-review-retry]")) {
     local.detailError = "";
     setDialogStatus(dialog, "");
-    paintDetail();
+    paintReview();
     await loadDetail();
-    return;
+    return true;
   }
   const checked = target.closest("[data-review-checked]");
   if (checked) {
     await toggleChecked(checked);
-    return;
+    return true;
   }
   const suggest = target.closest("[data-review-suggest]");
   if (suggest) {
     const field = suggest.dataset.reviewSuggest;
-    const input = dialog.querySelector(`[data-review-qty="${field}"]`);
-    input.value = suggest.dataset.value;
-    local.qtyDraft[field] = input.value;
-    syncQtySave();
-    input.focus();
-    return;
+    sheet.setDraft(field, Number(suggest.dataset.value));
+    paintQuantity();
+    page("quantity").querySelector(`[data-review-qty="${field}"]`)?.focus();
+    return true;
   }
   const edit = target.closest("[data-review-edit]");
   if (edit) {
     const store = edit.dataset.reviewEdit;
     local.editing = local.editing === store ? null : store;
-    paintDetail();
+    paintPrices();
     const focus = local.editing
       ? dialog.querySelector(`[data-review-form="${store}"] input`)
       : dialog.querySelector(`[data-review-edit="${store}"]`);
     focus?.focus();
-    return;
+    return true;
   }
   if (target.closest("[data-review-cancel]")) {
     const store = local.editing;
     local.editing = null;
-    paintDetail();
+    paintPrices();
     dialog.querySelector(`[data-review-edit="${store}"]`)?.focus();
-    return;
+    return true;
   }
   const reset = target.closest("[data-review-reset]");
   if (reset) {
     await resetOverride(reset);
-    return;
+    return true;
   }
-  if (target.closest("[data-review-add]")) await addStoreLink(dialog);
+  if (target.closest("[data-review-add]")) {
+    await addStoreLink(dialog);
+    return true;
+  }
+  return false;
+}
+
+export function onReviewSubmit(event) {
+  const form = event.target.closest("[data-review-form]");
+  if (!form) return false;
+  saveStoreEdit(form);
+  return true;
 }
 
 async function toggleChecked(sw) {
-  const dialog = document.getElementById(DETAIL_ID);
+  const dialog = sheet.dialog;
   const id = local.detailId;
   sw.disabled = true;
   setDialogStatus(dialog, "");
@@ -429,47 +430,10 @@ async function toggleChecked(sw) {
     const head = dialog.querySelector(".review-head");
     if (head) head.innerHTML = reviewHeadMarkup(local.detail);
     head?.querySelector("[data-review-checked]")?.focus();
+    sheet.onDetail();
   } catch (error) {
     setDialogStatus(dialog, error.message);
     sw.disabled = false;
-  }
-}
-
-async function saveQuantities() {
-  const dialog = document.getElementById(DETAIL_ID);
-  const save = dialog.querySelector(".detail-save-btn");
-  const d = local.detail;
-  const item = itemById(d?.id);
-  if (!d || !item) return;
-  const values = qtyValues();
-  const parsed = {};
-  for (const [field, label] of [["cantidad", "Target"], ["tenemos", "In stock"]]) {
-    const n = Number(values[field]);
-    if (values[field] === "" || !Number.isInteger(n) || n < 0) {
-      setDialogStatus(dialog, `${label} must be a whole number of 0 or more.`);
-      dialog.querySelector(`[data-review-qty="${field}"]`)?.focus();
-      return;
-    }
-    parsed[field] = n;
-  }
-  // PUT /api/items/{id} takes the whole row: the other fields go back unchanged.
-  const cols = c();
-  const field = (key) => String(item[cols[key]] ?? "");
-  save.disabled = true;
-  setDialogStatus(dialog, "");
-  try {
-    state.payload = await fetchJson(`/api/items/${d.id}`, jsonInit("PUT", {
-      super: field("super"), lugar: field("lugar"), comida: field("comida"), buscador: field("buscador"), ...parsed,
-    }));
-    local.qtyDraft = {};
-    await loadDetail();
-    setDialogStatus(dialog, "Target and in stock saved.", "ok");
-    // A target moving to or from 0 moves the item in or out of the what-if.
-    afterReviewChange();
-  } catch (error) {
-    // e.g. 423 — the spreadsheet is open in Excel; the server's hint says so.
-    setDialogStatus(dialog, error.message);
-    syncQtySave();
   }
 }
 
@@ -481,7 +445,7 @@ function overrideFields(ov) {
 }
 
 async function saveStoreEdit(form) {
-  const dialog = document.getElementById(DETAIL_ID);
+  const dialog = sheet.dialog;
   const d = local.detail;
   const store = form.dataset.reviewForm;
   const entry = d.stores.find((s) => s.store === store);
@@ -497,7 +461,7 @@ async function saveStoreEdit(form) {
   const ovChanged = !!fields && JSON.stringify(fields) !== JSON.stringify(overrideFields(entry.override));
   if (!urlChanged && !ovChanged) {
     local.editing = null;
-    paintDetail();
+    paintPrices();
     return;
   }
   const buttons = [...form.querySelectorAll("button")];
@@ -518,7 +482,7 @@ async function saveStoreEdit(form) {
     saved = true;
     local.detail = detail || await fetchJson(`/api/items/${d.id}/store-detail`);
     local.editing = null;
-    paintDetail();
+    paintReview();
     setDialogStatus(dialog, `${entry.store_name} saved.`, "ok");
     dialog.querySelector(`[data-review-edit="${store}"]`)?.focus();
   } catch (error) {
@@ -529,14 +493,14 @@ async function saveStoreEdit(form) {
 }
 
 async function resetOverride(button) {
-  const dialog = document.getElementById(DETAIL_ID);
+  const dialog = sheet.dialog;
   const store = button.dataset.reviewReset;
   const status = button.closest("form")?.querySelector(".review-edit-status");
   button.disabled = true;
   try {
     local.detail = await fetchJson(`/api/items/${local.detailId}/store-override?store=${encodeURIComponent(store)}`, { method: "DELETE" });
     local.editing = null;
-    paintDetail();
+    paintReview();
     setDialogStatus(dialog, `${storeName(store)} is back to the benchmark's values.`, "ok");
     dialog.querySelector(`[data-review-edit="${store}"]`)?.focus();
     afterReviewChange();

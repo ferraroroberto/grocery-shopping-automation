@@ -1,8 +1,9 @@
 // The four inventory views: the Home dashboard, the audit/target editors, the
-// per-row edit form, and the add form (with the product-search host above it).
+// Edit item list (each row opens the item sheet, #255), and the add form (with
+// the product-search host above it).
 import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
 import { activePaneBody, c, defaultZone, filteredItems, items, state } from "./core.js";
-import { esc, html, icon, pickerMarkup, text } from "./dom.js";
+import { html, icon, pickerMarkup, text } from "./dom.js";
 import { itemList, itemRow, rowValue, stepper } from "./rows.js";
 
 function summaryRow(label, value) {
@@ -27,7 +28,7 @@ function renderSummary() {
 export function renderDashboard() {
   const cols = c();
   const source = filteredItems();
-  const rows = source.map((item) => dashboardRow(item, cols)).join("");
+  const rows = source.map((item) => valueRow(item, cols)).join("");
   const body = activePaneBody();
   // The full item list folds by default (home-automation pattern: heavy cards
   // are disclosures). A re-render must not slam it shut, so harvest the live
@@ -75,7 +76,9 @@ function buyNote(item, cols) {
   return buy > 0 ? ` · buy ${buy}` : "";
 }
 
-function dashboardRow(item, cols) {
+// Home's list and Edit item: the zone and store, the stock/target pair as
+// the row's value; the tap opens the item sheet, where all of it is edited.
+function valueRow(item, cols) {
   return itemRow({
     title: item[cols.comida],
     meta: `${text(item[cols.lugar])} · ${text(item[cols.super])}${buyNote(item, cols)}`,
@@ -121,23 +124,8 @@ const labelled = (caption, input) => `<label class="field-label">${caption}${inp
 export function renderEdit() {
   const cols = c();
   const source = filteredItems().sort((a, b) => text(a[cols.comida]).localeCompare(text(b[cols.comida])));
-  activePaneBody().innerHTML = `<section class="grid">${source.map((item) => `
-    <article class="card" data-id="${item.id}">
-      <form class="form edit-form">
-        <div class="row"><h3>${html(item[cols.comida])}</h3><button class="danger" type="button" data-action="delete">Delete</button></div>
-        <div class="three">
-          ${labelled("Item", `<input class="field" name="comida" value="${esc(item[cols.comida])}" placeholder="Item" />`)}
-          ${labelled("Supermarket", `<input class="field" name="super" value="${esc(item[cols.super])}" placeholder="Supermarket" />`)}
-          ${labelled("Zone", `<input class="field" name="lugar" value="${esc(item[cols.lugar])}" placeholder="Zone" />`)}
-        </div>
-        <div class="three-link">
-          ${labelled("Target", `<input class="field" name="cantidad" type="number" min="0" value="${esc(item[cols.cantidad])}" placeholder="Target" />`)}
-          ${labelled("In stock", `<input class="field" name="tenemos" type="number" min="0" value="${esc(item[cols.tenemos])}" placeholder="In stock" />`)}
-          ${labelled("URL", `<input class="field" name="buscador" value="${esc(item[cols.buscador])}" placeholder="URL" />`)}
-        </div>
-        <button class="primary" type="submit">Save</button>
-      </form>
-    </article>`).join("") || emptyStateEl("search", "No matching items.").outerHTML}</section>`;
+  const rows = source.map((item) => valueRow(item, cols)).join("");
+  activePaneBody().innerHTML = rows ? itemList(rows) : emptyStateEl("search", "No matching items.").outerHTML;
 }
 
 // Add Item = the store product search (#182; search.js fills #product-search,

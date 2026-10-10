@@ -331,22 +331,48 @@ def test_search_only_on_filterable_modes(page):
 
 @pytest.mark.e2e
 def test_item_forms_label_every_field(page):
-    """Edit item and Add item name all six fields (#213): the numbers read
-    "Target" / "In stock" even when the box holds a value."""
-    labels = ["Item", "Supermarket", "Zone", "Target", "In stock", "URL"]
-    for mode, selector in (("edit", ".edit-form"), ("add", "#add-form")):
-        goto_mode(page, mode)
-        form = page.locator(selector).first
-        form.wait_for()
-        for label in labels:
-            assert form.get_by_label(label, exact=True).count() == 1, f"{mode}: {label}"
+    """Add item names all six fields (#213): the numbers read "Target" /
+    "In stock" even when the box holds a value. The item sheet (#255) names
+    the field on each of its pages the same way."""
+    goto_mode(page, "add")
+    form = page.locator("#add-form")
+    form.wait_for()
+    for label in ["Item", "Supermarket", "Zone", "Target", "In stock", "URL"]:
+        assert form.get_by_label(label, exact=True).count() == 1, label
+    goto_mode(page, "edit")
+    page.locator("#pane-items .item-row .action-row-main").first.click()
+    sheet = page.locator("#item-sheet")
+    for to, label in (("zone", "Zone"), ("store", "Store"), ("link", "Buy link"), ("name", "Name")):
+        sheet.locator(f"[data-page-to='{to}']").click()
+        assert sheet.locator(f"[data-page='{to}']").get_by_label(label, exact=True).count() == 1, label
+        sheet.locator("[data-sheet-back]").click()
+    page.keyboard.press("Escape")
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
 
 
+def _open_sheet_from(page, mode: str, name: str):
+    """Tap the row showing `name` in `mode`'s list and return the item sheet."""
+    goto_mode(page, mode)
+    if mode == "shopping":
+        page.locator("details[data-store='mercadona'] > summary").click()
+    else:
+        page.fill("#search", name)
+    if mode in ("audit", "targets"):
+        page.click("main > .pane:not([hidden]) [data-zone='nevera']")
+    page.locator("main > .pane:not([hidden]) .item-row", has_text=name).locator(".action-row-main").click()
+    sheet = page.locator("#item-sheet")
+    sheet.wait_for()
+    return sheet
+
+
 @pytest.mark.e2e
-def test_edit_item_keeps_blank_cells_blank(page, server):
-    """Edit item pre-fills a blank cell as an empty box, never the "-" display
-    placeholder, so saving a row with no URL doesn't write "-" into the sheet (#228)."""
+def test_item_sheet_opens_everywhere_edits_and_deletes(page, server):
+    """The item sheet (#255) is the one place an item is edited, opened from
+    every row that shows it: Home, Shop, Audit, Items' Targets and Edit item,
+    and the Stores list's pencil (onto its Stores & prices page). Its staged
+    Save posts the whole row as the old Edit item form did: a blank cell stays
+    blank, never the "-" placeholder (#228), and Esc discards. Delete asks in
+    the in-app confirm sheet, never the browser's confirm() (#254)."""
     name = "zzz e2e blank url"
     created = page.request.post(
         f"{server.url}/api/items",
@@ -355,36 +381,76 @@ def test_edit_item_keeps_blank_cells_blank(page, server):
     assert created.ok, created.text()
     page.reload()
     page.wait_for_selector("[data-tab='audit']")
-    goto_mode(page, "edit")
-    form = page.locator(".edit-form", has=page.locator(f"input[name='comida'][value='{name}']"))
-    form.wait_for()
-    assert form.locator("input[name='buscador']").input_value() == ""
-    form.locator("input[name='cantidad']").fill("2")  # change only the target
-    form.get_by_role("button", name="Save").click()
-    page.wait_for_function("document.querySelector('#toast')?.textContent?.includes('Saved')")
-    payload = page.request.get(f"{server.url}/api/inventory").json()
-    cols = payload["columns"]
-    row = next(i for i in payload["items"] if i[cols["comida"]] == name)
-    assert row[cols["cantidad"]] == 2
-    assert row[cols["buscador"]] in (None, ""), row[cols["buscador"]]
 
-    # Delete asks in the in-app confirm sheet, never the browser's confirm()
-    # (#254): the × keeps the item, the sheet's Delete removes it.
+    def row():
+        payload = page.request.get(f"{server.url}/api/inventory").json()
+        cols = payload["columns"]
+        return next((i for i in payload["items"] if i[cols["comida"]] == name), None), cols
+
+    title = page.locator("#item-sheet-title")
+    for mode in ("dashboard", "shopping", "audit", "targets", "edit"):
+        sheet = _open_sheet_from(page, mode, name)
+        assert title.inner_text() == name, mode
+        assert sheet.get_attribute("data-page") == "main", mode
+        page.keyboard.press("Escape")
+        sheet.wait_for(state="hidden")
+    page.fill("#search", "")
+    goto_mode(page, "stores")
+    page.locator(".store-row", has_text=name).locator("[data-stores-action='detail']").click()
+    sheet = page.locator("#item-sheet")
+    sheet.wait_for()
+    assert sheet.get_attribute("data-page") == "prices"
+    assert title.inner_text() == "Stores & prices"
+    sheet.locator("[data-dialog-close]").click()
+    sheet.wait_for(state="hidden")
+
+    # Esc discards a staged change: nothing is written.
+    sheet = _open_sheet_from(page, "edit", name)
+    sheet.locator("[data-sheet-qty='cantidad'] [data-action='target-plus']").click()
+    assert not sheet.locator(".detail-save-btn").is_disabled()
+    page.keyboard.press("Escape")
+    sheet.wait_for(state="hidden")
+    saved, cols = row()
+    assert saved[cols["cantidad"]] == 1
+
+    # Target, in stock and zone are staged, then saved as one row; the blank
+    # buy link stays blank.
+    sheet = _open_sheet_from(page, "edit", name)
+    assert sheet.locator("[data-link-value='link']").inner_text() == "No link"
+    sheet.locator("[data-sheet-qty='cantidad'] [data-action='target-plus']").click()
+    sheet.locator("[data-sheet-qty='tenemos'] [data-action='current-plus']").click()
+    sheet.locator("[data-page-to='zone']").click()
+    sheet.locator("[data-page='zone'] [data-picker] select").select_option("congelador")
+    sheet.locator("[data-sheet-back]").click()
+    assert sheet.locator("[data-link-value='zone']").inner_text() == "congelador"
+    with page.expect_response(lambda r: r.request.method == "PUT") as resp:
+        sheet.locator(".detail-save-btn").click()
+    assert resp.value.request.post_data_json["buscador"] == ""
+    sheet.wait_for(state="hidden")
+    page.wait_for_function("document.querySelector('#toast')?.textContent?.includes('Saved')")
+    saved, cols = row()
+    assert (saved[cols["cantidad"]], saved[cols["tenemos"]], saved[cols["lugar"]]) == (2, 1, "congelador")
+    assert saved[cols["super"]] == "mercadona"
+    assert saved[cols["buscador"]] in (None, ""), saved[cols["buscador"]]
+
+    # Delete: the x keeps the item, the confirm sheet's Delete removes it.
     native: list[str] = []
     page.on("dialog", lambda d: (native.append(d.message), d.dismiss()))
-    card = page.locator("article[data-id]", has=page.locator(f"input[name='comida'][value='{name}']"))
-    sheet = page.locator("#confirm-dialog")
-    card.locator("[data-action='delete']").click()
-    sheet.wait_for()
-    assert name in sheet.locator(".confirm-message").inner_text()
-    sheet.locator("[data-confirm='no']").click()
-    assert not sheet.is_visible()
-    assert any(i[cols["comida"]] == name for i in page.request.get(f"{server.url}/api/inventory").json()["items"])
-    card.locator("[data-action='delete']").click()
+    sheet = _open_sheet_from(page, "edit", name)
+    confirm = page.locator("#confirm-dialog")
+    sheet.locator("[data-sheet-delete]").click()
+    confirm.wait_for()
+    assert name in confirm.locator(".confirm-message").inner_text()
+    confirm.locator("[data-confirm='no']").click()
+    assert not confirm.is_visible() and sheet.is_visible()
+    assert row()[0] is not None
+    sheet.locator("[data-sheet-delete]").click()
     with page.expect_response(lambda r: r.request.method == "DELETE"):
-        sheet.locator("[data-confirm='yes']").click()
-    assert not any(i[cols["comida"]] == name for i in page.request.get(f"{server.url}/api/inventory").json()["items"])
+        confirm.locator("[data-confirm='yes']").click()
+    sheet.wait_for(state="hidden")
+    assert row()[0] is None
     assert native == [], f"native dialog shown: {native}"
+    page.fill("#search", "")
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
 
 
@@ -411,6 +477,16 @@ def test_phone_geometry_fits_and_targets_meet_the_floor(browser, server):
                 widths = pg.locator("main > .pane:not([hidden]) .item-row .action-row-title").evaluate_all(
                     "els => els.map((e) => e.getBoundingClientRect().width)")
                 assert widths and min(widths) >= 150, f"{mode}: name squeezed to {min(widths or [0]):.0f}px"
+        # The item sheet (#255): steppers, link rows, Delete and Save each keep
+        # the floor without overlapping, and the sheet never scrolls sideways.
+        goto_mode(pg, "edit")
+        pg.locator("#pane-items .item-row .action-row-main").first.click()
+        sheet = pg.locator("#item-sheet")
+        sheet.wait_for()
+        assert_min_target(sheet.locator("button:visible"))
+        assert_no_overlap(sheet.locator("button:visible"))
+        assert sheet.evaluate("d => d.scrollWidth <= d.clientWidth"), "item sheet scrolls sideways at 390px"
+        pg.keyboard.press("Escape")
         goto_mode(pg, "dashboard")
         for selector in ("[data-tab]:visible", ".home-head button:visible"):
             targets = pg.locator(selector)
@@ -667,12 +743,11 @@ def test_stores_plan_simulate_and_apply(page, server):
     )
     total = page.locator(".stores-total strong").inner_text()
 
+    # The pencil opens the item sheet (#255) straight onto Stores & prices.
     burger.locator("[data-stores-action='detail']").click()
-    dialog = page.locator("#stores-detail-dialog")
-    dialog.locator(".review-qty-lines").wait_for()
-    qty = dialog.locator(".review-qty-lines").inner_text()
-    assert "Ametller Origen 2 × 0.3 kg = 0.6 kg" in qty
-    assert "Carrefour 2 × 0.6 kg = 1.2 kg (+100%)" in qty
+    dialog = page.locator("#item-sheet")
+    dialog.locator("tr[data-review-store='carrefour']").wait_for()
+    assert dialog.get_attribute("data-page") == "prices"
     # The cut the cart picks for that product is shown on its store row (#179).
     assert dialog.locator("tr[data-review-store='carrefour'] .review-option").inner_text().startswith("Cut: Fileteado")
     assert dialog.locator("tr[data-review-store='ametller'] .review-option").count() == 0
@@ -680,7 +755,7 @@ def test_stores_plan_simulate_and_apply(page, server):
     page.set_viewport_size({"width": 1280, "height": 900})
     assert dialog.bounding_box()["width"] >= 900
     page.set_viewport_size({"width": 390, "height": 844})
-    assert dialog.evaluate("d => d.scrollWidth <= d.clientWidth"), "detail dialog scrolls sideways at 390px"
+    assert dialog.evaluate("d => d.scrollWidth <= d.clientWidth"), "item sheet scrolls sideways at 390px"
     page.set_viewport_size({"width": 1100, "height": 950})
 
     # Your pack price at Carrefour prices the simulator and the chip, until reset.
@@ -701,18 +776,32 @@ def test_stores_plan_simulate_and_apply(page, server):
     )
     assert dialog.locator(".chip:has-text('yours')").count() == 0
 
-    # Target and stock are saved to the list from the detail; the rest of the row is untouched.
-    dialog.locator("[data-review-qty='cantidad']").fill("3")
-    dialog.locator("[data-review-qty='tenemos']").fill("2")
+    # Back on the main page the row names what needs you; the quantity maths
+    # is one page away.
+    dialog.locator("[data-sheet-back]").click()
+    prices_value = dialog.locator("[data-link-value='prices']")
+    assert (prices_value.inner_text(), prices_value.get_attribute("data-tone")) == ("Needs checking", "attention")
+    dialog.locator("[data-page-to='quantity']").click()
+    qty = dialog.locator(".review-qty-lines").inner_text()
+    assert "Ametller Origen 2 × 0.3 kg = 0.6 kg" in qty
+    assert "Carrefour 2 × 0.6 kg = 1.2 kg (+100%)" in qty
+    dialog.locator("[data-sheet-back]").click()
+
+    # Target and stock are staged on the steppers and saved to the list; the
+    # rest of the row is untouched.
+    dialog.locator("[data-sheet-qty='cantidad'] [data-action='target-plus']").click()
+    dialog.locator("[data-sheet-qty='tenemos'] [data-action='current-plus']").click()
     with page.expect_response(lambda r: r.request.method == "PUT" and r.url.endswith(f"/api/items/{item['id']}")) as resp:
         dialog.locator(".detail-save-btn").click()
     assert resp.value.ok
+    dialog.wait_for(state="hidden")
     saved = next(i for i in page.request.get(f"{server.url}/api/inventory").json()["items"]
                  if i["comida"] == "burguer ternera")
     assert (saved["cantidad"], saved["tenemos"]) == (3, 2)
     assert (saved["super"], saved["buscador"]) == ("carrefour", item["buscador"])
 
     # Checked is stored server-side and empties the Needs-checking filter.
+    burger.locator("[data-stores-action='detail']").click()
     dialog.locator("[data-review-checked]").click()
     page.wait_for_function(f"({count})('needs') === '0' && ({count})('checked') === '1'")
     assert dialog.locator("[data-review-checked]").get_attribute("aria-checked") == "true"
@@ -726,9 +815,10 @@ def test_stores_plan_simulate_and_apply(page, server):
 # Every dropdown, inline input and labelled button in one open dialog, checked
 # against the vendored recipes (#207: select-native/, button/, modal/), with
 # the expected values resolved from the theme's own tokens -- never hard-coded.
-# A button must match one button.css tier (or the shared disabled recipe);
-# glyph-only controls (.icon-button) and switches are out of scope; the x close
-# is only checked for being unpainted.
+# A button must match one button.css tier (or the shared disabled recipe; a
+# .danger one, the destructive tint); glyph-only controls (.icon-button),
+# switches and list rows (.action-row-main, the item sheet's link rows) are out
+# of scope; the x close is only checked for being unpainted.
 _DIALOG_CONTROLS_PROBE = r"""(id) => {
   const dialog = document.getElementById(id);
   const card = dialog.querySelector('.detail-card');
@@ -741,6 +831,7 @@ _DIALOG_CONTROLS_PROBE = r"""(id) => {
     tint: ['--accent-soft', '--accent-text', '--accent-border-soft'],
     surface: ['--card-off', '--muted', '--line'],
     disabled: ['--card-off', '--muted', '--line'],
+    danger: ['--deficit-soft', '--danger-text', '--deficit-border-soft'],
   };
   const expect = Object.fromEntries(Object.entries(tiers).map(([k, [bg, fg, border]]) =>
     [k, { bg: color(bg), fg: color(fg), border: color(border) }]));
@@ -757,11 +848,11 @@ _DIALOG_CONTROLS_PROBE = r"""(id) => {
   };
 
   const buttons = [...card.querySelectorAll('button')]
-    .filter((b) => shown(b) && !b.matches('.detail-close, .icon-button, [role=switch]'));
+    .filter((b) => shown(b) && !b.matches('.detail-close, .icon-button, [role=switch], .action-row-main'));
   for (const b of buttons) {
     const s = getComputedStyle(b), box = b.getBoundingClientRect();
     const got = { bg: s.backgroundColor, fg: s.color, border: s.borderTopColor };
-    const pool = b.disabled ? ['disabled'] : ['primary', 'tint', 'surface'];
+    const pool = b.disabled ? ['disabled'] : b.matches('.danger') ? ['danger'] : ['primary', 'tint', 'surface'];
     const tier = pool.find((k) => ['bg', 'fg', 'border'].every((p) => got[p] === expect[k][p]));
     if (!tier) bad.push(`${name(b)} wears no button tier: ${JSON.stringify(got)}`);
     if (Math.abs(parseFloat(s.borderTopLeftRadius) - radius) > 0.5) bad.push(`${name(b)} radius ${s.borderTopLeftRadius}`);
@@ -842,13 +933,19 @@ def test_dialog_controls_are_styled(page, theme):
 
     burger = page.locator(".store-row", has_text="burguer ternera")
     burger.locator("[data-stores-action='detail']").click()
-    detail = page.locator("#stores-detail-dialog")
-    detail.locator(".review-qty-lines").wait_for()
+    # The item sheet (#255): its Stores & prices page with a store's editor
+    # open, its main page (the in-body Delete), and a picker page.
+    detail = page.locator("#item-sheet")
     detail.locator("[data-review-edit]").first.click()
     detail.locator("[data-review-form]").wait_for()
-    found = check("stores-detail-dialog")
-    assert {"Save", "Cancel", "Save target & in stock"} <= set(found["buttons"]), found
+    found = check("item-sheet")
+    assert {"Save", "Cancel"} <= set(found["buttons"]), found
     assert found["selects"] >= 1, found
+    detail.locator("[data-review-cancel]").click()
+    detail.locator("[data-sheet-back]").click()
+    assert check("item-sheet")["buttons"] == ["Delete item", "Save"]
+    detail.locator("[data-page-to='zone']").click()
+    assert check("item-sheet")["selects"] == 1
     detail.locator("[data-dialog-close]").click()
 
     pick = burger.locator("[data-stores-pick]")

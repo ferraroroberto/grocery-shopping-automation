@@ -25,13 +25,10 @@ import {
   syncFillCarts,
   updateAutomationCommand,
 } from "./modules/automation.js";
-import { confirmSheet } from "./modules/confirm.js";
 import {
-  c,
   captureTokenFromURL,
   el,
   idleStatus,
-  items,
   migrateRetiredTab,
   MODE_TO_TAB,
   restoreSubMode,
@@ -46,9 +43,10 @@ import {
   TAB_KEY,
   THEME_KEY,
 } from "./modules/core.js";
-import { syncPicker, text } from "./modules/dom.js";
+import { syncPicker } from "./modules/dom.js";
 import { isEmailControl, pushEmailMonitorConfig, renderEmailWatch, runEmailCheck } from "./modules/email.js";
 import { renderAdd, renderAudit, renderDashboard, renderEdit } from "./modules/inventory.js";
+import { openItemSheet } from "./modules/item-sheet.js";
 import {
   cancelProductSearch,
   handleSearchInput,
@@ -65,7 +63,6 @@ import {
   loadStoresChecks,
   onStoresChange,
   onStoresClick,
-  openItemDetail,
   renderStores,
   repaintStoresList,
   storesNeedsChecking,
@@ -252,10 +249,8 @@ el.app.addEventListener("click", async (event) => {
   if (action === "current-plus") await mutate(`/api/items/${id}/current-delta`, { delta: 1 });
   if (action === "target-minus") await mutate(`/api/items/${id}/target-delta`, { delta: -1 });
   if (action === "target-plus") await mutate(`/api/items/${id}/target-delta`, { delta: 1 });
-  if (action === "delete" && await confirmDelete(id)) await mutate(`/api/items/${id}`, {}, "DELETE");
-  // A row tap opens the item (#254) — today's item detail; the item sheet
-  // (#255) replaces this one call.
-  if (action === "open-item") await openItemDetail(id);
+  // A row tap opens the item sheet (#255), wherever the row is.
+  if (action === "open-item") await openItemSheet(id);
   if (action === "mark-buy") { state.shopping.bought.add(id); saveShoppingState(); render(); }
   if (action === "undo-buy") { state.shopping.bought.delete(id); saveShoppingState(); render(); }
   const extraCard = event.target.closest("[data-extra-id]");
@@ -273,25 +268,8 @@ el.app.addEventListener("click", async (event) => {
   }
 });
 
-function confirmDelete(id) {
-  const name = text(items().find((item) => item.id === id)?.[c().comida]);
-  return confirmSheet({
-    title: "Delete item?",
-    message: `${name} is removed from the spreadsheet. This cannot be undone.`,
-    confirmLabel: "Delete",
-    danger: true,
-  });
-}
-
 el.app.addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (event.target.matches(".edit-form")) {
-    const card = event.target.closest("[data-id]");
-    const data = Object.fromEntries(new FormData(event.target).entries());
-    data.cantidad = Number(data.cantidad);
-    data.tenemos = Number(data.tenemos);
-    await mutate(`/api/items/${Number(card.dataset.id)}`, data, "PUT");
-  }
   if (event.target.matches("#add-form")) {
     const data = Object.fromEntries(new FormData(event.target).entries());
     data.cantidad = Number(data.cantidad);
