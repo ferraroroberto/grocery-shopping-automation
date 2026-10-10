@@ -201,11 +201,13 @@ orchestration recipe + Sonnet research-agent prompt"]
     GENTOKEN["gen_token.py / set_password.py\nbearer-token + password auth"]
     TAILCERT["gen_tailscale_cert.py\nTailscale HTTPS cert"]
     TUNNEL["run_named_tunnel.py"]
+    SYNTH["design_review_synthetic.py (#251)\nthrowaway copy of the checkout on invented data for the design-review walk:\nsynthetic_demo_data (workbook + benchmark runs) · synthetic_demo_app (every side effect stubbed)\nsynthetic_demo_guard (audit hook refuses launches, real services, real data)"]
     GENICONS["gen_icons.py\nPWA · tray · Stream Deck icon family"]
   end
   GENTOKEN --> WEBCFG
   TAILCERT --> SSL
   GENICONS --> STATIC
+  SYNTH -->|copy runs under stubs + guard; writes only a temp workbook and benchmark runs| API
   SCAFFOLD --> GENICONS
 
   subgraph tests["tests/ — pytest suite + smoke scripts"]

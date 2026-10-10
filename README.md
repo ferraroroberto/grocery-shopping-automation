@@ -34,7 +34,7 @@ Comprehensive household inventory management across multiple operational modes. 
   - `config.example.json` — committed template; copied to `src/config.json` (gitignored) on first run.
 - **`automation/`** — Playwright + real-Chrome browser cart automation for Mercadona, Ametller and Carrefour (see `automation/README.md`).
 - **`benchmark/`** — quality-locked supermarket price benchmark: `build_basket.py` (monthly basket), `ametller_guest.py` (Ametller API via guest token), `results.py` (validated per-store research writer), `browser_fetch.py` (real Chrome for bot-protected stores), `score.py` (split scenarios, max-savings and recommended plan), `history.py` (run history), `report.py` (HTML report), `stores.json` (store registry). Driven by the `/supermarket-benchmark` project skill; see [📊 Supermarket Benchmark](#-supermarket-benchmark).
-- **`scripts/`** — `gen_token.py`, `set_password.py` (remote auth), `run_named_tunnel.py` (Cloudflare), `gen_icons.py` (canonical PWA/tray/Stream Deck icon generation).
+- **`scripts/`** — `gen_token.py`, `set_password.py` (remote auth), `run_named_tunnel.py` (Cloudflare), `gen_icons.py` (canonical PWA/tray/Stream Deck icon generation), and the design-review demo instance (`design_review_synthetic.py` launcher, `synthetic_demo_data.py` invented data, `synthetic_demo_app.py` stubbed app, `synthetic_demo_guard.py` runtime guard).
 - **`assets/`** — generated external application surfaces: `tray/grocery-shopping-automation.ico` and `stream-deck/grocery-shopping-automation-144.png`.
 - **`webapp/`** — `cloudflared.sample.yml` and the gitignored `certificates/`.
 - **`config/`** — `webapp_config.sample.json` template.
@@ -81,6 +81,16 @@ All external icon surfaces derive from the canonical Lucide `shopping-basket` ma
 ```
 
 The command writes the PWA files under `app/static/`, `assets/tray/grocery-shopping-automation.ico`, and `assets/stream-deck/grocery-shopping-automation-144.png`. Set `PROJECT_SCAFFOLDING_ROOT` if the sibling repository is checked out somewhere other than `E:\automation\project-scaffolding`.
+
+### Design-review demo instance
+
+`scripts/design_review_synthetic.py` boots a throwaway copy of this checkout on **invented data** (a temp workbook and two benchmark runs, made-up products and `demo.invalid` links) so the design review and the redesign can click through every tab, mode and dialog without touching the household's list. It is what fleet-config's `design_review measure grocery-shopping-automation --synthetic` runs (declared in `.fleet.toml` under `[design.review.synthetic]`); to look at it yourself:
+
+```powershell
+& .\.venv\Scripts\python.exe scripts\design_review_synthetic.py   # prints ROOT= and URL=; stops (and deletes its temp tree) when stdin closes
+```
+
+Nothing real is reachable from it: the copy leaves out the gitignored real data, `config` points at the temp tree and at a closed port, the cart automation, product search, store logins, Chrome launch, "open spreadsheet", the email poll, the voice transcriber, whisper and the LLM hub are all replaced by invented answers (`synthetic_demo_app.py`), and a runtime audit-hook guard (`synthetic_demo_guard.py`) refuses any process launch, non-loopback or real-service connection, open of the real data, or write outside the temp tree, logging it to `<root>/guard.log`. It copies the working tree (tracked and untracked-unignored files), so a redesign in progress is what gets walked. `tests/test_design_review_synthetic.py` boots it and proves all of the above, with a canary file standing in for the real spreadsheet.
 
 ### Legacy Streamlit app
 
