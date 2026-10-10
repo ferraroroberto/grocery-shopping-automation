@@ -37,10 +37,12 @@ record = "https://github.com/ferraroroberto/grocery-shopping-automation/issues/1
 # `clicks` sequence) after a fresh load, never a fill or submit, and never on
 # or inside a no_go selector. A step whose target is missing on the live app
 # (an empty list) is recorded STEP_TARGET_ABSENT and leaves unrelated rules
-# alone (fleet-config#995). This repo declares no [design.review.synthetic]
-# instance (#184) -- every extra step below runs against the live app and its
-# real spreadsheet, so no_go must cover every control that writes, launches,
-# records or spends, not just what today's extra_steps happen to reach.
+# alone (fleet-config#995). The live walk runs against the real app and its
+# real spreadsheet, so no_go below must cover every control that writes,
+# launches, records or spends. `measure --synthetic` instead boots the
+# invented-data instance declared in [design.review.synthetic] (#251) and
+# walks that one -- every step below runs there too, plus the `synthetic =
+# true` ones, which the live walk never runs.
 [design.review]
 theme_storage_key = "grocery.theme"
 # Never clicked: anything that mutates the spreadsheet or local what-if state,
@@ -122,3 +124,64 @@ tab       = "inventory"
 id        = "settings"
 click     = '#pane-inventory .home-settings'
 synthetic = false
+
+# --- the synthetic instance (#251) ---------------------------------------
+# scripts/design_review_synthetic.py boots a throwaway copy of this checkout on
+# invented data (a temp workbook and benchmark runs), with every store, cart,
+# Chrome, email, whisper and hub side effect stubbed and guarded -- see that
+# script's docstring. Because nothing real is reachable, its no_go lists only
+# what would change the invented data mid-walk (so screens stay comparable
+# across runs) or needs hardware: the Audit steppers and checkboxes, every
+# Save/Apply, the Stores baseline/import/reset buttons, and the microphones.
+# Run automation, Check now/Test, Open spreadsheet, Log in to stores and Check
+# logins are stubbed and walkable here. Product-search results are not
+# reached: the walk never types, and the search needs text.
+[design.review.synthetic]
+command = ["scripts/design_review_synthetic.py"]
+startup_timeout_s = 180
+no_go = [
+    ".detail-save-btn",                       # every dialog's Save/Apply
+    '[data-stores-action="set-baseline"]',
+    '[data-stores-action="reset-baseline"]',
+    '[data-stores-action="import"]',
+    '[data-stores-action="reset"]',
+    "[data-review-checked]",
+    "[data-review-reset]",
+    '.review-edit button[type="submit"]',
+    '[data-action="current-minus"]',
+    '[data-action="current-plus"]',
+    '[data-action="target-minus"]',
+    '[data-action="target-plus"]',
+    '[data-action="mark-buy"]',
+    '[data-action="mark-extra"]',
+    '[data-action="remove-extra"]',
+    '[data-action="delete"]',
+    '[data-action="search-use"]',
+    '[data-action="search-confirm"]',
+    "#record-toggle",                         # needs a microphone
+    "#search-record",
+]
+
+[[design.review.extra_steps]]
+tab       = "shopping"
+id        = "fill-carts-run"
+click     = "#automation-start"
+synthetic = true
+
+[[design.review.extra_steps]]
+tab       = "items"
+id        = "stores-review"
+clicks    = ['#pane-items [data-mode="stores"]', '[data-stores-action="recommended"]', '[data-stores-action="review"]']
+synthetic = true
+
+[[design.review.extra_steps]]
+tab       = "inventory"
+id        = "settings-email-check"
+clicks    = ['#pane-inventory .home-settings', "#email-monitor > summary", "#email-check-now"]
+synthetic = true
+
+[[design.review.extra_steps]]
+tab       = "inventory"
+id        = "settings-check-logins"
+clicks    = ['#pane-inventory .home-settings', "#check-logins"]
+synthetic = true
