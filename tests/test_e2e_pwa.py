@@ -107,6 +107,16 @@ def open_store_sheet(page, store: str = "mercadona"):
     return sheet
 
 
+def open_transcript_menu(page):
+    """Audit -> Voice -> the transcript card's menu -> its sheet (#259)."""
+    if not page.locator("#pane-audit #voice-glance").is_visible():
+        goto_mode(page, "audio")
+    page.click("#audio-menu")
+    sheet = page.locator("#transcript-sheet")
+    sheet.wait_for()
+    return sheet
+
+
 def _free_port() -> int:
     sock = socket.socket()
     sock.bind(("127.0.0.1", 0))
@@ -115,12 +125,18 @@ def _free_port() -> int:
     return port
 
 
+# A mention no row took, as speech says it: Manual's word search (#259) finds
+# the fixture's "pulpo cocido" from it.
+UNMATCHED_PHRASE = "pulpo a la gallega"
+
+
 def _stub_extract(transcript, df, *, base_url, model, max_tokens, timeout):
     first = int(df.index[0])
     return ExtractionResult(
         items=[{"idx": first, "count": 2, "zone": str(df.loc[first, "lugar"]), "evidence": "dos"}],
         zones_mentioned=[str(df.loc[first, "lugar"])],
-        unmatched_mentions=[],
+        unmatched_mentions=[{"phrase": UNMATCHED_PHRASE, "idx": None, "approx_count": None, "note": "no match",
+                             "comida": "", "resolved_by": "", "match_score": None}],
         raw_text="{}",
     )
 
@@ -307,6 +323,19 @@ def test_four_tab_nav_and_relocated_sections(page, pw, server):
     assert sheet.locator("#product-search #search-term").is_visible()
     page.keyboard.press("Escape")
     sheet.wait_for(state="hidden")
+
+    # #259: Audit opens on Voice (#252 decision 7), Voice leading its two
+    # segments; a hop to Manual lasts the session, never the next launch.
+    page.click("[data-tab='audit']")
+    audit_segments = page.locator("#pane-audit .segmented [data-mode]")
+    assert audit_segments.all_inner_texts() == ["Voice", "Manual"]
+    assert audit_segments.first.get_attribute("aria-pressed") == "true"
+    page.locator("#pane-audit #voice-glance").wait_for()
+    audit_segments.nth(1).click()
+    page.click("[data-tab='items']")
+    page.click("[data-tab='audit']")
+    assert audit_segments.nth(1).get_attribute("aria-pressed") == "true"
+    assert page.evaluate("() => localStorage.getItem('grocery.sub.audit')") is None
 
     # #258: the last fill left an item out, and Shop hasn't been seen since --
     # the Shop tab carries the count badge, spoken as part of its name.
@@ -498,8 +527,6 @@ def _open_sheet_from(page, mode: str, name: str):
         page.locator("details[data-store='mercadona'] > summary").click()
     else:
         page.fill("#search", name)
-    if mode == "audit":
-        page.click("main > .pane:not([hidden]) [data-zone='nevera']")
     page.locator("main > .pane:not([hidden]) .item-row", has_text=name).locator(".action-row-main").click()
     sheet = page.locator("#item-sheet")
     sheet.wait_for()
@@ -654,6 +681,11 @@ def test_phone_geometry_fits_and_targets_meet_the_floor(browser, server):
                 widths = pg.locator("main > .pane:not([hidden]) .item-row .action-row-title").evaluate_all(
                     "els => els.map((e) => e.getBoundingClientRect().width)")
                 assert widths and min(widths) >= 150, f"{mode}: name squeezed to {min(widths or [0]):.0f}px"
+        # #259: with every checklist zone open, a zone's summary and the
+        # switches under it keep their hit areas apart (TOUCH-02).
+        goto_mode(pg, "audio")
+        pg.locator(".checklist-zone").evaluate_all("els => els.forEach((d) => { d.open = true; })")
+        assert_no_overlap(pg.locator(".voice-checklist summary, .voice-checklist .toggle"))
         # Items' list (#256): the search and Add item share one row at 390px,
         # side by side, the search still wider than the button.
         goto_mode(pg, "list")
@@ -677,7 +709,7 @@ def test_phone_geometry_fits_and_targets_meet_the_floor(browser, server):
         assert_no_overlap(add_row.locator("button:visible, input:visible"))
         assert_no_horizontal_overflow(pg)
         for opener in (open_item_sheet, lambda: open_add_sheet(pg), lambda: open_benchmark_sheet(pg),
-                       lambda: open_fill_options(pg), lambda: open_store_sheet(pg)):
+                       lambda: open_fill_options(pg), lambda: open_store_sheet(pg), lambda: open_transcript_menu(pg)):
             if opener is open_item_sheet:
                 goto_mode(pg, "list")
             sheet = opener()
@@ -756,23 +788,67 @@ def test_add_item_new_zone_and_supermarket(page):
 
 @pytest.mark.e2e
 def test_audio_match_and_apply_writes_log(page, server):
+    """Audit > Voice (#259): the glance with Record, then match, then Apply as
+    the one primary with "Needs you" first; a mention no item took is fixed in
+    Manual in two taps (Find, then the stepper) and the review waits as it was
+    left; Apply writes the log the glance then reads."""
     goto_mode(page, "audio")
-    # J-07: the Match model dropdown shows a humanized label, never the raw
-    # config id (gemini_pro) verbatim.
-    model_label = page.locator("#audio-model option:checked").inner_text()
-    assert model_label == "Gemini Pro"
-    assert "_" not in model_label
+    glance = page.locator("#pane-audit #voice-glance")
+    assert page.locator("#pane-audit .pane-body > :first-child").get_attribute("id") == "voice-glance"
+    assert glance.locator("#record-toggle").inner_text().strip() == "Record"
+    assert "button-primary" in glance.locator("#record-toggle").get_attribute("class")
+    # J-07: the match model reads humanized, never the raw config id
+    # (gemini_pro) -- on the transcript card and in its menu, beside Clear.
+    assert page.locator("#audio-model-label").inner_text() == "Gemini Pro"
+    menu = open_transcript_menu(page)
+    assert menu.locator("#audio-model option:checked").inner_text() == "Gemini Pro"
+    assert menu.locator("#audio-clear").is_visible()
+    page.keyboard.press("Escape")
+    menu.wait_for(state="hidden")
+    assert page.locator("#pane-audit #audio-clear").count() == 0
+
     page.fill("#transcript", TRANSCRIPT)
     page.click("#match-transcript")
-    page.wait_for_selector("text=Detected items", timeout=120000)
-    # the accept switch renders pre-on (the old checkbox's pre-ticked guarantee)
+    page.locator("#voice-results").wait_for(timeout=120000)
+    primaries = page.locator("#pane-audit .button-primary:visible")
+    assert primaries.count() == 1 and primaries.first.get_attribute("id") == "apply-audio"
+    groups = page.locator("#pane-audit .voice-results .item-group")
+    assert groups.first.locator(".item-group-head").inner_text().lower() == "needs you"
+    assert page.locator("#voice-need-count").inner_text() == "1"
+    assert page.locator("#audit-context").inner_text() == "1 unmatched"
+    # The accept switch renders pre-on; untick it, and it stays unticked.
     accept = page.locator("[data-audio-idx]").first
     assert accept.get_attribute("aria-checked") == "true"
+    assert page.locator("#voice-apply-count").inner_text() == "1"
+    accept.click()
+    assert page.locator("#voice-apply-count").inner_text() == "0"
+
+    # Tap 1: Find -> Manual, searching every zone for what was heard.
+    groups.first.locator(".item-row", has_text=UNMATCHED_PHRASE).locator(".voice-find").click()
+    assert page.locator("#pane-audit [data-mode='audit']").get_attribute("aria-pressed") == "true"
+    assert page.input_value("#search") == UNMATCHED_PHRASE
+    rows = page.locator("#pane-audit .item-row")
+    assert rows.count() == 1 and "pulpo cocido" in rows.first.inner_text()
+    before = rows.first.locator(".stepper-value").inner_text()
+    # Tap 2: the stepper.
+    rows.first.locator("[data-action='current-plus']").click()
+    page.wait_for_function(
+        "b => document.querySelector('#pane-audit .item-row .stepper-value')?.textContent !== b", arg=before)
+    page.fill("#search", "")
+
+    # Back on Voice, the review waits as it was left.
+    goto_mode(page, "audio")
+    page.locator("#voice-results").wait_for()
+    assert page.locator("[data-audio-idx]").first.get_attribute("aria-checked") == "false"
+    page.locator("[data-audio-idx]").first.click()
     page.click("#apply-audio")
     page.wait_for_function(
         "document.querySelector('#audio-status')?.textContent?.includes('Inventory updated')",
         timeout=30000,
     )
+    assert page.locator("#voice-results").count() == 0
+    page.wait_for_function("document.querySelector('#voice-last-date')?.textContent?.startsWith('Last audit')")
+    assert page.locator("#voice-last-unmatched").inner_text() == "1"
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
     logs = list(server.logs_dir.glob("*.json"))
     assert logs, "apply should have written an audit log"
@@ -1313,7 +1389,7 @@ def test_audio_match_live_hub(page):
     page.fill("#transcript", TRANSCRIPT)
     page.click("#match-transcript")
     # Real hub call — proves no premature timeout (budget up to 10 min).
-    page.wait_for_selector("text=Detected items", timeout=600000)
+    page.locator("#voice-results").wait_for(timeout=600000)
     assert page.locator("#audio-status.ok").count() >= 1
 
 

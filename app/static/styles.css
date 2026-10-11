@@ -496,10 +496,6 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
    reading as the loudest control on every Edit Item card (J-03/LAYOUT-04). */
 .danger { background: transparent; border-color: var(--danger-border-soft); color: var(--danger-text); }
 .danger:active { background: var(--danger-soft); }
-/* Clear (audio.js): the same quiet-destructive recipe at the .big-btn 48px
-   row height, so it still lines up with Match/Apply beside it. */
-.big-btn.danger { background: transparent; color: var(--danger-text); border-color: var(--danger-border-soft); }
-.big-btn.danger:active { background: var(--danger-soft); }
 /* Glyph-only rows sit at the control height: the icon-button box is the 44px
    floor, so neighbours at the row gap never overlap targets. */
 .search-bar, .candidate-actions, .review-cell-edit { --icon-btn-box: var(--hit-min); }
@@ -537,9 +533,6 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
   width: var(--icon-inline);
   height: var(--icon-inline);
 }
-/* Match / Apply / Clear share one line; Cancel (when shown) spans it. */
-.audio-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-sm); }
-.audio-actions #audio-cancel { grid-column: 1 / -1; }
 /* Check now / Test last email share one line at every width (unlike .two,
    which collapses on phones — the fleet action-row idiom, same as above). */
 .email-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-sm); }
@@ -574,9 +567,8 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 .panel-status code { background: var(--accent-soft); padding: 0 4px; border-radius: 4px; }
 .panel-status.error { color: var(--deficit); }
 .panel-status.ok { color: var(--on); }
-.match-figures { display: inline-flex; align-items: center; gap: var(--space-sm); white-space: nowrap; }
-/* Count box for the "Mentioned — count missing" rows — a .field sized to sit on
-   a row instead of filling it. .hit-target supplies the 44px effective square. */
+/* Count box for Voice's "Count missing" rows — a .field sized to sit on a row
+   instead of filling it. .hit-target supplies the 44px effective square. */
 .count-input { width: 68px; text-align: center; font-weight: 700; }
 
 /* Terminal-class log surface — theme-aware (canvas-subtle inset + hairline). */
@@ -601,10 +593,7 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 /* Stack spacing inside any open disclosure body (offsets / list / quick-add). */
 .collapse-body > * + * { margin-top: var(--gap); }
 
-/* --------------------------------------------------- audio zone checklist */
-/* A roomier gap between zone cards: with every zone open, a toggle's invisible
-   hit-target expansion reached into the floating nav's tap band (TOUCH-02). */
-.zone-list { display: grid; gap: var(--space-md); }
+/* ------------------------------------------------- switch rows (Email watch) */
 .zone-items { display: grid; gap: 0; }
 /* The collapse-body stack spacing must NOT leak between checklist rows — a
    12px margin above each row makes the text sit low in its row (more space
@@ -1101,13 +1090,49 @@ a.button-tint[data-open-link-page] {
 /* The carts glance: one row per store (text aligned with the card title, not
    tappable), the run's status and the one action, the Options row on a
    hairline, then the run log folded. */
-.carts-glance > * + * { margin-top: var(--gap); }
-.carts-glance .panel-status:empty, .carts-glance .panel-status[hidden] { display: none; }
-.carts-stores .action-row { padding: 0; }
-.carts-stores .action-row-main { padding-inline: 0; cursor: default; }
-.carts-stores .action-row-main:active { background: transparent; }
-.carts-actions { display: grid; gap: var(--space-sm); }
-.carts-actions > [hidden] { display: none; }
+.carts-glance > * + *, .voice-glance > * + *, .voice-transcript > * + * { margin-top: var(--gap); }
+.carts-glance .panel-status:empty, .carts-glance .panel-status[hidden],
+.voice-glance .panel-status:empty { display: none; }
+.carts-stores .action-row, .voice-glance-rows .action-row { padding: 0; }
+.carts-stores .action-row-main, .voice-glance-rows .action-row-main { padding-inline: 0; cursor: default; }
+.carts-stores .action-row-main:active, .voice-glance-rows .action-row-main:active { background: transparent; }
+.carts-actions, .voice-actions { display: grid; gap: var(--space-sm); }
+.carts-actions > [hidden], .voice-actions > [hidden] { display: none; }
+
+/* ------------------------------------------------------- Audit › Voice (#259) */
+/* The Voice and results glances: label / figure rows like the carts glance,
+   the figure on the card's text edge. */
+.voice-glance-rows .action-row-trail { margin-right: 0; }
+/* A service problem: one line each, its glyph beside the first line. */
+.voice-problem { display: flex; align-items: flex-start; gap: var(--space-xs); }
+.voice-problem .icon { flex: none; width: var(--icon-inline); height: var(--icon-inline); margin-top: 0.15em; }
+/* While recording: the level waveform, then the timer under it. */
+.voice-live { display: grid; gap: var(--space-xs); }
+.voice-live[hidden] { display: none; }
+.voice-wave { display: block; width: 100%; height: var(--control-h); color: var(--accent); }
+.voice-timer { color: var(--muted); font-size: var(--font-body-sm); font-variant-numeric: tabular-nums; }
+/* The results area holds nothing until a match: no gap slot in the pane. */
+.voice-results { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
+.voice-results:empty { display: none; }
+/* "Needs you": Find, the row's one verb, at real 44px geometry. */
+.voice-find { min-height: var(--row-sm); padding: 0 var(--space-md); }
+/* The transcript card's head: title, the match model, the menu. */
+.voice-model { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.voice-transcript .card-head .icon-button { flex: none; margin-block: calc(-1 * var(--space-xs)); }
+.transcript-sheet .stores-dialog-body { display: grid; gap: var(--space-md); }
+/* The checklist card: one folded row per zone on a hairline, its items as
+   44px rows, each with a check. A switch's 44px hit area fills its row, so an
+   open zone's rows sit inset from the summary above and the next zone below:
+   the hit areas never meet (TOUCH-02). */
+.voice-checklist .card-head { margin-bottom: var(--space-xs); }
+.checklist-zone { border-top: 1px solid var(--line-muted); }
+.checklist-zone > .inline-disclosure-summary { color: var(--ink); font-size: var(--font-body); }
+.checklist-count { color: var(--muted); font-size: var(--font-body-sm); font-weight: 400; }
+.checklist-items { padding-block: var(--space-xs); }
+.checklist-items .action-row { min-height: var(--row-sm); padding: 0; }
+.checklist-items .action-row-main { padding-inline: 0; cursor: default; }
+.checklist-items .action-row-main:active { background: transparent; }
+.checklist-items .action-row-trail { margin-right: 0; }
 
 /* A store group's last rows: "Add to <store>" (name, quantity, one add) and
    the Store options link row. */

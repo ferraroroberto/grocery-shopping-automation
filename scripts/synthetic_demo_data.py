@@ -70,6 +70,20 @@ LAST_FILL = {
     "mercadona": ["added_verified", "added_verified", "out_of_stock"],
     "carrefour": ["added_verified", "added_verified"],
 }
+# The last voice audit (#259): two counts changed, one mention left unmatched,
+# so the Audit glance has a date and both figures to show.
+LAST_AUDIT_FILE = "2026-10-06_183000.json"
+LAST_AUDIT = {
+    "timestamp": "2026-10-06T18:30:00",
+    "transcript": "demo transcript",
+    "result": {"items": [], "zones_mentioned": ["fridge"],
+               "unmatched_mentions": [{"phrase": "something unclear", "idx": None, "approx_count": None, "note": "demo"}]},
+    "accepted_updates": [
+        {"idx": 0, "comida": "demo item 1", "lugar": "fridge", "old_tenemos": 0, "new_tenemos": 2},
+        {"idx": 1, "comida": "demo item 2", "lugar": "fridge", "old_tenemos": 1, "new_tenemos": 3},
+        {"idx": 2, "comida": "demo item 3", "lugar": "fridge", "old_tenemos": 1, "new_tenemos": 1},
+    ],
+}
 DELIVERY = {
     "mercadona": {"delivers": "yes", "fee_tiers": [{"min_order": 0.0, "fee": 7.9}], "min_order": 40.0},
     "ametller": {"delivers": "yes", "fee_tiers": [{"min_order": 0.0, "fee": 5.95}, {"min_order": 60.0, "fee": 0.0}],
@@ -177,6 +191,12 @@ def write_last_fill(logs: Path) -> None:
         (runs / f"{LAST_FILL_RUN}_{store}.json").write_text(json.dumps(record, indent=2), encoding="utf-8")
 
 
+def write_last_audit(logs: Path) -> None:
+    """One invented voice-audit log under the audit logs dir (#259)."""
+    logs.mkdir(parents=True, exist_ok=True)
+    (logs / LAST_AUDIT_FILE).write_text(json.dumps(LAST_AUDIT, indent=2), encoding="utf-8")
+
+
 def seed(root: Path) -> None:
     """Write the workbook and benchmark state under ``root`` (the config already points there)."""
     from benchmark import score
@@ -190,6 +210,7 @@ def seed(root: Path) -> None:
             raise RuntimeError(f"scoring the demo run {date} failed")
     store_links.set_baseline(data.load_inventory_data(), runs / RUN_DATES[-1])
     write_last_fill(data.purchase_logs_dir())
+    write_last_audit(Path(data.CONFIG["audio_audit"]["logs_dir"]))
 
 
 def main(argv: Optional[List[str]] = None) -> int:

@@ -19,7 +19,8 @@ export const SEARCHABLE_MODES = new Set(["dashboard", "audit", "list", "stores"]
 // The 7 modes group into the fleet nav's 4 tabs plus Settings, which is never a
 // tab (#200): its pane is opened by the header gear. The audit and items tabs
 // switch their two modes with a segmented control (static markup in
-// index.html): Items is the item list ("list") and Prices ("stores", #256).
+// index.html): Audit is Voice ("audio", the default, #259) and Manual
+// ("audit"); Items is the item list ("list") and Prices ("stores", #256).
 // Product search lives in the Add item sheet the list opens, cart automation
 // ("Fill carts") in the carts glance that leads Shop (#258), Email Watch in
 // Settings (#182).
@@ -35,9 +36,18 @@ export const MODE_TO_TAB = {
 export const TAB_DEFAULT_MODE = {
   inventory: "dashboard",
   shopping: "shopping",
-  audit: "audit",
+  audit: "audio",
   items: "list",
 };
+
+// Audit opens on Voice at every launch (#252 decision 7), so its sub-mode is
+// kept for the session only: a hop to Manual to fix a miss survives a tab
+// switch, never the next week's launch. Every other tab's lasts on the device.
+const SESSION_SUB_TABS = new Set(["audit"]);
+
+function subStore(tab) {
+  return SESSION_SUB_TABS.has(tab) ? sessionStorage : localStorage;
+}
 
 // Items' modes retired in #256 → the segment that now holds them: Targets and
 // Edit item folded into the list's item sheet, Add item into its Add item
@@ -254,15 +264,17 @@ export function storedToken() {
 
 // Sub-mode persistence: each grouped tab remembers which of its modes was last
 // active, so the PWA reopens exactly where you left it (tab via the nav
-// component's own storage, sub-mode via grocery.sub.<tab>).
+// component's own storage, sub-mode via grocery.sub.<tab>; Audit's only for
+// the session, see SESSION_SUB_TABS).
 export function restoreSubMode(tab) {
   const fallback = TAB_DEFAULT_MODE[tab] || "dashboard";
   let stored = null;
   try {
-    stored = localStorage.getItem(SUB_KEY_PREFIX + tab);
+    const store = subStore(tab);
+    stored = store.getItem(SUB_KEY_PREFIX + tab);
     if (RETIRED_MODES[stored]) {
       stored = RETIRED_MODES[stored];
-      localStorage.setItem(SUB_KEY_PREFIX + tab, stored);
+      store.setItem(SUB_KEY_PREFIX + tab, stored);
     }
   } catch (_) {
     return fallback;
@@ -291,7 +303,7 @@ export function saveSubMode(mode) {
   const tab = MODE_TO_TAB[mode];
   if (!tab || TAB_DEFAULT_MODE[tab] === undefined) return;
   try {
-    localStorage.setItem(SUB_KEY_PREFIX + tab, mode);
+    subStore(tab).setItem(SUB_KEY_PREFIX + tab, mode);
   } catch (_) {
     // private mode — persistence is best-effort
   }

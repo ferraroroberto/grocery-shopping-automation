@@ -102,3 +102,28 @@ def write_audit_log(
     path.write_text(json.dumps(log, ensure_ascii=False, indent=2), encoding="utf-8")
     logger.info(f"📝 audit log written to {path}")
     return path
+
+
+def read_last_audit(logs_dir: Path) -> Optional[Dict[str, Any]]:
+    """The newest audit log under `logs_dir`, as the Audit tab's glance needs it.
+
+    Returns {timestamp, changed, unmatched}: `changed` counts the accepted
+    updates that moved a count, `unmatched` the mentions tied to no row. None
+    when no readable log exists. Log names are their timestamp, so the newest
+    sorts last; an unreadable one is skipped for the next newest, never fatal.
+    """
+    if not logs_dir.is_dir():
+        return None
+    for path in sorted(logs_dir.glob("*.json"), reverse=True):
+        try:
+            log = json.loads(path.read_text(encoding="utf-8"))
+            updates = log.get("accepted_updates") or []
+            mentions = (log.get("result") or {}).get("unmatched_mentions") or []
+            return {
+                "timestamp": str(log.get("timestamp", "")),
+                "changed": sum(1 for u in updates if int(u.get("old_tenemos", 0)) != int(u.get("new_tenemos", 0))),
+                "unmatched": sum(1 for m in mentions if m.get("idx") is None),
+            }
+        except (OSError, ValueError, TypeError, AttributeError) as exc:
+            logger.warning(f"⚠️ skipping unreadable audit log {path.name}: {exc}")
+    return None

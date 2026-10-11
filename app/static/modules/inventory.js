@@ -99,20 +99,56 @@ function zoneTabs() {
 
 // The manual Audit: the zone's kept items (target above 0), each with ONE
 // in-stock stepper and the target in its meta (#252 decision 3; the target is
-// edited in the item sheet).
+// edited in the item sheet). A search looks in every zone instead, the zone
+// leading the meta — typed, or a mention Voice heard and matched to no item,
+// sent here from "Needs you" (#259).
 export function renderAudit() {
   const cols = c();
-  const source = filteredItems(items()
-    .filter((item) => item[cols.lugar] === state.zone)
-    .filter((item) => Number(item[cols.cantidad]) > 0))
-    .sort((a, b) => text(a[cols.comida]).localeCompare(text(b[cols.comida])));
+  const kept = items().filter((item) => Number(item[cols.cantidad]) > 0);
+  const byName = (a, b) => text(a[cols.comida]).localeCompare(text(b[cols.comida]));
+  const source = state.query
+    ? auditSearch(kept, cols, byName)
+    : kept.filter((item) => item[cols.lugar] === state.zone).sort(byName);
   const rows = source.map((item) => itemRow({
     title: item[cols.comida],
-    meta: `Target ${text(item[cols.cantidad])} · ${text(item[cols.super])}${buyNote(item, cols)}`,
+    meta: `${state.query ? `${text(item[cols.lugar])} · ` : ""}Target ${text(item[cols.cantidad])} · ${text(item[cols.super])}${buyNote(item, cols)}`,
     trail: stepper("current", text(item[cols.tenemos]), text(item[cols.comida])),
     attrs: `data-id="${item.id}"`,
   })).join("");
-  activePaneBody().innerHTML = `${zoneTabs()}${rows ? itemList(rows) : emptyStateEl("package", "No items in this zone.").outerHTML}`;
+  const empty = state.query
+    ? emptyStateEl("search", "No matching items. Clear the search to count by zone.")
+    : emptyStateEl("package", "No items in this zone.");
+  activePaneBody().innerHTML = `${state.query ? "" : zoneTabs()}${rows ? itemList(rows) : empty.outerHTML}`;
+}
+
+// Lower case, accents off: "Maíz" and "maiz" are one word.
+function fold(value) {
+  return text(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+// Spoken numbers say how many, not which item.
+const COUNT_WORDS = new Set(["una", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez"]);
+
+// The search box's own match (the text appears in the name, zone or store);
+// when nothing has it, a word match, so a phrase as it was said ("dos
+// yogures de fresa") still finds "yogur fresa danone": every word of three
+// letters or more counts by its first four letters against the name's words,
+// and the items sharing the most words lead.
+function auditSearch(kept, cols, byName) {
+  const exact = filteredItems(kept);
+  if (exact.length) return exact.sort(byName);
+  const stems = fold(state.query).split(/[^a-z0-9]+/)
+    .filter((word) => word.length >= 3 && !COUNT_WORDS.has(word) && !/^\d+$/.test(word))
+    .map((word) => word.slice(0, 4));
+  if (!stems.length) return [];
+  return kept
+    .map((item) => {
+      const words = fold(item[cols.comida]).split(/[^a-z0-9]+/);
+      return { item, hits: stems.filter((stem) => words.some((word) => word.startsWith(stem))).length };
+    })
+    .filter(({ hits }) => hits > 0)
+    .sort((a, b) => b.hits - a.hits || byName(a.item, b.item))
+    .map(({ item }) => item);
 }
 
 // Items' list (#256): every item the search lets through, one group per zone
