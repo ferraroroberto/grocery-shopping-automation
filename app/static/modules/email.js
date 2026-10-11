@@ -1,57 +1,86 @@
-// Email watch (issue #73) — a card in the Settings pane (moved from the retired
-// Auto tab in #182).
+// Email watch (issue #73) — a Settings row and its sheet (#261; a folded card
+// until then, moved from the retired Auto tab in #182).
 //
-// Server-side poller over the #72 confirmation-email check: the card selects
+// Server-side poller over the #72 confirmation-email check: the sheet selects
 // which monitored senders (each mapped to a store) are active, sets the poll
 // cadence, and shows the last-check log. "Test last email" re-processes the
-// newest confirmation even if already seen — the end-to-end dry run.
+// newest confirmation even if already seen — the end-to-end dry run. Every
+// change saves as it happens (design.md "settings group"); Done closes. The
+// sheet lives at <body> level, outside .app, so it carries its own listeners.
+import { setSwitch } from "../_vendored/switch/switch.js";
 import { fetchJson } from "./api.js";
 import { fmtBuildTime, html, icon, switchMarkup, switchOn, text } from "./dom.js";
+import { dialogShell } from "./stores/dialog.js";
 
+const SHEET_ID = "email-watch-sheet";
 const EMAIL_INTERVALS = [
   [15, "Every 15 min"], [30, "Every 30 min"], [60, "Every hour"],
   [180, "Every 3 h"], [360, "Every 6 h"], [720, "Every 12 h"], [1440, "Daily"],
 ];
 
-// Paint the card shell into Settings' static host once (it folds by default, and
-// keeping the node keeps its open state across re-renders), then refresh the
-// body from the server on every Settings render.
-export function renderEmailWatch() {
-  const host = document.querySelector("#email-watch-host");
-  if (!host) return;
-  if (!host.firstElementChild) host.innerHTML = emailMonitorCard();
-  refreshEmailMonitor();
-}
+let status = null; // the last /api/email-monitor/status read
+let readError = ""; // why the last read failed, if it did
 
-function emailMonitorCard() {
-  return `<details id="email-monitor" class="card card--collapsible">
-    <summary class="collapse-summary">
-      <span class="collapse-main">
-        ${icon("mail")}
-        <h3 class="collapse-title">Email watch</h3>
-        <span class="collapse-count" id="email-monitor-count"></span>
-      </span>
-      <span class="collapse-chevron" aria-hidden="true">›</span>
-    </summary>
-    <div class="collapse-body" id="email-monitor-body">
-      <div class="panel-status">Loading email monitor…</div>
-    </div>
-  </details>`;
-}
-
-async function refreshEmailMonitor() {
-  const body = document.querySelector("#email-monitor-body");
-  if (!body) return;
-  let s;
+// Read the status, then paint the Settings row's value and an open sheet.
+export async function refreshEmailWatch() {
   try {
-    s = await fetchJson("/api/email-monitor/status");
+    status = await fetchJson("/api/email-monitor/status");
+    readError = "";
   } catch (error) {
-    body.innerHTML = `<div class="panel-status error">Email monitor unavailable: ${html(error.message)}</div>`;
+    readError = error.message;
+  }
+  paintValue();
+  paintSheet();
+}
+
+function intervalLabel(minutes) {
+  return EMAIL_INTERVALS.find(([mins]) => mins === minutes)?.[1] || `Every ${minutes} min`;
+}
+
+function paintValue() {
+  const node = document.querySelector("#email-watch-value");
+  if (!node) return;
+  if (!status) {
+    node.textContent = readError ? "Unavailable" : "";
+    if (readError) node.dataset.tone = "attention";
+    else delete node.dataset.tone;
     return;
   }
-  const count = document.querySelector("#email-monitor-count");
-  const activeSenders = s.senders.filter((x) => x.enabled).length;
-  if (count) count.textContent = `${s.poller.enabled ? "on" : "off"} · ${activeSenders}/${s.senders.length} senders`;
+  delete node.dataset.tone;
+  node.textContent = status.poller.enabled ? intervalLabel(status.poller.interval_minutes) : "Off";
+}
+
+function sheet() {
+  return dialogShell(SHEET_ID, "Email watch", "Done", (shell) => {
+    shell.classList.add("email-sheet");
+    const done = shell.querySelector(".detail-save-btn");
+    done.disabled = false;
+    done.addEventListener("click", () => shell.close());
+    shell.addEventListener("click", onClick);
+    shell.addEventListener("change", (event) => {
+      if (event.target.id === "email-poller-interval") pushEmailMonitorConfig();
+    });
+    shell.addEventListener("close", () => document.querySelector("#open-email-watch")?.focus());
+  });
+}
+
+export function openEmailWatch() {
+  const d = sheet();
+  paintSheet();
+  if (!d.open) d.showModal();
+  refreshEmailWatch();
+}
+
+function paintSheet() {
+  const body = document.getElementById(SHEET_ID)?.querySelector(".stores-dialog-body");
+  if (!body) return;
+  if (!status) {
+    body.innerHTML = readError
+      ? `<div class="panel-status error">Email watch unavailable: ${html(readError)}</div>`
+      : `<div class="panel-status">Loading email watch…</div>`;
+    return;
+  }
+  const s = status;
   const senderRows = s.senders.length
     ? s.senders.map((sender) => `<div class="zone-item">
         <span>${html(sender.name || sender.address)}<span class="meta"> · ${html(sender.store || "no store")}</span></span>
@@ -60,28 +89,35 @@ async function refreshEmailMonitor() {
     : `<div class="panel-status">No senders configured — see config/gmail_config.sample.json.</div>`;
   const intervalOptions = EMAIL_INTERVALS.map(([mins, label]) =>
     `<option value="${mins}"${mins === s.poller.interval_minutes ? " selected" : ""}>${label}</option>`).join("");
-  const checkRows = s.checks.length
-    ? s.checks.map((entry) => `<div class="zone-item">
-        <span>${html(entry.outcome)}<div class="meta">${fmtBuildTime(entry.ts)} · ${html(entry.store || "-")} · ${html(entry.trigger)}${entry.notified ? " · notified" : ""}</div></span>
-      </div>`).join("")
-    : "";
-  // One flat switch-row list (dense-collection contract): the sender rows and
-  // the poll toggle share the container so every switch pins right and the
-  // rows divide on one hairline.
+  const checkRows = s.checks.map((entry) => `<div class="zone-item">
+      <span>${html(entry.outcome)}<div class="meta">${fmtBuildTime(entry.ts)} · ${html(entry.store || "-")} · ${html(entry.trigger)}${entry.notified ? " · notified" : ""}</div></span>
+    </div>`).join("");
+  // Flat switch-row lists (dense-collection contract): every switch pins
+  // right and the rows divide on one hairline.
   body.innerHTML = `
-    <div class="hint">Watches Gmail for store "order prepared" emails and alerts on Telegram when the confirmation drops an ordered item.</div>
-    <div class="zone-items">${senderRows}
-      <div class="zone-item"><span>Poll automatically</span>${switchMarkup(s.poller.enabled, "Poll automatically", { id: "email-poller-enabled" })}</div>
-    </div>
-    <label class="field-label">Frequency
-      <select id="email-poller-interval">${intervalOptions}</select>
-    </label>
+    <p class="hint">Watches Gmail for store "order prepared" emails and alerts on Telegram when one drops an ordered item.</p>
+    <section class="sheet-section" aria-labelledby="email-senders">
+      <h3 class="overline" id="email-senders">Senders</h3>
+      <div class="zone-items">${senderRows}</div>
+    </section>
+    <section class="sheet-section" aria-labelledby="email-polling">
+      <h3 class="overline" id="email-polling">Polling</h3>
+      <div class="zone-items">
+        <div class="zone-item"><span>Poll automatically</span>${switchMarkup(s.poller.enabled, "Poll automatically", { id: "email-poller-enabled" })}</div>
+      </div>
+      <label class="field-label">Frequency
+        <select id="email-poller-interval">${intervalOptions}</select>
+      </label>
+      <div id="email-monitor-status" class="panel-status">${emailNextCheckText(s)}</div>
+    </section>
     <div class="email-actions">
-      <button id="email-check-now" class="secondary btn-block" type="button">${icon("refresh-cw")}Check now</button>
-      <button id="email-check-test" class="secondary btn-block" type="button">${icon("play")}Test last email</button>
+      <button id="email-check-now" class="button-surface btn-block" type="button">${icon("refresh-cw")}Check now</button>
+      <button id="email-check-test" class="button-surface btn-block" type="button">${icon("play")}Test last email</button>
     </div>
-    <div id="email-monitor-status" class="panel-status">${emailNextCheckText(s)}</div>
-    ${checkRows ? `<div class="field-label">Last checks</div><div class="zone-items">${checkRows}</div>` : ""}`;
+    ${checkRows ? `<section class="sheet-section" aria-labelledby="email-checks">
+      <h3 class="overline" id="email-checks">Last checks</h3>
+      <div class="zone-items">${checkRows}</div>
+    </section>` : ""}`;
 }
 
 function emailNextCheckText(s) {
@@ -90,7 +126,19 @@ function emailNextCheckText(s) {
   return `Next check: ${fmtBuildTime(s.next_check_at)}.`;
 }
 
-export async function pushEmailMonitorConfig() {
+function onClick(event) {
+  const sw = event.target.closest('.toggle[role="switch"]');
+  if (sw) {
+    setSwitch(sw, sw.getAttribute("aria-checked") !== "true");
+    pushEmailMonitorConfig();
+    return;
+  }
+  const id = event.target.closest("button")?.id;
+  if (id === "email-check-now") runEmailCheck(false);
+  if (id === "email-check-test") runEmailCheck(true);
+}
+
+async function pushEmailMonitorConfig() {
   const senders = [...document.querySelectorAll("[data-monitor-sender]")].map((sw) => ({
     address: sw.dataset.monitorSender,
     enabled: sw.getAttribute("aria-checked") === "true",
@@ -106,24 +154,24 @@ export async function pushEmailMonitorConfig() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    await refreshEmailMonitor();
+    await refreshEmailWatch();
   } catch (error) {
-    const status = document.querySelector("#email-monitor-status");
-    if (status) {
-      status.className = "panel-status error";
-      status.textContent = `Could not save settings: ${error.message}`;
+    const line = document.querySelector("#email-monitor-status");
+    if (line) {
+      line.className = "panel-status error";
+      line.textContent = `Could not save settings: ${error.message}`;
     }
   }
 }
 
-export async function runEmailCheck(force) {
-  const status = document.querySelector("#email-monitor-status");
+async function runEmailCheck(force) {
+  const line = document.querySelector("#email-monitor-status");
   const buttons = ["#email-check-now", "#email-check-test"]
     .map((sel) => document.querySelector(sel)).filter(Boolean);
   buttons.forEach((b) => { b.disabled = true; });
-  if (status) {
-    status.className = "panel-status";
-    status.textContent = force
+  if (line) {
+    line.className = "panel-status";
+    line.textContent = force
       ? "Re-checking the latest email end to end…"
       : "Checking mailbox…";
   }
@@ -133,20 +181,12 @@ export async function runEmailCheck(force) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ force }),
     });
-    await refreshEmailMonitor();
+    await refreshEmailWatch();
   } catch (error) {
-    if (status) {
-      status.className = "panel-status error";
-      status.textContent = `Check failed: ${error.message}`;
+    if (line) {
+      line.className = "panel-status error";
+      line.textContent = `Check failed: ${error.message}`;
     }
     buttons.forEach((b) => { b.disabled = false; });
   }
-}
-
-// The switches/selects inside this card flip through app.js's delegation;
-// this keeps the "which control belongs to email watch" test in one place.
-export function isEmailControl(node) {
-  return node.id === "email-poller-enabled"
-    || node.id === "email-poller-interval"
-    || node.dataset?.monitorSender !== undefined;
 }

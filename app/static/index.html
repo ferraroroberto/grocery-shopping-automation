@@ -237,6 +237,16 @@
         <rect width="20" height="16" x="2" y="4" rx="2" />
         <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
       </symbol>
+      <symbol id="i-type" viewBox="0 0 24 24" fill="none">
+        <path d="M12 4v16" />
+        <path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2" />
+        <path d="M9 20h6" />
+      </symbol>
+      <symbol id="i-log-in" viewBox="0 0 24 24" fill="none">
+        <path d="m10 17 5-5-5-5" />
+        <path d="M15 12H3" />
+        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+      </symbol>
     </svg>
 
     <!-- Fleet bottom-tab nav — direct <body> child, sibling to <main class="app">
@@ -338,45 +348,80 @@
            opened by the gear in every pane's header (app.js openSettings), not
            by the nav, so it has no tabpanel role and no nav button. -->
       <section id="pane-settings" class="pane" aria-label="Settings" hidden>
-        <!-- No "Settings" card title here — the page header above already
-             names this pane (#153 J-04: the old h2 was a pure duplicate). -->
-        <div class="card">
-          <h2 class="card-title" id="text-size-title">Text size</h2>
-          <!-- Vendored text-size control (text-size/text-size.html); bound in
-               app.js with the grocery storage prefix. -->
-          <nav class="range-tabs" id="textSizeControl" aria-labelledby="text-size-title">
-            <button type="button" class="range-tab" data-textsize="small">Small</button>
-            <button type="button" class="range-tab" data-textsize="default">Default</button>
-            <button type="button" class="range-tab" data-textsize="large">Large</button>
-          </nav>
-        </div>
-        <div class="card">
-          <div class="settings-actions">
-            <button id="open-sheet" class="secondary" type="button">
-              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-external-link"></use></svg>
-              Open spreadsheet
-            </button>
-            <button id="copy-link" class="secondary" type="button">
-              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-link"></use></svg>
-              Copy link
-            </button>
-            <button id="export-csv" class="secondary" type="button">
-              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-download"></use></svg>
-              Export CSV
-            </button>
-            <button id="bootstrap-session" class="secondary" type="button">
-              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-refresh-cw"></use></svg>
-              Log in to stores
-            </button>
-            <button id="check-logins" class="secondary" type="button">
-              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-circle-check"></use></svg>
-              Check store logins
-            </button>
+        <!-- Inset groups under overline headers (#261, design.md "settings
+             group"): every row shows its value. The text size, changed in
+             place, stays inline; Store logins and Email watch open sheets
+             (modules/settings.js, modules/email.js); the Data rows act on tap.
+             No title above the groups — the page header names this pane
+             (#153 J-04). -->
+        <section class="settings-group" aria-labelledby="settings-display">
+          <h2 class="overline item-group-head" id="settings-display">Display</h2>
+          <div class="card settings-text-size">
+            <span class="settings-text-size-label" id="text-size-title">
+              <svg class="icon sheet-link-icon" aria-hidden="true" focusable="false"><use href="#i-type"></use></svg>
+              Text size
+            </span>
+            <!-- Vendored text-size control (text-size/text-size.html); bound in
+                 app.js with the grocery storage prefix. The raised segment is
+                 the value. -->
+            <nav class="range-tabs" id="textSizeControl" aria-labelledby="text-size-title">
+              <button type="button" class="range-tab" data-textsize="small">Small</button>
+              <button type="button" class="range-tab" data-textsize="default">Default</button>
+              <button type="button" class="range-tab" data-textsize="large">Large</button>
+            </nav>
           </div>
-        </div>
-        <!-- Email Watch (#73) — a setting, so it lives here since the Auto tab
-             was retired (#182). Filled by email.js on entering Setup. -->
-        <div id="email-watch-host"></div>
+        </section>
+        <section class="settings-group" aria-labelledby="settings-stores">
+          <h2 class="overline item-group-head" id="settings-stores">Stores</h2>
+          <div class="card action-list">
+            <ul class="action-rows">
+              <li class="action-row">
+                <button id="open-store-logins" type="button" class="action-row-main sheet-link" aria-haspopup="dialog">
+                  <svg class="icon sheet-link-icon" aria-hidden="true" focusable="false"><use href="#i-log-in"></use></svg>
+                  <span class="action-row-title">Store logins</span>
+                  <span class="sheet-link-value" id="store-logins-value"></span>
+                  <svg class="icon sheet-link-chevron" aria-hidden="true" focusable="false"><use href="#i-chevron-right"></use></svg>
+                </button>
+              </li>
+              <li class="action-row">
+                <button id="open-email-watch" type="button" class="action-row-main sheet-link" aria-haspopup="dialog">
+                  <svg class="icon sheet-link-icon" aria-hidden="true" focusable="false"><use href="#i-mail"></use></svg>
+                  <span class="action-row-title">Email watch</span>
+                  <span class="sheet-link-value" id="email-watch-value"></span>
+                  <svg class="icon sheet-link-chevron" aria-hidden="true" focusable="false"><use href="#i-chevron-right"></use></svg>
+                </button>
+              </li>
+            </ul>
+          </div>
+        </section>
+        <section class="settings-group" aria-labelledby="settings-data">
+          <h2 class="overline item-group-head" id="settings-data">Data</h2>
+          <div class="card action-list">
+            <ul class="action-rows">
+              <li class="action-row">
+                <button id="open-sheet" type="button" class="action-row-main sheet-link">
+                  <svg class="icon sheet-link-icon" aria-hidden="true" focusable="false"><use href="#i-external-link"></use></svg>
+                  <span class="action-row-title">Open spreadsheet</span>
+                  <span class="sheet-link-value">On the computer</span>
+                </button>
+              </li>
+              <li class="action-row">
+                <button id="copy-link" type="button" class="action-row-main sheet-link">
+                  <svg class="icon sheet-link-icon" aria-hidden="true" focusable="false"><use href="#i-link"></use></svg>
+                  <span class="action-row-title">Copy link</span>
+                  <span class="sheet-link-value" id="copy-link-value"></span>
+                </button>
+              </li>
+              <li class="action-row">
+                <button id="export-csv" type="button" class="action-row-main sheet-link">
+                  <svg class="icon sheet-link-icon" aria-hidden="true" focusable="false"><use href="#i-download"></use></svg>
+                  <span class="action-row-title">Export CSV</span>
+                  <span class="sheet-link-value" id="export-csv-value"></span>
+                </button>
+              </li>
+            </ul>
+          </div>
+        </section>
       </section>
 
       <!-- Build identity: which build the PWA is running. Filled by app.js
