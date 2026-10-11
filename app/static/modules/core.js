@@ -4,7 +4,7 @@
 // Feature-local state does NOT live here — the audio, search and automation
 // modules each own theirs. What is left is genuinely app-wide: the loaded
 // inventory payload, the active mode/zone/query, and the shopping progress
-// (read by both the shopping view and the dashboard's store cards).
+// (read by both the shopping view and its store sheet).
 import { esc, icon, text } from "./dom.js";
 
 export const TOKEN_KEY = "grocery.authToken";
@@ -182,17 +182,10 @@ export function activePaneBody() {
   return document.querySelector(`#pane-${tab} .pane-body`);
 }
 
+// Home's header line while the inventory loads, saves or fails; render()
+// puts its resting line back (app.js updatePageHeaderContexts).
 export function setStatus(message) {
   el.status.textContent = message;
-}
-
-// Resting top-bar text: the item count on Home, silence elsewhere (the same
-// "Loaded 160 items" on every tab read as clutter). Transient action feedback
-// (Saving… / Saved / errors) still writes over it via setStatus.
-export function idleStatus() {
-  return state.mode === "dashboard" && state.payload
-    ? `Loaded ${state.payload.summary.total_items} items`
-    : "";
 }
 
 export function c() {

@@ -1,73 +1,10 @@
-// The three inventory views: the Home dashboard, the manual Audit, and Items'
-// list (#256) — every item, grouped by zone; each row opens the item sheet
-// (#255), and the Add item sheet (add-sheet.js) adds one.
+// The two inventory views: the manual Audit, and Items' list (#256) — every
+// item, grouped by zone; each row opens the item sheet (#255), and the Add
+// item sheet (add-sheet.js) adds one. Home's search (home.js) shares the row.
 import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
 import { activePaneBody, c, filteredItems, items, state } from "./core.js";
-import { html, icon, text } from "./dom.js";
+import { html, text } from "./dom.js";
 import { itemList, itemRow, rowValue, stepper } from "./rows.js";
-
-function summaryRow(label, value) {
-  return `<div class="summary-row"><dt>${label}</dt><dd class="summary-value">${value}</dd></div>`;
-}
-
-function renderSummary() {
-  const s = state.payload.summary;
-  // One card of label/value rows, not five separate stat cards — five cards
-  // read two-to-a-row at phone width, breaking single reading order (#198).
-  return `<section class="summary card">
-    <dl class="summary-list">
-      ${summaryRow("Tracked items", s.total_items)}
-      ${summaryRow("Stocked", s.total_items - s.shopping_items)}
-      ${summaryRow("Need buying", s.shopping_items)}
-      ${summaryRow("Units to buy", s.shopping_units)}
-      ${summaryRow("Zones", s.zones.length)}
-    </dl>
-  </section>`;
-}
-
-export function renderDashboard() {
-  const cols = c();
-  const source = filteredItems();
-  const rows = source.map((item) => valueRow(item, cols)).join("");
-  const body = activePaneBody();
-  // The full item list folds by default (home-automation pattern: heavy cards
-  // are disclosures). A re-render must not slam it shut, so harvest the live
-  // open state first; an active search force-opens it — a filter whose
-  // results you can't see is a dead control.
-  const itemsOpen = !!body.querySelector("#dash-items[open]") || !!state.query;
-  body.innerHTML = `${renderSummary()}${renderStoreCards()}
-    <details id="dash-items" class="card card--collapsible"${itemsOpen ? " open" : ""}>
-      <summary class="collapse-summary">
-        <span class="collapse-main">
-          ${icon("package")}
-          <h3 class="collapse-title">All items</h3>
-          <span class="collapse-count">${source.length}</span>
-        </span>
-        <span class="collapse-chevron" aria-hidden="true">›</span>
-      </summary>
-      <div class="collapse-body">${rows ? itemList(rows, { bare: true }) : emptyStateEl("search", "No matching items.").outerHTML}</div>
-    </details>`;
-}
-
-// Store progress — ONE shared card, one block per store, with clear air
-// between the store name and its progress bar. Carries the cart-offset-aware
-// done counts the old sidebar stats showed.
-function renderStoreCards() {
-  const stats = state.payload.summary.supermarket_stats;
-  const stores = Object.keys(stats).sort();
-  if (!stores.length) return emptyStateEl("shopping-basket", "No shopping items right now.").outerHTML;
-  return `<article class="card">${stores.map((store) => {
-    const s = stats[store];
-    const offset = state.shopping.offsets[store] || { items: 0, units: 0 };
-    const doneItems = s.got_it_unique + Number(offset.items || 0);
-    const doneUnits = s.got_it_quantity + Number(offset.units || 0);
-    const pct = s.total_unique ? Math.min(100, Math.round((doneItems / s.total_unique) * 100)) : 0;
-    return `<div class="store-block">
-      <div class="card-head"><h3 class="card-title">${html(store)}</h3><span class="card-head-meta">${doneItems}/${s.total_unique} items · ${doneUnits}/${s.total_quantity} units</span></div>
-      <div class="progress"><span style="width:${pct}%"></span></div>
-    </div>`;
-  }).join("")}</article>`;
-}
 
 // "Buy 2" closes a row's meta line while the item is short; a stocked item
 // says nothing (a normal state gets no mark, design.md status chip).
@@ -76,10 +13,10 @@ function buyNote(item, cols) {
   return buy > 0 ? ` · buy ${buy}` : "";
 }
 
-// Home's list and Items' list: the zone and store, the stock/target pair as
+// Home's search and Items' list: the zone and store, the stock/target pair as
 // the row's value; the tap opens the item sheet, where all of it is edited.
 // Under a zone's own group header the zone is left out of the meta.
-function valueRow(item, cols, { zone = true } = {}) {
+export function valueRow(item, cols, { zone = true } = {}) {
   const where = zone ? `${text(item[cols.lugar])} · ${text(item[cols.super])}` : text(item[cols.super]);
   return itemRow({
     title: item[cols.comida],

@@ -247,20 +247,30 @@ function checklistCard() {
 }
 
 // ----------------------------------------------------------- the last audit
-async function loadLastAudit() {
+// Also Home's (#260): its This week Audit row and its page-header line.
+export async function loadLastAudit() {
   try {
     audio.last = (await fetchJson("/api/audio/last")).last;
   } catch (_) {
     return; // the glance keeps its dashes; Record still works without it
   }
   paintLastAudit();
+  updateHeaders();
+}
+
+export function lastAudit() {
+  return audio.last;
+}
+
+export function lastAuditText() {
+  return audio.last ? `Last audit ${shortDate(audio.last.timestamp)}` : "No audit yet";
 }
 
 function paintLastAudit() {
   const date = document.querySelector("#voice-last-date");
   if (!date) return;
   const last = audio.last;
-  if (last !== undefined) date.textContent = last ? `Last audit ${shortDate(last.timestamp)}` : "No audit yet";
+  if (last !== undefined) date.textContent = lastAuditText();
   document.querySelector("#voice-last-changed").textContent = last ? String(last.changed) : "–";
   document.querySelector("#voice-last-unmatched").textContent = last ? String(last.unmatched) : "–";
 }
