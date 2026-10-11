@@ -300,14 +300,6 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 }
 .toolbar #items-add[hidden] { display: none; }
 
-/* settings tab — the old sidebar utilities as a 2-up action grid */
-.settings-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-sm);
-  margin-top: var(--gap);
-}
-
 /* Build identity footer (home-automation contract) — filled by fetchVersion.
    Regular weight: home-automation renders it muted+small, never bold. */
 .page-foot { padding: var(--space-lg) 0 var(--space-sm); text-align: center; }
@@ -432,8 +424,9 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
   text-transform: uppercase;
 }
 /* Items' list (#256): one inset group per zone, its name as the overline
-   header over the group's card (design.md "settings group"). */
-.item-group { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-xs); }
+   header over the group's card (design.md "settings group"); Settings' groups
+   (#261) are the same recipe. */
+.item-group, .settings-group { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-xs); }
 .item-group-head { padding: 0 var(--space-md); }
 /* Bare rows in a disclosure body bleed to its edges: the row's own 14px inset
    (4px + the main button's 10px) lines the text up with the body's. */
@@ -1131,8 +1124,29 @@ a.button-tint[data-open-link-page] {
 
 /* The Fill carts options and store sheets: overline-headed sections, the
    switches as label-left rows, "what will run" as one muted paragraph. */
-.fill-options .stores-dialog-body, .store-sheet .stores-dialog-body { display: grid; gap: var(--space-md); }
+.fill-options .stores-dialog-body, .store-sheet .stores-dialog-body,
+.store-logins-sheet .stores-dialog-body, .email-sheet .stores-dialog-body { display: grid; gap: var(--space-md); }
 .fill-options .flag-row { min-height: var(--row-sm); justify-content: space-between; }
 .fill-options .panel-status[hidden] { display: none; }
-.fill-plan, .store-sheet-section { display: grid; gap: var(--space-sm); }
-.fill-plan .hint { margin: 0; }
+.fill-plan, .store-sheet-section, .sheet-section { display: grid; gap: var(--space-sm); }
+.fill-plan .hint, .sheet-section .meta, .email-sheet .hint { margin: 0; }
+
+/* ------------------------------------------------------- Settings (#261) */
+/* Inset groups (above): the rows are link rows (glyph, label, muted value,
+   chevron to a sheet), their text on the row's own 14px inset in the
+   full-bleed card; the Data rows act on tap, so they carry no chevron. */
+.settings-group .sheet-link { padding-inline: 10px; }
+/* Text size, changed in place: its label, then the vendored range tabs (the
+   raised one is the value). One minmax(0, 1fr) track, so Large never widens
+   the card. */
+.settings-text-size { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-sm); }
+.settings-text-size-label { display: flex; align-items: center; gap: var(--space-sm); font-weight: 600; }
+.settings-text-size .range-tabs { margin-bottom: 0; }
+/* The Store logins sheet: one row per store, its state trailing (logged in
+   plain, an exception as a chip), then the two actions. */
+.login-rows .action-row { padding: 0; }
+.login-rows .action-row-main { padding-inline: 0; cursor: default; }
+.login-rows .action-row-main:active { background: transparent; }
+.login-rows .action-row-trail { margin-right: 0; }
+.login-ok { color: var(--muted); font-size: var(--font-body-sm); font-weight: 400; }
+.logins-actions { display: grid; gap: var(--space-sm); }

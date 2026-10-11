@@ -4,8 +4,7 @@
 import { initNavTabs } from "./_vendored/nav/nav-tabs.js";
 import { setSwitch } from "./_vendored/switch/switch.js";
 import { bindTextSize } from "./_vendored/text-size/text-size.js";
-import { showToast } from "./_vendored/toast/toast.js";
-import { fetchJson, fetchVersion, loadInventory, mutate, onLoginSubmit } from "./modules/api.js";
+import { fetchVersion, loadInventory, mutate, onLoginSubmit } from "./modules/api.js";
 import {
   applyAudio,
   audioUnmatchedCount,
@@ -45,10 +44,11 @@ import {
   THEME_KEY,
 } from "./modules/core.js";
 import { openAddSheet } from "./modules/add-sheet.js";
-import { isEmailControl, pushEmailMonitorConfig, renderEmailWatch, runEmailCheck } from "./modules/email.js";
+import { openEmailWatch } from "./modules/email.js";
 import { homeContext, loadThisWeek, paintThisWeek, renderHome } from "./modules/home.js";
 import { renderAudit, renderItems } from "./modules/inventory.js";
 import { openItemSheet } from "./modules/item-sheet.js";
+import { copyLink, exportCsv, openSpreadsheet, openStoreLogins, renderSettings } from "./modules/settings.js";
 import { renderShopping, shoppingMissingLinkCount } from "./modules/shopping.js";
 import { openStoreSheet } from "./modules/store-sheet.js";
 import {
@@ -103,7 +103,7 @@ function render() {
   if (state.mode === "list") renderItems();
   if (state.mode === "shopping") { renderShopping(); renderFillCarts(); }
   if (state.mode === "audio") renderAudio();
-  if (state.mode === "settings") renderEmailWatch();
+  if (state.mode === "settings") renderSettings();
   if (state.mode === "stores") {
     // A full render() (as opposed to the search-only repaintStoresList() used
     // for keystrokes, #193) rebuilds the pane body from scratch, detaching
@@ -250,7 +250,6 @@ el.app.addEventListener("click", (event) => {
   const sw = event.target.closest('.toggle[role="switch"]');
   if (!sw) return;
   setSwitch(sw, sw.getAttribute("aria-checked") !== "true");
-  if (isEmailControl(sw)) pushEmailMonitorConfig();
   rememberAudioPick(sw);
 });
 
@@ -306,10 +305,6 @@ el.app.addEventListener("submit", async (event) => {
   }
 });
 
-el.app.addEventListener("change", (event) => {
-  if (isEmailControl(event.target)) pushEmailMonitorConfig();
-});
-
 el.app.addEventListener("click", async (event) => {
   // Buttons carry inline sprite icons, so the click target can be the <svg>
   // — resolve the owning button before dispatching on id.
@@ -320,8 +315,11 @@ el.app.addEventListener("click", async (event) => {
   if (id === "automation-dismiss") await dismissAutomation();
   if (id === "automation-options") openFillOptions();
   if (button?.matches("[data-store-sheet]")) openStoreSheet(button.closest("[data-store]").dataset.store);
-  if (id === "email-check-now") await runEmailCheck(false);
-  if (id === "email-check-test") await runEmailCheck(true);
+  if (id === "open-store-logins") openStoreLogins();
+  if (id === "open-email-watch") openEmailWatch();
+  if (id === "open-sheet") openSpreadsheet();
+  if (id === "copy-link") await copyLink();
+  if (id === "export-csv") exportCsv();
   if (id === "record-toggle") await toggleRecording(button);
   if (id === "audio-redo") await redoTranscribe();
   if (id === "match-transcript") await matchTranscript();
@@ -345,34 +343,6 @@ el.search.addEventListener("input", () => {
   if (state.mode === "stores") repaintStoresList();
   else render();
 });
-el.openSheet.addEventListener("click", () => fetchJson("/api/actions/open-spreadsheet", { method: "POST" }).then(() => showToast("Spreadsheet opened")));
-el.copyLink.addEventListener("click", async () => {
-  const url = state.access?.cloudflare || state.access?.lan || window.location.href;
-  await navigator.clipboard.writeText(url);
-  showToast("Link copied");
-});
-el.exportCsv.addEventListener("click", () => { window.location.href = "/api/export.csv"; });
-el.bootstrapSession.addEventListener("click", () => {
-  fetchJson("/api/actions/bootstrap-session", { method: "POST" })
-    .then(() => showToast("Chrome window opened — log into each store, then close it completely."))
-    .catch((error) => showToast(error.message, "error"));
-});
-// Read-only login check (#217): one line per store, flagged when any is logged out.
-const LOGIN_STATE_LABEL = { logged_in: "logged in", logged_out: "logged out", unknown: "unknown" };
-el.checkLogins.addEventListener("click", () => {
-  el.checkLogins.disabled = true;
-  showToast("Checking store logins — a Chrome window opens briefly…", undefined, { ms: 0 });
-  fetchJson("/api/actions/check-logins", { method: "POST" })
-    .then(({ stores }) => {
-      const results = Object.entries(stores);
-      const text = results.map(([store, r]) => `${store}: ${LOGIN_STATE_LABEL[r.state] || r.state}`).join(" · ");
-      const anyOut = results.some(([, r]) => r.state === "logged_out");
-      showToast(text, anyOut ? "error" : undefined, { ms: 10000 });
-    })
-    .catch((error) => showToast(error.message, "error"))
-    .finally(() => { el.checkLogins.disabled = false; });
-});
-
 el.loginForm.addEventListener("submit", onLoginSubmit);
 // Auth is mandatory — Esc must not dismiss the login dialog.
 el.loginDialog.addEventListener("cancel", (event) => event.preventDefault());

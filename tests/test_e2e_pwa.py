@@ -18,6 +18,7 @@ from types import SimpleNamespace
 import pytest
 
 import app.routers.audio as audio_router
+import app.routers.system as system_router
 import automation.product_options as product_options
 import src.data as data
 from app.api import app
@@ -431,7 +432,7 @@ def test_four_tab_nav_and_relocated_sections(page, pw, server):
     assert theme() == before_theme
 
     goto_mode(page, "settings")
-    page.locator("#pane-settings #email-monitor").wait_for()
+    page.locator("#pane-settings #open-email-watch").wait_for()
 
     # A PWA last closed on a retired tab reopens on that tab's new home.
     list_segment = page.locator("#pane-items .subnav [data-mode='list']")
@@ -1441,16 +1442,18 @@ def test_audio_match_live_hub(page):
 
 
 @pytest.mark.e2e
-def test_settings_gear_opens_settings_from_every_tab(page):
+def test_settings_gear_opens_settings_from_every_tab(page, monkeypatch):
     """#200: Settings is never a tab -- the gear beside the theme toggle opens it
     from every tab, no nav tab is selected while it is open, and a tap on a tab
-    (or on the gear again) comes back."""
+    (or on the gear again) comes back. #261: Settings is three inset groups,
+    every row showing its value; Store logins and Email watch open sheets, and
+    the login check reports per store in its sheet, never the error toast."""
     for tab in ("inventory", "shopping", "audit", "items"):
         page.click(f"[data-tab='{tab}']")
         page.locator(f"#pane-{tab} .home-settings").click()
         assert page.locator("#pane-settings").is_visible()
         assert page.locator(f"#pane-{tab}").is_hidden()
-        assert page.locator("#pane-settings #email-monitor").count() == 1
+        assert page.locator("#pane-settings #open-email-watch").count() == 1
         assert page.locator("nav.tabs .tab.active").count() == 0
         # The gear on Settings' own header returns to the tab it was opened from.
         page.locator("#pane-settings .home-settings").click()
@@ -1461,6 +1464,42 @@ def test_settings_gear_opens_settings_from_every_tab(page):
     page.click("[data-tab='shopping']")
     assert page.locator("#pane-shopping").is_visible()
     assert page.locator("#pane-settings").is_hidden()
+
+    # #261: no closed cards of buttons -- three inset groups, every row valued.
+    goto_mode(page, "settings")
+    settings = page.locator("#pane-settings")
+    assert settings.locator(".settings-group > .overline").all_inner_texts() == ["DISPLAY", "STORES", "DATA"]
+    assert settings.locator("details, .settings-actions").count() == 0
+    page.wait_for_function("document.querySelector('#email-watch-value').textContent.trim() !== ''")
+    for row in settings.locator(".sheet-link").all():
+        assert row.locator(".sheet-link-value").inner_text().strip(), row.inner_text()
+    assert page.locator("#store-logins-value").inner_text() == "Not checked"
+
+    # Email watch: its sheet holds what the folded card did.
+    page.click("#open-email-watch")
+    email = page.locator("#email-watch-sheet")
+    email.locator("#email-check-now, .panel-status.error").first.wait_for()
+    page.keyboard.press("Escape")
+    email.wait_for(state="hidden")
+
+    # Store logins: an invented check (never a real Chrome) lands in the sheet,
+    # one row per store; logged out is an attention chip, the toast neutral.
+    monkeypatch.setattr(system_router.login_check_runner, "run", lambda: {
+        "mercadona": {"state": "logged_in", "detail": ""},
+        "carrefour": {"state": "logged_out", "detail": "invented"},
+    })
+    page.click("#open-store-logins")
+    logins = page.locator("#store-logins-sheet")
+    logins.locator("#check-logins").click()
+    logins.locator(".login-rows .action-row").nth(1).wait_for()
+    assert logins.locator(".login-rows .chip[data-tone='attention']").inner_text() == "Logged out"
+    assert logins.locator(".login-ok").count() == 1
+    page.wait_for_function("document.querySelector('#toast')?.textContent === '1 store logged out'")
+    assert "error" not in (page.locator("#toast").get_attribute("class") or "")
+    page.keyboard.press("Escape")
+    logins.wait_for(state="hidden")
+    assert page.locator("#store-logins-value").inner_text() == "1 logged out"
+    assert page.locator("#store-logins-value").get_attribute("data-tone") == "attention"
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
 
 

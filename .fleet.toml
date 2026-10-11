@@ -78,9 +78,12 @@ no_go = [
     '[data-action="search-use"]',
     '[data-action="search-confirm"]',         # Add item sheet: product-search Use / Update item
     "#email-check-now",
-    "#email-check-test",                      # Settings: Check now / Test last email
+    "#email-check-test",                      # Settings -> Email watch sheet: Check now / Test last email
+    "[data-monitor-sender]",
+    "#email-poller-enabled",                  # Settings -> Email watch sheet: the switches (each saves as it changes)
     "#open-sheet",                            # Settings: Open spreadsheet
-    "#bootstrap-session",                     # Settings: Log in to stores (launches a Chrome window)
+    "#check-logins",                          # Settings -> Store logins sheet: Check logins (opens Chrome briefly)
+    "#bootstrap-session",                     # Settings -> Store logins sheet: Log in to stores (launches a Chrome window)
 ]
 
 # Audit opens on Voice (#259), which the tab's own screen shows; Manual is
@@ -176,6 +179,20 @@ id        = "settings"
 click     = '#pane-inventory .home-settings'
 synthetic = false
 
+# Settings' Stores rows open their sheets (#261). Opening either only reads;
+# the checks, the logins and the email switches inside are no_go.
+[[design.review.extra_steps]]
+tab       = "inventory"
+id        = "settings-store-logins"
+clicks    = ['#pane-inventory .home-settings', "#open-store-logins"]
+synthetic = false
+
+[[design.review.extra_steps]]
+tab       = "inventory"
+id        = "settings-email-watch"
+clicks    = ['#pane-inventory .home-settings', "#open-email-watch"]
+synthetic = false
+
 # --- the synthetic instance (#251) ---------------------------------------
 # scripts/design_review_synthetic.py boots a throwaway copy of this checkout on
 # invented data (a temp workbook and benchmark runs), with every store, cart,
@@ -231,11 +248,12 @@ synthetic = true
 [[design.review.extra_steps]]
 tab       = "inventory"
 id        = "settings-email-check"
-clicks    = ['#pane-inventory .home-settings', "#email-monitor > summary", "#email-check-now"]
+clicks    = ['#pane-inventory .home-settings', "#open-email-watch", "#email-check-now"]
 synthetic = true
 
+# The stubbed check reports into the Store logins sheet, never a toast (#261).
 [[design.review.extra_steps]]
 tab       = "inventory"
 id        = "settings-check-logins"
-clicks    = ['#pane-inventory .home-settings', "#check-logins"]
+clicks    = ['#pane-inventory .home-settings', "#open-store-logins", "#check-logins"]
 synthetic = true
