@@ -31,7 +31,6 @@ import {
 import {
   captureTokenFromURL,
   el,
-  idleStatus,
   migrateRetiredTab,
   MODE_TO_TAB,
   restoreSubMode,
@@ -41,14 +40,14 @@ import {
   setContextLine,
   setHeaderUpdater,
   setRenderer,
-  setStatus,
   state,
   TAB_KEY,
   THEME_KEY,
 } from "./modules/core.js";
 import { openAddSheet } from "./modules/add-sheet.js";
 import { isEmailControl, pushEmailMonitorConfig, renderEmailWatch, runEmailCheck } from "./modules/email.js";
-import { renderAudit, renderDashboard, renderItems } from "./modules/inventory.js";
+import { homeContext, loadThisWeek, paintThisWeek, renderHome } from "./modules/home.js";
+import { renderAudit, renderItems } from "./modules/inventory.js";
 import { openItemSheet } from "./modules/item-sheet.js";
 import { renderShopping, shoppingMissingLinkCount } from "./modules/shopping.js";
 import { openStoreSheet } from "./modules/store-sheet.js";
@@ -61,14 +60,17 @@ import {
   storesNeedsChecking,
 } from "./modules/stores/index.js";
 
-// Page-header context lines for the three non-Home panes (#254, design.md
-// "page header"): the exception that needs you, in its tone, else the plain
-// count — never the mode name the segmented control already shows. Home's own
-// #status is driven by idleStatus()/setStatus() below, unchanged until Step 7.
-// The Shop tab also carries a badge while the last fill's misses are unseen
-// (#258, #252 decision 11).
+// Page-header context lines (#254, design.md "page header"): the exception
+// that needs you, in its tone, else the plain fact — never the mode name the
+// segmented control already shows. Home's names the last fill's misses, else
+// when you last counted (#260). The Shop tab also carries a badge while the
+// last fill's misses are unseen (#258, #252 decision 11). A late read that
+// changes one of these also refills Home's This week rows.
 function updatePageHeaderContexts() {
   if (!state.payload) return;
+  const home = homeContext();
+  setContextLine("#status", home.exceptions, home.fallback);
+  paintThisWeek();
   const total = `${state.payload.summary.total_items} items`;
   setContextLine("#shop-context", [
     [fillMissingCount(), "not in cart", "danger"],
@@ -83,7 +85,6 @@ setHeaderUpdater(updatePageHeaderContexts);
 
 function render() {
   if (!state.payload) return;
-  setStatus(idleStatus());
   updatePageHeaderContexts();
   // Re-home the (single) search node into the active pane, above its body but
   // BELOW the segmented control — the control stays pinned to the top and
@@ -97,7 +98,7 @@ function render() {
   el.app.querySelectorAll(".subnav [data-mode]").forEach((button) => {
     button.setAttribute("aria-pressed", String(button.dataset.mode === state.mode));
   });
-  if (state.mode === "dashboard") renderDashboard();
+  if (state.mode === "dashboard") renderHome();
   if (state.mode === "audit") renderAudit();
   if (state.mode === "list") renderItems();
   if (state.mode === "shopping") { renderShopping(); renderFillCarts(); }
@@ -188,7 +189,17 @@ function onTabChange(tab) {
   if (tab === "shopping") syncFillCarts();
   // Items' header names the items that need checking, whichever mode opens.
   if (tab === "items") loadStoresChecks();
+  // Home's This week rows: the last audit and the next price review.
+  if (tab === "inventory") loadThisWeek();
   render();
+}
+
+// A This week row (#260) opens the tab that owns its fact, on the segment
+// that shows it: the Audit row on Voice, the Prices row on Prices.
+function openWeekRow(mode) {
+  saveSubMode(mode);
+  state.mode = mode;
+  nav.setTab(MODE_TO_TAB[mode]);
 }
 
 // ------------------------------------------------------------------ theme
@@ -318,6 +329,7 @@ el.app.addEventListener("click", async (event) => {
   if (id === "audio-menu") openTranscriptMenu();
   if (id === "audio-cancel") cancelAudioRequest();
   if (id === "items-add") openAddSheet();
+  if (button?.matches("[data-goto]")) openWeekRow(button.dataset.goto);
 });
 
 // Items → Prices: the view owns its data-stores-* hooks (store_links, #148).
@@ -396,6 +408,7 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible") return;
   fetchVersion();
   if (["dashboard", "shopping", "audit", "list"].includes(state.mode)) loadInventory();
+  if (state.mode === "dashboard") loadThisWeek();
   if (state.mode === "shopping") syncFillCarts();
   else loadFills(); // a fill finished elsewhere: Shop's badge
 });

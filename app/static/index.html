@@ -287,11 +287,12 @@
         <!-- Page header: injected as this pane's first child by
              modules/core.js (pageHeaderHtml) — see that module for the
              shared markup every one of the 5 panes gets (#153 J-04). -->
-        <!-- First content under the header is a section title, not a control
-             (#153 J-04): the search box and the pills below read as its body. -->
-        <h2 class="pane-title">Overview</h2>
+        <!-- Home's This week card (#260) leads, so the first thing under the
+             header is its title, never the search (#153 J-04). A static host
+             OUTSIDE .pane-body: a search keystroke re-renders the body only. -->
+        <div id="this-week-host"></div>
         <!-- Search shows only on the modes that filter the item list
-             (dashboard / audit / Items' list / Prices) — app.js re-homes this
+             (Home / audit / Items' list / Prices) — app.js re-homes this
              node into the active pane BELOW the segmented control, so the
              control never moves vertically when the search appears/disappears.
              On Items' list the Add item button shares its row (#256). -->

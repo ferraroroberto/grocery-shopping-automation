@@ -381,24 +381,8 @@ h2 { font-size: var(--font-body); font-weight: 700; }
 .pane-title { padding: 0 var(--space-xs); }
 h3 { font-size: var(--font-body); font-weight: 600; }
 
-/* Home summary: one card, a <dl> of label/value rows (#198) — five separate
-   stat cards used to sit two-to-a-row at phone width, breaking the single
-   top-to-bottom reading order (design-review J-04). One card reads in one
-   column by construction, and the dl gives the label/value pairing semantic
-   meaning for free. Desktop may re-flow the rows into a short multi-column
-   list (below) but stays one card — never separate cards side by side. */
-.summary-list { display: grid; grid-template-columns: minmax(0, 1fr); margin: 0; }
-.summary-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-sm); padding: var(--space-xs) 0; }
-.summary-row + .summary-row { border-top: 1px solid var(--line-muted); }
-.summary-row dt { margin: 0; color: var(--muted); font-size: var(--font-body-sm); font-weight: 400; }
-.summary-row dd { margin: 0; font-size: var(--font-heading-lg); font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
 /* Secondary lines are body-sm (TYPE-01: caption is for chips and badges only). */
 .meta, .hint { color: var(--muted); font-size: var(--font-body-sm); font-weight: 400; }
-
-@media (pointer: fine), (min-width: 521px) {
-  .summary-list { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); row-gap: 0; column-gap: var(--space-lg); }
-  .summary-row, .summary-row + .summary-row { border-top: none; }
-}
 
 /* Every stack in the pane chain pins its single track to minmax(0, 1fr):
    an implicit `auto` track takes the min-content of its widest item
@@ -466,14 +450,6 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
 
 /* Audio match: the change a proposed count makes. */
 .buy { color: var(--deficit); }
-
-.progress { height: 8px; overflow: hidden; border-radius: var(--radius-pill); background: var(--card-off); }
-.progress span { display: block; height: 100%; background: var(--accent); }
-
-/* Dashboard store progress: all stores share ONE card; the bar gets clear
-   air below the store name instead of hugging it. */
-.store-block + .store-block { margin-top: var(--space-lg); }
-.store-block .progress { margin-top: var(--gap); }
 
 /* ------------------------------------------------------------- controls */
 .primary, .secondary, .danger {
@@ -922,6 +898,7 @@ details[open] > summary .inline-chevron { transform: rotate(90deg); }
   font-size: var(--font-body-sm);
 }
 .sheet-link-value[data-tone="attention"] { color: var(--attention-text); }
+.sheet-link-value[data-tone="danger"] { color: var(--danger-text); }
 .sheet-link-chevron { flex: none; width: var(--icon-inline); height: var(--icon-inline); color: var(--muted); }
 /* #264: the open-link action on the Buy link page; its empty slot takes no
    room in the page grid. */
@@ -1085,6 +1062,15 @@ a.button-tint[data-open-link-page] {
 
 /* ------------------------------------------------------------ login dialog */
 .login-error { min-height: 20px; color: var(--deficit); font-size: var(--font-label); }
+
+/* ------------------------------------------------------------ Home (#260) */
+/* The This week card: four link rows under its title, their text on the
+   card's text edge like the glance footers, each value in its tone. */
+.this-week > * + * { margin-top: var(--gap); }
+.this-week-rows { margin-bottom: calc(-1 * var(--space-xs)); }
+.this-week-rows .action-row { padding: 0; }
+/* Nothing under the search until something is typed: no empty grid track. */
+#pane-inventory .pane-body:empty { display: none; }
 
 /* ------------------------------------------------------------ Shop (#258) */
 /* The carts glance: one row per store (text aligned with the card title, not

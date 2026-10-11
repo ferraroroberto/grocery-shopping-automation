@@ -68,9 +68,18 @@ function ageText(days) {
   return days <= 0 ? "from today" : `${plural(days, "day")} old`;
 }
 
-export function reviewDue() {
+function reviewDue() {
   const m = local.meta;
   return !!(m?.next_due && m.next_due <= new Date().toISOString().slice(0, 10));
+}
+
+// What the latest run says about itself, for the glance's Benchmark row and
+// Home's Prices row (#260): a review due is the exception that earns the
+// attention tone.
+export function reviewValue() {
+  const m = local.meta;
+  if (!m?.run_date) return { text: "No run yet" };
+  return reviewDue() ? { text: "Review due", tone: "attention" } : { text: `Next review ${m.next_due}` };
 }
 
 // The run as label/value rows (design.md "editor modal" body rows), then the

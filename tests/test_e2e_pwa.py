@@ -49,6 +49,18 @@ TAB_FOR_MODE = {
     "stores": "items",
 }
 
+# Home's This week card (#260) is painted once the inventory has loaded.
+LOADED_JS = "document.querySelector('#this-week')?.dataset.state === 'ready'"
+_HOME_FITS_JS = """() => {
+  const search = document.querySelector('#search').getBoundingClientRect();
+  const nav = document.querySelector('nav.tabs').getBoundingClientRect();
+  return search.bottom <= (nav.top > search.top ? nav.top : innerHeight);
+}"""
+# Where Home's blocks sit, for a failed one-screen check.
+_HOME_RECTS_JS = """() => Object.fromEntries(['#pane-inventory .home-head', '#this-week', '#search', 'nav.tabs', '.page-foot']
+  .map((s) => { const r = document.querySelector(s).getBoundingClientRect(); return [s, [Math.round(r.top), Math.round(r.bottom)]]; })
+  .concat([['scrollY', [scrollY, document.querySelector('main.app').scrollTop]]]))"""
+
 
 def goto_mode(page, mode: str) -> None:
     """Navigate to a mode: click its nav tab, then its segment when grouped.
@@ -257,7 +269,7 @@ def page(browser, server):
     pg._js_errors = errors  # type: ignore[attr-defined]
     pg.goto(server.url)
     pg.wait_for_selector("[data-tab='audit']")
-    pg.wait_for_function("document.querySelector('#status')?.textContent?.includes('Loaded')")
+    pg.wait_for_function(LOADED_JS)
     yield pg
     pg.close()
 
@@ -451,7 +463,7 @@ def test_four_tab_nav_and_relocated_sections(page, pw, server):
         errors: list[str] = []
         phone.on("pageerror", lambda exc: errors.append(str(exc)))
         phone.goto(server.url)
-        phone.wait_for_function("document.querySelector('#status')?.textContent?.includes('Loaded')")
+        phone.wait_for_function(LOADED_JS)
         assert phone.viewport_size["width"] == 390
         boxes = [phone.locator("nav.tabs .tab").nth(i).bounding_box() for i in range(4)]
         assert all(b["x"] >= 0 and b["x"] + b["width"] <= 390 for b in boxes), boxes
@@ -459,19 +471,53 @@ def test_four_tab_nav_and_relocated_sections(page, pw, server):
         assert phone.locator("nav.tabs .tab-label").evaluate_all(
             "els => els.every(e => e.scrollWidth <= e.clientWidth)"), "a tab label is truncated at 390px"
         assert phone.evaluate("() => document.documentElement.scrollWidth <= innerWidth")
+        # #260: Home -- the This week card and the search -- fits above the pill.
+        assert phone.evaluate(_HOME_FITS_JS), phone.evaluate(_HOME_RECTS_JS)
         assert errors == [], f"WebKit JS errors: {errors}"
     finally:
         webkit.close()
 
 
 @pytest.mark.e2e
-def test_dashboard_shows_stocked_metric(page):
-    goto_mode(page, "dashboard")
-    page.wait_for_selector(".summary")
-    assert page.locator("text=Stocked").count() >= 1
-    assert page.locator("text=Tracked items").count() >= 1
+def test_home_this_week_and_search(page, server):
+    """#260: Home is the This week card -- one row each for the audit, the
+    list, the carts and the prices, each opening the tab that owns it -- and a
+    search over every item. The card's rows are all there from the first
+    paint and later reads fill them in place, so the card never changes size."""
+    rows = page.locator("#this-week .this-week-rows .action-row")
+    assert rows.locator(".action-row-title").all_inner_texts() == ["Audit", "Shopping list", "Carts", "Prices"]
+    height = page.locator("#this-week").bounding_box()["height"]
+    page.wait_for_function(
+        "['audit', 'carts', 'prices'].every((k) => document.querySelector(`#week-${k}`).textContent !== '–')")
+    assert page.locator("#this-week").bounding_box()["height"] == height
+    summary = page.request.get(f"{server.url}/api/inventory").json()["summary"]
+    assert page.locator("#week-list").inner_text() == f"{summary['shopping_items']} items · {summary['shopping_units']} units"
+    # The invented last fill left one item out: the Carts row and the header say so.
+    assert page.locator("#week-carts").inner_text() == "1 not in cart"
+    assert page.locator("#week-carts").get_attribute("data-tone") == "danger"
+    assert page.locator("#status").inner_text() == "1 not in cart"
+    assert page.locator("#week-audit").inner_text().startswith(("No audit yet", "Last audit "))
+    assert page.locator("#week-prices").inner_text().startswith(("Next review ", "Review due"))
+    # Nothing under the search until something is typed.
+    assert page.locator("#pane-inventory .item-row").count() == 0
+    page.fill("#search", "burguer")
+    titles = page.locator("#pane-inventory .item-row .action-row-title").all_inner_texts()
+    assert titles and all("burguer" in t.lower() for t in titles)
+    page.fill("#search", "zzz nothing matches")
+    assert page.locator("#pane-inventory .empty-state").inner_text().strip() == "No matching items."
+    page.fill("#search", "")
+    assert page.locator("#pane-inventory .item-row, #pane-inventory .empty-state").count() == 0
+    # Each row opens the tab that owns its fact, on the segment that shows it.
+    for key, pane, segment in (("audit", "audit", "audio"), ("list", "shopping", None),
+                               ("carts", "shopping", None), ("prices", "items", "stores")):
+        page.click("[data-tab='inventory']")
+        page.locator(f"#week-{key}").click()
+        assert page.locator(f"#pane-{pane}").is_visible(), key
+        if segment:
+            assert page.locator(f"#pane-{pane} [data-mode='{segment}']").get_attribute("aria-pressed") == "true", key
     # Build identity footer (home-automation contract) is filled at boot.
     page.wait_for_function("document.querySelector('#build-readout')?.textContent?.startsWith('Build:')")
+    assert page._js_errors == [], f"JS errors: {page._js_errors}"
 
 
 @pytest.mark.e2e
@@ -667,7 +713,7 @@ def test_phone_geometry_fits_and_targets_meet_the_floor(browser, server):
     try:
         pg.goto(server.url)
         pg.wait_for_selector("[data-tab='audit']")
-        pg.wait_for_function("document.querySelector('#status')?.textContent?.includes('Loaded')")
+        pg.wait_for_function(LOADED_JS)
         for mode in ["dashboard", "shopping", "audit", "audio", "list", "stores", "settings"]:
             goto_mode(pg, mode)
             assert_no_horizontal_overflow(pg)
@@ -724,15 +770,19 @@ def test_phone_geometry_fits_and_targets_meet_the_floor(browser, server):
             targets = pg.locator(selector)
             assert_min_target(targets)
             assert_no_overlap(targets)
+        # #260: Home fits one phone screen -- the This week card and the
+        # search end above the bottom nav pill (the viewport's edge where the
+        # nav is drawn as top tabs), nothing to scroll for.
+        assert pg.evaluate(_HOME_FITS_JS), pg.evaluate(_HOME_RECTS_JS)
     finally:
         pg.close()
 
 
 @pytest.mark.e2e
 def test_add_item_increases_count(page):
-    goto_mode(page, "dashboard")
-    page.wait_for_selector(".summary")
-    before = int(page.locator(".summary-value").first.inner_text())
+    # The plain count in Audit's page header: "N items".
+    count = lambda: int(page.locator("#audit-context").text_content().split()[0])  # noqa: E731
+    before = count()
     sheet = open_add_sheet(page)
     sheet.locator("#add-form input[name='comida']").fill("zzz e2e item")
     # Zone and Supermarket are native pickers of the existing values (#241) —
@@ -752,10 +802,7 @@ def test_add_item_increases_count(page):
     page.wait_for_function("document.querySelector('#toast')?.textContent?.includes('zzz e2e item added')")
     group = page.locator("#pane-items .item-group", has=page.locator(".item-row", has_text="zzz e2e item"))
     assert group.locator(".item-group-head").inner_text().lower() == "nevera"
-    goto_mode(page, "dashboard")
-    page.wait_for_selector(".summary")
-    after = int(page.locator(".summary-value").first.inner_text())
-    assert after == before + 1
+    assert count() == before + 1
 
 
 @pytest.mark.e2e

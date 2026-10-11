@@ -21,7 +21,7 @@ import { emptyStateEl } from "../../_vendored/empty-state/empty-state.js";
 import { activePaneBody, render, state } from "../core.js";
 import { icon, switchMarkup } from "../dom.js";
 import { copySteps, importLatest, loadRecommended, resetPicks } from "./actions.js";
-import { openBenchmarkSheet } from "./benchmark.js";
+import { openBenchmarkSheet, reviewValue } from "./benchmark.js";
 import { openApplyReview, openSetBaselineConfirm, resetBaseline } from "./dialogs.js";
 import { paintFilter, paintList, repaintRow } from "./list.js";
 import { loadChecks, loadMeta, paintActions, paintSim, scheduleSimulate } from "./simulator.js";
@@ -153,6 +153,17 @@ export function storesNeedsChecking() {
 
 export function loadStoresChecks() {
   if (!local.checks) loadChecks();
+}
+
+// For Home's Prices row (#260): the next review only — the cost and the
+// what-if stay on the Prices glance (#252 "one home per fact"). A dash until
+// the run status has been read; a failed read is retried on the next visit.
+export function loadPricesReview() {
+  if (local.metaState === "idle" || local.metaState === "error") loadMeta();
+}
+
+export function pricesReviewValue() {
+  return local.meta ? reviewValue() : { text: "–" };
 }
 
 export function onStoresChange(event) {

@@ -8,8 +8,8 @@
 // The last fill comes from the run records a live run writes (GET
 // /api/automation/fills), so it outlives the server; the run in flight comes
 // from the status endpoint and its event stream. Run state and the picks are
-// local to this module; Shop's header, its tab badge and its store groups read
-// the outcome through the exports below.
+// local to this module; Shop's header, its tab badge and its store groups, and
+// Home's header and Carts row, read the outcome through the exports below.
 import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
 import { setSwitch } from "../_vendored/switch/switch.js";
 import { fetchJson } from "./api.js";
@@ -32,8 +32,8 @@ const run = {
 const picks = { store: "all", cartMode: "keep", dryRun: false, cleanConfirmed: false };
 
 // The store directory (display names, which stores have a cart handler) and
-// the last fill day's outcome per store key.
-const fills = { stores: [], last: null };
+// the last fill day's outcome per store key, once read.
+const fills = { stores: [], last: null, loaded: false };
 
 const IDLE_LOG = "Not running. Press Fill carts to fill the store carts; progress appears here.";
 
@@ -111,6 +111,7 @@ export async function loadFills() {
     const body = await fetchJson("/api/automation/fills");
     fills.stores = body.stores || [];
     fills.last = body.last_fill;
+    fills.loaded = true;
   } catch (_) {
     return; // keep what we had; the glance still runs a fill without it
   }
@@ -197,6 +198,17 @@ function storeRow({ store, count, label }) {
 function fillDateText() {
   if (!fills.last) return "Not filled yet";
   return `Last fill ${shortDate(`${fills.last.date}T00:00:00`)}`;
+}
+
+// Home's Carts row (#260): the last fill's worst outcome, in its tone, else
+// when it ran; a dash until the run records have been read.
+export function lastFillValue() {
+  if (!fills.loaded) return { text: "–" };
+  const missing = fillMissingCount();
+  if (missing) return { text: `${missing} not in cart`, tone: "danger" };
+  const unconfirmed = Object.values(fills.last?.stores || {}).reduce((n, s) => n + s.unconfirmed, 0);
+  if (unconfirmed) return { text: `${unconfirmed} not confirmed`, tone: "attention" };
+  return { text: fillDateText() };
 }
 
 function cleanBlocked() {

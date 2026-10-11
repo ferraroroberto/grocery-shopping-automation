@@ -7,7 +7,7 @@ import { emptyStateEl } from "../../_vendored/empty-state/empty-state.js";
 import { fetchJson } from "../api.js";
 import { render, state, updateHeaders } from "../core.js";
 import { esc, icon } from "../dom.js";
-import { paintBenchmarkSheet, reviewDue } from "./benchmark.js";
+import { paintBenchmarkSheet, reviewValue } from "./benchmark.js";
 import { paintFilter, paintList } from "./list.js";
 import { activePicks, eur, frequency, jsonInit, local } from "./state.js";
 
@@ -24,6 +24,7 @@ export async function loadMeta() {
   } catch (_) {
     local.metaState = "error";
   }
+  updateHeaders(); // Home's Prices row names the next review
   if (state.mode === "stores") render();
   paintBenchmarkSheet();
 }
@@ -94,17 +95,14 @@ export function paintActions() {
   paintBenchmarkSheet();
 }
 
-// The footer row: what the latest run says about itself — a review due is
-// the exception that earns the attention tone — one tap from the sheet.
+// The footer row: what the latest run says about itself, one tap from the sheet.
 function footMarkup() {
-  const m = local.meta;
-  const due = reviewDue();
-  const value = !m.run_date ? "No run yet" : due ? "Review due" : `Next review ${esc(m.next_due)}`;
+  const { text, tone } = reviewValue();
   return `<ul class="action-rows stores-glance-foot"><li class="action-row">
       <button type="button" class="action-row-main sheet-link" data-stores-action="benchmark" aria-haspopup="dialog">
         ${icon("shopping-basket", "sheet-link-icon")}
         <span class="action-row-title">Benchmark</span>
-        <span class="sheet-link-value"${due ? ' data-tone="attention"' : ""}>${value}</span>
+        <span class="sheet-link-value"${tone ? ` data-tone="${tone}"` : ""}>${esc(text)}</span>
         ${icon("chevron-right", "sheet-link-chevron")}
       </button>
     </li></ul>`;
