@@ -14,7 +14,7 @@ import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
 import { setSwitch } from "../_vendored/switch/switch.js";
 import { fetchJson } from "./api.js";
 import { c, items, state, storedToken, updateHeaders } from "./core.js";
-import { chip, esc, formatElapsed, html, icon, switchMarkup } from "./dom.js";
+import { chip, esc, formatElapsed, html, icon, shortDate, switchMarkup } from "./dom.js";
 import { dialogShell } from "./stores/dialog.js";
 
 const OPTIONS_ID = "fill-carts-options";
@@ -196,8 +196,7 @@ function storeRow({ store, count, label }) {
 
 function fillDateText() {
   if (!fills.last) return "Not filled yet";
-  const day = new Date(`${fills.last.date}T00:00:00`);
-  return `Last fill ${day.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}`;
+  return `Last fill ${shortDate(`${fills.last.date}T00:00:00`)}`;
 }
 
 function cleanBlocked() {

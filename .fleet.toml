@@ -71,7 +71,8 @@ no_go = [
     "[data-store-unmark]",                    # Shop -> store sheet: Unmark all
     "[data-sheet-delete]",                    # item sheet: Delete item (opens the confirm)
     '[data-confirm="yes"]',                   # the confirm sheet's Delete
-    "#record-toggle",                         # Audit -> Audio audit: Start recording
+    "#record-toggle",                         # Audit -> Voice: Record
+    "#audio-clear",                           # Audit -> Voice -> transcript menu: Clear (wipes a transcript in progress)
     "#search-record",                         # Add item sheet: product-search mic
     "#search-run",                            # Add item sheet: product-search Search
     '[data-action="search-use"]',
@@ -82,10 +83,19 @@ no_go = [
     "#bootstrap-session",                     # Settings: Log in to stores (launches a Chrome window)
 ]
 
+# Audit opens on Voice (#259), which the tab's own screen shows; Manual is
+# the second segment. The transcript card's menu opens a sheet holding the
+# match model and Clear (no_go); opening it only reads.
 [[design.review.extra_steps]]
 tab       = "audit"
-id        = "audio"
-click     = '#pane-audit [data-mode="audio"]'
+id        = "manual"
+click     = '#pane-audit [data-mode="audit"]'
+synthetic = false
+
+[[design.review.extra_steps]]
+tab       = "audit"
+id        = "transcript-menu"
+clicks    = ['#pane-audit [data-mode="audio"]', "#audio-menu"]
 synthetic = false
 
 # Items is two segments (#256): the item list ("list") and Prices ("stores").
@@ -202,6 +212,7 @@ no_go = [
     '[data-action="search-use"]',
     '[data-action="search-confirm"]',
     "#record-toggle",                         # needs a microphone
+    "#audio-clear",
     "#search-record",
 ]
 

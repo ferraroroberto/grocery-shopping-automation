@@ -1,5 +1,12 @@
-// Audio audit: record a spoken walk-through, transcribe it, match what was
-// said to inventory rows via the LLM hub, and apply the accepted counts.
+// Audio audit — Audit's Voice segment (#259): record a spoken walk-through,
+// transcribe it, match what was said to inventory rows via the LLM hub, and
+// apply the accepted counts.
+//
+// The view reads top to bottom: the Voice glance (when did I last count? the
+// one Record button, a waveform and timer while recording), the match results
+// once there are some (their glance with Apply, the one primary, then "Needs
+// you" first and the detected items by zone), the checklist card, and the
+// transcript card, whose menu holds the match model and Clear.
 //
 // Recording is hardened (issue #30): every 1 s chunk is streamed to the PC and
 // archived to disk by the voice-transcriber app the moment it arrives, so the
@@ -7,9 +14,14 @@
 // the canonical transcript. grocery only proxies — VT owns the audio.
 import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
 import { authFetch, fetchJson } from "./api.js";
+import { confirmSheet } from "./confirm.js";
 import { activePaneBody, c, items, render, state, storedToken, updateHeaders } from "./core.js";
-import { formatBytes, formatElapsed, html, icon, switchMarkup, text } from "./dom.js";
+import { esc, formatBytes, formatElapsed, html, icon, shortDate, switchMarkup, text } from "./dom.js";
 import { pickAudioMime } from "./media.js";
+import { itemList, itemRow } from "./rows.js";
+import { dialogShell } from "./stores/dialog.js";
+
+const MENU_ID = "transcript-sheet";
 
 // All of it local to this module — nothing outside the audio view reads it.
 const audio = {
@@ -28,6 +40,11 @@ const audio = {
   recordTimer: null,
   eventSource: null,
   matches: null,
+  // The review's choices, kept here so a hop to Manual (and back) never
+  // re-ticks a match you unticked or drops a count you typed.
+  picks: { accept: {}, zero: {}, counts: {} },
+  last: undefined, // the last applied audit: undefined while loading, null when there is none
+  wave: { ctx: null, frame: 0 },
 };
 
 let audioAbort = null;
@@ -38,6 +55,10 @@ function setAudioStatus(message, kind = "") {
     target.textContent = message;
     target.className = `panel-status${kind ? ` ${kind}` : ""}`;
   }
+}
+
+function isRecording() {
+  return audio.mediaRecorder?.state === "recording";
 }
 
 // Staged progress text, mirroring app/audio_audit.py _extract_progress — budget
@@ -66,6 +87,7 @@ function setAudioInFlight(busy) {
     const node = document.querySelector(sel);
     if (node) node.disabled = busy;
   });
+  if (!busy) paintApplySummary();
 }
 
 // Run an audio request with a live elapsed timer and a working Cancel button.
@@ -82,8 +104,8 @@ async function runWithTimer(stageFn, doFetch) {
     return await doFetch(audioAbort.signal);
   } finally {
     window.clearInterval(interval);
-    setAudioInFlight(false);
     audioAbort = null;
+    setAudioInFlight(false);
   }
 }
 
@@ -100,38 +122,27 @@ async function refreshAudioHealth() {
   renderAudioHealth();
 }
 
+// Only a problem is shown: an always-on "all reachable" line was noise (#252).
 function renderAudioHealth() {
   const banner = document.querySelector("#audio-health-banner");
   if (!banner) return;
   const h = audio.health;
-  if (!h) {
-    banner.innerHTML = "";
-    return;
-  }
-  // Sprite icons, not emoji — the status colour + glyph carry the state.
-  const okIcon = `${icon("circle-check")} `;
-  const badIcon = `${icon("circle-alert")} `;
   const problems = [];
-  if (!h.voice_ok) problems.push(`${badIcon}The voice recorder isn't reachable — start the voice-transcriber app`);
-  if (!h.hub_ok) problems.push(`${badIcon}The matching service isn't reachable — start local-llm-hub`);
-  if (!h.whisper_ok) {
+  if (h && !h.voice_ok) problems.push("The voice recorder isn't reachable — start the voice-transcriber app");
+  if (h && !h.hub_ok) problems.push("The matching service isn't reachable — start local-llm-hub");
+  if (h && !h.whisper_ok) {
     const hint = h.whisper_host ? " — local-llm-hub is running it somewhere else" : "";
-    problems.push(`${badIcon}Speech-to-text isn't reachable${hint}`);
+    problems.push(`Speech-to-text isn't reachable${hint}`);
   }
-  if (!problems.length) {
-    banner.className = "panel-status ok";
-    banner.innerHTML = `${okIcon}Voice recorder, matching and speech-to-text are reachable`;
-  } else {
-    banner.className = "panel-status error";
-    banner.innerHTML = problems.join("<br>");
-  }
+  banner.className = `panel-status${problems.length ? " error" : ""}`;
+  banner.innerHTML = problems.map((line) => `<span class="voice-problem">${icon("circle-alert")}${esc(line)}</span>`).join("");
+  if (!h) return;
   const matchBtn = document.querySelector("#match-transcript");
   if (matchBtn && !audioAbort) matchBtn.disabled = !h.hub_ok;
   // Record needs the voice-transcriber webapp up — disable it (and show why)
   // rather than letting a take silently hang. Paste + Match still work.
   const recordBtn = document.querySelector("#record-toggle");
-  const recording = audio.mediaRecorder && audio.mediaRecorder.state === "recording";
-  if (recordBtn && !recording) {
+  if (recordBtn && !isRecording()) {
     recordBtn.disabled = !h.voice_ok;
     recordBtn.title = h.voice_ok ? "" : "The voice recorder isn't reachable — start the voice-transcriber app";
   }
@@ -139,77 +150,170 @@ function renderAudioHealth() {
 
 // The hub's model ids (config's audio_audit.llm_models_available, e.g.
 // "gemini_pro") are internal identifiers, not copy (J-07) — humanize for the
-// dropdown label and the helper text below it; the submitted value stays the
+// dropdown label and the transcript card's meta; the submitted value stays the
 // raw id. A snake_case → Title Case split needs no per-model map to maintain
 // as the hub's model list grows.
 function humanizeModelId(id) {
   return id ? id.split("_").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ") : "";
 }
 
+function recordLabel(recording) {
+  return recording ? `${icon("square")}Stop recording` : `${icon("mic")}Record`;
+}
+
+// A glance row: a label and its one figure (the carts glance's row anatomy).
+function glanceRow(label, valueId) {
+  return `<li class="action-row">
+      <div class="action-row-main"><span class="action-row-title">${label}</span></div>
+      <span class="action-row-trail action-row-value" id="${valueId}">–</span>
+    </li>`;
+}
+
 export function renderAudio() {
-  const cols = c();
   const audioCfg = state.payload.audio || { models: [], default_model: "" };
   if (!audio.model) audio.model = audioCfg.default_model || audioCfg.models[0] || "";
-  const modelOptions = (audioCfg.models || [])
-    .map((name) => `<option value="${html(name)}" ${name === audio.model ? "selected" : ""}>${html(humanizeModelId(name))}</option>`)
-    .join("");
-  const checklist = state.payload.summary.zones.map((zone) => {
-    const zoneItems = items().filter((item) => item[cols.lugar] === zone && Number(item[cols.cantidad]) > 0);
-    return `<details class="card card--collapsible">
-      <summary class="collapse-summary">
-        <span class="collapse-main">
-          ${icon("list-checks")}
-          <h3 class="collapse-title">${html(zone)}</h3>
-          <span class="collapse-count">${zoneItems.length}</span>
-        </span>
-        <span class="collapse-chevron" aria-hidden="true">›</span>
-      </summary>
-      <div class="collapse-body zone-items">${zoneItems.map((item) =>
-        `<div class="zone-item"><span>${html(item[cols.comida])}</span>${switchMarkup(false, `Checked ${text(item[cols.comida])}`)}</div>`,
-      ).join("")}</div>
-    </details>`;
-  }).join("");
-  activePaneBody().innerHTML = `<section class="panel" aria-label="Record">
-    <div id="audio-health-banner" class="panel-status"></div>
-    <div class="hint">Keep the checklist visible while recording. Announce the zone, then item counts in Spanish.</div>
-    <button id="record-toggle" class="primary btn-block" type="button">Start recording</button>
-    <button id="audio-redo" class="secondary btn-block" type="button" hidden>${icon("refresh-cw")}Redo</button>
-    <div class="hint">Recording streams to the PC as you talk — the take is safe even if the phone dies. Redo re-transcribes the saved audio.</div>
-    <div class="zone-list">${checklist}</div>
-  </section>
-  <section class="panel">
-    <h2 class="card-title">${icon("list-checks")}Transcript</h2>
-    <textarea id="transcript" placeholder="Transcript appears here, or paste one manually.">${audio.transcript ? html(audio.transcript) : ""}</textarea>
-    <label class="field-label" for="audio-model">Match model
-      <select id="audio-model"${modelOptions ? "" : " disabled"}>${modelOptions || `<option>${html(humanizeModelId(audio.model) || "config default")}</option>`}</select>
-    </label>
-    <div id="audio-context" class="hint"></div>
-    <div class="audio-actions">
-      <button id="match-transcript" class="big-btn">Match</button>
-      <button id="apply-audio" class="big-btn" disabled>Apply</button>
-      <button id="audio-clear" class="big-btn danger" type="button">Clear</button>
-      <button id="audio-cancel" class="danger" hidden>Cancel</button>
-    </div>
-    <div id="audio-status" class="panel-status" role="status"></div>
-  </section>
-  <section id="match-results" class="grid"></section>`;
-  renderAudioContext();
+  const recording = isRecording();
+  activePaneBody().innerHTML = `<section id="voice-glance" class="card voice-glance" aria-labelledby="voice-glance-title">
+      <div class="card-head">
+        <h2 id="voice-glance-title" class="card-title">${icon("mic")}Voice audit</h2>
+        <span class="card-head-meta" id="voice-last-date"></span>
+      </div>
+      <ul class="action-rows voice-glance-rows">
+        ${glanceRow("Counts changed", "voice-last-changed")}
+        ${glanceRow("Unmatched", "voice-last-unmatched")}
+      </ul>
+      <div id="audio-health-banner" class="panel-status" role="status"></div>
+      <div id="voice-live" class="voice-live"${recording ? "" : " hidden"}>
+        <canvas id="voice-wave" class="voice-wave" aria-hidden="true"></canvas>
+        <span id="voice-timer" class="voice-timer"></span>
+      </div>
+      <div class="voice-actions">
+        <button id="record-toggle" class="${audio.matches ? "button-tint" : "button-primary"} btn-block" type="button">${recordLabel(recording)}</button>
+        <button id="audio-redo" class="button-surface btn-block" type="button"${audio.sessionId && !recording ? "" : " hidden"}>${icon("refresh-cw")}Redo transcription</button>
+        <button id="audio-cancel" class="button-surface btn-block" type="button" hidden>${icon("x")}Cancel</button>
+      </div>
+      <div id="audio-status" class="panel-status" role="status"></div>
+    </section>
+    <div id="match-results" class="voice-results"></div>
+    ${checklistCard()}
+    <section class="card voice-transcript" aria-labelledby="voice-transcript-title">
+      <div class="card-head">
+        <h2 id="voice-transcript-title" class="card-title">${icon("pencil")}Transcript</h2>
+        <span class="card-head-meta voice-model" id="audio-model-label">${html(humanizeModelId(audio.model) || "Default model")}</span>
+        <button id="audio-menu" class="icon-button" type="button" aria-haspopup="dialog" aria-label="Transcript options" title="Transcript options">${icon("ellipsis")}</button>
+      </div>
+      <textarea id="transcript" aria-label="Transcript" placeholder="The transcript appears here, or paste one.">${audio.transcript ? html(audio.transcript) : ""}</textarea>
+      <button id="match-transcript" class="button-tint btn-block" type="button">${icon("list-checks")}Match</button>
+    </section>`;
+  paintLastAudit();
   renderMatches();
+  // A transcribe or match still running (a hop to Manual and back): its
+  // Cancel stays in reach and Match stays locked; the timer refills the status.
+  if (audioAbort) setAudioInFlight(true);
   renderAudioHealth();
   refreshAudioHealth();
+  loadLastAudit();
 }
 
-function renderAudioContext() {
-  const node = document.querySelector("#audio-context");
-  if (!node) return;
-  node.textContent = `${items().length} items to match · model ${humanizeModelId(audio.model) || "default"}`;
+// The one checklist card: a zone per folded row, its kept items with a check
+// each, so nothing is missed while dictating. The checks are for your eyes
+// only — nothing reads them.
+function checklistCard() {
+  const cols = c();
+  let total = 0;
+  const zones = state.payload.summary.zones.map((zone) => {
+    const zoneItems = items().filter((item) => item[cols.lugar] === zone && Number(item[cols.cantidad]) > 0);
+    if (!zoneItems.length) return "";
+    total += zoneItems.length;
+    return `<details class="inline-disclosure checklist-zone">
+      <summary class="inline-disclosure-summary">
+        <span class="checklist-zone-name">${html(zone)}</span>
+        <span class="checklist-count">${zoneItems.length}</span>
+        <span class="inline-chevron" aria-hidden="true">›</span>
+      </summary>
+      <ul class="action-rows checklist-items">${zoneItems.map((item) => `<li class="action-row">
+          <div class="action-row-main"><span class="action-row-title">${html(item[cols.comida])}</span></div>
+          <span class="action-row-trail">${switchMarkup(false, `Checked ${text(item[cols.comida])}`)}</span>
+        </li>`).join("")}</ul>
+    </details>`;
+  }).join("");
+  return `<section class="card voice-checklist" aria-labelledby="voice-checklist-title">
+      <div class="card-head">
+        <h2 id="voice-checklist-title" class="card-title">${icon("list-checks")}Checklist</h2>
+        <span class="card-head-meta">${total} items</span>
+      </div>
+      ${zones || emptyStateEl("package", "No items to count yet.").outerHTML}
+    </section>`;
 }
 
-export function setAudioModel(value) {
+// ----------------------------------------------------------- the last audit
+async function loadLastAudit() {
+  try {
+    audio.last = (await fetchJson("/api/audio/last")).last;
+  } catch (_) {
+    return; // the glance keeps its dashes; Record still works without it
+  }
+  paintLastAudit();
+}
+
+function paintLastAudit() {
+  const date = document.querySelector("#voice-last-date");
+  if (!date) return;
+  const last = audio.last;
+  if (last !== undefined) date.textContent = last ? `Last audit ${shortDate(last.timestamp)}` : "No audit yet";
+  document.querySelector("#voice-last-changed").textContent = last ? String(last.changed) : "–";
+  document.querySelector("#voice-last-unmatched").textContent = last ? String(last.unmatched) : "–";
+}
+
+// ----------------------------------------------------------- the menu sheet
+// The transcript card's menu (#252 decision 8): the match model, and Clear
+// behind a confirm. Built once at <body> level, so it carries its own listeners.
+function transcriptSheet() {
+  return dialogShell(MENU_ID, "Transcript", "Done", (shell) => {
+    shell.classList.add("transcript-sheet");
+    const done = shell.querySelector(".detail-save-btn");
+    done.disabled = false;
+    done.addEventListener("click", () => shell.close());
+    shell.addEventListener("change", (event) => {
+      if (event.target.id === "audio-model") setAudioModel(event.target.value);
+    });
+    shell.addEventListener("click", async (event) => {
+      if (!event.target.closest("#audio-clear")) return;
+      const yes = await confirmSheet({
+        title: "Clear the transcript?",
+        message: "The match results go too. A recording stays saved on the PC.",
+        confirmLabel: "Clear",
+        danger: true,
+      });
+      if (!yes) return;
+      shell.close();
+      clearAudio();
+    });
+    shell.addEventListener("close", () => document.querySelector("#audio-menu")?.focus());
+  });
+}
+
+export function openTranscriptMenu() {
+  const d = transcriptSheet();
+  const audioCfg = state.payload.audio || { models: [] };
+  const options = (audioCfg.models || [])
+    .map((name) => `<option value="${esc(name)}"${name === audio.model ? " selected" : ""}>${html(humanizeModelId(name))}</option>`)
+    .join("");
+  d.querySelector(".stores-dialog-body").innerHTML = `
+    <label class="field-label">Match model
+      <select id="audio-model"${options && !audioAbort ? "" : " disabled"}>${options || `<option>${html(humanizeModelId(audio.model) || "Default model")}</option>`}</select>
+    </label>
+    <button id="audio-clear" class="button-tint danger btn-block" type="button">${icon("trash-2")}Clear transcript</button>`;
+  if (!d.open) d.showModal();
+}
+
+function setAudioModel(value) {
   audio.model = value;
-  renderAudioContext();
+  const label = document.querySelector("#audio-model-label");
+  if (label) label.textContent = humanizeModelId(value);
 }
 
+// ---------------------------------------------------------------- results
 // The Audit header's exception (#254): mentions the match tied to no row at all.
 export function audioUnmatchedCount() {
   if (!audio.matches) return 0;
@@ -217,53 +321,53 @@ export function audioUnmatchedCount() {
   return (audio.matches.unmatched_mentions || []).filter((m) => !Number.isInteger(m.idx) || !ids.has(m.idx)).length;
 }
 
+// A review row's trailing control remembers its state (see `picks`).
+export function rememberAudioPick(node) {
+  const { picks } = audio;
+  if (node.id === "transcript") audio.transcript = node.value;
+  else if (node.dataset.audioIdx) picks.accept[node.dataset.audioIdx] = node.getAttribute("aria-checked") === "true";
+  else if (node.dataset.audioZero) picks.zero[node.dataset.audioZero] = node.getAttribute("aria-checked") === "true";
+  else if (node.dataset.audioCountIdx) picks.counts[node.dataset.audioCountIdx] = node.value;
+  else return;
+  paintApplySummary();
+}
+
+function resetPicks() {
+  audio.picks = { accept: {}, zero: {}, counts: {} };
+}
+
+function group(label, rows) {
+  return `<section class="item-group" aria-label="${esc(label)}">
+      <h3 class="overline item-group-head">${html(label)}</h3>
+      ${itemList(rows)}
+    </section>`;
+}
+
+function trail(markup) {
+  return `<span class="action-row-trail">${markup}</span>`;
+}
+
 function renderMatches() {
   updateHeaders();
   const target = document.querySelector("#match-results");
-  const apply = document.querySelector("#apply-audio");
   if (!target) return;
+  // After a match, Apply is the view's one primary (#252 decision 8).
+  const record = document.querySelector("#record-toggle");
+  if (record) record.className = `${audio.matches ? "button-tint" : "button-primary"} btn-block`;
   if (!audio.matches) {
-    // The placeholder gets its own card so the results area reads as a
-    // surface, not a floating caption.
-    target.innerHTML = `<section class="panel">${emptyStateEl("mic", "No match results yet.").outerHTML}</section>`;
-    if (apply) apply.disabled = true;
+    target.innerHTML = "";
     return;
   }
   const cols = c();
+  const { picks } = audio;
   const clamp = Number(state.payload.audio?.clamp ?? 5);
   const byId = new Map(items().map((item) => [item.id, item]));
   const matched = audio.matches.items.filter((match) => byId.has(match.idx));
-
-  // Group detected items by the zone the speaker was in (fall back to lugar).
-  const byZone = {};
-  matched.forEach((match) => {
-    const item = byId.get(match.idx);
-    const zone = match.zone || item[cols.lugar] || "—";
-    (byZone[zone] ||= []).push(match);
-  });
-
-  const detectedRow = (match) => {
-    const item = byId.get(match.idx);
-    const current = Number(item[cols.tenemos]) || 0;
-    const target = Number(item[cols.cantidad]) || 0;
-    const proposed = Math.min(Number(match.count) || 0, target + clamp);
-    const delta = proposed - current;
-    const deltaTxt = `${delta > 0 ? "+" : ""}${delta}`;
-    const badge = (match.zone && match.zone !== item[cols.lugar]) ? ` <span class="meta">(list: ${html(item[cols.lugar])})</span>` : "";
-    return `<div class="item">
-      <span><strong>${html(item[cols.comida])}</strong>${badge}<span class="meta"> ${html(match.evidence || "")}</span></span>
-      <span class="match-figures"><span class="meta">${current} ${icon("arrow-right")}</span> <strong>${proposed}</strong> <span class="${delta > 0 ? "buy" : "meta"}">${deltaTxt}</span>
-        ${switchMarkup(true, `Accept ${text(item[cols.comida])}`, { "data-audio-idx": match.idx, "data-count": proposed })}</span>
-    </div>`;
-  };
-
-  const zoneSections = Object.keys(byZone).sort().map((zone) =>
-    `<h3>${html(zone)}</h3><div class="grid">${byZone[zone].map(detectedRow).join("")}</div>`,
-  ).join("");
+  const name = (item) => text(item[cols.comida]);
 
   // Mentions the speaker made that resolved to a row but carried no count —
   // either the LLM named the row or src/audit_resolve.py did (issue #132). These
-  // are *named* items: they get their own "type the count" bucket, and they must
+  // are *named* items: they get their own "type the count" row, and they must
   // never reach the zero-list below, which would zero what was just dictated.
   const matchedIdx = new Set(matched.map((m) => m.idx));
   const mentions = audio.matches.unmatched_mentions || [];
@@ -271,9 +375,55 @@ function renderMatches() {
     Number.isInteger(m.idx) && byId.has(m.idx) && !matchedIdx.has(m.idx),
   );
   const namedIdx = new Set([...matchedIdx, ...needCount.map((m) => m.idx)]);
+  // Whatever is left really is unmatched — no row to apply to. Its row opens
+  // Manual searching every zone for what was heard (#259).
+  const stillUnmatched = mentions.filter((m) => !Number.isInteger(m.idx) || !byId.has(m.idx));
 
-  // "Not mentioned in audited zones" — items in a walked zone with target>0 and
-  // current>0 that the speaker didn't name. Tick to zero them.
+  // "Needs you" comes first: typing a number *is* the accept on a count row —
+  // an empty box leaves the row untouched, so a mention resolved wrongly costs
+  // nothing.
+  const needRows = needCount.map((m) => {
+    const item = byId.get(m.idx);
+    const heard = m.phrase && m.phrase.toLowerCase() !== name(item).toLowerCase() ? ` · heard “${m.phrase}”` : "";
+    const value = picks.counts[m.idx] ?? (Number.isInteger(m.approx_count) ? m.approx_count : "");
+    return itemRow({
+      title: item[cols.comida],
+      meta: `Count missing · in stock ${Number(item[cols.tenemos]) || 0}${heard}`,
+      trail: trail(`<input class="field count-input hit-target" type="number" inputmode="numeric" min="0" step="1"
+        value="${esc(value)}" placeholder="?" aria-label="Count for ${esc(name(item))}" data-audio-count-idx="${m.idx}">`),
+      attrs: `data-id="${m.idx}"`,
+    });
+  }).concat(stillUnmatched.map((m) => itemRow({
+    title: `“${m.phrase || "…"}”`,
+    meta: m.note || "No item matched",
+    trail: `<button type="button" class="button-tint action-row-trail voice-find" data-action="audio-find" aria-label="Find “${esc(m.phrase)}” in Manual">Find</button>`,
+    attrs: `data-phrase="${esc(m.phrase)}"`,
+    action: "audio-find",
+  }))).join("");
+
+  // Detected items, grouped by the zone the speaker was in (fall back to lugar).
+  const byZone = {};
+  matched.forEach((match) => {
+    const zone = match.zone || byId.get(match.idx)[cols.lugar] || "—";
+    (byZone[zone] ||= []).push(match);
+  });
+  const detectedRow = (match) => {
+    const item = byId.get(match.idx);
+    const current = Number(item[cols.tenemos]) || 0;
+    const proposed = Math.min(Number(match.count) || 0, (Number(item[cols.cantidad]) || 0) + clamp);
+    const listZone = match.zone && match.zone !== item[cols.lugar] ? ` · list: ${text(item[cols.lugar])}` : "";
+    const evidence = match.evidence ? ` · ${match.evidence}` : "";
+    return itemRow({
+      title: item[cols.comida],
+      meta: `${current} → ${proposed}${listZone}${evidence}`,
+      trail: trail(switchMarkup(picks.accept[match.idx] ?? true, `Accept ${name(item)}`, { "data-audio-idx": match.idx, "data-count": proposed })),
+      attrs: `data-id="${match.idx}"`,
+    });
+  };
+  const zoneGroups = Object.keys(byZone).sort().map((zone) => group(zone, byZone[zone].map(detectedRow).join(""))).join("");
+
+  // "Not mentioned" — items in a walked zone with target>0 and current>0 that
+  // the speaker didn't name. Tick to zero them.
   const zonesMentioned = new Set((audio.matches.zones_mentioned || []).map((z) => String(z).toLowerCase().trim()));
   const unseen = items().filter((item) =>
     !namedIdx.has(item.id)
@@ -281,54 +431,67 @@ function renderMatches() {
     && Number(item[cols.cantidad]) > 0
     && Number(item[cols.tenemos]) > 0,
   );
-  const unseenSection = unseen.length
-    ? `<section class="panel"><h2 class="card-title">${icon("circle-alert")}Not mentioned (in audited zones)</h2>
-      <div class="hint">${unseen.length} item(s) in the zones you walked but didn't name. Tick to set them to 0.</div>
-      <div class="grid">${unseen.map((item) =>
-        `<div class="item"><span><strong>${html(item[cols.comida])}</strong> <span class="meta">(list: ${html(item[cols.lugar])})</span></span>
-          <span class="match-figures"><span class="meta">${Number(item[cols.tenemos])} ${icon("arrow-right")} <strong>0</strong></span>
-            ${switchMarkup(false, `Set ${text(item[cols.comida])} to zero`, { "data-audio-zero": item.id })}</span></div>`,
-      ).join("")}</div></section>`
-    : "";
+  const unseenRows = unseen.map((item) => itemRow({
+    title: item[cols.comida],
+    meta: `Not mentioned · ${Number(item[cols.tenemos])} → 0 · ${text(item[cols.lugar])}`,
+    trail: trail(switchMarkup(picks.zero[item.id] ?? false, `Set ${name(item)} to zero`, { "data-audio-zero": item.id })),
+    attrs: `data-id="${item.id}"`,
+  })).join("");
 
-  // Typing a number *is* the accept action here — an empty box leaves the row
-  // untouched, so a mention we resolved wrongly costs nothing.
-  const needCountSection = needCount.length
-    ? `<section class="panel"><h2 class="card-title">${icon("mic")}Mentioned — count missing</h2>
-      <div class="hint">${needCount.length} item(s) you named without a number we could read. Type the count to apply it; leave blank to skip.</div>
-      <div class="grid">${needCount.map((m) => {
-        const item = byId.get(m.idx);
-        const current = Number(item[cols.tenemos]) || 0;
-        const heard = m.phrase && m.phrase.toLowerCase() !== String(item[cols.comida]).toLowerCase()
-          ? ` <span class="meta">heard “${html(m.phrase)}”</span>` : "";
-        return `<div class="item">
-          <span><strong>${html(item[cols.comida])}</strong> <span class="meta">(list: ${html(item[cols.lugar])})</span>${heard}</span>
-          <span class="match-figures"><span class="meta">${current} ${icon("arrow-right")}</span>
-            <input class="field count-input hit-target" type="number" inputmode="numeric" min="0" step="1"
-              value="${Number.isInteger(m.approx_count) ? m.approx_count : ""}"
-              placeholder="?" aria-label="Count for ${text(item[cols.comida])}" data-audio-count-idx="${m.idx}"></span>
-        </div>`;
-      }).join("")}</div></section>`
-    : "";
+  const needYou = needCount.length + stillUnmatched.length;
+  target.innerHTML = `<section id="voice-results" class="card voice-glance" aria-labelledby="voice-results-title">
+      <div class="card-head">
+        <h2 id="voice-results-title" class="card-title">${icon("circle-check")}Match results</h2>
+        <span class="card-head-meta">${html(humanizeModelId(audio.matches.model))}</span>
+      </div>
+      <ul class="action-rows voice-glance-rows">
+        ${glanceRow("Counts to apply", "voice-apply-count")}
+        ${glanceRow("Needs you", "voice-need-count")}
+      </ul>
+      <button id="apply-audio" class="button-primary btn-block" type="button">Apply</button>
+    </section>
+    ${needRows ? group("Needs you", needRows) : ""}
+    ${zoneGroups || (needRows ? "" : `<section class="card">${emptyStateEl("mic", "No recognised items.").outerHTML}</section>`)}
+    ${unseenRows ? group("Not mentioned", unseenRows) : ""}`;
+  document.querySelector("#voice-need-count").textContent = String(needYou);
+  paintApplySummary();
+}
 
-  // Whatever is left really is unmatched — no row, nothing to apply.
-  const stillUnmatched = mentions.filter((m) => !Number.isInteger(m.idx) || !byId.has(m.idx));
+// What Apply would write, read from the review rows: an accepted match, a
+// ticked zero, a typed count.
+function collectUpdates() {
+  const updates = {};
+  document.querySelectorAll('[data-audio-idx][aria-checked="true"]').forEach((box) => {
+    updates[box.dataset.audioIdx] = Number(box.dataset.count);
+  });
+  document.querySelectorAll('[data-audio-zero][aria-checked="true"]').forEach((box) => {
+    updates[box.dataset.audioZero] = 0;
+  });
+  document.querySelectorAll("[data-audio-count-idx]").forEach((field) => {
+    const value = field.value.trim();
+    if (value === "") return;
+    const count = Number(value);
+    if (Number.isFinite(count) && count >= 0) updates[field.dataset.audioCountIdx] = Math.round(count);
+  });
+  return updates;
+}
 
-  target.innerHTML = `<section class="panel"><h2 class="card-title">${icon("circle-check")}Detected items</h2>${
-    zoneSections || emptyStateEl("mic", "No recognised items.").outerHTML
-  }</section>
-  ${needCountSection}
-  ${unseenSection}
-  ${stillUnmatched.length ? `<section class="panel"><h2 class="card-title">${icon("circle-alert")}Unmatched mentions</h2>${stillUnmatched.map((m) => `<div class="meta">${html(m.phrase)} · ${html(m.note)}</div>`).join("")}</section>` : ""}`;
-  if (apply) apply.disabled = !matched.length && !unseen.length && !needCount.length;
+function paintApplySummary() {
+  const count = document.querySelector("#voice-apply-count");
+  if (!count) return;
+  const n = Object.keys(collectUpdates()).length;
+  count.textContent = String(n);
+  const apply = document.querySelector("#apply-audio");
+  if (apply && !audioAbort) apply.disabled = n === 0;
 }
 
 // Wipe the transcript + match results so the next audit starts from scratch.
-export function clearAudio() {
+function clearAudio() {
   if (audioAbort) audioAbort.abort();
   closeAudioPartialStream();
   audio.transcript = "";
   audio.matches = null;
+  resetPicks();
   audio.bytes = 0;
   audio.sessionId = "";
   audio.bytesSent = 0;
@@ -336,8 +499,62 @@ export function clearAudio() {
   setAudioStatus("Cleared — ready for a new audit", "");
 }
 
+// ------------------------------------------------------------- recording
+// The glance's live strip: a level waveform drawn from the mic stream. No
+// AudioContext (or it refuses) → no waveform; the timer still runs.
+function startWave(stream) {
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  let analyser;
+  try {
+    audio.wave.ctx = new Ctx();
+    analyser = audio.wave.ctx.createAnalyser();
+    analyser.fftSize = 512;
+    audio.wave.ctx.createMediaStreamSource(stream).connect(analyser);
+  } catch (_) {
+    return;
+  }
+  const samples = new Uint8Array(analyser.fftSize);
+  const BARS = 40;
+  const draw = () => {
+    audio.wave.frame = window.requestAnimationFrame(draw);
+    const canvas = document.querySelector("#voice-wave");
+    if (!canvas || !canvas.clientWidth) return;
+    const ratio = window.devicePixelRatio || 1;
+    const w = Math.round(canvas.clientWidth * ratio);
+    const h = Math.round(canvas.clientHeight * ratio);
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+    analyser.getByteTimeDomainData(samples);
+    const g = canvas.getContext("2d");
+    g.clearRect(0, 0, w, h);
+    g.fillStyle = getComputedStyle(canvas).color;
+    const slice = Math.floor(samples.length / BARS);
+    const step = w / BARS;
+    for (let i = 0; i < BARS; i += 1) {
+      let peak = 0;
+      for (let j = i * slice; j < (i + 1) * slice; j += 1) peak = Math.max(peak, Math.abs(samples[j] - 128) / 128);
+      const bar = Math.max(2 * ratio, Math.min(1, peak * 2.5) * h);
+      g.fillRect(i * step + step * 0.2, (h - bar) / 2, step * 0.6, bar);
+    }
+  };
+  draw();
+}
+
+function stopWave() {
+  window.cancelAnimationFrame(audio.wave.frame);
+  audio.wave.ctx?.close().catch(() => {});
+  audio.wave.ctx = null;
+}
+
+function showLive(on) {
+  const live = document.querySelector("#voice-live");
+  if (live) live.hidden = !on;
+}
+
 export async function toggleRecording(button) {
-  if (audio.mediaRecorder && audio.mediaRecorder.state === "recording") {
+  if (isRecording()) {
     button.disabled = true;
     button.textContent = "Finishing…";
     audio.mediaRecorder.stop();
@@ -385,9 +602,12 @@ export async function toggleRecording(button) {
   };
   audio.mediaRecorder.start(1000); // 1 s cadence — survives a connection drop
 
+  showLive(true);
+  startWave(stream);
   startRecordTimer();
   openAudioPartialStream(audio.sessionId);
-  button.textContent = "Stop recording";
+  button.innerHTML = recordLabel(true);
+  setAudioStatus("Say the zone, then each item and its count.");
   const redo = document.querySelector("#audio-redo");
   if (redo) redo.hidden = true;
 }
@@ -417,8 +637,10 @@ function enqueueChunkUpload(chunk) {
 function startRecordTimer() {
   stopRecordTimer();
   const tick = () => {
+    const timer = document.querySelector("#voice-timer");
+    if (!timer) return;
     const elapsed = Math.floor((Date.now() - audio.recordStartedAt) / 1000);
-    setAudioStatus(`Recording · ${formatElapsed(elapsed)} · ${formatBytes(audio.bytesSent)} streamed to PC`);
+    timer.textContent = `${formatElapsed(elapsed)} · ${formatBytes(audio.bytesSent)} saved on the PC`;
   };
   tick();
   audio.recordTimer = window.setInterval(tick, 1000);
@@ -469,8 +691,9 @@ function closeAudioPartialStream() {
 }
 
 async function finishRecording() {
-  const button = document.querySelector("#record-toggle");
   stopRecordTimer();
+  stopWave();
+  showLive(false);
   try {
     setAudioStatus(`Finalising upload · ${audio.pendingUploads} chunk(s) left…`);
     await audio.uploadChain;
@@ -491,10 +714,8 @@ async function finishRecording() {
       audio.transcript = body.transcript || "";
       const field = document.querySelector("#transcript");
       if (field) field.value = audio.transcript;
-      setAudioStatus("Transcript ready — recording saved on the PC", "ok");
+      setAudioStatus("Transcript ready — recording saved on the PC. Match it below.", "ok");
     }
-    const redo = document.querySelector("#audio-redo");
-    if (redo) redo.hidden = !audio.sessionId;
   } catch (error) {
     closeAudioPartialStream();
     if (error.name === "AbortError") {
@@ -502,12 +723,14 @@ async function finishRecording() {
     } else {
       setAudioStatus(`Transcription failed: ${error.message} — recording is safe on the PC, tap Redo`, "error");
     }
+  } finally {
     const redo = document.querySelector("#audio-redo");
     if (redo) redo.hidden = !audio.sessionId;
-  } finally {
+    // Looked up now, not at Stop: a re-render while the take finished made a new one.
+    const button = document.querySelector("#record-toggle");
     if (button) {
       button.disabled = false;
-      button.textContent = "Start recording";
+      button.innerHTML = recordLabel(false);
     }
   }
 }
@@ -550,6 +773,8 @@ export async function matchTranscript() {
     setAudioStatus("The matching service isn't reachable — start local-llm-hub before matching", "error");
     return;
   }
+  // The progress, and then the results, are in and under the glance.
+  document.querySelector("#voice-glance")?.scrollIntoView({ block: "start" });
   const model = audio.model;
   try {
     audio.matches = await runWithTimer(audioMatchStage, (signal) =>
@@ -560,11 +785,9 @@ export async function matchTranscript() {
         signal,
       }),
     );
+    resetPicks();
     const m = audio.matches;
-    setAudioStatus(
-      `Matched ${m.items.length} item${m.items.length === 1 ? "" : "s"} · ${humanizeModelId(m.model)}`,
-      "ok",
-    );
+    setAudioStatus(`Matched ${m.items.length} item${m.items.length === 1 ? "" : "s"} · ${humanizeModelId(m.model)}`, "ok");
     renderMatches();
   } catch (error) {
     if (error.name === "AbortError") setAudioStatus("Match cancelled", "");
@@ -573,20 +796,7 @@ export async function matchTranscript() {
 }
 
 export async function applyAudio() {
-  const updates = {};
-  document.querySelectorAll('[data-audio-idx][aria-checked="true"]').forEach((box) => {
-    updates[box.dataset.audioIdx] = Number(box.dataset.count);
-  });
-  document.querySelectorAll('[data-audio-zero][aria-checked="true"]').forEach((box) => {
-    updates[box.dataset.audioZero] = 0;
-  });
-  // "Mentioned — count missing": a typed number is the accept; blank means skip.
-  document.querySelectorAll("[data-audio-count-idx]").forEach((field) => {
-    const value = field.value.trim();
-    if (value === "") return;
-    const count = Number(value);
-    if (Number.isFinite(count) && count >= 0) updates[field.dataset.audioCountIdx] = Math.round(count);
-  });
+  const updates = collectUpdates();
   if (!Object.keys(updates).length) {
     setAudioStatus("Nothing accepted to apply", "error");
     return;
@@ -608,7 +818,8 @@ export async function applyAudio() {
     });
     const logPath = state.payload.audio_log_path || "";
     audio.matches = null;
-    render();
+    resetPicks();
+    render(); // re-reads the last audit into the glance
     setAudioStatus(logPath ? `Inventory updated · log ${logPath.split(/[\\/]/).pop()}` : "Inventory updated", "ok");
   } catch (error) {
     setAudioStatus(`Apply failed: ${error.message}`, "error");

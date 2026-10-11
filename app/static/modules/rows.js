@@ -13,15 +13,16 @@ import { chip, esc, html, icon } from "./dom.js";
 // hooks. `open: false` keeps the row inert (a free-text quick-add has no item
 // to open). Optional, for Prices (#257): `page`, the item sheet page a row tap
 // opens; `className`, an extra class on the row; `after`, a full-width line
-// under the row (the store reference pills).
-export function itemRow({ title, meta = "", chip: status = null, lead = null, trail = "", attrs = "", open = true, struck = false, page = "", className = "", after = "" }) {
+// under the row (the store reference pills). Optional, for Audit's "Needs
+// you" (#259): `action`, what a row tap does instead of opening the item sheet.
+export function itemRow({ title, meta = "", chip: status = null, lead = null, trail = "", attrs = "", open = true, struck = false, page = "", className = "", after = "", action = "open-item" }) {
   const name = struck ? `<s>${html(title)}</s>` : html(title);
   const metaLine = meta || status
     ? `<span class="action-row-meta">${esc(meta)}${status ? `${meta ? " " : ""}${chip(status.label, status.tone, status.title)}` : ""}</span>`
     : "";
   const body = `<span class="action-row-title">${name}</span>${metaLine}`;
   const main = open
-    ? `<button type="button" class="action-row-main" data-action="open-item"${page ? ` data-sheet-page="${page}"` : ""} aria-haspopup="dialog">${body}</button>`
+    ? `<button type="button" class="action-row-main" data-action="${action}"${page ? ` data-sheet-page="${page}"` : ""}${action === "open-item" ? ' aria-haspopup="dialog"' : ""}>${body}</button>`
     : `<div class="action-row-main">${body}</div>`;
   const check = lead
     ? `<button type="button" class="icon-button action-row-check" data-action="${lead.action}" aria-pressed="${lead.pressed}" aria-label="${esc(lead.label)}">

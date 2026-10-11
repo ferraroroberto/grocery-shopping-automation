@@ -10,11 +10,11 @@ import {
   applyAudio,
   audioUnmatchedCount,
   cancelAudioRequest,
-  clearAudio,
   matchTranscript,
+  openTranscriptMenu,
   redoTranscribe,
+  rememberAudioPick,
   renderAudio,
-  setAudioModel,
   toggleRecording,
 } from "./modules/audio.js";
 import {
@@ -164,6 +164,19 @@ function closeSettings() {
   nav.setTab(settingsReturnTab);
 }
 
+// Voice's "Needs you" → Manual (#259): a mention no item matched opens Manual
+// searching every zone for what was heard, where one stepper tap fixes it.
+// The match results wait on Voice, as they were left.
+function findInManual(phrase) {
+  state.mode = "audit";
+  saveSubMode(state.mode);
+  el.search.value = phrase;
+  state.query = phrase.trim().toLowerCase();
+  render();
+  el.app.scrollTop = 0;
+  window.scrollTo(0, 0);
+}
+
 function onTabChange(tab) {
   // Leaving Settings: its pane is not a nav pane, so the nav never hides it.
   settingsPane.hidden = true;
@@ -227,7 +240,11 @@ el.app.addEventListener("click", (event) => {
   if (!sw) return;
   setSwitch(sw, sw.getAttribute("aria-checked") !== "true");
   if (isEmailControl(sw)) pushEmailMonitorConfig();
+  rememberAudioPick(sw);
 });
+
+// Voice's typed counts and transcript outlive a hop to Manual (audio.js picks).
+el.app.addEventListener("input", (event) => rememberAudioPick(event.target));
 
 el.app.addEventListener("click", async (event) => {
   const zoneButton = event.target.closest("[data-zone]");
@@ -247,6 +264,7 @@ el.app.addEventListener("click", async (event) => {
   // A row tap opens the item sheet (#255), wherever the row is; a Prices row
   // opens it on Stores & prices (#257).
   if (action === "open-item") await openItemSheet(id, event.target.closest("[data-sheet-page]")?.dataset.sheetPage);
+  if (action === "audio-find") findInManual(event.target.closest("[data-phrase]").dataset.phrase);
   if (action === "mark-buy") { state.shopping.bought.add(id); saveShoppingState(); render(); }
   if (action === "undo-buy") { state.shopping.bought.delete(id); saveShoppingState(); render(); }
   // A quick-add's Got it; its Remove lives in the store sheet (#258).
@@ -278,10 +296,6 @@ el.app.addEventListener("submit", async (event) => {
 });
 
 el.app.addEventListener("change", (event) => {
-  if (event.target.id === "audio-model") {
-    setAudioModel(event.target.value);
-    return;
-  }
   if (isEmailControl(event.target)) pushEmailMonitorConfig();
 });
 
@@ -301,7 +315,7 @@ el.app.addEventListener("click", async (event) => {
   if (id === "audio-redo") await redoTranscribe();
   if (id === "match-transcript") await matchTranscript();
   if (id === "apply-audio") await applyAudio();
-  if (id === "audio-clear") clearAudio();
+  if (id === "audio-menu") openTranscriptMenu();
   if (id === "audio-cancel") cancelAudioRequest();
   if (id === "items-add") openAddSheet();
 });

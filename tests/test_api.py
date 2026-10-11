@@ -187,6 +187,16 @@ def test_audio_apply_writes_log(client, temp_env):
     assert log_path and Path(log_path).exists()
 
 
+def test_audio_last_reads_the_log_apply_wrote(client):
+    """The Audit glance (#259): none before the first audit, then the one apply wrote."""
+    assert client.get("/api/audio/last").json() == {"last": None}
+    item_id = client.get("/api/inventory").json()["items"][0]["id"]
+    client.post("/api/audio/apply", json={"updates": {str(item_id): 97}, "matches": {
+        "items": [], "zones_mentioned": [], "unmatched_mentions": [{"phrase": "x", "idx": None}]}})
+    last = client.get("/api/audio/last").json()["last"]
+    assert last["changed"] == 1 and last["unmatched"] == 1 and last["timestamp"]
+
+
 def test_automation_command_preview(client):
     body = client.get("/api/automation/command?store=mercadona&dry_run=false&cart_mode=clean").json()
     assert "run_automation" in body["command"]
