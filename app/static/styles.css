@@ -128,7 +128,7 @@
   --success-text: #56d364;
   --attention-text: #e3b341;
   --danger-text: #ff7b72;   /* danger text on a danger tint/outline — 5.70:1 (COLOR-02) */
-  --input-bg: var(--bg);
+  --input-bg: var(--line-muted);
   --toggle-knob: var(--ink);
   --close-bg: transparent;
   /* Depth on a near-black canvas comes from surface lightness, not shadow. */
