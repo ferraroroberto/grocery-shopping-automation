@@ -1204,7 +1204,7 @@ _DIALOG_CONTROLS_PROBE = r"""(id) => {
     primary: ['--accent-fill', '--accent-fg', '--accent-border-strong'],
     tint: ['--accent-soft', '--accent-text', '--accent-border-soft'],
     surface: ['--card-off', '--muted', '--line'],
-    disabled: ['--card-off', '--muted', '--line'],
+    disabled: ['--input-bg', '--muted', '--line'],
     danger: ['--deficit-soft', '--danger-text', '--deficit-border-soft'],
   };
   const expect = Object.fromEntries(Object.entries(tiers).map(([k, [bg, fg, border]]) =>
