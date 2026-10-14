@@ -42,6 +42,12 @@ class StoreUrlPayload(BaseModel):
     url: str = ""
 
 
+class FallbackPayload(BaseModel):
+    # Both blank clears the fallback (#284).
+    store: str = ""
+    url: str = ""
+
+
 class PickPayload(BaseModel):
     store: str
 
@@ -113,6 +119,14 @@ def set_store_url(item_id: int, payload: StoreUrlPayload) -> dict[str, Any]:
     df = load_inventory_or_error()
     get_row(df, item_id)
     _call(store_links.set_store_url, df, item_id, payload.store, payload.url)
+    return inventory_payload(load_inventory_or_error())
+
+
+@router.put("/api/items/{item_id}/fallback")
+def set_fallback(item_id: int, payload: FallbackPayload) -> dict[str, Any]:
+    df = load_inventory_or_error()
+    get_row(df, item_id)
+    _call(store_links.set_fallback, df, item_id, payload.store, payload.url)
     return inventory_payload(load_inventory_or_error())
 
 

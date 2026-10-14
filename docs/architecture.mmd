@@ -29,6 +29,7 @@ flowchart TB
     JSMODULES --> API
     JSMODULES -->|stores/: /api/stores/* + store-url, what-if picks,
 item sheet's store pages: store-detail / store-override / checked,
+item sheet's fallback page: PUT /api/items/{id}/fallback (#284),
 monthly-cost baseline: set/reset (#183)| ROUTERS
     MW --> API
     API --> ROUTERS

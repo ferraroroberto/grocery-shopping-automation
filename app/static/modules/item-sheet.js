@@ -2,7 +2,8 @@
 // that shows an item (design.md "editor modal", the detail sheet). The main
 // page holds the in-stock and target steppers, then link rows (design.md
 // "settings group": glyph, label, muted value, chevron) to pages of the same
-// sheet — Zone, Store, Buy link, Stores & prices, Quantity check, Name — and
+// sheet — Zone, Store, Buy link, Fallback if short, Stores & prices, Quantity
+// check, Name — and
 // Delete as the in-body danger action behind the confirm sheet.
 //
 // The item's own cells are staged (design.md "dense collection"): Save is the
@@ -15,6 +16,7 @@ import { confirmSheet } from "./confirm.js";
 import { c, render, state } from "./core.js";
 import { esc, icon, pickerMarkup, syncPicker, text } from "./dom.js";
 import { rowLink, stepper } from "./rows.js";
+import { fallbackSummary, onFallbackClick, onFallbackSubmit, paintFallbackPage } from "./fallback.js";
 import { dialogShell, setDialogStatus } from "./stores/dialog.js";
 import { paintList } from "./stores/list.js";
 import { afterReviewChange, closeReview, onReviewClick, onReviewSubmit, openReview, paintQuantity, reviewSummary } from "./stores/review.js";
@@ -33,6 +35,7 @@ const PAGES = [
   { page: "zone", glyph: "map-pin", label: "Zone" },
   { page: "store", glyph: "store", label: "Store" },
   { page: "link", glyph: "link", label: "Buy link" },
+  { page: "fallback", glyph: "package", label: "Fallback if short" },
   { page: "prices", glyph: "tag", label: "Stores & prices" },
   { page: "quantity", glyph: "scale", label: "Quantity check" },
   { page: "name", glyph: "pencil", label: "Name" },
@@ -77,7 +80,7 @@ function dialog() {
     shell.addEventListener("change", onSheetChange);
     shell.addEventListener("submit", (event) => {
       event.preventDefault();
-      onReviewSubmit(event);
+      if (!onFallbackSubmit(event, shell, sheet.id, afterFallbackWrite)) onReviewSubmit(event);
     });
     shell.addEventListener("close", onSheetClose);
   });
@@ -101,6 +104,7 @@ function pagesMarkup() {
     <div class="item-sheet-page" data-page="zone" hidden></div>
     <div class="item-sheet-page" data-page="store" hidden></div>
     <div class="item-sheet-page" data-page="link" hidden></div>
+    <div class="item-sheet-page" data-page="fallback" hidden></div>
     <div class="item-sheet-page" data-page="name" hidden></div>
     <div class="item-sheet-page" data-page="quantity" hidden></div>
     <div class="item-sheet-page" data-page="prices" hidden></div>`;
@@ -191,6 +195,7 @@ function paintValues() {
     zone: { text: value("lugar") },
     store: { text: storeLabel(value("super")) },
     link: buyLinkValue(),
+    fallback: fallbackSummary(item()),
     prices: review.prices,
     quantity: review.quantity,
     name: { text: value("comida") },
@@ -246,15 +251,25 @@ export async function openItemSheet(id, page = "main") {
   setDialogStatus(d, "");
   paintFieldPages();
   paintSteppers();
+  paintFallbackPage(d, item());
   showPage(page);
   if (!d.open) d.showModal();
   if (page !== "main") openPage(page);
   await openReview(id, { dialog: d, value, setDraft, onDetail: paintValues });
+  // The store picker needs the registry names openReview just made sure of.
+  if (sheet.id === id && !d.querySelector("[data-fallback-form]")?.dataset.touched) paintFallbackPage(d, item());
+}
+
+// A fallback write replaced the payload: repaint its page and the link row's value.
+function afterFallbackWrite() {
+  paintFallbackPage(dialog(), item());
+  paintValues();
 }
 
 async function onSheetClick(event) {
   if (await onReviewClick(event)) return;
   const target = event.target;
+  if (onFallbackClick(event, dialog(), sheet.id, afterFallbackWrite)) return;
   const to = target.closest("[data-page-to]");
   if (to) {
     openPage(to.dataset.pageTo);
@@ -277,6 +292,7 @@ async function onSheetClick(event) {
 }
 
 function onSheetInput(event) {
+  event.target.closest("[data-fallback-form]")?.setAttribute("data-touched", "");
   const field = event.target.dataset.sheetField || event.target.closest("[data-picker]")?.querySelector("input[name]")?.name;
   if (field && event.target.matches("input")) setDraft(field, event.target.value);
 }

@@ -18,9 +18,12 @@ from fastapi import HTTPException
 from src.data import (
     COLUMNS,
     CONFIG,
+    FALLBACK_SUPER_COLUMN,
+    FALLBACK_URL_COLUMN,
     InventoryFileError,
     SpreadsheetLockedError,
     cell_text,
+    fallback_pair,
     get_supermarket_stats,
     load_inventory_data,
     save_inventory_data,
@@ -95,6 +98,13 @@ def _records_from_frame(df: pd.DataFrame) -> list[dict[str, Any]]:
             store: kind for store, url in record["urls"].items()
             if (kind := link_kind(store, url)) != "product"
         }
+        # The fallback the cart run would use (#283, #284): the shared rule in
+        # src.data, so the sheet never shows one the run would ignore.
+        pair = fallback_pair(
+            record.get(FALLBACK_SUPER_COLUMN), record.get(FALLBACK_URL_COLUMN),
+            cell_text(record.get(COLUMNS["super"])), record.get(COLUMNS["buscador"]),
+        )
+        record["fallback"] = {"store": pair[0], "url": pair[1], "kind": link_kind(*pair)} if pair else None
     return records
 
 

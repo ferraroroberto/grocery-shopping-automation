@@ -1018,6 +1018,10 @@ a.button-tint[data-open-link-page] {
 .review-edit-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-sm); }
 .review-edit-actions > button { min-height: var(--primary-h); font-size: var(--font-label); }
 .review-edit-status:empty { display: none; }
+/* The item sheet's Fallback if short page (#284): a flat form, no nested card. */
+.fallback-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
+.fallback-form .hint { margin: 0; }
+.fallback-form .field-label :is(.field, .select-native) { font-weight: 400; }
 .review-add { display: grid; gap: var(--space-xs); }
 .review-add-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto; gap: var(--space-sm); }
 @media (max-width: 560px) {
