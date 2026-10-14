@@ -43,7 +43,6 @@
     <link rel="stylesheet" href="/static/_vendored/switch/switch.css" />
     <link rel="stylesheet" href="/static/_vendored/empty-state/empty-state.css" />
     <link rel="stylesheet" href="/static/_vendored/home-head/home-head.css" />
-    <link rel="stylesheet" href="/static/_vendored/range-tab/range-tab.css" />
     <link rel="stylesheet" href="/static/_vendored/text-size/text-size.css" />
     <link rel="stylesheet" href="/static/_vendored/toast/toast.css" />
     <link rel="stylesheet" href="/static/styles.css" />
@@ -308,7 +307,7 @@
              On Items' list the Add item button shares its row (#256). -->
         <section id="toolbar" class="toolbar" aria-label="Inventory search" hidden>
           <input id="search" class="search" type="search" placeholder="Search item, zone, store" aria-label="Search by item, zone or supermarket" autocomplete="off" />
-          <button id="items-add" class="button-tint" type="button" aria-haspopup="dialog" hidden>
+          <button id="items-add" class="button-tint" data-track="items.add-item" type="button" aria-haspopup="dialog" hidden>
             <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg>
             Add item
           </button>
@@ -364,11 +363,11 @@
             <!-- Vendored text-size control (text-size/text-size.html); bound in
                  app.js with the grocery storage prefix. The raised segment is
                  the value. -->
-            <nav class="range-tabs" id="textSizeControl" aria-labelledby="text-size-title">
-              <button type="button" class="range-tab" data-textsize="small">Small</button>
-              <button type="button" class="range-tab" data-textsize="default">Default</button>
-              <button type="button" class="range-tab" data-textsize="large">Large</button>
-            </nav>
+            <div class="segmented" id="textSizeControl" role="group" aria-labelledby="text-size-title">
+              <button type="button" class="segmented-item" aria-pressed="false" data-textsize="small" data-track="settings.text-small">Small</button>
+              <button type="button" class="segmented-item" aria-pressed="true" data-textsize="default" data-track="settings.text-default">Default</button>
+              <button type="button" class="segmented-item" aria-pressed="false" data-textsize="large" data-track="settings.text-large">Large</button>
+            </div>
           </div>
         </section>
         <section class="settings-group" aria-labelledby="settings-stores">
@@ -376,7 +375,7 @@
           <div class="card action-list">
             <ul class="action-rows">
               <li class="action-row">
-                <button id="open-store-logins" type="button" class="action-row-main sheet-link" aria-haspopup="dialog">
+                <button id="open-store-logins" data-track="settings.store-logins" type="button" class="action-row-main sheet-link" aria-haspopup="dialog">
                   <svg class="icon sheet-link-icon" aria-hidden="true" focusable="false"><use href="#i-log-in"></use></svg>
                   <span class="action-row-title">Store logins</span>
                   <span class="sheet-link-value" id="store-logins-value"></span>
@@ -384,7 +383,7 @@
                 </button>
               </li>
               <li class="action-row">
-                <button id="open-email-watch" type="button" class="action-row-main sheet-link" aria-haspopup="dialog">
+                <button id="open-email-watch" data-track="settings.email-watch" type="button" class="action-row-main sheet-link" aria-haspopup="dialog">
                   <svg class="icon sheet-link-icon" aria-hidden="true" focusable="false"><use href="#i-mail"></use></svg>
                   <span class="action-row-title">Email watch</span>
                   <span class="sheet-link-value" id="email-watch-value"></span>
@@ -399,21 +398,21 @@
           <div class="card action-list">
             <ul class="action-rows">
               <li class="action-row">
-                <button id="open-sheet" type="button" class="action-row-main sheet-link">
+                <button id="open-sheet" data-track="settings.open-spreadsheet" type="button" class="action-row-main sheet-link">
                   <svg class="icon sheet-link-icon" aria-hidden="true" focusable="false"><use href="#i-external-link"></use></svg>
                   <span class="action-row-title">Open spreadsheet</span>
                   <span class="sheet-link-value">On the computer</span>
                 </button>
               </li>
               <li class="action-row">
-                <button id="copy-link" type="button" class="action-row-main sheet-link">
+                <button id="copy-link" data-track="settings.copy-link" type="button" class="action-row-main sheet-link">
                   <svg class="icon sheet-link-icon" aria-hidden="true" focusable="false"><use href="#i-link"></use></svg>
                   <span class="action-row-title">Copy link</span>
                   <span class="sheet-link-value" id="copy-link-value"></span>
                 </button>
               </li>
               <li class="action-row">
-                <button id="export-csv" type="button" class="action-row-main sheet-link">
+                <button id="export-csv" data-track="settings.export-csv" type="button" class="action-row-main sheet-link">
                   <svg class="icon sheet-link-icon" aria-hidden="true" focusable="false"><use href="#i-download"></use></svg>
                   <span class="action-row-title">Export CSV</span>
                   <span class="sheet-link-value" id="export-csv-value"></span>
@@ -439,7 +438,7 @@
     <dialog id="login-dialog" class="detail-dialog">
       <div class="detail-card">
         <div class="detail-header">
-          <h2>Unlock Grocery</h2>
+          <h2 tabindex="-1" autofocus>Unlock Grocery</h2>
           <button type="button" class="icon-button detail-close" aria-label="Close" disabled title="Sign-in is required">
             <svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg>
           </button>

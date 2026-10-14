@@ -30,7 +30,7 @@ function host() {
 
 function weekRow({ key, mode, glyph, label }) {
   return `<li class="action-row">
-      <button type="button" class="action-row-main sheet-link" data-goto="${mode}">
+      <button type="button" class="action-row-main sheet-link" data-track="home.goto-${mode}" data-goto="${mode}">
         ${icon(glyph, "sheet-link-icon")}
         <span class="action-row-title">${label}</span>
         <span class="sheet-link-value" id="week-${key}">–</span>

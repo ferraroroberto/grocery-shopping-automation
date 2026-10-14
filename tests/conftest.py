@@ -8,14 +8,25 @@ dir, so tests never read or write the real grocery spreadsheet, the real
 
 from __future__ import annotations
 
+import os
 import shutil
+import tempfile
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
-import src.data as data
-from app.api import app
+# The usage log (#276) resolves its SQLite path when app.api is imported, so the
+# redirect must come first: a test run (the e2e's page loads included) never
+# writes the owner's real usage.sqlite3. Idempotent, because tests also import
+# this file as `tests.conftest` (a second import must keep the first one's dir,
+# the one the already-imported router holds).
+_USAGE_DIR_ENV = "GROCERY_SHOPPING_AUTOMATION_DATA_DIR"
+if not Path(os.environ.get(_USAGE_DIR_ENV, "")).name.startswith("grocery-usage-"):
+    os.environ[_USAGE_DIR_ENV] = tempfile.mkdtemp(prefix="grocery-usage-")
+
+import src.data as data  # noqa: E402
+from app.api import app  # noqa: E402
 from src.inventory_extract import ExtractionResult
 
 REPO_ROOT = Path(__file__).resolve().parent.parent

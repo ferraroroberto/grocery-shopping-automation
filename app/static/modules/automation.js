@@ -142,13 +142,13 @@ export function renderFillCarts({ force = false } = {}) {
       <div id="automation-elapsed" class="panel-status" role="status"></div>
       <pre id="automation-summary" class="log" hidden></pre>
       <div class="carts-actions">
-        <button id="automation-start" class="button-primary btn-block" type="button"></button>
-        <button id="automation-stop" class="button-tint danger btn-block" type="button" hidden>${icon("square")}Stop</button>
+        <button id="automation-start" data-track="shop.fill-carts" class="button-primary btn-block" type="button"></button>
+        <button id="automation-stop" data-track="shop.stop" class="button-tint danger btn-block" type="button" hidden>${icon("square")}Stop</button>
         <button id="automation-dismiss" class="button-surface btn-block" type="button" hidden>Dismiss</button>
       </div>
       <p id="automation-blocked" class="panel-status warn" hidden>Clean cart needs your OK in Options.</p>
       <ul class="action-rows carts-glance-foot"><li class="action-row">
-        <button id="automation-options" type="button" class="action-row-main sheet-link" aria-haspopup="dialog">
+        <button id="automation-options" data-track="shop.fill-options" type="button" class="action-row-main sheet-link" aria-haspopup="dialog">
           ${icon("sliders-horizontal", "sheet-link-icon")}
           <span class="action-row-title">Options</span>
           <span class="sheet-link-value" id="automation-options-value"></span>

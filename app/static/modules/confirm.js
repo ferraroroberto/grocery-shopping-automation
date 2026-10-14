@@ -16,7 +16,7 @@ function sheet() {
   dialog.setAttribute("aria-labelledby", `${ID}-title`);
   dialog.innerHTML = `<div class="detail-card">
       <div class="detail-header">
-        <h2 id="${ID}-title"></h2>
+        <h2 id="${ID}-title" tabindex="-1" autofocus></h2>
         <button type="button" class="icon-button detail-close" aria-label="Close" data-confirm="no">${icon("x")}</button>
       </div>
       <p class="confirm-message"></p>

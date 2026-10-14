@@ -96,7 +96,7 @@ function pagesMarkup() {
       <div class="item-sheet-qty" data-sheet-qty="tenemos"><span class="item-sheet-label">In stock</span></div>
       <div class="item-sheet-qty" data-sheet-qty="cantidad"><span class="item-sheet-label">Target</span></div>
       <ul class="action-rows item-sheet-links">${links}</ul>
-      <button type="button" class="button-tint danger item-sheet-delete" data-sheet-delete>${icon("trash-2")}Delete item</button>
+      <button type="button" class="button-tint danger item-sheet-delete" data-track="item.delete" data-sheet-delete>${icon("trash-2")}Delete item</button>
     </div>
     <div class="item-sheet-page" data-page="zone" hidden></div>
     <div class="item-sheet-page" data-page="store" hidden></div>

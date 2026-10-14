@@ -58,12 +58,12 @@ export function renderSearch() {
     <h3 class="card-title">${icon("search")}Find a store product</h3>
     <div class="hint">Say or type a product in Spanish to search Mercadona and Carrefour.</div>
     <div class="search-bar">
-      <button id="search-record" class="icon-button${s.recording ? " recording" : ""}" type="button" aria-pressed="${s.recording}" aria-label="Dictate a product" title="Dictate">
+      <button id="search-record" data-track="add.search-mic" class="icon-button${s.recording ? " recording" : ""}" type="button" aria-pressed="${s.recording}" aria-label="Dictate a product" title="Dictate">
         ${icon("mic")}
       </button>
       <input id="search-term" class="search-term" type="search" enterkeyhint="search" autocomplete="off"
              aria-label="Product to search" placeholder="e.g. sandía" value="${esc(s.term)}"${s.running ? " disabled" : ""} />
-      <button id="search-run" class="big-btn"${s.running ? " disabled" : ""} type="button">
+      <button id="search-run" data-track="add.search-run" class="big-btn"${s.running ? " disabled" : ""} type="button">
         ${icon("search")}Search
       </button>
     </div>

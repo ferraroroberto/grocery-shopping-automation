@@ -116,7 +116,7 @@ function addRow(label) {
 function optionsRow(offset) {
   const already = Number(offset.items || 0);
   return `<li class="action-row">
-      <button type="button" class="action-row-main sheet-link" data-store-sheet aria-haspopup="dialog">
+      <button type="button" class="action-row-main sheet-link" data-track="shop.store-options" data-store-sheet aria-haspopup="dialog">
         ${icon("sliders-horizontal", "sheet-link-icon")}
         <span class="action-row-title">Store options</span>
         <span class="sheet-link-value">${already ? `${already} already in cart` : ""}</span>

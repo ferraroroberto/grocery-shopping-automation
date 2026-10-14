@@ -4,6 +4,7 @@
 import { initNavTabs } from "./_vendored/nav/nav-tabs.js";
 import { setSwitch } from "./_vendored/switch/switch.js";
 import { bindTextSize } from "./_vendored/text-size/text-size.js";
+import { initUsageLog } from "./_vendored/usage-log/usage-log.js";
 import { fetchVersion, loadInventory, mutate, onLoginSubmit } from "./modules/api.js";
 import {
   applyAudio,
@@ -40,6 +41,7 @@ import {
   setHeaderUpdater,
   setRenderer,
   state,
+  storedToken,
   TAB_KEY,
   THEME_KEY,
 } from "./modules/core.js";
@@ -148,6 +150,21 @@ const settingsPane = document.querySelector("#pane-settings");
 let nav = null;
 let settingsReturnTab = "inventory";
 
+// Local usage log (#276, vendored usage-log): which views and `data-track`
+// controls get used, on which device class — posted to this app's own origin
+// only. The API sits behind the bearer token off loopback, so the token rides
+// as a header (never a wrapped fetch). Nothing but constant ids is recorded.
+const usage = initUsageLog({
+  headers: () => {
+    const token = storedToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  },
+});
+
+// A segment is its own view id (the tab id alone would say "Audit" for both
+// Voice and Manual): <tab>:<segment>, constants — never derived from data.
+const SEGMENT_VIEW = { audio: "audit:voice", audit: "audit:manual", list: "items:list", stores: "items:prices" };
+
 function openSettings() {
   settingsReturnTab = nav.getTab();
   state.mode = "settings";
@@ -158,6 +175,7 @@ function openSettings() {
   });
   el.app.scrollTop = 0;
   window.scrollTo(0, 0);
+  usage.trackView("settings");
   render();
 }
 
@@ -179,6 +197,7 @@ function findInManual(phrase) {
 }
 
 function onTabChange(tab) {
+  usage.trackView(tab);
   // Leaving Settings: its pane is not a nav pane, so the nav never hides it.
   settingsPane.hidden = true;
   if (MODE_TO_TAB[state.mode] !== tab) state.mode = restoreSubMode(tab);
@@ -228,6 +247,7 @@ el.app.addEventListener("click", (event) => {
   if (!button) return;
   state.mode = button.dataset.mode;
   saveSubMode(state.mode);
+  usage.trackView(SEGMENT_VIEW[state.mode]);
   render();
 });
 

@@ -5,7 +5,8 @@
 // modules each own theirs. What is left is genuinely app-wide: the loaded
 // inventory payload, the active mode/zone/query, and the shopping progress
 // (read by both the shopping view and its store sheet).
-import { esc, icon, text } from "./dom.js";
+import { renderHeadStatus } from "../_vendored/home-head/home-head.js";
+import { icon, text } from "./dom.js";
 
 export const TOKEN_KEY = "grocery.authToken";
 export const SHOP_STATE_KEY = "grocery.shoppingState";
@@ -99,14 +100,14 @@ function pageHeaderHtml({ icon: iconName, title, contextId, context, themeToggle
         ${title}
       </h1>
       ${contextId ? `<span id="${contextId}" class="status" role="status">${context || ""}</span>` : ""}
-      <button ${themeToggleId ? `id="${themeToggleId}" ` : ""}class="icon-button home-toggle theme-toggle" type="button"
+      <button ${themeToggleId ? `id="${themeToggleId}" ` : ""}class="icon-button home-toggle theme-toggle" data-track="header.theme" type="button"
               title="Toggle theme" aria-label="Toggle dark mode">
         <!-- Sprite moon + sun; CSS shows the glyph for the *action* keyed
              on html[data-theme]. -->
         ${icon("moon", "theme-icon-moon")}
         ${icon("sun", "theme-icon-sun")}
       </button>
-      <button class="icon-button home-toggle home-settings" type="button" title="Settings" aria-label="Settings">
+      <button class="icon-button home-toggle home-settings" data-track="header.settings" type="button" title="Settings" aria-label="Settings">
         ${icon("settings")}
       </button>
     </div>`;
@@ -157,17 +158,16 @@ export function updateHeaders() {
 
 // One page-header context line (design.md "page header"): the exceptions that
 // apply, each in its tone's text colour (at most two, so a 390px header never
-// cuts the part that matters), else the plain fallback in muted.
+// cuts the part that matters), else the plain fallback in muted — rendered by
+// the vendored home-head's renderHeadStatus, which sorts danger first.
 // `exceptions` is [[count, noun, tone], ...] — noun a word, or [one, many] when
 // it agrees with the count; a zero count is not an exception.
 export function setContextLine(selector, exceptions, fallback) {
-  const node = document.querySelector(selector);
-  if (!node) return;
   const word = (noun, count) => (Array.isArray(noun) ? noun[count === 1 ? 0 : 1] : noun);
-  const parts = exceptions.filter(([count]) => count > 0).slice(0, 2);
-  node.innerHTML = parts.length
-    ? parts.map(([count, noun, tone]) => `<span class="status-part" data-tone="${tone}">${count} ${esc(word(noun, count))}</span>`).join(" · ")
-    : esc(fallback);
+  const parts = exceptions
+    .filter(([count]) => count > 0)
+    .map(([count, noun, tone]) => ({ text: `${count} ${word(noun, count)}`, tone }));
+  renderHeadStatus(document.querySelector(selector), parts, fallback);
 }
 
 // The pane body a mode renders into (each tab's <section class="pane"> holds

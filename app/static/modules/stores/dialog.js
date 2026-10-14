@@ -12,12 +12,12 @@ export function dialogShell(id, title, saveLabel, init) {
   dialog.setAttribute("aria-labelledby", `${id}-title`);
   dialog.innerHTML = `<div class="detail-card">
       <div class="detail-header">
-        <h2 id="${id}-title">${esc(title)}</h2>
+        <h2 id="${id}-title" tabindex="-1" autofocus>${esc(title)}</h2>
         <button type="button" class="icon-button detail-close" aria-label="Close" data-dialog-close>${icon("x")}</button>
       </div>
       <div class="stores-dialog-body"></div>
       <div class="panel-status error stores-dialog-status" role="status"></div>
-      <div class="detail-actions"><button type="button" class="button-primary detail-save-btn" disabled>${esc(saveLabel)}</button></div>
+      <div class="detail-actions"><button type="button" class="button-primary detail-save-btn" data-track="${id}.save" disabled>${esc(saveLabel)}</button></div>
     </div>`;
   dialog.querySelector("[data-dialog-close]").addEventListener("click", () => dialog.close());
   init?.(dialog);

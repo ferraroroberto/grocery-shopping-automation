@@ -1190,7 +1190,7 @@ def test_stores_plan_simulate_and_apply(page, server):
 # against the vendored recipes (#207: select-native/, button/, modal/), with
 # the expected values resolved from the theme's own tokens -- never hard-coded.
 # A button must match one button.css tier (or the shared disabled recipe; a
-# .danger one, the destructive tint); glyph-only controls (.icon-button),
+# .danger one, the outlined destructive recipe: transparent fill); glyph-only controls (.icon-button),
 # switches and list rows (.action-row-main, the item sheet's link rows) are out
 # of scope; the x close is only checked for being unpainted.
 _DIALOG_CONTROLS_PROBE = r"""(id) => {
@@ -1203,12 +1203,14 @@ _DIALOG_CONTROLS_PROBE = r"""(id) => {
   const tiers = {
     primary: ['--accent-fill', '--accent-fg', '--accent-border-strong'],
     tint: ['--accent-soft', '--accent-text', '--accent-border-soft'],
-    surface: ['--card-off', '--muted', '--line'],
+    surface: ['--input-bg', document.documentElement.dataset.theme === 'dark' ? '--ink' : '--muted', '--line'],
     disabled: ['--input-bg', '--muted', '--line'],
-    danger: ['--deficit-soft', '--danger-text', '--deficit-border-soft'],
+    danger: ['--card', '--danger-text', '--deficit'],
   };
   const expect = Object.fromEntries(Object.entries(tiers).map(([k, [bg, fg, border]]) =>
     [k, { bg: color(bg), fg: color(fg), border: color(border) }]));
+  // Outlined (project-scaffolding#379): a transparent fill, never a tint or a solid.
+  expect.danger.bg = 'rgba(0, 0, 0, 0)';
   const radius = len('--radius-md'), controlH = len('--control-h'), fieldH = len('--field-h'), primaryH = len('--primary-h');
   const field = { bg: color('--input-bg'), border: color('--control-border') };
   probe.remove();
@@ -1700,3 +1702,39 @@ def test_every_tab_opens_on_a_heading_not_a_control(page, mode, tab):
     page.wait_for_timeout(300)
     first = page.evaluate(_FIRST_AFTER_HEADER_JS, tab)
     assert first and first.startswith("h2:"), f"{tab} opens on {first}"
+
+
+@pytest.mark.e2e
+def test_usage_log_records_views_and_tapped_controls(page, server):
+    """#276: the vendored usage log posts view and tap events, constant ids
+    only, to this app's own origin -- and nothing else leaves the page. Driven
+    through the real UI (tabs, a segment, Settings, a tracked control), flushed
+    the way a page hide flushes, and read back through the summary route."""
+    sent: list[str] = []
+    page.on("request", lambda r: sent.append(r.post_data or "") if "/api/usage/events" in r.url else None)
+    off_origin: list[str] = []
+    page.on("request", lambda r: off_origin.append(r.url) if "usage" in r.url and not r.url.startswith(server.url) else None)
+
+    page.click("[data-tab='shopping']")
+    page.click("[data-tab='items']")
+    page.locator(".subnav [data-mode='stores']").click()
+    goto_mode(page, "settings")
+    page.locator("#pane-settings [data-textsize='default']").click()
+    page.evaluate("""() => {
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    }""")
+    for _ in range(50):
+        summary = page.request.get(f"{server.url}/api/usage/summary?days=1").json()
+        if "settings" in summary["views"] and "settings.text-default" in summary["controls"]:
+            break
+        page.wait_for_timeout(100)
+    else:
+        raise AssertionError(f"events never arrived: {summary}")
+
+    assert {"shopping", "items", "items:prices", "settings"} <= set(summary["views"]), summary["views"]
+    assert summary["controls"]["settings.text-default"] >= 1
+    assert off_origin == [], f"usage events left the app's origin: {off_origin}"
+    payload = " ".join(sent)
+    assert "Authorization" not in payload and "burguer" not in payload.lower(), "only ids, classes and a session id are posted"
+    assert page._js_errors == [], f"JS errors: {page._js_errors}"
