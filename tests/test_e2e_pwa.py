@@ -421,8 +421,16 @@ def test_four_tab_nav_and_relocated_sections(page, pw, server):
     store_sheet.locator("[data-action='offset-items']").fill("2")
     store_sheet.locator("[data-action='offset-items']").dispatch_event("change")
     assert group.locator("[data-store-sheet] .sheet-link-value").inner_text() == "2 already in cart"
+    # No Remove at rest (COMP-15); the Edit toggle in the Added here header
+    # reveals it, and removing the last quick-add leaves edit mode.
+    assert store_sheet.locator("[data-action='remove-extra']").count() == 0
+    edit = store_sheet.locator("[data-action='edit-extras']")
+    assert edit.get_attribute("aria-pressed") == "false"
+    edit.click()
+    assert edit.get_attribute("aria-pressed") == "true"
     store_sheet.locator("[data-action='remove-extra']").click()
     extra.wait_for(state="detached")
+    assert store_sheet.locator("[data-action='edit-extras']").count() == 0
     store_sheet.locator("[data-store-unmark]").click()
     group.locator("[data-action='undo-buy']").wait_for(state="detached")
     page.keyboard.press("Escape")
