@@ -32,7 +32,7 @@ Household grocery inventory + shopping list web app, backed by an Excel file. Pr
 
 ## CI expectations
 - Workflow `.github/workflows/ci.yml`, job `gate`, on every PR and every push to `main`. **Advisory, not required** (no branch protection) — the local gate is the contract: `& .\.venv\Scripts\python.exe -m pytest` (unit + e2e; there is no `scripts/verify-before-ship.ps1`).
-- Typical green: **~[N] min**. Investigate at **>[2N] min**; treat as wedged at **>30 min** (`timeout-minutes: 30`).
+- Typical green: **~4 min**. Investigate at **>8 min**; treat as wedged at **>16 min** (`timeout-minutes: 16`).
 - Flaky leg: the e2e step's WebKit iPhone 13 check (`test_four_tab_nav_and_relocated_sections`) can wedge on the hosted runner. A wedge is a flake, not the diff.
 - CI's only signal beyond the local gate is a clean machine (fresh `.venv` from `requirements.txt`, only the committed `config/*.sample.*` seeded) plus the e2e suite on the hosted runner. Its e2e surface = `app/static/`, `app/api.py`, `app/routers/`, `app/middleware.py`, `src/`, `tests/test_e2e_pwa.py`, `tests/e2e/`, `tests/conftest.py`. A diff touching **none** of these gains nothing from CI.
 - Tests never read live state (Gmail config, processed state, the real spreadsheet); the `smoke_*.py` / `automation_smoke_*.py` scripts drive real stores and stay out of CI.

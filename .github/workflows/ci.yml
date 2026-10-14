@@ -47,7 +47,7 @@ jobs:
     # Cap a wedge: GitHub's default is 6 h. The WebKit/phone leg is the part
     # that can hang on the slower hosted runner; a wedge is a flake, not the
     # diff. Set to ~4x the typical green run.
-    timeout-minutes: 30            # ADAPT: ~4x this repo's typical green
+    timeout-minutes: 16            # ADAPT: ~4x this repo's typical green
     steps:
       - uses: actions/checkout@v6
 
