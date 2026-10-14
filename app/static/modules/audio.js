@@ -406,7 +406,7 @@ function renderMatches() {
   }).concat(stillUnmatched.map((m) => itemRow({
     title: `“${m.phrase || "…"}”`,
     meta: m.note || "No item matched",
-    trail: `<button type="button" class="button-tint action-row-trail voice-find" data-action="audio-find" aria-label="Find “${esc(m.phrase)}” in Manual">Find</button>`,
+    trail: `<button type="button" class="icon-button action-row-verb action-row-trail voice-find" data-action="audio-find" aria-label="Find “${esc(m.phrase)}” in Manual" title="Find “${esc(m.phrase)}” in Manual">${icon("search")}</button>`,
     attrs: `data-phrase="${esc(m.phrase)}"`,
     action: "audio-find",
   }))).join("");

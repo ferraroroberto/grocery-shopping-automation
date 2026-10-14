@@ -878,7 +878,25 @@ def test_audio_match_and_apply_writes_log(page, server):
     assert page.locator("#voice-apply-count").inner_text() == "0"
 
     # Tap 1: Find -> Manual, searching every zone for what was heard.
-    groups.first.locator(".item-row", has_text=UNMATCHED_PHRASE).locator(".voice-find").click()
+    # The verb is a plain icon-button (fleet-config#1420): a glyph with a name
+    # and a tooltip, no fill and no border at rest, a real 44px target.
+    find = groups.first.locator(".item-row", has_text=UNMATCHED_PHRASE).locator(".voice-find")
+    assert find.inner_text().strip() == ""
+    assert UNMATCHED_PHRASE in find.get_attribute("aria-label")
+    assert find.get_attribute("title") == find.get_attribute("aria-label")
+    for theme in ("light", "dark"):
+        page.evaluate("t => document.documentElement.setAttribute('data-theme', t)", theme)
+        for width, height in ((390, 844), (1280, 900)):
+            page.set_viewport_size({"width": width, "height": height})
+            paint = find.evaluate(
+                "el => { const s = getComputedStyle(el); const r = el.getBoundingClientRect();"
+                " return {bg: s.backgroundColor, border: s.borderTopWidth, w: r.width, h: r.height}; }")
+            where = f"{theme} {width}px"
+            assert paint["bg"] == "rgba(0, 0, 0, 0)" and paint["border"] == "0px", where
+            assert paint["w"] >= 44 and paint["h"] >= 44, where
+    page.evaluate("() => document.documentElement.setAttribute('data-theme', 'light')")
+    page.set_viewport_size({"width": 1100, "height": 950})
+    find.click()
     assert page.locator("#pane-audit [data-mode='audit']").get_attribute("aria-pressed") == "true"
     assert page.input_value("#search") == UNMATCHED_PHRASE
     rows = page.locator("#pane-audit .item-row")
