@@ -1116,6 +1116,8 @@ a.button-tint[data-open-link-page] {
 .fill-options .flag-row { min-height: var(--row-sm); justify-content: space-between; }
 .fill-options .panel-status[hidden] { display: none; }
 .fill-plan, .store-sheet-section, .sheet-section { display: grid; gap: var(--space-sm); }
+.store-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
+.store-sheet-head .icon-button { --icon-btn-box: var(--row-sm); }
 .fill-plan .hint, .sheet-section .meta, .email-sheet .hint { margin: 0; }
 
 /* ------------------------------------------------------- Settings (#261) */
