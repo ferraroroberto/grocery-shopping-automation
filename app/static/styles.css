@@ -1078,8 +1078,6 @@ a.button-tint[data-open-link-page] {
 /* The results area holds nothing until a match: no gap slot in the pane. */
 .voice-results { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
 .voice-results:empty { display: none; }
-/* "Needs you": Find, the row's one verb, at real 44px geometry. */
-.voice-find { min-height: var(--row-sm); padding: 0 var(--space-md); }
 /* The transcript card's head: title, the match model, the menu. */
 .voice-model { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .voice-transcript .card-head .icon-button { flex: none; margin-block: calc(-1 * var(--space-xs)); }
