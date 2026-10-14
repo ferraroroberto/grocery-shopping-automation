@@ -263,7 +263,7 @@ def browser(pw, server):
 
 
 @pytest.fixture()
-def page(browser, server):
+def page(browser, server, request):
     pg = browser.new_page(viewport={"width": 1100, "height": 950})
     errors: list[str] = []
     pg.on("pageerror", lambda exc: errors.append(str(exc)))
@@ -272,6 +272,12 @@ def page(browser, server):
     pg.wait_for_selector("[data-tab='audit']")
     pg.wait_for_function(LOADED_JS)
     yield pg
+    # CI uploads test-results/ when the job fails (.github/workflows/ci.yml).
+    failed = getattr(request.node, "rep_call", None)
+    if failed is not None and failed.failed and not pg.is_closed():
+        out = REPO_ROOT / "test-results"
+        out.mkdir(exist_ok=True)
+        pg.screenshot(path=str(out / f"{request.node.name}.png"))
     pg.close()
 
 

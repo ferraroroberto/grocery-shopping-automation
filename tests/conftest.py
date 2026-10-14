@@ -33,6 +33,13 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE = REPO_ROOT / "tests" / "list_test_fixture.xlsx"
 
 
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """Keep each phase's report on the item so a fixture can tell, at teardown, that its test failed."""
+    report = (yield).get_result()
+    setattr(item, f"rep_{report.when}", report)
+
+
 @pytest.fixture(autouse=True)
 def no_cart_run_notifications(monkeypatch):
     """The cart run never messages anyone from a test — its notifier is always off."""
