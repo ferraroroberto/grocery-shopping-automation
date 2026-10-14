@@ -712,6 +712,87 @@ def test_item_sheet_opens_everywhere_edits_and_deletes(page, server):
 
 
 @pytest.mark.e2e
+def test_item_sheet_sets_and_clears_a_fallback(page, server):
+    """The item sheet's Fallback if short page (#284): pick a store and paste a
+    product link, Save fallback writes both cells at once, a link that is not a
+    product page is flagged, and Clear fallback (a plain action in the page, no
+    trailing remove on the row) blanks both. Esc leaves an unsaved form unwritten."""
+    name = "zzz e2e fallback"
+    created = page.request.post(
+        f"{server.url}/api/items",
+        data={"super": "mercadona", "lugar": "nevera", "comida": name, "cantidad": 2, "tenemos": 0, "buscador": ""},
+    )
+    assert created.ok, created.text()
+    page.reload()
+    page.wait_for_selector("[data-tab='audit']")
+    product = "https://www.carrefour.es/supermercado/fixture-pavo/R-FIX-pavo/p"
+    search = "https://www.carrefour.es/search?q=pavo"
+
+    def record():
+        payload = page.request.get(f"{server.url}/api/inventory").json()
+        cols = payload["columns"]
+        return next(i for i in payload["items"] if i[cols["comida"]] == name)
+
+    sheet = _open_sheet_from(page, "list", name)
+    value = sheet.locator("[data-link-value='fallback']")
+    assert value.inner_text() == "None"
+    # A link row like the others: no trailing icon button on it (the row-verb rule).
+    assert sheet.locator("[data-page-to='fallback']").locator("xpath=..").locator(".icon-button").count() == 0
+    sheet.locator("[data-page-to='fallback']").click()
+    form = sheet.locator("[data-page='fallback'] [data-fallback-form]")
+    assert form.locator("[data-fallback-clear]").count() == 0  # nothing to clear yet
+
+    # Unsaved typing is dropped with the sheet: nothing is written.
+    form.locator("[data-fallback-url]").fill(product)
+    page.keyboard.press("Escape")
+    sheet.wait_for(state="hidden")
+    assert record()["fallback"] is None
+
+    sheet = _open_sheet_from(page, "list", name)
+    sheet.locator("[data-page-to='fallback']").click()
+    form = sheet.locator("[data-page='fallback'] [data-fallback-form]")
+    form.locator("[data-fallback-store]").select_option("carrefour")
+    form.locator("[data-fallback-url]").fill(product)
+    with page.expect_response(lambda r: r.request.method == "PUT" and r.url.endswith("/fallback")) as resp:
+        form.get_by_role("button", name="Save fallback").click()
+    assert resp.value.request.post_data_json == {"store": "carrefour", "url": product}
+    assert resp.value.ok
+    saved = record()
+    assert saved["fallback"] == {"store": "carrefour", "url": product, "kind": "product"}
+    assert (saved["fallback_super"], saved["fallback_url"]) == ("carrefour", product)
+    assert "Fallback saved" in sheet.locator(".stores-dialog-status").inner_text()
+    assert "Carrefour" in value.inner_text() and value.get_attribute("data-tone") is None
+    assert sheet.locator("[data-page='fallback'] .review-warn").count() == 0
+
+    # A search page is saved as typed but flagged, never posed as a product link.
+    form = sheet.locator("[data-page='fallback'] [data-fallback-form]")
+    form.locator("[data-fallback-url]").fill(search)
+    form.get_by_role("button", name="Save fallback").click()
+    flag = sheet.locator("[data-page='fallback'] .review-warn")
+    flag.wait_for()
+    assert "search page" in flag.inner_text()
+    assert record()["fallback"]["kind"] == "search"
+    assert value.get_attribute("data-tone") == "attention" and "check link" in value.inner_text()
+
+    # Clear fallback blanks both cells.
+    sheet.locator("[data-fallback-clear]").click()
+    sheet.locator("[data-page='fallback'] [data-fallback-clear]").wait_for(state="detached")
+    cleared = record()
+    assert cleared["fallback"] is None
+    assert (cleared["fallback_super"] or "", cleared["fallback_url"] or "") == ("", "")
+    assert value.inner_text() == "None"
+    assert sheet.locator("[data-fallback-store]").input_value() == ""
+    assert sheet.locator("[data-fallback-url]").input_value() == ""
+
+    page.keyboard.press("Escape")
+    sheet.wait_for(state="hidden")
+    delete = page.request.get(f"{server.url}/api/inventory").json()
+    item_id = next(i["id"] for i in delete["items"] if i[delete["columns"]["comida"]] == name)
+    assert page.request.delete(f"{server.url}/api/items/{item_id}").ok
+    assert page._js_errors == [], f"JS errors: {page._js_errors}"
+
+
+@pytest.mark.e2e
 def test_phone_geometry_fits_and_targets_meet_the_floor(browser, server):
     """Rendered geometry at phone width (design-lint `rendered-leg`,
     project-scaffolding#157): no view scrolls sideways, and the nav tabs and the

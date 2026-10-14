@@ -71,10 +71,13 @@ from benchmark.build_basket import item_key
 from benchmark.paths import mappings_dir, runs_dir
 from src.data import (
     COLUMNS,
+    FALLBACK_SUPER_COLUMN,
+    FALLBACK_URL_COLUMN,
     REPO_ROOT,
     InventoryFileError,
     SpreadsheetLockedError,
     cell_text,
+    fallback_pair,
     save_inventory_data,
     store_url_column,
     store_url_columns,
@@ -627,6 +630,41 @@ def set_store_url(df: pd.DataFrame, row: int, store: str, url: str, *, save: boo
     if save:
         edits.commit(xlsx_path)
     logger.info("✅ Item %d: %s URL %s", row, store, "set" if url else "cleared")
+    return df
+
+
+def set_fallback(df: pd.DataFrame, row: int, store: str, url: str, *, save: bool = True,
+                 xlsx_path: Optional[str] = None) -> pd.DataFrame:
+    """Set one row's fallback product (#283, #284), or clear it with a blank store *and* url.
+
+    The two cells go together. A sheet without the ``fallback_*`` columns gains
+    them only when a fallback is first set; clearing there writes nothing.
+    """
+    _check_row(df, row)
+    store, url = (store or "").strip().lower(), (url or "").strip()
+    if not store and not url:
+        if FALLBACK_SUPER_COLUMN in df.columns or FALLBACK_URL_COLUMN in df.columns:
+            edits = _Edits(df)
+            edits.set(row, FALLBACK_SUPER_COLUMN, "")
+            edits.set(row, FALLBACK_URL_COLUMN, "")
+            if save:
+                edits.commit(xlsx_path)
+        logger.info("✅ Item %d: fallback cleared", row)
+        return df
+    if not store or not url:
+        raise StoreLinkError("a fallback needs both a store and a product link")
+    if store not in load_registry():
+        raise StoreLinkError(f"unknown store {store!r} (not in benchmark/stores.json)")
+    if not _is_url(url):
+        raise StoreLinkError("url must start with http:// or https://")
+    if fallback_pair(store, url, _row_store(df, row), df.at[row, COLUMNS["buscador"]]) is None:
+        raise StoreLinkError("that is the item's own buy link — pick another product or store")
+    edits = _Edits(df)
+    edits.set(row, FALLBACK_SUPER_COLUMN, store)
+    edits.set(row, FALLBACK_URL_COLUMN, url)
+    if save:
+        edits.commit(xlsx_path)
+    logger.info("✅ Item %d: fallback set to %s", row, store)
     return df
 
 

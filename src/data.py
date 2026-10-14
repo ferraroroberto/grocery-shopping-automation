@@ -12,7 +12,7 @@ import platform
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
@@ -259,6 +259,45 @@ def cell_text(value: object) -> str:
     if value is None or (not isinstance(value, str) and pd.isna(value)):
         return ""
     return str(value).strip()
+
+
+def clean_url(raw: object) -> str:
+    """Return a usable product URL, or ``""`` for missing / non-URL values.
+
+    Some inventory rows store an uppercase product description in the
+    ``buscador`` column instead of a link (e.g. ``"HIELO CUBITOS"``). Only
+    ``http(s)`` values are treated as usable URLs; everything else collapses
+    to an empty string.
+    """
+    text = cell_text(raw)
+    if text.lower() == "nan" or not text.lower().startswith(("http://", "https://")):
+        return ""
+    return text
+
+
+def fallback_pair(
+    store_raw: object,
+    url_raw: object,
+    primary_store: str,
+    primary_url: str,
+    label: str = "",
+) -> Optional[Tuple[str, str]]:
+    """A row's fallback as ``(store, url)``, or ``None`` (issue #283).
+
+    The one rule for both readers of the fallback cells — the cart run and the
+    item sheet's record: a blank store, a non-``http(s)`` URL, or a fallback
+    equal to the row's own primary means no fallback. ``label`` (the item's
+    name) makes the own-primary case log a warning; leave it out to stay quiet.
+    """
+    store = cell_text(store_raw).lower()
+    url = clean_url(url_raw)
+    if not store or store == "nan" or not url:
+        return None
+    if store == primary_store.strip().lower() and url == clean_url(primary_url):
+        if label:
+            logger.warning("⚠️ fallback for '%s' is its own primary — ignored", label)
+        return None
+    return store, url
 
 
 def get_unique_zones(df: pd.DataFrame) -> List[str]:
