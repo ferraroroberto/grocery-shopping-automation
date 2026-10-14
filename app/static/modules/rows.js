@@ -22,10 +22,10 @@ export function itemRow({ title, meta = "", chip: status = null, lead = null, tr
     : "";
   const body = `<span class="action-row-title">${name}</span>${metaLine}`;
   const main = open
-    ? `<button type="button" class="action-row-main" data-action="${action}"${page ? ` data-sheet-page="${page}"` : ""}${action === "open-item" ? ' aria-haspopup="dialog"' : ""}>${body}</button>`
+    ? `<button type="button" class="action-row-main" data-track="row.${action}" data-action="${action}"${page ? ` data-sheet-page="${page}"` : ""}${action === "open-item" ? ' aria-haspopup="dialog"' : ""}>${body}</button>`
     : `<div class="action-row-main">${body}</div>`;
   const check = lead
-    ? `<button type="button" class="icon-button action-row-check" data-action="${lead.action}" aria-pressed="${lead.pressed}" aria-label="${esc(lead.label)}">
+    ? `<button type="button" class="icon-button action-row-check" data-track="row.${lead.action}" data-action="${lead.action}" aria-pressed="${lead.pressed}" aria-label="${esc(lead.label)}">
         ${icon("circle", "action-row-check-off")}${icon("circle-check", "action-row-check-on")}
       </button>`
     : "";
@@ -47,9 +47,9 @@ const STEPPER_LABEL = { current: "in stock", target: "target" };
 export function stepper(kind, value, name) {
   const label = STEPPER_LABEL[kind];
   return `<div class="stepper action-row-trail" role="group" aria-label="${esc(`${name}: ${label}`)}">
-    <button type="button" class="icon-button" data-action="${kind}-minus" aria-label="Decrease ${label}" title="Decrease ${label}">${icon("minus")}</button>
+    <button type="button" class="icon-button" data-track="row.${kind}-minus" data-action="${kind}-minus" aria-label="Decrease ${label}" title="Decrease ${label}">${icon("minus")}</button>
     <output class="stepper-value">${esc(value)}</output>
-    <button type="button" class="icon-button" data-action="${kind}-plus" aria-label="Increase ${label}" title="Increase ${label}">${icon("plus")}</button>
+    <button type="button" class="icon-button" data-track="row.${kind}-plus" data-action="${kind}-plus" aria-label="Increase ${label}" title="Increase ${label}">${icon("plus")}</button>
   </div>`;
 }
 

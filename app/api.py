@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from app import email_poller
 from app.api_common import STATIC_DIR
 from app.middleware import BearerTokenMiddleware
-from app.routers import audio, automation, email, inventory, product_search, stores, system, voice
+from app.routers import audio, automation, email, inventory, product_search, stores, system, usage, voice
 from app.static_files import BUILD_INFO, CachingStaticFiles
 from src.data import CONFIG
 from src.webapp_config import load_webapp_config
@@ -50,5 +50,6 @@ for _router in (
     audio.router,
     voice.router,
     email.router,
+    usage.router,
 ):
     app.include_router(_router)

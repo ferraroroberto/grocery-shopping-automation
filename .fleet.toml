@@ -10,22 +10,27 @@ tag          = ["uses", "hub + whisper"]
 port         = 8502
 
 [vendored]
-single_instance = { src = "app/tray/single_instance.py", sha = "c493e1ab36f464be046856e12171bdc79a1b959f", dest = "app/tray/single_instance.py" }
-home-head = { src = "app/webapp/static/_vendored/home-head", sha = "aa820f1215151087588433f290cd2ba55b34658d", dest = "app/static/_vendored/home-head" }
-icon-button = { src = "app/webapp/static/_vendored/icon-button", sha = "aa820f1215151087588433f290cd2ba55b34658d", dest = "app/static/_vendored/icon-button" }
-modal = { src = "app/webapp/static/_vendored/modal", sha = "aa820f1215151087588433f290cd2ba55b34658d", dest = "app/static/_vendored/modal" }
-select-native = { src = "app/webapp/static/_vendored/select-native", sha = "28c3e2c09a6bdc224a2188dfd2abcea2d99744f7", dest = "app/static/_vendored/select-native" }
-button = { src = "app/webapp/static/_vendored/button", sha = "69351311c9c4d6500c79f45ddd3c4441b1e90fa4", dest = "app/static/_vendored/button" }
-nav = { src = "app/webapp/static/_vendored/nav", sha = "92d16e00cd47561de647cda12faea7fcdb6f081b", dest = "app/static/_vendored/nav" }
-range-tab = { src = "app/webapp/static/_vendored/range-tab", sha = "f70569640ebaf251ab0ed5f5daadd6055953a8c9", dest = "app/static/_vendored/range-tab" }
-switch = { src = "app/webapp/static/_vendored/switch", sha = "f70569640ebaf251ab0ed5f5daadd6055953a8c9", dest = "app/static/_vendored/switch" }
-disclosure = { src = "app/webapp/static/_vendored/disclosure", sha = "f70569640ebaf251ab0ed5f5daadd6055953a8c9", dest = "app/static/_vendored/disclosure" }
-card = { src = "app/webapp/static/_vendored/card", sha = "f70569640ebaf251ab0ed5f5daadd6055953a8c9", dest = "app/static/_vendored/card" }
-empty-state = { src = "app/webapp/static/_vendored/empty-state", sha = "69351311c9c4d6500c79f45ddd3c4441b1e90fa4", dest = "app/static/_vendored/empty-state" }
-segmented = { src = "app/webapp/static/_vendored/segmented", sha = "bbc01691986a10cf04f9a406a33f1e28e8a9d0f4", dest = "app/static/_vendored/segmented" }
-action-row = { src = "app/webapp/static/_vendored/action-row", sha = "bbc01691986a10cf04f9a406a33f1e28e8a9d0f4", dest = "app/static/_vendored/action-row" }
-geometry = { src = "tests/e2e/_geometry.py", sha = "f70569640ebaf251ab0ed5f5daadd6055953a8c9", dest = "tests/e2e/_geometry.py" }
-notify = { src = "src/notify", sha = "aa820f1215151087588433f290cd2ba55b34658d", dest = "src/notify" }
+single_instance = { src = "app/tray/single_instance.py", sha = "4c699636afecd5cae5e966bc2bcb17fa49744390", dest = "app/tray/single_instance.py" }
+home-head = { src = "app/webapp/static/_vendored/home-head", sha = "4c699636afecd5cae5e966bc2bcb17fa49744390", dest = "app/static/_vendored/home-head" }
+icon-button = { src = "app/webapp/static/_vendored/icon-button", sha = "4c699636afecd5cae5e966bc2bcb17fa49744390", dest = "app/static/_vendored/icon-button" }
+modal = { src = "app/webapp/static/_vendored/modal", sha = "4c699636afecd5cae5e966bc2bcb17fa49744390", dest = "app/static/_vendored/modal" }
+select-native = { src = "app/webapp/static/_vendored/select-native", sha = "4c699636afecd5cae5e966bc2bcb17fa49744390", dest = "app/static/_vendored/select-native" }
+button = { src = "app/webapp/static/_vendored/button", sha = "4c699636afecd5cae5e966bc2bcb17fa49744390", dest = "app/static/_vendored/button" }
+nav = { src = "app/webapp/static/_vendored/nav", sha = "4c699636afecd5cae5e966bc2bcb17fa49744390", dest = "app/static/_vendored/nav" }
+switch = { src = "app/webapp/static/_vendored/switch", sha = "4c699636afecd5cae5e966bc2bcb17fa49744390", dest = "app/static/_vendored/switch" }
+disclosure = { src = "app/webapp/static/_vendored/disclosure", sha = "4c699636afecd5cae5e966bc2bcb17fa49744390", dest = "app/static/_vendored/disclosure" }
+card = { src = "app/webapp/static/_vendored/card", sha = "4c699636afecd5cae5e966bc2bcb17fa49744390", dest = "app/static/_vendored/card" }
+empty-state = { src = "app/webapp/static/_vendored/empty-state", sha = "4c699636afecd5cae5e966bc2bcb17fa49744390", dest = "app/static/_vendored/empty-state" }
+segmented = { src = "app/webapp/static/_vendored/segmented", sha = "4c699636afecd5cae5e966bc2bcb17fa49744390", dest = "app/static/_vendored/segmented" }
+action-row = { src = "app/webapp/static/_vendored/action-row", sha = "4c699636afecd5cae5e966bc2bcb17fa49744390", dest = "app/static/_vendored/action-row" }
+geometry = { src = "tests/e2e/_geometry.py", sha = "4c699636afecd5cae5e966bc2bcb17fa49744390", dest = "tests/e2e/_geometry.py" }
+notify = { src = "src/notify", sha = "4c699636afecd5cae5e966bc2bcb17fa49744390", dest = "src/notify" }
+text-size = { src = "app/webapp/static/_vendored/text-size", sha = "4c699636afecd5cae5e966bc2bcb17fa49744390", dest = "app/static/_vendored/text-size" }
+toast = { src = "app/webapp/static/_vendored/toast", sha = "4c699636afecd5cae5e966bc2bcb17fa49744390", dest = "app/static/_vendored/toast" }
+icons = { src = "app/webapp/static/_vendored/icons", sha = "4c699636afecd5cae5e966bc2bcb17fa49744390", dest = "app/static/_vendored/icons" }
+usage-log = { src = "app/webapp/static/_vendored/usage-log", sha = "4c699636afecd5cae5e966bc2bcb17fa49744390", dest = "app/static/_vendored/usage-log" }
+usage_log = { src = "src/usage_log.py", sha = "4c699636afecd5cae5e966bc2bcb17fa49744390", dest = "src/usage_log.py" }
+runtime_data = { src = "src/runtime_data.py", sha = "4c699636afecd5cae5e966bc2bcb17fa49744390", dest = "src/runtime_data.py" }
 
 [[design.accepted]]
 rule   = "LAYOUT-03"

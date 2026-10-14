@@ -188,8 +188,8 @@ export function renderAudio() {
         <span id="voice-timer" class="voice-timer"></span>
       </div>
       <div class="voice-actions">
-        <button id="record-toggle" class="${audio.matches ? "button-tint" : "button-primary"} btn-block" type="button">${recordLabel(recording)}</button>
-        <button id="audio-redo" class="button-surface btn-block" type="button"${audio.sessionId && !recording ? "" : " hidden"}>${icon("refresh-cw")}Redo transcription</button>
+        <button id="record-toggle" data-track="voice.record" class="${audio.matches ? "button-tint" : "button-primary"} btn-block" type="button">${recordLabel(recording)}</button>
+        <button id="audio-redo" data-track="voice.redo" class="button-surface btn-block" type="button"${audio.sessionId && !recording ? "" : " hidden"}>${icon("refresh-cw")}Redo transcription</button>
         <button id="audio-cancel" class="button-surface btn-block" type="button" hidden>${icon("x")}Cancel</button>
       </div>
       <div id="audio-status" class="panel-status" role="status"></div>
@@ -200,10 +200,10 @@ export function renderAudio() {
       <div class="card-head">
         <h2 id="voice-transcript-title" class="card-title">${icon("pencil")}Transcript</h2>
         <span class="card-head-meta voice-model" id="audio-model-label">${html(humanizeModelId(audio.model) || "Default model")}</span>
-        <button id="audio-menu" class="icon-button" type="button" aria-haspopup="dialog" aria-label="Transcript options" title="Transcript options">${icon("ellipsis")}</button>
+        <button id="audio-menu" data-track="voice.menu" class="icon-button" type="button" aria-haspopup="dialog" aria-label="Transcript options" title="Transcript options">${icon("ellipsis")}</button>
       </div>
       <textarea id="transcript" aria-label="Transcript" placeholder="The transcript appears here, or paste one.">${audio.transcript ? html(audio.transcript) : ""}</textarea>
-      <button id="match-transcript" class="button-tint btn-block" type="button">${icon("list-checks")}Match</button>
+      <button id="match-transcript" data-track="voice.match" class="button-tint btn-block" type="button">${icon("list-checks")}Match</button>
     </section>`;
   paintLastAudit();
   renderMatches();
@@ -458,7 +458,7 @@ function renderMatches() {
         ${glanceRow("Counts to apply", "voice-apply-count")}
         ${glanceRow("Needs you", "voice-need-count")}
       </ul>
-      <button id="apply-audio" class="button-primary btn-block" type="button">Apply</button>
+      <button id="apply-audio" data-track="voice.apply" class="button-primary btn-block" type="button">Apply</button>
     </section>
     ${needRows ? group("Needs you", needRows) : ""}
     ${zoneGroups || (needRows ? "" : `<section class="card">${emptyStateEl("mic", "No recognised items.").outerHTML}</section>`)}

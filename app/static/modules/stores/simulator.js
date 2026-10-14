@@ -85,8 +85,8 @@ function freqMarkup() {
 // list, else the recommended plan — the way to see the cheapest one.
 function actionMarkup() {
   const count = Object.keys(activePicks()).length;
-  if (count) return `<button type="button" class="button-primary btn-block" data-stores-action="review">Review &amp; apply (${count})</button>`;
-  return `<button type="button" class="button-primary btn-block" data-stores-action="recommended"${local.meta.run_date ? "" : " disabled"}>Load recommended plan</button>`;
+  if (count) return `<button type="button" class="button-primary btn-block" data-track="prices.review" data-stores-action="review">Review &amp; apply (${count})</button>`;
+  return `<button type="button" class="button-primary btn-block" data-track="prices.recommended" data-stores-action="recommended"${local.meta.run_date ? "" : " disabled"}>Load recommended plan</button>`;
 }
 
 export function paintActions() {
@@ -99,7 +99,7 @@ export function paintActions() {
 function footMarkup() {
   const { text, tone } = reviewValue();
   return `<ul class="action-rows stores-glance-foot"><li class="action-row">
-      <button type="button" class="action-row-main sheet-link" data-stores-action="benchmark" aria-haspopup="dialog">
+      <button type="button" class="action-row-main sheet-link" data-track="prices.benchmark" data-stores-action="benchmark" aria-haspopup="dialog">
         ${icon("shopping-basket", "sheet-link-icon")}
         <span class="action-row-title">Benchmark</span>
         <span class="sheet-link-value"${tone ? ` data-tone="${tone}"` : ""}>${esc(text)}</span>

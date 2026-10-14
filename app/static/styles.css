@@ -37,11 +37,7 @@
   --neutral-soft: color-mix(in srgb, var(--muted) 16%, transparent);
   --accent-border-soft: color-mix(in srgb, var(--accent) 24%, transparent);
   --accent-border-strong: color-mix(in srgb, var(--accent) 28%, transparent);
-  --danger-border-soft: color-mix(in srgb, var(--deficit) 24%, transparent);
   --danger-soft: color-mix(in srgb, var(--deficit) 16%, transparent);
-  /* the vendored danger button's fill + border (vendored button README defaults) */
-  --deficit-soft: color-mix(in srgb, var(--deficit) 12%, transparent);
-  --deficit-border-soft: color-mix(in srgb, var(--deficit) 30%, transparent);
   /* the transcript/automation log is a terminal-class surface that follows
      the theme (a fixed dark matte read as "not switching" in light mode). */
   --log-bg: var(--card-off);
@@ -252,9 +248,6 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   position: absolute;
   inset: calc((var(--control-h) - var(--hit-min)) / 2);
 }
-/* Abutting segments (the text-size control) have no gap for an expansion to
-   live in, so they use real 44px geometry instead (design.md "Adjacent cluster"). */
-.range-tabs { --control-h: var(--hit-min); }
 /* Read by assistive tech, never drawn (a table header, a copy buffer). */
 .visually-hidden {
   position: absolute;
@@ -356,10 +349,6 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   font-weight: 700;
 }
 .card-title .icon { width: var(--icon-title); height: var(--icon-title); color: var(--muted); }
-/* A page-header line's exception parts, each in its tone's text colour
-   (core.js setContextLine; design.md "page header"). */
-.home-head .status .status-part[data-tone="attention"] { color: var(--attention-text); }
-.home-head .status .status-part[data-tone="danger"] { color: var(--danger-text); }
 .card-head-meta { color: var(--muted); font-size: var(--font-body-sm); font-weight: 400; }
 
 h1, h2, h3 { margin: 0; line-height: 1.2; }
@@ -458,13 +447,9 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
 .primary { background: var(--accent-fill); border-color: var(--accent-fill); color: var(--accent-fg); padding: 0 14px; }
 /* button-primary height for the view's primary action and every form submit */
 .primary, form button[type="submit"] { min-height: var(--primary-h); }
-/* Quiet destructive (design.md "a destructive action may restate the tint
-   recipe on danger" — outlined, not a solid fill): a transparent surface, a
-   soft danger-tinted hairline, danger-text label. Fixes COLOR-02 (a solid
-   deficit fill under white text drops to 3.35:1 in dark) and stops Delete
-   reading as the loudest control on every Edit Item card (J-03/LAYOUT-04). */
-.danger { background: transparent; border-color: var(--danger-border-soft); color: var(--danger-text); }
-.danger:active { background: var(--danger-soft); }
+/* A destructive action's paint is the vendored `.button-tint.danger` (outlined:
+   a transparent fill, danger-text label, --deficit hairline; button.css). The
+   app restates none of it, so a re-vendor changes every destructive button at once. */
 /* Glyph-only rows sit at the control height: the icon-button box is the 44px
    floor, so neighbours at the row gap never overlap targets. */
 .search-bar, .candidate-actions, .review-cell-edit { --icon-btn-box: var(--hit-min); }
@@ -1136,12 +1121,11 @@ a.button-tint[data-open-link-page] {
    chevron to a sheet), their text on the row's own 14px inset in the
    full-bleed card; the Data rows act on tap, so they carry no chevron. */
 .settings-group .sheet-link { padding-inline: 10px; }
-/* Text size, changed in place: its label, then the vendored range tabs (the
+/* Text size, changed in place: its label, then the vendored segmented control (the
    raised one is the value). One minmax(0, 1fr) track, so Large never widens
    the card. */
 .settings-text-size { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-sm); }
 .settings-text-size-label { display: flex; align-items: center; gap: var(--space-sm); font-weight: 600; }
-.settings-text-size .range-tabs { margin-bottom: 0; }
 /* The Store logins sheet: one row per store, its state trailing (logged in
    plain, an exception as a chip), then the two actions. */
 .login-rows .action-row { padding: 0; }

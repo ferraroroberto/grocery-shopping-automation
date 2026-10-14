@@ -8,11 +8,11 @@
 
 flowchart TB
   subgraph frontend["Primary surface — FastAPI + vanilla-JS PWA (:8502)"]
-    STATIC["app/static/\nindex.html · styles.css · generated PWA icons\n_vendored/ (fleet nav, icons, card, disclosure, modal, switch, empty-state, segmented, action-row)"]
+    STATIC["app/static/\nindex.html · styles.css · generated PWA icons\n_vendored/ (fleet nav, icons, card, disclosure, modal, switch, empty-state, segmented, action-row, home-head, text-size, toast, usage-log)"]
     APPJS["app/static/app.js\norchestrator: render() mode routing, delegated listeners, boot\n4 nav tabs (#182, #200): Home · Shop · Audit · Items; Settings is the header gear, never a tab"]
     JSMODULES["app/static/modules/ (ES modules, no bundler)\ncore (state + render mediator, header lines, retired-tab + retired-mode migration) · dom (+ status chip) · rows (one item row + stepper) · item-sheet (the one item sheet every row opens) · add-sheet (Add item sheet: search, then by hand) · confirm (confirm sheet) · media · api\nhome (Home: This week card + item search, #260) · inventory (Audit › Manual, Items list) · shopping · stores/ (Items › Prices; folder: index facade · state · simulator (glance card) · benchmark (Benchmark sheet) · list · actions · dialogs · review) · audio (Audit › Voice: glance, results, checklist, transcript sheet, #259)\nsearch → Add item sheet · automation (carts glance + Fill carts options sheet, #258) · store-sheet → Shop · settings (Settings inset groups + Store logins sheet, #261) · email (Email watch sheet) → Settings"]
     API["app/api.py\ncomposition root: lifespan, middleware, static mount, router includes"]
-    ROUTERS["app/routers/ — one APIRouter per concern\nsystem (shell, version, manifest, login, access, actions)\ninventory · stores · automation · product_search · audio · voice · email"]
+    ROUTERS["app/routers/ — one APIRouter per concern\nsystem (shell, version, manifest, login, access, actions)\ninventory · stores · automation · product_search · audio · voice · email · usage (#276)"]
     APICOMMON["app/api_common.py\ndata-layer → HTTP translation (lock/file errors → status codes),\ninventory payload builder shared by every router"]
     AUDIOHUB["app/audio_hub.py\nvoice-transcriber session proxy + whisper transcode/transcribe"]
     STATICFILES["app/static_files.py\nCachingStaticFiles (per-suffix cache policy, JS import stamping) + BUILD_INFO"]
@@ -69,6 +69,7 @@ monthly-cost baseline: set/reset (#183)| ROUTERS
     GMAILCFG["src/gmail_config.py\nsender whitelist + store mapping + poller settings"]
     NOTIFYCFG["src/notify_config.py + src/notify/\nvendored Telegram notifier (from whatsapp-radar)"]
     SSL["src/gen_ssl_cert.py\nlocal CA + server cert"]
+    USAGELOG["src/usage_log.py + src/runtime_data.py (vendored)\nlocal-only usage log: constant view/control ids,\ndevice class, no content (#276)"]
   end
   APICOMMON --> DATA
   ROUTERS --> STORELINKS
@@ -96,6 +97,10 @@ monthly-cost baseline: set/reset (#183)| ROUTERS
 
   XLSX[("data/list.xlsx\n(Excel-backed inventory)")]
   DATA --> XLSX
+  USAGEDB[("runtime-data usage.sqlite3\n(outside the repo; read by\nproject-scaffolding usage_summary.py)")]
+  ROUTERS -->|POST /api/usage/events| USAGELOG
+  USAGELOG --> USAGEDB
+  STATIC -.->|usage-log.js batches view + tap events to the app's own origin| ROUTERS
 
   subgraph cartauto["automation/ — Playwright cart automation"]
     RUNAUTO["run_automation.py\nCLI entrypoint + cart guard (#247):\nretry once, verify final cart, suggest, notify"]
