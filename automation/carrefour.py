@@ -63,7 +63,12 @@ from automation.browser import (
     goto_with_login_check,
     human_delay,
 )
-from automation.errors import AddToCartFailed, OutOfStockError, ProductUnavailableError
+from automation.errors import (
+    AddToCartFailed,
+    OutOfStockError,
+    PartialStockError,
+    ProductUnavailableError,
+)
 from automation.models import CartItem
 
 logger = logging.getLogger(__name__)
@@ -314,6 +319,8 @@ def add_to_cart(page: Page, item: CartItem) -> None:
         ProductUnavailableError: the URL redirected away from a product page —
             the product is discontinued or not sold at the account's store.
         OutOfStockError: the product page renders but offers no add control.
+        PartialStockError: units are in the cart but the line will not grow
+            (no + control, or stuck after every attempt) — likely a stock cap.
         AddToCartFailed: the cart never reached the wanted quantity; or, for a
             product with a preferred cut (:mod:`automation.product_options`),
             the cut could not be selected, the cart already holds the product
@@ -370,7 +377,8 @@ def add_to_cart(page: Page, item: CartItem) -> None:
             if not clicked:
                 raise OutOfStockError(item)
         elif not _click_once(page, SELECTORS["increase"]):
-            raise AddToCartFailed(item, "the + control is missing on the product page")
+            # The product is sold and units are in, but there is no + to grow it.
+            raise PartialStockError(item, qty)
         human_delay(0.8, 1.6)
         line = _cart_line_settled(page, landed_id, target=qty + 1)
         new_qty = line.get("units", 0)
@@ -392,6 +400,8 @@ def add_to_cart(page: Page, item: CartItem) -> None:
             item.comida, qty, attempts, _MAX_CLICK_ATTEMPTS,
         )
         if attempts >= _MAX_CLICK_ATTEMPTS:
+            if qty > 0:
+                raise PartialStockError(item, qty)
             raise AddToCartFailed(
                 item, f"cart line stuck at {qty}, expected {target} after "
                 f"{_MAX_CLICK_ATTEMPTS} attempts",

@@ -60,6 +60,7 @@ from automation.browser import (
 from automation.errors import (
     AddToCartFailed,
     OutOfStockError,
+    PartialStockError,
     ProductUnavailableError,
 )
 from automation.models import CartItem
@@ -330,8 +331,10 @@ def add_to_cart(page: Page, item: CartItem) -> None:
         ProductUnavailableError: the page rendered no product at all — a likely
             stale or discontinued URL. Surfaced as an end-of-run alert.
         OutOfStockError: the product page renders but shows no add control.
+        PartialStockError: the cart line holds some units but never reached the
+            wanted quantity after every attempt — likely a stock cap.
         AddToCartFailed: an expected control was missing, or the cart line never
-            reached the wanted quantity after every attempt.
+            reached the wanted quantity (and holds none) after every attempt.
     """
     logger.info("🛒 [ametller] %s ×%d", item.comida, item.comprar)
     goto_with_login_check(page, "ametller", item.buscador)
@@ -413,6 +416,9 @@ def add_to_cart(page: Page, item: CartItem) -> None:
                 )
                 return
 
+    if qty > 0:
+        # Units are in but the line will not reach the target — likely a stock cap.
+        raise PartialStockError(item, qty)
     raise AddToCartFailed(
         item,
         f"cart line shows {qty}, expected {target} after {_MAX_ADD_ATTEMPTS} attempts",

@@ -110,6 +110,12 @@ MODES = CONFIG["ui"]["modes"]
 # loads unchanged; `super` + `buscador` stay the chosen store and its URL.
 STORE_URL_PREFIX = "url_"
 
+# Optional per-row fallback columns (issue #283): the store and product URL the
+# cart run sends the shortfall to when the primary comes up short. Never
+# required; blank or invalid cells mean the row has no fallback.
+FALLBACK_SUPER_COLUMN = "fallback_super"
+FALLBACK_URL_COLUMN = "fallback_url"
+
 SPREADSHEET_LOCKED_HINT = (
     "The spreadsheet is open in Excel or locked by OneDrive. "
     "Close it in Excel, wait for sync, then try again."
