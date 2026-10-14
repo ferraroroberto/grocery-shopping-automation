@@ -152,6 +152,20 @@ def test_an_add_that_never_landed_is_reported_added_not_in_cart(run, capsys):
     assert "quinoa" in notifier.sent[0]
 
 
+def test_a_success_add_the_cart_holds_only_partly_reads_could_add_only_n_of_m(run, capsys):
+    """Issue #283's shape: the add reported success, the store capped the line at 1 of 2."""
+    code, report, store, notifier = run(
+        [_item("yogur griego", 2)], {"yogur griego": [None]}, {"yogur griego": 1},
+    )
+    yogur = _by_name(report)["yogur griego"]
+    assert store.calls == ["yogur griego"]
+    assert (yogur.status, yogur.cart_qty) == ("partial_in_cart", 1)
+    assert [o.item.comida for o in report.missing] == ["yogur griego"]
+    assert code == 1
+    assert "❌ [fake] yogur griego ×2 — could add only 1 of 2" in capsys.readouterr().out
+    assert "could add only 1 of 2" in notifier.sent[0]
+
+
 def test_a_failed_add_the_cart_holds_in_full_counts_as_verified(run):
     _code, report, _store, _notifier = run(
         [_item("leche")],

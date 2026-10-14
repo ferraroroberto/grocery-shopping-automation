@@ -18,9 +18,15 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from src.data import COLUMNS, load_inventory_data, store_url_columns  # noqa: E402
+from src.data import (  # noqa: E402
+    COLUMNS,
+    FALLBACK_SUPER_COLUMN,
+    FALLBACK_URL_COLUMN,
+    load_inventory_data,
+    store_url_columns,
+)
 
-from automation.models import CartItem  # noqa: E402
+from automation.models import CartItem, Fallback  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +47,19 @@ def _clean_url(raw: object) -> str:
     if not text.lower().startswith(("http://", "https://")):
         return ""
     return text
+
+
+def _fallback(row, super_name: str, buscador: str) -> Optional[Fallback]:
+    """The row's fallback from its optional cells, or ``None`` (blank, invalid, or the primary itself)."""
+    raw_store = row.get(FALLBACK_SUPER_COLUMN)
+    store = "" if raw_store is None else str(raw_store).strip().lower()
+    url = _clean_url(row.get(FALLBACK_URL_COLUMN))
+    if not store or store == "nan" or not url:
+        return None
+    if store == super_name.lower() and url == buscador:
+        logger.warning("⚠️ fallback for '%s' is its own primary — ignored", row[COLUMNS["comida"]])
+        return None
+    return Fallback(store, url)
 
 
 def read_cart_items(store: Optional[str] = None) -> list[CartItem]:
@@ -72,16 +91,18 @@ def read_cart_items(store: Optional[str] = None) -> list[CartItem]:
     items: list[CartItem] = []
     for _, row in pending.iterrows():
         super_name = str(row[col_super]).strip()
+        buscador = _clean_url(row[col_buscador])
         items.append(
             CartItem(
                 super_name=super_name,
                 comida=str(row[col_comida]).strip(),
                 comprar=int(row[col_comprar]),
-                buscador=_clean_url(row[col_buscador]),
+                buscador=buscador,
                 alt_stores=tuple(
                     s for s, col in url_cols.items()
                     if s != super_name.lower() and _clean_url(row[col])
                 ),
+                fallback=_fallback(row, super_name, buscador),
             )
         )
 

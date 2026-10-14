@@ -26,7 +26,7 @@ import time
 from playwright.sync_api import Page
 
 from automation.browser import goto_with_login_check, human_delay
-from automation.errors import AddToCartFailed, OutOfStockError
+from automation.errors import AddToCartFailed, OutOfStockError, PartialStockError
 from automation.models import CartItem
 
 logger = logging.getLogger(__name__)
@@ -162,10 +162,14 @@ def _set_quantity(page: Page, item: CartItem, target: int) -> None:
     guard = 0
     while qty < target:
         before = qty
-        _click_until(
-            page, SELECTORS["increase"],
-            lambda b=before: _read_product_qty(page) > b, item, what="increase",
-        )
+        try:
+            _click_until(
+                page, SELECTORS["increase"],
+                lambda b=before: _read_product_qty(page) > b, item, what="increase",
+            )
+        except AddToCartFailed:
+            # Units are in but "+" no longer moves the line — likely a stock cap.
+            raise PartialStockError(item, qty) from None
         qty = _read_product_qty(page)
         human_delay()
         guard += 1
@@ -196,6 +200,8 @@ def add_to_cart(page: Page, item: CartItem) -> None:
     Raises:
         SessionExpiredError: navigation was redirected to the login page.
         OutOfStockError: the product page shows no add control.
+        PartialStockError: units are in the cart but "+" stopped moving the
+            line short of the wanted quantity — likely a stock cap.
         AddToCartFailed: a click never registered, or the cart counter did not
             move by the expected amount.
     """
@@ -224,6 +230,8 @@ def add_to_cart(page: Page, item: CartItem) -> None:
     cart_after = _read_cart_badge(page)
     expected_cart = cart_before + (target - qty_before)
 
+    if 0 < qty_after < target:
+        raise PartialStockError(item, qty_after)
     if qty_after != target:
         raise AddToCartFailed(
             item, f"product shows {qty_after} ud. in cart, expected {target}"

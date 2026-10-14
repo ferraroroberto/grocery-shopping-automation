@@ -42,7 +42,8 @@ def write_purchase_logs(
 
     Groups `added` by `CartItem.super_name`. When that day's log already exists
     (an earlier run today), the new items merge into it — a re-added item takes
-    the new quantity, earlier items are kept. Returns the paths written; an
+    the new quantity, earlier items are kept. Lines for one product within
+    ``added`` are summed. Returns the paths written; an
     empty `added` produces no files and returns `[]`.
     """
     if not added:
@@ -65,9 +66,16 @@ def write_purchase_logs(
                     merged[_item_key(entry)] = entry
             except (OSError, ValueError) as err:
                 logger.warning("⚠️ [%s] earlier purchase log %s unreadable, replacing it: %s", store, path, err)
+        fresh: dict[str, dict] = {}
         for item in items:
             entry = {"comida": item.comida, "comprar": item.comprar, "buscador": item.buscador}
-            merged[_item_key(entry)] = entry
+            key = _item_key(entry)
+            if key in fresh:
+                # One product bought twice this run (a primary and another item's fallback).
+                fresh[key]["comprar"] += item.comprar
+            else:
+                fresh[key] = entry
+        merged.update(fresh)
         payload = {"date": day, "store": store, "items": list(merged.values())}
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         logger.info("📝 [%s] purchase log written to %s (%d item(s))", store, path, len(merged))

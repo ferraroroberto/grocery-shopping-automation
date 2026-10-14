@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import math
+from dataclasses import asdict, dataclass, field, replace
 from typing import Optional
 
 from automation.models import CartItem
@@ -13,14 +14,47 @@ ADDED_VERIFIED = "added_verified"
 # The handler added it but the store cart could not be read — not confirmed.
 ADDED_UNVERIFIED = "added_unverified"
 ADDED_NOT_IN_CART = "added_not_in_cart"
+# Some units are in the cart, fewer than wanted — a stock cap (issue #283).
+PARTIAL_IN_CART = "partial_in_cart"
 OUT_OF_STOCK = "out_of_stock"
 UNAVAILABLE = "unavailable"
 NO_URL = "no_url"
 ERROR = "error"
 # Dry run only — nothing was added.
 WOULD_ADD = "would_add"
+# Fallback only — the run could not try it (a single-store run, no handler, ...).
+NOT_TRIED = "not_tried"
 
 _IN_CART = (ADDED_VERIFIED, ADDED_UNVERIFIED)
+
+
+@dataclass
+class FallbackOutcome:
+    """What the item's fallback supplied (issue #283).
+
+    Attributes:
+        store: Store key the fallback was (to be) bought at.
+        url: The fallback's product URL.
+        wanted: Units the primary was short — what the fallback was asked for.
+        status: One of the status constants, for the fallback's own add;
+            ``NOT_TRIED`` until (or unless) the run tries it.
+        message: The reason for a fallback miss.
+        cart_qty: Units the fallback's cart line holds after the add; ``None``
+            when that cart could not be read.
+        units: Units this item got at the fallback — read from the cart, or
+            the add's own report when the cart is unreadable.
+    """
+
+    store: str
+    url: str
+    wanted: int
+    status: str = NOT_TRIED
+    message: str = ""
+    cart_qty: Optional[float] = None
+    units: float = 0
+
+    def to_dict(self) -> dict:
+        return asdict(self)
 
 
 @dataclass
@@ -34,6 +68,8 @@ class ItemOutcome:
         retries: How many extra add attempts were made (0 or 1).
         cart_qty: Units the store's final cart holds; ``None`` when unread.
         suggestion: A replacement proposed for an unavailable item.
+        fallback: What the item's declared fallback supplied; ``None`` when the
+            primary was not short or the row declares no fallback.
     """
 
     item: CartItem
@@ -42,6 +78,37 @@ class ItemOutcome:
     retries: int = 0
     cart_qty: Optional[float] = None
     suggestion: str = ""
+    fallback: Optional[FallbackOutcome] = None
+
+    @property
+    def shortfall(self) -> Optional[int]:
+        """Units the primary is short of ``comprar``; ``None`` when unknown.
+
+        From the cart when it was read (whatever the add reported); else zero
+        for an add that reported success, the whole quantity for an item the
+        store could not sell, and unknown for a failed add.
+        """
+        if self.cart_qty is not None:
+            return max(0, math.ceil(self.item.comprar - self.cart_qty))
+        if self.status in (OUT_OF_STOCK, UNAVAILABLE, NO_URL):
+            return self.item.comprar
+        if self.status == ADDED_UNVERIFIED:
+            return 0
+        return None
+
+    @property
+    def primary_units(self) -> float:
+        """Units of ``comprar`` the primary product supplied (capped at ``comprar``)."""
+        if self.cart_qty is not None:
+            return min(self.cart_qty, self.item.comprar)
+        if self.status in _IN_CART and self.fallback is None:
+            return self.item.comprar
+        return 0
+
+    @property
+    def total_units(self) -> float:
+        """Units supplied by the primary and the fallback together."""
+        return self.primary_units + (self.fallback.units if self.fallback else 0)
 
     def to_dict(self) -> dict:
         return {
@@ -53,6 +120,7 @@ class ItemOutcome:
             "retries": self.retries,
             "cart_qty": self.cart_qty,
             "suggestion": self.suggestion,
+            "fallback": self.fallback.to_dict() if self.fallback else None,
         }
 
 
@@ -74,6 +142,8 @@ class RunReport:
             store. Empty in a dry-run.
         cart_lines: Store key → the final cart read for verification
             (cart key → units), or ``None`` when it could not be read.
+        pending_fallbacks: Outcomes whose fallback is at another store, waiting
+            for the run's cross-store pass. Not part of the run record.
     """
 
     outcomes: list[ItemOutcome] = field(default_factory=list)
@@ -82,6 +152,7 @@ class RunReport:
     cart_before: dict[str, int] = field(default_factory=dict)
     cart_after: dict[str, int] = field(default_factory=dict)
     cart_lines: dict[str, Optional[dict[str, float]]] = field(default_factory=dict)
+    pending_fallbacks: list[ItemOutcome] = field(default_factory=list)
 
     def record(self, item: CartItem, status: str, message: str = "") -> ItemOutcome:
         """Append and return a new outcome for ``item``."""
@@ -93,6 +164,24 @@ class RunReport:
     def added(self) -> list[CartItem]:
         """Items in the cart — verified, or added where the cart was unreadable."""
         return [o.item for o in self.outcomes if o.status in _IN_CART]
+
+    @property
+    def purchased(self) -> list[CartItem]:
+        """What the run put in a cart, as purchase-log lines.
+
+        The primary's units under its own store and URL, a fallback's under the
+        store and URL it was bought at, so the order-email reconciliation and
+        later runs read them where they really are.
+        """
+        out: list[CartItem] = []
+        for o in self.outcomes:
+            primary = int(o.primary_units)
+            if primary > 0 and o.item.buscador:
+                out.append(replace(o.item, comprar=primary, fallback=None))
+            fb = o.fallback
+            if fb is not None and int(fb.units) > 0:
+                out.append(CartItem(fb.store, o.item.comida, int(fb.units), fb.url))
+        return out
 
     @property
     def unconfirmed(self) -> list[ItemOutcome]:
@@ -117,11 +206,11 @@ class RunReport:
         verified = self._of(ADDED_VERIFIED)
         if not self.dry_run:
             out.append(f"✅ In cart (verified): {len(verified)}")
-            out += [f"   ✅ [{o.item.super_name}] {o.item.comida} ×{o.item.comprar}" for o in verified]
+            out += [f"   ✅ {in_cart_line(o)}" for o in verified]
         unverified = self.unconfirmed
         if unverified:
             out.append(f"❔ Added, not confirmed (cart unreadable): {len(unverified)}")
-            out += [f"   ❔ [{o.item.super_name}] {o.item.comida} ×{o.item.comprar}" for o in unverified]
+            out += [f"   ❔ {in_cart_line(o)}" for o in unverified]
         missing = self.missing
         out.append(f"❌ NOT in cart:       {len(missing)}")
         out += [f"   ❌ {miss_line(o)}" for o in missing]
@@ -170,10 +259,28 @@ class RunReport:
         return out
 
 
-def miss_line(outcome: ItemOutcome) -> str:
-    """One line for a missing item: store, name, reason, retry and suggestion."""
+def in_cart_line(outcome: ItemOutcome) -> str:
+    """One line for an item in the cart; a fallback that filled the gap is named."""
     item = outcome.item
-    text = f"[{item.super_name}] {item.comida} ×{item.comprar} — {outcome.status}"
+    text = f"[{item.super_name}] {item.comida} ×{item.comprar}"
+    return f"{text} — {outcome.message}" if outcome.fallback and outcome.message else text
+
+
+def miss_line(outcome: ItemOutcome) -> str:
+    """One line for a missing item: store, name, reason, retry and suggestion.
+
+    A partial add, or any item a fallback was asked to fill, reads
+    "could add only N of M" with the primary/fallback split.
+    """
+    item = outcome.item
+    text = f"[{item.super_name}] {item.comida} ×{item.comprar} — "
+    fb = outcome.fallback
+    if fb is not None or outcome.status == PARTIAL_IN_CART:
+        text += f"could add only {outcome.total_units:g} of {item.comprar}"
+        if fb is not None:
+            text += f" (primary {outcome.primary_units:g}, fallback {fb.units:g})"
+    else:
+        text += outcome.status
     if outcome.message:
         text += f": {outcome.message}"
     if outcome.retries:
