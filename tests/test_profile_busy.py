@@ -27,7 +27,11 @@ def no_chrome(monkeypatch):
 
     def failing_open(playwright, **kwargs):
         calls["launches"] += 1
-        raise RuntimeError("profile locked")
+        raise RuntimeError(
+            "BrowserType.launch_persistent_context: Target page, context or "
+            "browser has been closed\nBrowser logs:\n\nOpening in existing "
+            "browser session.\n"
+        )
 
     monkeypatch.setattr(browser, "_profile_initialized", lambda _dir: True)
     monkeypatch.setattr(browser, "sync_playwright", lambda: _Starter())
@@ -44,16 +48,42 @@ def test_wait_for_profile_ends_in_a_precise_busy_error(no_chrome):
     assert sleeps == list(browser._PROFILE_WAIT_BACKOFF_S)
     assert calls["launches"] == len(browser._PROFILE_WAIT_BACKOFF_S) + 1
     assert len(waits) == len(browser._PROFILE_WAIT_BACKOFF_S)
-    assert "profile locked" in str(info.value)  # the underlying launch error is kept
+    assert "Opening in existing browser session" in str(info.value)  # underlying error kept
     assert isinstance(info.value.__cause__, RuntimeError)
 
 
 def test_without_wait_for_profile_the_launch_error_is_raised_as_is(no_chrome):
     sleeps, calls = no_chrome
-    with pytest.raises(RuntimeError, match="profile locked") as info:
+    with pytest.raises(RuntimeError, match="Opening in existing browser session") as info:
         browser.launch_context()
     assert not isinstance(info.value, ProfileBusyError)
     assert sleeps == [] and calls["launches"] == 1
+
+
+def test_non_lock_launch_error_is_never_retried(monkeypatch):
+    """A broken launch (missing Chrome, bad profile, driver error) is not a
+    busy profile — it must raise immediately, even with wait_for_profile=True,
+    and never wrapped as ProfileBusyError (issue #296)."""
+    sleeps: list[int] = []
+    calls = {"launches": 0}
+
+    class _Starter:
+        def start(self):
+            return _FakePlaywright()
+
+    def failing_open(playwright, **kwargs):
+        calls["launches"] += 1
+        raise FileNotFoundError("chrome executable not found")
+
+    monkeypatch.setattr(browser, "_profile_initialized", lambda _dir: True)
+    monkeypatch.setattr(browser, "sync_playwright", lambda: _Starter())
+    monkeypatch.setattr(browser, "_open_context", failing_open)
+    monkeypatch.setattr(browser.time, "sleep", sleeps.append)
+
+    with pytest.raises(FileNotFoundError, match="chrome executable not found"):
+        browser.launch_context(wait_for_profile=True)
+    assert sleeps == []  # never entered the backoff schedule
+    assert calls["launches"] == 1  # no retries
 
 
 def _item(store: str, name: str) -> CartItem:

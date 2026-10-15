@@ -31,7 +31,7 @@
       "shop_url": "https://www.carrefour.es/supermercado",
       "product_url_pattern": "/R-[A-Za-z0-9-]+/p",
       "hints": [
-        "Cloudflare blocks curl and in-page API fetch. Real Chrome works but the postcode must be set EVERY session (session-only 'salepoint' cookie): click [aria-label=\"Envío a domicilio\"] → Modificar → fill input[name=\"postal-code\"] → Empezar a comprar. benchmark.browser_fetch can't click, so drive Playwright directly on benchmark_runs/_state/chrome/carrefour. (2026-09-27)",
+        "Cloudflare blocks curl and in-page API fetch. Real Chrome works but the postcode must be set EVERY session (session-only 'salepoint' cookie): click [aria-label=\"Envío a domicilio\"] → Modificar → fill input[name=\"postal-code\"] → Empezar a comprar. benchmark.browser_fetch's fetch() can't click — use `benchmark.browser_fetch.open_actions_context(\"carrefour\")` for the click-driven flow instead of a hand-rolled Playwright launch; it shares the same stealth config and profile. (2026-09-27)",
         "Search: https://www.carrefour.es/?query=<term> (not q=); cards [data-test=\"search-grid-result\"]; product pages list 'Ingredientes' in body text.",
         "Delivery to the home postcode (2026-09-27): 3.99 EUR, free from 140 EUR, minimum order 50 EUR."
       ],

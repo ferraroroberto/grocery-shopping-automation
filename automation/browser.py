@@ -169,8 +169,25 @@ def human_delay(min_s: float = 0.5, max_s: float = 2.0) -> None:
 
 # Wait-with-backoff schedule (seconds) when the shared profile is busy — a live
 # sibling job (cart automation ↔ product search) holds it. The fleet rule is
-# *wait, never kill the holder*; a >~4-min holder is treated as genuinely hung.
-_PROFILE_WAIT_BACKOFF_S = (5, 15, 30, 60, 120)
+# *wait, never kill the holder*: 60→120→240→480s, a >15-min holder treated as
+# genuinely hung (fleet-config docs/recurring-gotchas.md, "Shared Chrome
+# profiles: serialize access, never kill a live holder").
+_PROFILE_WAIT_BACKOFF_S = (60, 120, 240, 480)
+
+# Chrome's own message when launch_persistent_context's target profile is
+# already open under a live process — the fleet rule's documented signature
+# (recurring-gotchas.md, same section).
+_PROFILE_LOCK_SIGNATURE = "Opening in existing browser session"
+
+
+def _is_profile_lock_error(err: Exception) -> bool:
+    """True when ``err`` is Chrome's own "profile already open" signature.
+
+    Anything else — a missing Chrome, a bad profile directory, a Playwright
+    driver error — is a different failure that waiting cannot fix, so it must
+    not be retried as if the profile were merely busy.
+    """
+    return _PROFILE_LOCK_SIGNATURE in str(err)
 
 
 def launch_context(
@@ -184,12 +201,15 @@ def launch_context(
     Args:
         headless: Run without a visible window. Defaults to ``False`` — the
             store sites are best driven headed.
-        wait_for_profile: When True, a launch that fails because the shared
-            profile is already held by a live sibling job (cart automation ↔
+        wait_for_profile: When True, a launch that fails with Chrome's own
+            "already open" signature (:func:`_is_profile_lock_error` — the
+            shared profile is held by a live sibling job: cart automation ↔
             product search) is retried with exponential backoff
             (:data:`_PROFILE_WAIT_BACKOFF_S`) rather than raising immediately —
-            the fleet "serialize access, never kill a live holder" rule. Off by
-            default; the cart run, product search and login check opt in.
+            the fleet "serialize access, never kill a live holder" rule. Any
+            other launch failure raises immediately regardless of this flag.
+            Off by default; the cart run, product search and login check opt
+            in.
         on_wait: Optional ``(delay_s, attempt, total)`` callback fired before
             each backoff sleep, so a caller can tell the user it is waiting on
             the profile rather than searching (issue #211).
@@ -217,8 +237,14 @@ def launch_context(
             # Pass the dir explicitly: the default is bound at definition time,
             # so the dir checked and logged here must be the one Chrome opens.
             context, page = _open_context(playwright, headless=headless, user_data_dir=USER_DATA_DIR)
-        except Exception as err:  # noqa: BLE001 — a locked profile surfaces here
+        except Exception as err:  # noqa: BLE001 — distinguished below by signature
             playwright.stop()
+            if not _is_profile_lock_error(err):
+                # Not a busy-profile signature — surface it as itself (a
+                # missing Chrome, a bad profile, a driver error) instead of
+                # burning the whole wait schedule on something waiting can't
+                # fix, and instead of relabelling it as ProfileBusyError.
+                raise
             if attempt >= len(schedule):
                 if not schedule:
                     raise
