@@ -5,6 +5,7 @@ mount, and include one router per concern. Every route lives in
 ``app/routers/`` — add endpoints there, not here.
 """
 
+import logging
 import os
 from contextlib import asynccontextmanager
 
@@ -16,15 +17,24 @@ from app.middleware import BearerTokenMiddleware
 from app.routers import audio, automation, email, inventory, product_search, stores, system, usage, voice
 from app.static_files import BUILD_INFO, CachingStaticFiles
 from src.data import CONFIG
-from src.webapp_config import load_webapp_config
+from src.webapp_config import EMAIL_POLLER_ENV, load_webapp_config
+
+
+logger = logging.getLogger("email_poller")
 
 
 @asynccontextmanager
 async def _lifespan(_: FastAPI):
-    # Don't spawn the real email-poll thread inside pytest's TestClient
-    # startups — a test run must never trigger a live Gmail check.
-    if "PYTEST_CURRENT_TEST" not in os.environ:
+    # The poller is opt-in per process: only the tray sets EMAIL_POLLER_ENV, so a
+    # worktree, fixture or dev instance never reads the real mailbox (#301). The
+    # pytest guard stays on top — a test run must never trigger a live Gmail
+    # check, even with the flag inherited.
+    if "PYTEST_CURRENT_TEST" in os.environ:
+        pass
+    elif os.environ.get(EMAIL_POLLER_ENV) == "1":
         email_poller.start_poller()
+    else:
+        logger.info(f"ℹ️ Email poller is off (not launched by the tray; set {EMAIL_POLLER_ENV}=1 to opt in)")
     yield
 
 
