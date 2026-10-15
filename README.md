@@ -211,11 +211,15 @@ Edit `src/config.json` to customize:
 
 The app can push short Telegram messages through the universal `src/notify/`
 component, vendored verbatim from `project-scaffolding` (see
-`src/notify/README.md`). Today the only alerts wired to it come from the
-Gmail order-confirmation check below: a scheduled or manual check that finds
+`src/notify/README.md`). Two senders are wired to it: every cart run's
+summary, including every item **not** in the cart with its reason
+(`automation/run_automation.py`'s `_notify`, see
+[Browser Automation](#-browser-automation) below), and the Gmail
+order-confirmation check below — a scheduled or manual check that finds
 a dropped or unrecognized item in the confirmation email, and the Settings
 **Email watch** sheet's *Test last email* action. See the "Read-only Gmail
-order-confirmation check" section below for what triggers a notification.
+order-confirmation check" section below for what triggers that second
+notification.
 
 Configure credentials by copying `config/notify_config.sample.json` to
 gitignored `config/notify_config.json` and filling in `bot_token` + `chat_id`

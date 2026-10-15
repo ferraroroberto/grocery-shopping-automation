@@ -144,8 +144,9 @@ A row may name a **fallback** product in two optional sheet columns:
 product URL). Neither is required — a sheet without them loads unchanged — and
 a blank store, a value that isn't an `http(s)` URL, or a fallback that is the
 row's own primary all mean "no fallback". One fallback per row; a fallback
-never has its own. The item sheet in the app does not edit these columns yet;
-fill them in the spreadsheet.
+never has its own. The item sheet's **Fallback if short** page edits these
+columns (#284, `app/static/modules/fallback.js`, `PUT /api/items/{id}/fallback`);
+see the root README's Items section for how it reads.
 
 When the final cart shows the primary short — partly (a stock cap) or
 completely (out of stock, unavailable, no URL) — the missing units go to the
@@ -217,10 +218,10 @@ filled cart itself persists in your store account regardless.
 
 ### From the web app
 
-The FastAPI/PWA app drives automation from the **Fill carts** section at the
-bottom of its **🛒 Shop** tab: pick a
-store (or "All stores"), choose a cart mode, optionally tick *Dry run*, and
-start the run. The automation endpoints in `app/routers/automation.py` spawn
+The FastAPI/PWA app drives automation from the **Carts** glance card at the
+top of its **🛒 Shop** tab (#258): tap **Fill carts**, and its **Options**
+sheet picks a
+store (or "All stores"), a cart mode, and *Dry run*. The automation endpoints in `app/routers/automation.py` spawn
 this same CLI as a subprocess and stream its output live to the page
 (`app/static/modules/automation.js`); a **🛑 Stop** control terminates an
 in-progress run. The legacy Streamlit app offers the same controls in its
@@ -283,7 +284,7 @@ plumbing in `app/automation_runner.py`.
   by hand), and an add that comes back in another cut is removed and fails.
   A product whose page offers cuts but has no entry is added in the page's
   default cut, with a warning in the log.
-  The item review dialog (Items → Stores → the row's pencil) shows the cut on
+  The item sheet's **Stores & prices** page shows the cut on
   that store's row, so the setting is never hidden (issue #179).
 
 ### Order-confirmation email check (issue #72)
@@ -353,8 +354,8 @@ and matches it against the latest purchase log so a dropped item is visible.
   message id still loads, and adopts its watermark on the first check that
   can still see that message.
 - **Background poller (issue #73)**: `app/email_poller.py` calls that seam on a
-  schedule. The PWA's ⚙️ Settings pane (the header gear) carries an **Email Watch** card (folded by
-  default) that selects which whitelisted senders are monitored (each mapped
+  schedule. The PWA's ⚙️ Settings (the header gear) → **Email watch** sheet
+  selects which whitelisted senders are monitored (each mapped
   to a store via the `store` field in `config/gmail_config.json`), switches
   automatic polling on/off, sets the cadence (15 min – daily), and shows the
   last-check log (last 20 entries, gitignored
