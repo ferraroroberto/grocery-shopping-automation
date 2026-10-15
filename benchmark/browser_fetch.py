@@ -5,6 +5,18 @@ bot-manager 403. This CLI loads the URL in real Chrome with the repo's stealth
 launch config (:func:`automation.browser._open_context`) and prints the result,
 so a store-research agent can keep working over "HTTP" semantics.
 
+For stores that need **clicks** (a postcode picker, a consent banner) rather
+than a plain navigate-and-read, :func:`open_actions_context` opens the same
+stealth-launched, same-profile context for a research agent to drive
+interactively — so "this store needs clicks" doesn't mean hand-rolling a
+second, un-stealthed ``sync_playwright()`` launch (issue #296):
+
+    from benchmark.browser_fetch import open_actions_context
+    with open_actions_context("carrefour") as (context, page):
+        page.goto("https://www.carrefour.es/supermercado")
+        page.click('[aria-label="Envío a domicilio"]')
+        ...
+
 Each store gets its **own** throwaway profile under
 ``<runs_dir>/_state/chrome/<store>/`` — never the shared store-login
 profile — so parallel agents (one per store) don't collide and cookies a store
@@ -26,11 +38,12 @@ import json
 import logging
 import sys
 import time
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional
+from typing import Iterator, Optional
 from urllib.parse import urlsplit
 
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import BrowserContext, Page, sync_playwright
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT) not in sys.path:
@@ -49,6 +62,27 @@ _FETCH_JS = """async (url) => {
 }"""
 
 
+@contextmanager
+def open_actions_context(store: str, headless: bool = False) -> Iterator[tuple[BrowserContext, Page]]:
+    """Open ``store``'s own stealth-launched Chrome context for click-driven research.
+
+    The actions-mode counterpart to :func:`fetch`'s navigate-and-read flow —
+    same shared stealth launcher (:func:`automation.browser._open_context`)
+    and the same per-store profile, so a store that needs a postcode-picker
+    click or a consent-banner dismiss doesn't need its own hand-rolled
+    ``sync_playwright()`` launch. Yields ``(context, page)``; closes the
+    context on exit.
+    """
+    profile = state_dir() / "chrome" / store
+    profile.mkdir(parents=True, exist_ok=True)
+    with sync_playwright() as pw:
+        context, page = _open_context(pw, headless=headless, user_data_dir=profile)
+        try:
+            yield context, page
+        finally:
+            context.close()
+
+
 def fetch(store: str, url: str, mode: str = "text", home: Optional[str] = None,
           headless: bool = False, settle_s: float = _SETTLE_S) -> tuple[int, str]:
     """Load ``url`` in real Chrome on the store's own profile.
@@ -56,24 +90,18 @@ def fetch(store: str, url: str, mode: str = "text", home: Optional[str] = None,
     Returns ``(status, body)``: the page text (``text``), full HTML (``html``)
     or the in-page ``fetch`` response body (``api``).
     """
-    profile = state_dir() / "chrome" / store
-    profile.mkdir(parents=True, exist_ok=True)
-    with sync_playwright() as pw:
-        context, page = _open_context(pw, headless=headless, user_data_dir=profile)
-        try:
-            if mode == "api":
-                origin = home or "{0.scheme}://{0.netloc}/".format(urlsplit(url))
-                page.goto(origin, wait_until="domcontentloaded", timeout=45000)
-                time.sleep(settle_s)
-                result = page.evaluate(_FETCH_JS, url)
-                return int(result["status"]), str(result["body"])
-            resp = page.goto(url, wait_until="domcontentloaded", timeout=45000)
+    with open_actions_context(store, headless=headless) as (_context, page):
+        if mode == "api":
+            origin = home or "{0.scheme}://{0.netloc}/".format(urlsplit(url))
+            page.goto(origin, wait_until="domcontentloaded", timeout=45000)
             time.sleep(settle_s)
-            status = resp.status if resp else 0
-            body = page.content() if mode == "html" else page.inner_text("body")
-            return status, body
-        finally:
-            context.close()
+            result = page.evaluate(_FETCH_JS, url)
+            return int(result["status"]), str(result["body"])
+        resp = page.goto(url, wait_until="domcontentloaded", timeout=45000)
+        time.sleep(settle_s)
+        status = resp.status if resp else 0
+        body = page.content() if mode == "html" else page.inner_text("body")
+        return status, body
 
 
 def main(argv: Optional[list[str]] = None) -> int:
