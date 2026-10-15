@@ -1800,6 +1800,34 @@ def test_empty_automation_log_says_what_fills_it(page):
     assert "Fill carts" in text and "progress appears here" in text
 
 
+@pytest.mark.e2e
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_automation_log_is_a_code_listing(page, theme):
+    """#291 / COMP-17: the run log is the design.md `code-listing` frame in both
+    themes -- 13px / 1.5 mono on the card surface and a hairline, never the
+    12px caption on canvas-subtle (true black inside a dark card)."""
+    page.evaluate("t => { localStorage.setItem('grocery.theme', t); document.documentElement.dataset.theme = t; }", theme)
+    goto_mode(page, "shopping")
+    page.locator("#automation-log").wait_for(state="attached")
+    probe = page.evaluate("""() => {
+      const log = getComputedStyle(document.querySelector('#automation-log'));
+      const swatch = document.createElement('i');
+      document.body.append(swatch);
+      const of = (v) => { swatch.style.background = `var(${v})`; return getComputedStyle(swatch).backgroundColor; };
+      const out = {
+        size: log.fontSize, lineHeight: log.lineHeight, background: log.backgroundColor,
+        border: log.borderTopColor, borderWidth: log.borderTopWidth,
+        card: of('--card'), line: of('--line'), canvasSubtle: of('--card-off'),
+      };
+      swatch.remove();
+      return out;
+    }""")
+    assert probe["size"] == "13px", probe
+    assert probe["lineHeight"] == "19.5px", probe
+    assert probe["background"] == probe["card"] != probe["canvasSubtle"], probe
+    assert probe["borderWidth"] == "1px" and probe["border"] == probe["line"], probe
+
+
 _FIRST_AFTER_HEADER_JS = r"""
 (tab) => {
   const pane = document.querySelector(`#pane-${tab}`);
