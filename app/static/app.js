@@ -297,7 +297,7 @@ el.app.addEventListener("click", async (event) => {
   if (action === "audio-find") findInManual(event.target.closest("[data-phrase]").dataset.phrase);
   if (action === "mark-buy") { state.shopping.bought.add(id); saveShoppingState(); render(); }
   if (action === "undo-buy") { state.shopping.bought.delete(id); saveShoppingState(); render(); }
-  // A quick-add's Got it; its Remove lives in the store sheet (#258).
+  // A quick-add's Complete; its Remove lives in the store sheet (#258).
   const extraCard = event.target.closest("[data-extra-id]");
   if (extraCard) {
     const store = extraCard.dataset.store;

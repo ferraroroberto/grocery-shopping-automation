@@ -70,7 +70,7 @@ export function renderShopping() {
   }).join("");
 }
 
-// A list row: Got it is the leading check (#252 decision 4), the buy link the
+// A list row: Complete is the leading check (#252 decision 4), the buy link the
 // one trailing item; a row with no link says so in its meta instead.
 function shoppingRow(item, cols) {
   const bought = state.shopping.bought.has(item.id);
@@ -81,8 +81,8 @@ function shoppingRow(item, cols) {
     struck: bought,
     meta: `${text(item[cols.lugar])} · buy ${item[cols.comprar]}`,
     chip: url ? null : { label: "No link", tone: "attention" },
-    lead: { pressed: bought, action: bought ? "undo-buy" : "mark-buy", label: `Got ${name}` },
-    trail: url ? rowLink(url, `Buy ${name}`) : "",
+    lead: { pressed: bought, action: bought ? "undo-buy" : "mark-buy", label: `Complete ${name}` },
+    trail: url ? rowLink(url, `Open buy link for ${name}`) : "",
     attrs: `data-id="${item.id}"`,
   });
 }
@@ -95,7 +95,7 @@ function extraRow(item, store, extraBought) {
     title: item.name,
     struck: bought,
     meta: `Added here · buy ${item.qty}`,
-    lead: { pressed: bought, action: bought ? "undo-extra" : "mark-extra", label: `Got ${item.name}` },
+    lead: { pressed: bought, action: bought ? "undo-extra" : "mark-extra", label: `Complete ${item.name}` },
     attrs: `data-extra-id="${item.id}" data-store="${html(store)}"`,
     open: false,
   });
