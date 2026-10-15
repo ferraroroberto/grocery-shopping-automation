@@ -356,9 +356,9 @@ The **Prices** segment under **Items** (the Stores mode until #256) is where you
 ### 🛒 Shopping List
 **Fill carts first:** the **Shop** tab opens on the **Carts** glance card — one row per store on the list with what to buy and how the last fill went ("12 to buy · 11 in cart", a "1 not in cart" chip when it left something out), the one **Fill carts** button, the run's progress and outcome, and the run log folded underneath. Its **Options** row opens a sheet with the store, cart mode, dry run and the clean-cart confirm, and says in plain words what will run. When a fill leaves items out, Shop's header names them and the **Shop** tab carries a count badge until you next open Shop. The last fill is read from the run records under `purchase_logs/runs/`, so it survives a restart — see [Browser Automation](#-browser-automation).
 
-**The list:** below the glance, the items to buy are grouped by supermarket, each group folded with its done/total count. A row has a leading Got-it check (tap again to undo) and a trailing buy link.
+**The list:** below the glance, the items to buy are grouped by supermarket, each group folded with its done/total count. A row has a leading Complete check (tap again to undo) and a trailing "Open buy link" icon.
 
-**Add to a store:** the last row of each group adds an ad-hoc item (name + quantity) to that store's list. These are session-only and support the same Got-it check.
+**Add to a store:** the last row of each group adds an ad-hoc item (name + quantity) to that store's list. These are session-only and support the same Complete check.
 
 **Store options:** the row under it opens the store sheet — the **already in cart** items/units counters (for things put in the cart before you opened the app; the group's totals update at once), the ad-hoc items with their **Remove**, and **Unmark all** for that store.
 

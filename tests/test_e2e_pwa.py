@@ -396,16 +396,23 @@ def test_four_tab_nav_and_relocated_sections(page, pw, server):
     assert fill.locator("#automation-start").is_disabled()
     assert fill.locator("#automation-blocked").is_visible()
     assert fill.locator("#automation-options-value").inner_text() == "All stores · Clean cart"
-    # A shopping-list re-render (Got it) must not reset the run picks.
+    # A shopping-list re-render (Complete) must not reset the run picks.
     group = page.locator("#pane-shopping details[data-store='mercadona']")
     assert group.locator(".collapse-title").inner_text() == "Mercadona"
     group.locator("> summary").click()
     group.locator("[data-action='mark-buy']").first.click()
     group.locator("[data-action='undo-buy']").first.wait_for()
-    # Got it is the row's leading check (#254): pressed, and the name struck.
+    # Complete is the row's leading check (#254): pressed, and the name struck.
     got = group.locator(".item-row", has=page.locator("[data-action='undo-buy']")).first
     assert got.locator(".action-row-check").get_attribute("aria-pressed") == "true"
     assert got.locator(".action-row-title s").count() == 1
+    # The check is named for its verb, the link for what it opens (#289).
+    title = got.locator(".action-row-title").inner_text()
+    assert got.locator(".action-row-check").get_attribute("aria-label") == f"Complete {title}"
+    link = got.locator("a.action-row-trail")
+    if link.count():
+        assert link.get_attribute("aria-label") == f"Open buy link for {title}"
+        assert link.get_attribute("title") == f"Open buy link for {title}"
     assert fill.locator("#automation-options-value").inner_text() == "All stores · Clean cart"
     assert open_fill_options(page).locator("#automation-cart-mode").input_value() == "clean"
     page.keyboard.press("Escape")
