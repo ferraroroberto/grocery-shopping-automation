@@ -46,6 +46,18 @@ monthly-cost baseline: set/reset (#183)| ROUTERS
     ROUTERS --> POLLER
   end
 
+  subgraph tray["Recommended launcher — Windows tray (owns the PWA lifecycle)"]
+    LAUNCHERPY["launcher.py\nroot entrypoint (tray.bat)"]
+    TRAYICON["app/tray/tray.py\npystray icon: Open grocery · Copy local URL ·\nRestart webapp · Status · Quit"]
+    TRAYMGR["app/tray/manager.py\nWebappManager: uvicorn adopt-or-spawn,\nidempotent start, orphan-proof --restart"]
+    SINGLEINST["app/tray/single_instance.py\nvendored named-mutex single-instance guard"]
+    LAUNCHERPY --> TRAYICON
+    TRAYICON --> TRAYMGR
+    TRAYMGR --> SINGLEINST
+  end
+  TRAYMGR -->|spawns/adopts uvicorn| API
+  TRAYMGR --> CERTS
+
   subgraph legacy["Legacy surface — Streamlit (:8501)"]
     APPPY["app/app.py\npage config, session state, sidebar routing"]
     MODES["audit.py · audio_audit.py · edit_targets.py ·\nedit_item.py · add_item.py · shopping.py · export.py"]
@@ -70,6 +82,7 @@ monthly-cost baseline: set/reset (#183)| ROUTERS
     GMAILCFG["src/gmail_config.py\nsender whitelist + store mapping + poller settings"]
     NOTIFYCFG["src/notify_config.py + src/notify/\nvendored Telegram notifier (from whatsapp-radar)"]
     SSL["src/gen_ssl_cert.py\nlocal CA + server cert"]
+    CERTS["src/certs.py\ncert_paths(): resolve the served cert/key,\nread the Tailscale SAN host off it"]
     USAGELOG["src/usage_log.py + src/runtime_data.py (vendored)\nlocal-only usage log: constant view/control ids,\ndevice class, no content (#276)"]
   end
   APICOMMON --> DATA

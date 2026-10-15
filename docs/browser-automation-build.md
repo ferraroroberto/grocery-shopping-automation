@@ -11,26 +11,35 @@ writing code. For the canonical module-by-module reference see
 
 ```
 src/                inventory Excel I/O + config (pre-existing, UI-agnostic)
-automation/         the new package — UI-agnostic browser automation
+automation/         UI-agnostic browser automation
   browser.py          Playwright factory: persistent Chrome profile, login check
   bootstrap_session.py  one-time interactive login (plain chrome.exe)
+  check_logins.py     read-only per-store login check
   grocery_reader.py   inventory XLSX -> list[CartItem]
   models.py           CartItem dataclass
   errors.py           OutOfStockError, AddToCartFailed
   mercadona.py        add_to_cart(page, item)  — store handler
   ametller.py         add_to_cart(page, item)  — store handler
+  carrefour.py        add_to_cart(page, item)  — store handler
+  product_options.py  per-store, per-product page-option picks (e.g. a cut)
   report.py           RunReport summary
-  run_automation.py   CLI runner: read list -> group by store -> dispatch
+  run_automation.py   CLI runner: read list -> group by store -> dispatch,
+                       plus the cart guard (retry, verify, fallback, notify)
 app/
   automation_runner.py  subprocess plumbing (spawn, drain stdout, stop)
-  shopping.py           "Run Automation" UI section + live output stream
+  shopping.py           legacy Streamlit "Run Automation" UI section
 ```
 
+See [`automation/README.md`](../automation/README.md) for the full
+module-by-module reference, including the modules added since this was
+written (purchase log, email-confirmation check, product search, benchmark).
+
 The hard rule that paid off: **`automation/` never imports `streamlit`, and
-`app/` never drives Playwright.** The CLI runner is the seam. The Streamlit
-integration (#4) is "just" a subprocess wrapper around the exact command you
-would type in a terminal — which means the terminal stays a first-class
-debugging path forever.
+`app/` never drives Playwright.** The CLI runner is the seam — both the PWA
+(`app/routers/automation.py`) and the legacy Streamlit integration (#4) are
+"just" a subprocess wrapper around the exact command you would type in a
+terminal, which means the terminal stays a first-class debugging path
+forever.
 
 ---
 
@@ -68,11 +77,15 @@ by one browser process at a time.** That is why the runner does stores
 
 ---
 
-## 3. Issues #2 & #3 — two stores, two completely different DOMs
+## 3. Issues #2 & #3 — the first two stores, two completely different DOMs
 
 We verified every selector live and pinned them in a `SELECTORS` dict per
 handler with a "verified live on <date>" note, so a DOM change is a one-line
-fix and the staleness is visible.
+fix and the staleness is visible. Carrefour (`carrefour.py`) joined later as a
+third handler, with its own quirks (the fresh-fish cut picker, `product_options.json`,
+SCAPI auth reused by the product-search module) — see
+[`automation/README.md`](../automation/README.md) rather than this historical
+walk-through.
 
 ### Mercadona (`mercadona.py`) — a React app, counts *units*
 
@@ -173,47 +186,7 @@ stdin).
 
 ---
 
-## 5. Validation — the full Wednesday run
-
-End-to-end validation reproduced a real weekly shop: the inventory Excel had
-the usual stock-vs-target gaps, producing **52 pending items** (17 Ametller +
-35 Mercadona).
-
-1. `--dry-run` — confirmed all 52 items resolved to real product URLs, 0
-   skipped, grouped correctly by store.
-2. Live run, both stores: **45 / 52 added and verified.**
-   - **Mercadona: 35 / 35.** Header badge tracked 5 → 59 across the run, every
-     line verified against both the on-page unit count and the badge.
-   - **Ametller: 10 / 17.** Items already in the cart from earlier #2/#3 tests
-     were correctly left as-is (idempotency confirmed in the wild).
-3. `py_compile` clean on all changed files; Streamlit boots headless without
-   errors.
-
-The 7 Ametller failures are a **genuine handler-robustness defect surfaced by
-this validation** — exactly what a full-circle run is for — and are tracked as
-a follow-up issue. Two distinct modes, confirmed by live DOM probes:
-
-- **Product page never renders** (`huevos`, `manzana`): no `h1`, no add button,
-  no stepper, even after the hydration wait — the `/p` URL returns an empty
-  product shell. Likely discontinued SKUs; the handler correctly raises
-  `AddToCartFailed` rather than guessing.
-- **Add silently does not register** (`zanahoria`, `jamón cocido`, `bases
-  pizza`, `tomate Mutti`, `mozzarella Galbani`): the product page loads fine,
-  but clicking "Añadir" (and the retry) never puts a line in the minicart — a
-  probe confirmed the minicart held exactly the 10 successful items and none of
-  these. Every item from a certain point onward failed the same way, which
-  points at a state that, once entered, is not reset between products (a
-  leftover overlay / open drawer is the prime suspect). The Mercadona-style
-  "click, then poll until the counter moves, retry" pattern needs to be applied
-  to Ametller's add too — verify-and-retry currently only wraps the *stepper*,
-  not the *add*.
-
-Mercadona's 35/35 shows the verify-and-retry discipline works when it is
-applied; the Ametller follow-up is about extending the same rigour.
-
----
-
-## 6. If you add a third store tomorrow
+## 5. If you add a third store tomorrow
 
 1. **Do not touch the login flow.** Add the store's login URL to
    `bootstrap_session.py`'s URL list; the plain-Chrome bootstrap already
