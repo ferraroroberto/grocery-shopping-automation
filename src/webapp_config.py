@@ -10,6 +10,9 @@ from urllib.parse import urlencode, urlparse, urlunparse
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "webapp_config.json"
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8502
+# The tray sets this in the webapp's environment; only then does the process
+# poll the mailbox. Any other boot (worktree, fixture instance, webapp.bat) stays off (#301).
+EMAIL_POLLER_ENV = "GROCERY_EMAIL_POLLER"
 
 
 @dataclass

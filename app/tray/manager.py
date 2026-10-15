@@ -28,7 +28,7 @@ import requests
 from app.tray.single_instance import cross_process_lock
 from src.certs import cert_paths
 from src.no_window import NEW_PROCESS_GROUP_NO_WINDOW, NO_WINDOW
-from src.webapp_config import DEFAULT_HOST, DEFAULT_PORT, load_webapp_config
+from src.webapp_config import DEFAULT_HOST, DEFAULT_PORT, EMAIL_POLLER_ENV, load_webapp_config
 
 logger = logging.getLogger(__name__)
 
@@ -236,6 +236,7 @@ class WebappManager:
             env = os.environ.copy()
             env["PYTHONIOENCODING"] = "utf-8"
             env["PYTHONUTF8"] = "1"
+            env[EMAIL_POLLER_ENV] = "1"  # the tray-owned webapp is the one that polls Gmail (#301)
 
             try:
                 popen_kwargs: Dict[str, Any] = dict(
