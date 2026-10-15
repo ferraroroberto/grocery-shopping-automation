@@ -38,9 +38,8 @@
   --accent-border-soft: color-mix(in srgb, var(--accent) 24%, transparent);
   --accent-border-strong: color-mix(in srgb, var(--accent) 28%, transparent);
   --danger-soft: color-mix(in srgb, var(--deficit) 16%, transparent);
-  /* the transcript/automation log is a terminal-class surface that follows
-     the theme (a fixed dark matte read as "not switching" in light mode). */
-  --log-bg: var(--card-off);
+  /* the automation log is a code-listing frame (card on a hairline) that
+     follows the theme; never canvas-subtle, true black inside a dark card. */
   --log-ink: var(--ink);
   /* radii (rounded scale) */
   --radius-sm: 8px;         /* rounded.sm — read by the vendored icon-button */
@@ -84,6 +83,7 @@
   --font-label: 0.875rem;
   --font-body-sm: 0.875rem; /* body-sm: every secondary line (row meta, helper copy) */
   --font-caption: 0.75rem;
+  --font-code: 0.8125rem;   /* 13px: the one sanctioned off-scale size, mono listings only (COMP-17) */
   /* canonical icon sizes (design.md icons.size) */
   --icon-inline: 16px;
   --icon-title: 18px;
@@ -525,18 +525,20 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
    instead of filling it. .hit-target supplies the 44px effective square. */
 .count-input { width: 68px; text-align: center; font-weight: 700; }
 
-/* Terminal-class log surface — theme-aware (canvas-subtle inset + hairline). */
+/* Log surface: the design.md `code-listing` frame — card on a hairline, mono
+   13px / 1.5, in both themes (COMP-17, #291). */
 .log {
   white-space: pre-wrap;
   overflow: auto;
   max-height: 360px;
   padding: var(--gap);
-  border: 1px solid var(--line-muted);
+  border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  background: var(--log-bg);
+  background: var(--card);
   color: var(--log-ink);
-  font-family: Consolas, monospace;
-  font-size: var(--font-caption);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: var(--font-code);
+  line-height: 1.5;
   margin: 0;
 }
 /* .log's `margin: 0` (same specificity, later in source) silently killed the
