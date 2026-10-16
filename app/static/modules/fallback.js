@@ -7,12 +7,7 @@ import { fetchJson } from "./api.js";
 import { state } from "./core.js";
 import { esc, icon } from "./dom.js";
 import { setDialogStatus } from "./stores/dialog.js";
-import { jsonInit, local } from "./stores/state.js";
-
-// A store as the Stores registry names it ("Ametller Origen"), else as typed.
-function storeLabel(key) {
-  return local.meta?.stores.find((s) => s.key === key)?.name || key;
-}
+import { jsonInit, local, storeName } from "./stores/state.js";
 
 function hostname(url) {
   try {
@@ -26,8 +21,8 @@ function hostname(url) {
 export function fallbackSummary(record) {
   const fallback = record?.fallback;
   if (!fallback) return { text: "None" };
-  if (fallback.kind !== "product") return { text: `${storeLabel(fallback.store)} · check link`, tone: "attention" };
-  return { text: `${storeLabel(fallback.store)} · ${hostname(fallback.url)}` };
+  if (fallback.kind !== "product") return { text: `${storeName(fallback.store)} · check link`, tone: "attention" };
+  return { text: `${storeName(fallback.store)} · ${hostname(fallback.url)}` };
 }
 
 // A saved link that isn't a product page is said so, not posed as one.

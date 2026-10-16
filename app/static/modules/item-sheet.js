@@ -20,7 +20,7 @@ import { fallbackSummary, onFallbackClick, onFallbackSubmit, paintFallbackPage }
 import { dialogShell, setDialogStatus } from "./stores/dialog.js";
 import { paintList } from "./stores/list.js";
 import { afterReviewChange, closeReview, onReviewClick, onReviewSubmit, openReview, paintQuantity, reviewSummary } from "./stores/review.js";
-import { itemById, jsonInit, local } from "./stores/state.js";
+import { itemById, jsonInit, storeName } from "./stores/state.js";
 
 const SHEET_ID = "item-sheet";
 
@@ -141,12 +141,6 @@ function paintSteppers() {
   }
 }
 
-// A store as the Stores registry names it ("Ametller Origen"), else as typed.
-function storeLabel(raw) {
-  const key = raw.trim().toLowerCase();
-  return local.meta?.stores.find((s) => s.key === key)?.name || raw;
-}
-
 function buyLinkValue() {
   const url = value("buscador").trim();
   if (!url) return { text: "No link", tone: "attention" };
@@ -193,7 +187,7 @@ function paintValues() {
   const review = reviewSummary();
   const values = {
     zone: { text: value("lugar") },
-    store: { text: storeLabel(value("super")) },
+    store: { text: storeName(value("super").trim().toLowerCase()) },
     link: buyLinkValue(),
     fallback: fallbackSummary(item()),
     prices: review.prices,

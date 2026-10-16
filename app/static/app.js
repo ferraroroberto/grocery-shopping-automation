@@ -61,6 +61,7 @@ import {
   repaintStoresList,
   storesNeedsChecking,
 } from "./modules/stores/index.js";
+import { loadMeta } from "./modules/stores/simulator.js";
 
 // Page-header context lines (#254, design.md "page header"): the exception
 // that needs you, in its tone, else the plain fact — never the mode name the
@@ -389,6 +390,11 @@ loadInventory().then(() => {
 // opens; a Shop that opens has already asked (onTabChange → syncFillCarts).
 if (nav.getTab() !== "shopping") loadFills();
 fetchVersion();
+// The Stores registry (display names, cart-handler flags) is read fleet-wide
+// for store labels (automation.js, fallback.js, item-sheet.js, search.js) —
+// loaded here so Home/Shop show real names before Items → Prices is ever
+// opened; renderStores()/loadPricesReview() skip the reload once it is ready.
+loadMeta();
 
 // No manual refresh button: refetch when the PWA returns to the foreground.
 // Only on the read-only list modes — a re-render on Voice would wipe a pasted
