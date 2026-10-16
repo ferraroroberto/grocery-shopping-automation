@@ -57,6 +57,8 @@ monthly-cost baseline: set/reset (#183)| ROUTERS
   end
   TRAYMGR -->|spawns/adopts uvicorn| API
   TRAYMGR --> CERTS
+  TRAYMGR --> UVICORNLAUNCH
+  UVICORNLAUNCH --> CERTS
 
   subgraph legacy["Legacy surface — Streamlit (:8501)"]
     APPPY["app/app.py\npage config, session state, sidebar routing"]
@@ -83,6 +85,7 @@ monthly-cost baseline: set/reset (#183)| ROUTERS
     NOTIFYCFG["src/notify_config.py + src/notify/\nvendored Telegram notifier (from whatsapp-radar)"]
     SSL["src/gen_ssl_cert.py\nlocal CA + server cert"]
     CERTS["src/certs.py\ncert_paths(): resolve the served cert/key,\nread the Tailscale SAN host off it"]
+    UVICORNLAUNCH["src/uvicorn_launch.py\nbuild_uvicorn_command() + stop_process():\none uvicorn argv + CTRL_BREAK→terminate→kill(5s)\nsequence shared by the tray and the tunnel (#294)"]
     USAGELOG["src/usage_log.py + src/runtime_data.py (vendored)\nlocal-only usage log: constant view/control ids,\ndevice class, no content (#276)"]
   end
   APICOMMON --> DATA
@@ -226,6 +229,8 @@ orchestration recipe + Sonnet research-agent prompt"]
   end
   GENTOKEN --> WEBCFG
   TAILCERT --> SSL
+  TUNNEL --> UVICORNLAUNCH
+  TUNNEL -.->|adopt-or-spawn, same as the tray| API
   GENICONS --> STATIC
   SYNTH -->|copy runs under stubs + guard; writes only a temp workbook and benchmark runs| API
   SCAFFOLD --> GENICONS

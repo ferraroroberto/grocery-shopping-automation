@@ -11,10 +11,11 @@
 //   - a new term → "Use" pre-fills the sheet's Add by hand form below (name,
 //     store, link, target 1) and the sheet's "Add item" creates the row — the
 //     same POST /api/items shape /select would build.
-import { authFetch, fetchJson } from "./api.js";
+import { fetchJson } from "./api.js";
 import { c, defaultZone, items, state } from "./core.js";
 import { chip, esc, formatElapsed, html, icon, setPickerValue, text } from "./dom.js";
 import { pickAudioMime } from "./media.js";
+import { storeName } from "./stores/state.js";
 
 // Local to this module — `items` holds the merged status entries (one per
 // searched term, each with its candidate cards). `prefilled` is the candidate
@@ -26,19 +27,15 @@ const search = {
   prefilled: null,
 };
 
-// Store keys → display names, and a failed store's reason code → plain copy
-// (the raw error stays in the server log — failure copy is sanitized).
-const STORE_LABEL = { mercadona: "Mercadona", carrefour: "Carrefour" };
+// A failed store's reason code → plain copy (the raw error stays in the
+// server log — failure copy is sanitized). Display names come from the
+// shared Stores registry (stores/state.js), not a hard-coded map.
 const FAILURE_COPY = {
   session: "couldn't search — log in to the store again",
   timeout: "couldn't search — the site was too slow",
   stopped: "stopped before it finished",
   error: "couldn't search (network or site error)",
 };
-
-function storeLabel(store) {
-  return STORE_LABEL[store] || (store ? store[0].toUpperCase() + store.slice(1) : "");
-}
 
 // Before /start returns, the server is still reading the text (an LLM call) —
 // say so rather than claim the stores are being searched (issue #211).
@@ -134,8 +131,8 @@ function searchItemGroup(item) {
 // fall back to naming the stores in `store_errors`.
 function storeStates(item, stores) {
   const rows = stores.length
-    ? stores.map((st) => [st.state === "failed", `${storeLabel(st.store)}: ${storeStateText(st)}`])
-    : Object.keys(item.store_errors || {}).map((store) => [true, `${storeLabel(store)}: ${FAILURE_COPY.error}`]);
+    ? stores.map((st) => [st.state === "failed", `${storeName(st.store)}: ${storeStateText(st)}`])
+    : Object.keys(item.store_errors || {}).map((store) => [true, `${storeName(store)}: ${FAILURE_COPY.error}`]);
   if (!rows.length) return "";
   return `<ul class="search-store-states">${rows.map(([bad, line]) =>
     `<li class="panel-status${bad ? " error" : ""}">${html(line)}</li>`).join("")}</ul>`;
@@ -244,9 +241,7 @@ async function transcribeSearchClip(mime) {
     const form = new FormData();
     form.append("file", new Blob(s.chunks, { type: mime || "audio/webm" }),
       mime && mime.includes("mp4") ? "query.mp4" : "query.webm");
-    const res = await authFetch("/api/product-search/transcribe", { method: "POST", body: form });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.detail || `HTTP ${res.status}`);
+    const body = await fetchJson("/api/product-search/transcribe", { method: "POST", body: form });
     s.term = (body.transcript || "").trim();
     renderSearch();
     if (s.term) startProductSearch(); // speak, then auto-search, per the on-demand flow

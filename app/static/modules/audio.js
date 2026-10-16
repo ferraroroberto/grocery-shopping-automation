@@ -708,15 +708,14 @@ async function finishRecording() {
     setAudioStatus(`Finalising upload · ${audio.pendingUploads} chunk(s) left…`);
     await audio.uploadChain;
     audio.bytes = audio.bytesSent;
-    const body = await runWithTimer(audioTranscribeStage, async (signal) => {
-      const response = await authFetch(
-        `/api/audio/session/${audio.sessionId}/finish?language=es&translate=false`,
-        { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}", signal },
-      );
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.detail || `HTTP ${response.status}`);
-      return data;
-    });
+    const body = await runWithTimer(audioTranscribeStage, (signal) =>
+      fetchJson(`/api/audio/session/${audio.sessionId}/finish?language=es&translate=false`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+        signal,
+      }),
+    );
     closeAudioPartialStream();
     if (body.silent) {
       setAudioStatus("Empty audio — nothing transcribed", "");
@@ -752,15 +751,12 @@ export async function redoTranscribe() {
     return;
   }
   try {
-    const body = await runWithTimer(audioTranscribeStage, async (signal) => {
-      const response = await authFetch(
-        `/api/audio/session/${audio.sessionId}/retranscribe?language=es&translate=false`,
-        { method: "POST", signal },
-      );
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.detail || `HTTP ${response.status}`);
-      return data;
-    });
+    const body = await runWithTimer(audioTranscribeStage, (signal) =>
+      fetchJson(`/api/audio/session/${audio.sessionId}/retranscribe?language=es&translate=false`, {
+        method: "POST",
+        signal,
+      }),
+    );
     audio.transcript = body.transcript || "";
     const field = document.querySelector("#transcript");
     if (field) field.value = audio.transcript;

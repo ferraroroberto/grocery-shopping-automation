@@ -16,6 +16,7 @@ import { fetchJson } from "./api.js";
 import { c, items, state, storedToken, updateHeaders } from "./core.js";
 import { chip, esc, formatElapsed, html, icon, shortDate, switchMarkup } from "./dom.js";
 import { dialogShell } from "./stores/dialog.js";
+import { local, storeName } from "./stores/state.js";
 
 const OPTIONS_ID = "fill-carts-options";
 const SEEN_KEY = "grocery.fillSeen";
@@ -31,9 +32,10 @@ const run = {
 // Options sheet, so the glance can start a run before the sheet was ever opened.
 const picks = { store: "all", cartMode: "keep", dryRun: false, cleanConfirmed: false };
 
-// The store directory (display names, which stores have a cart handler) and
-// the last fill day's outcome per store key, once read.
-const fills = { stores: [], last: null, loaded: false };
+// The last fill day's outcome per store key, once read. Display names and
+// cart-handler flags come from the shared Stores registry (stores/state.js),
+// not a second copy of the same server-side directory.
+const fills = { last: null, loaded: false };
 
 const IDLE_LOG = "Not running. Press Fill carts to fill the store carts; progress appears here.";
 
@@ -42,18 +44,20 @@ function host() {
 }
 
 // ------------------------------------------------------------ store names
-// The list holds the store as typed in the sheet; the run records and the
-// directory key it lower-cased. Never show the key (#252 decision 5).
+// The list holds the store as typed in the sheet; the registry key it
+// lower-cased. Never show the key (#252 decision 5).
 function storeKey(store) {
   return String(store ?? "").trim().toLowerCase();
 }
 
-function directoryEntry(store) {
-  return fills.stores.find((s) => s.key === storeKey(store));
+export function storeLabel(store) {
+  return storeName(storeKey(store));
 }
 
-export function storeLabel(store) {
-  return directoryEntry(store)?.name || String(store ?? "");
+// The one registry entry (name, shop_url, has_handler) behind a store key,
+// from the shared Stores registry — undefined for a store it doesn't list.
+function registryEntry(store) {
+  return local.meta?.stores.find((s) => s.key === storeKey(store));
 }
 
 function joinNames(names) {
@@ -109,7 +113,6 @@ export function unseenFillMisses() {
 export async function loadFills() {
   try {
     const body = await fetchJson("/api/automation/fills");
-    fills.stores = body.stores || [];
     fills.last = body.last_fill;
     fills.loaded = true;
   } catch (_) {
@@ -118,7 +121,8 @@ export async function loadFills() {
   updateHeaders();
   if (state.mode === "shopping") {
     paintCarts();
-    // Store-group titles carry the display names the directory just brought.
+    // Store-group titles pick up any display name the registry resolved since
+    // they last painted (e.g. loadMeta() finishing after this fill result).
     document.querySelectorAll("#pane-shopping [data-store-label]").forEach((node) => {
       node.textContent = storeLabel(node.dataset.storeLabel);
     });
@@ -174,7 +178,7 @@ function inRun(store) {
 // One exception chip per store row, in the tone map's order of urgency.
 function storeChip(store) {
   if (inRun(store)) return { label: "Filling", tone: "accent" };
-  const entry = directoryEntry(store);
+  const entry = registryEntry(store);
   if (entry && !entry.has_handler) return { label: "Manual order", tone: "neutral" };
   const outcome = fills.last?.stores[storeKey(store)];
   if (outcome?.missing) return { label: `${outcome.missing} not in cart`, tone: "danger" };
@@ -284,7 +288,7 @@ function paintOptions() {
 function planText() {
   const stores = listStores().filter(({ store }) => picks.store === "all" || storeKey(store) === storeKey(picks.store));
   if (!stores.length) return "Nothing on the list to fill.";
-  const manual = stores.filter(({ store }) => directoryEntry(store) && !directoryEntry(store).has_handler);
+  const manual = stores.filter(({ store }) => registryEntry(store) && !registryEntry(store).has_handler);
   const fillable = stores.filter((s) => !manual.includes(s));
   const count = fillable.reduce((n, s) => n + s.count, 0);
   const names = joinNames(fillable.map((s) => s.label));

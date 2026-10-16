@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import logging
 import os
-import signal
 import socket
 import subprocess
 import sys
@@ -28,6 +27,7 @@ import requests
 from app.tray.single_instance import cross_process_lock
 from src.certs import cert_paths
 from src.no_window import NEW_PROCESS_GROUP_NO_WINDOW, NO_WINDOW
+from src.uvicorn_launch import build_uvicorn_command, stop_process
 from src.webapp_config import DEFAULT_HOST, DEFAULT_PORT, EMAIL_POLLER_ENV, load_webapp_config
 
 logger = logging.getLogger(__name__)
@@ -109,25 +109,6 @@ def _renew_tailscale_cert() -> None:
         )
     except (OSError, subprocess.SubprocessError) as exc:
         logger.warning(f"⚠️  Tailscale cert renew check failed: {exc}")
-
-
-def _stop_process(proc: subprocess.Popen, name: str) -> None:
-    """Stop ``proc``: CTRL_BREAK (Windows) → terminate → kill after 5 s.
-    Best-effort; any failure is logged at debug, never raised."""
-    try:
-        logger.info(f"🛑 Stopping {name} (pid={proc.pid})")
-        if sys.platform == "win32":
-            try:
-                proc.send_signal(signal.CTRL_BREAK_EVENT)
-            except Exception:  # noqa: BLE001
-                pass
-        proc.terminate()
-        try:
-            proc.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-    except Exception as exc:  # noqa: BLE001
-        logger.debug(f"{name} stop failed: {exc}")
 
 
 def _probe_url(scheme: str, host: str, port: int) -> str:
@@ -277,7 +258,7 @@ class WebappManager:
 
         p = self._proc
         try:
-            _stop_process(p, "webapp")
+            stop_process(p, "webapp")
         finally:
             self._proc = None
 
@@ -291,29 +272,7 @@ class WebappManager:
         )
 
     def _build_command(self) -> List[str]:
-        py = sys.executable
-        cmd: List[str] = [
-            py,
-            "-m",
-            "uvicorn",
-            "app.api:app",
-            "--host",
-            self.config.host,
-            "--port",
-            str(self.config.port),
-            "--log-level",
-            "warning",
-        ]
-        certs = cert_paths(PROJECT_ROOT)
-        if certs is not None:
-            cert, key = certs
-            cmd.extend([
-                "--ssl-keyfile",
-                str(key),
-                "--ssl-certfile",
-                str(cert),
-            ])
-        return cmd
+        return build_uvicorn_command(self.config.host, self.config.port, project_root=PROJECT_ROOT)
 
     def _wait_until_ready(self) -> None:
         deadline = time.time() + self.config.startup_timeout_seconds
