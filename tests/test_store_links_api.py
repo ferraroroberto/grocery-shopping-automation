@@ -61,7 +61,7 @@ def test_api_pick_locked_spreadsheet_is_423(api, monkeypatch):
     def locked(*_a, **_k):
         raise SpreadsheetLockedError(data.SPREADSHEET_LOCKED_HINT)
 
-    monkeypatch.setattr(store_links, "save_inventory_data", locked)
+    monkeypatch.setattr(store_links.edits, "save_inventory_data", locked)
     resp = api.post(f"/api/items/{BURGUER}/pick", json={"store": "carrefour"})
     assert resp.status_code == 423
     assert resp.json()["detail"] == data.SPREADSHEET_LOCKED_HINT

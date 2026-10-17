@@ -133,7 +133,7 @@ def test_import_rolls_back_when_the_save_fails(runs, monkeypatch):
     def locked(*_a, **_k):
         raise SpreadsheetLockedError(data.SPREADSHEET_LOCKED_HINT)
 
-    monkeypatch.setattr(store_links, "save_inventory_data", locked)
+    monkeypatch.setattr(store_links.edits, "save_inventory_data", locked)
     df = load_inventory_data()
     before = df.copy()
     with pytest.raises(SpreadsheetLockedError):
@@ -166,7 +166,7 @@ def test_pick_rolls_back_when_the_save_fails(seeded, monkeypatch):
     def locked(*_a, **_k):
         raise SpreadsheetLockedError(data.SPREADSHEET_LOCKED_HINT)
 
-    monkeypatch.setattr(store_links, "save_inventory_data", locked)
+    monkeypatch.setattr(store_links.edits, "save_inventory_data", locked)
     with pytest.raises(SpreadsheetLockedError):
         store_links.pick_store(seeded, BURGUER, "carrefour")
     assert seeded.at[BURGUER, COLUMNS["super"]] == "ametller"
