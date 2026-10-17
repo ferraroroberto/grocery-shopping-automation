@@ -70,12 +70,6 @@ def automation_reset() -> dict[str, Any]:
     return automation_status()
 
 
-@router.get("/api/automation/command")
-def automation_command(store: str = "all", dry_run: bool = True, cart_mode: str = "keep") -> dict[str, str]:
-    """Preview the exact argv a run would spawn (mirrors the Streamlit command preview)."""
-    return {"command": " ".join(automation_runner.build_command(store, dry_run, cart_mode))}
-
-
 @router.get("/api/automation/fills")
 def automation_fills() -> dict[str, Any]:
     """Shop's carts glance (#258): the stores Fill carts knows, and the last fill's outcome per store."""
