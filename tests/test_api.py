@@ -354,11 +354,6 @@ def test_item_quantity_delta_and_set_routes(client):
     changed = next(item for item in current_delta.json()["items"] if item["id"] == item_id)
     assert changed[cols["tenemos"]] == first[cols["tenemos"]] + 1
 
-    target_delta = client.post(f"/api/items/{item_id}/target-delta", json={"delta": 1})
-    assert target_delta.status_code == 200
-    changed = next(item for item in target_delta.json()["items"] if item["id"] == item_id)
-    assert changed[cols["cantidad"]] == first[cols["cantidad"]] + 1
-
     set_current = client.post(f"/api/items/{item_id}/current", json={"value": 0})
     assert set_current.status_code == 200
     changed = next(item for item in set_current.json()["items"] if item["id"] == item_id)

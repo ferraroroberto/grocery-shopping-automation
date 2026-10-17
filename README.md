@@ -494,7 +494,7 @@ does the work; the API (`app/routers/stores.py`) exposes it:
 
 Item ids are row positions, re-numbered on every load, so a delete on one
 device shifts the ids another device still holds. Every `/api/items/{id}`
-write (these routes and the inventory ones: `current-delta`, `target-delta`,
+write (these routes and the inventory ones: `current-delta`,
 `current`, `PUT`, `DELETE`) takes the item's name as `?name=`; when the row at
 that id is no longer that item (compared by `item_key`), the server answers
 `409` with an `X-Inventory-Stale: 1` header instead of writing, and the PWA

@@ -24,7 +24,6 @@ from src.data import (
     build_new_item_row,
     bulk_apply_tenemos,
     update_item_quantity,
-    update_target_quantity,
 )
 
 router = APIRouter()
@@ -58,14 +57,6 @@ def current_delta(item_id: int, payload: DeltaPayload, name: Optional[str] = Non
     df = load_inventory_or_error()
     get_row(df, item_id, name)
     mutate_or_error(update_item_quantity, df, item_id, payload.delta)
-    return inventory_payload(load_inventory_or_error())
-
-
-@router.post("/api/items/{item_id}/target-delta")
-def target_delta(item_id: int, payload: DeltaPayload, name: Optional[str] = None) -> dict[str, Any]:
-    df = load_inventory_or_error()
-    get_row(df, item_id, name)
-    mutate_or_error(update_target_quantity, df, item_id, payload.delta)
     return inventory_payload(load_inventory_or_error())
 
 
