@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 from types import SimpleNamespace
 
+import src.data as data
 from automation import email_check
 from automation.email_check import (
     STORE_SUBJECTS,
@@ -252,3 +253,22 @@ def test_ignore_processed_still_reprocesses_an_older_email(tmp_path, monkeypatch
     _wire_check(monkeypatch, [OLD, mid], notifier)
     assert check_latest_confirmation("ametller", processed_state_path=path).regressed
     assert len(notifier.sent) == 1
+
+
+def test_default_purchase_logs_dir_follows_the_config_knob(tmp_path, monkeypatch):
+    # #293: the cart run writes its logs to src.data.purchase_logs_dir(), which
+    # honours automation.purchase_logs_dir; the email check (the poller passes no
+    # override) read a hard-coded <repo>/purchase_logs, so with the knob set every
+    # emailed item came back unmatched.
+    configured = tmp_path / "elsewhere"
+    monkeypatch.setitem(data.CONFIG["automation"], "purchase_logs_dir", str(configured))
+    path = _state_file(tmp_path, {})
+    _wire_check(monkeypatch, [NEW], _RecordingNotifier())
+    read_from = []
+    monkeypatch.setattr(
+        email_check, "load_latest_purchase_log", lambda store, logs_dir: read_from.append(logs_dir) or []
+    )
+
+    check_latest_confirmation("ametller", processed_state_path=path)
+
+    assert read_from == [configured]

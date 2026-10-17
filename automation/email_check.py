@@ -31,6 +31,7 @@ from automation.item_matching import (
 )
 from automation.item_matching import normalize as _normalize_text
 from gmail_readonly import GmailReadError, NormalizedEmail
+from src.data import purchase_logs_dir as default_purchase_logs_dir
 from src.gmail_config import build_gmail_mailbox, load_gmail_senders
 from src.notify_config import build_notify_notifier
 
@@ -38,7 +39,6 @@ logger = logging.getLogger("email_check")
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PROCESSED_STATE_PATH = _REPO_ROOT / "config" / "gmail_processed_state.json"
-DEFAULT_PURCHASE_LOGS_DIR = _REPO_ROOT / "purchase_logs"
 
 # Store key -> canonical "order prepared" subject, accents/emoji stripped.
 # Add a sibling entry once another store's confirmation-email format is
@@ -233,7 +233,7 @@ def check_latest_confirmation(
         return ConfirmationCheckResult(store, checked=False, reason=f"no parser configured for store '{store}'")
 
     state_path = processed_state_path or DEFAULT_PROCESSED_STATE_PATH
-    logs_dir = purchase_logs_dir or DEFAULT_PURCHASE_LOGS_DIR
+    logs_dir = purchase_logs_dir or default_purchase_logs_dir()
 
     senders = load_gmail_senders()
     if not senders:
