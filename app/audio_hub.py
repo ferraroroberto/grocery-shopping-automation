@@ -24,6 +24,7 @@ from fastapi import UploadFile
 from app.api_common import inventory_error
 from src.data import CONFIG
 from src.transcribe_client import (
+    TRANSCRIBE_TIMEOUT_S,
     FfmpegMissingError,
     TranscriptionError,
     transcode_to_wav,
@@ -104,7 +105,7 @@ async def transcode_and_transcribe(file: UploadFile, *, prompt: str | None = Non
             language=cfg.get("language", "es"),
             filename=filename,
             mime=mime,
-            timeout=600,
+            timeout=TRANSCRIBE_TIMEOUT_S,
             temperature=0.0,
             prompt=prompt,
         )

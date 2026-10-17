@@ -34,7 +34,7 @@ from src.data import (
 )
 from src.inventory_extract import ExtractionError, ExtractionResult, extract
 from src.net import is_port_open, whisper_host_hint
-from src.transcribe_client import TranscriptionError, transcribe
+from src.transcribe_client import TRANSCRIBE_TIMEOUT_S, TranscriptionError, transcribe
 
 logger = logging.getLogger(__name__)
 
@@ -183,7 +183,7 @@ def _run_transcribe(cfg: Dict) -> None:
             language=cfg.get("language", "es"),
             filename=filename,
             mime=mime,
-            timeout=600,
+            timeout=TRANSCRIBE_TIMEOUT_S,
             temperature=0.0,
             prompt=WHISPER_PROMPT_ES,
         )
