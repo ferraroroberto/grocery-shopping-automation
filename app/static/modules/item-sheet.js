@@ -251,7 +251,7 @@ export async function openItemSheet(id, page = "main") {
   if (page !== "main") openPage(page);
   await openReview(id, { dialog: d, value, setDraft, onDetail: paintValues });
   // The store picker needs the registry names openReview just made sure of.
-  if (sheet.id === id && !d.querySelector("[data-fallback-form]")?.dataset.touched) paintFallbackPage(d, item());
+  if (sheet.id === id && !d.querySelector("[data-fallback-form]")?.hasAttribute("data-touched")) paintFallbackPage(d, item());
 }
 
 // A fallback write replaced the payload: repaint its page and the link row's value.
