@@ -132,7 +132,8 @@ async function submitApply(dialog) {
       }
       values[field] = n;
     }
-    changes.push({ id: change.id, store: change.to, ...values });
+    // `comida` is the name as of the preview: the server refuses the batch if a row moved (#313).
+    changes.push({ id: change.id, name: change.comida, store: change.to, ...values });
   }
   save.disabled = true;
   status.textContent = "";

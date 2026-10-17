@@ -501,6 +501,13 @@ that id is no longer that item (compared by `item_key`), the server answers
 says so and reloads the list. Without `?name=` the write goes through
 unchecked (scripts, tests).
 
+The two batch writes that carry ids in the body get the same check: `POST
+/api/audio/apply` takes `names` (id → the name the client showed) beside
+`updates`, and each `POST /api/stores/apply` change takes an optional `name`.
+If any named row has moved, the whole batch is refused with the same `409` and
+nothing is written (no inventory change, no audit log). Ids or changes sent
+without a name are not checked.
+
 Prices come from the newest *scored* run (one with `scenarios.json`); the fee
 maths is `benchmark.score`'s own. The PWA's **Items → Prices** view
 ([🏪 Stores](#-stores-items-tab)) is the front end for all of it.

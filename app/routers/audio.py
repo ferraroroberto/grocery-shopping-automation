@@ -34,6 +34,9 @@ class MatchPayload(BaseModel):
 
 class ApplyPayload(BaseModel):
     updates: dict[int, int]
+    # The item name the client showed for each id; one row that no longer matches
+    # refuses the whole batch (#313). Ids without a name go through unchecked.
+    names: dict[int, str] = {}
     # Optional traceability context, sent by the PWA so the apply step can write
     # the same audit log the Streamlit app produced. All optional — a bare
     # {updates} still applies, it just logs less context.
@@ -206,7 +209,7 @@ def audio_match(payload: MatchPayload) -> dict[str, Any]:
 def audio_apply(payload: ApplyPayload) -> dict[str, Any]:
     df = load_inventory_or_error()
     cleaned = {int(idx): max(0, int(value)) for idx, value in payload.updates.items()}
-    old_tenemos = {idx: int(get_row(df, idx)[COLUMNS["tenemos"]]) for idx in cleaned}
+    old_tenemos = {idx: int(get_row(df, idx, payload.names.get(idx))[COLUMNS["tenemos"]]) for idx in cleaned}
     mutate_or_error(bulk_apply_tenemos, df, cleaned, save=True)
 
     new_df = load_inventory_or_error()

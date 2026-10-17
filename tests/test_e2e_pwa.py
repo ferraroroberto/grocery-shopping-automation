@@ -1090,6 +1090,37 @@ def test_named_item_is_never_offered_for_zeroing(page, monkeypatch):
 
 
 @pytest.mark.e2e
+def test_stale_audio_apply_shows_the_reason_and_drops_the_review(page, monkeypatch):
+    """#313: Apply names the item for each id; when another device's delete moved
+    the list the server refuses the batch (409), and the PWA says so and drops a
+    review whose ids now point at other rows, instead of offering it again."""
+    monkeypatch.setattr(audio_router, "extract", _stub_extract_named_but_uncounted)
+    detail = "This list changed on another device; reload and try again."
+    sent = []
+
+    def refuse(route):
+        sent.append(route.request.post_data_json)
+        route.fulfill(status=409, content_type="application/json", headers={"X-Inventory-Stale": "1"},
+                      body=f'{{"detail": "{detail}"}}')
+
+    page.route("**/api/audio/apply", refuse)
+    goto_mode(page, "audio")
+    page.fill("#transcript", TRANSCRIPT)
+    page.click("#match-transcript")
+    page.wait_for_selector("[data-audio-count-idx]", timeout=120000)
+    box = page.locator("[data-audio-count-idx]").first
+    idx = box.get_attribute("data-audio-count-idx")
+    box.fill("4")
+    page.click("#apply-audio")
+    page.wait_for_function("d => document.querySelector('#toast')?.textContent === d", arg=detail)
+    body = sent[0]
+    assert idx in body["updates"] and sorted(body["names"]) == sorted(body["updates"])
+    assert all(body["names"].values())
+    page.wait_for_selector("#voice-results", state="detached")
+    assert page._js_errors == [], f"JS errors: {page._js_errors}"
+
+
+@pytest.mark.e2e
 def test_stores_plan_simulate_and_apply(page, server):
     """Items → Stores (#148): import the fixture run, load the recommended plan
     and see the simulated total move, reveal every store with the Show-all
@@ -1198,7 +1229,10 @@ def test_stores_plan_simulate_and_apply(page, server):
     row.first.wait_for()
     assert row.count() == 1
     assert row.first.locator(".apply-qty").input_value() == "2"
-    page.click("#stores-apply-dialog .detail-save-btn")
+    with page.expect_request(lambda r: r.url.endswith("/api/stores/apply")) as sent:
+        page.click("#stores-apply-dialog .detail-save-btn")
+    # The batch names the item it means, so a moved row is refused (#313).
+    assert [c["name"] for c in sent.value.post_data_json["changes"]] == ["burguer ternera"]
     page.wait_for_function("document.querySelector('#toast')?.textContent === 'Applied 1 change'")
     assert not page.locator("#stores-apply-dialog").is_visible()
     assert glance.locator(".button-primary").inner_text() == "Load recommended plan"

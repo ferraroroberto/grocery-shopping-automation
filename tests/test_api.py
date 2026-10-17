@@ -445,6 +445,47 @@ def test_item_write_with_a_matching_name_goes_through(client):
     assert gone.status_code == 409
 
 
+def _stale_batch(client, ids):
+    """Client B's view of the list before client A deletes row 0 (#313): ids shift
+    by one, so every id in `ids` now points at the next row down."""
+    snapshot = client.get("/api/inventory").json()
+    comida = snapshot["columns"]["comida"]
+    names = {str(i): snapshot["items"][i][comida] for i in ids}
+    deleted = client.delete("/api/items/0", params={"name": snapshot["items"][0][comida]})
+    assert deleted.status_code == 200
+    return names, deleted.json()
+
+
+def test_stale_audio_apply_is_refused_whole(client):
+    names, after_delete = _stale_batch(client, [2, 3])
+    resp = client.post("/api/audio/apply", json={"updates": {"2": 7, "3": 7}, "names": names})
+    assert resp.status_code == 409
+    assert "reload" in resp.json()["detail"]
+    assert resp.headers["x-inventory-stale"] == "1"
+    # Nothing written: not the rows that moved, and no audit log either.
+    assert client.get("/api/inventory").json()["items"] == after_delete["items"]
+    assert client.get("/api/audio/last").json() == {"last": None}
+
+
+def test_audio_apply_refuses_the_batch_when_only_one_row_moved(client):
+    snapshot = client.get("/api/inventory").json()
+    comida = snapshot["columns"]["comida"]
+    names = {"1": snapshot["items"][1][comida], "2": "somebody else"}
+    resp = client.post("/api/audio/apply", json={"updates": {"1": 7, "2": 7}, "names": names})
+    assert resp.status_code == 409
+    assert client.get("/api/inventory").json()["items"] == snapshot["items"]
+
+
+def test_audio_apply_with_matching_names_goes_through(client):
+    snapshot = client.get("/api/inventory").json()
+    comida = snapshot["columns"]["comida"]
+    # The item key, as for per-item writes: case and spacing don't make a row stale.
+    names = {"1": f"  {snapshot['items'][1][comida].upper()} "}
+    resp = client.post("/api/audio/apply", json={"updates": {"1": 7}, "names": names})
+    assert resp.status_code == 200
+    assert next(i for i in resp.json()["items"] if i["id"] == 1)[snapshot["columns"]["tenemos"]] == 7
+
+
 def test_automation_status_route(client):
     resp = client.get("/api/automation/status")
     assert resp.status_code == 200
