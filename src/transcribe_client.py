@@ -21,6 +21,12 @@ from src.no_window import NO_WINDOW
 
 logger = logging.getLogger(__name__)
 
+# Read timeout for the app's transcribe calls. Raised 60 -> 600 s in 2b88fd1 so a
+# ~10-minute inventory-walk narration can finish; that commit records no
+# measurement, so 600 is a stated guess, not a benchmark. Short product-search
+# clips share it only as a ceiling.
+TRANSCRIBE_TIMEOUT_S = 600
+
 
 class TranscriptionError(RuntimeError):
     """Raised when whisper-server is unreachable or returns an error."""
