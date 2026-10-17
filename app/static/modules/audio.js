@@ -40,6 +40,9 @@ const audio = {
   recordTimer: null,
   eventSource: null,
   matches: null,
+  // Every row's name as of the match: Apply names the item it means for each id,
+  // so a reload under the review can't re-aim it at whatever row now holds the id (#313).
+  names: {},
   // The review's choices, kept here so a hop to Manual (and back) never
   // re-ticks a match you unticked or drops a count you typed.
   picks: { accept: {}, zero: {}, counts: {} },
@@ -344,6 +347,7 @@ export function rememberAudioPick(node) {
 
 function resetPicks() {
   audio.picks = { accept: {}, zero: {}, counts: {} };
+  audio.names = {};
 }
 
 function group(label, rows) {
@@ -792,6 +796,7 @@ export async function matchTranscript() {
       }),
     );
     resetPicks();
+    audio.names = Object.fromEntries(items().map((item) => [item.id, String(item[c().comida] ?? "")]));
     const m = audio.matches;
     setAudioStatus(`Matched ${m.items.length} item${m.items.length === 1 ? "" : "s"} · ${humanizeModelId(m.model)}`, "ok");
     renderMatches();
@@ -816,6 +821,7 @@ export async function applyAudio() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         updates,
+        names: Object.fromEntries(Object.keys(updates).filter((id) => id in audio.names).map((id) => [id, audio.names[id]])),
         transcript: audio.transcript,
         model: audio.model,
         matches: audio.matches,
@@ -828,6 +834,14 @@ export async function applyAudio() {
     render(); // re-reads the last audit into the glance
     setAudioStatus(logPath ? `Inventory updated · log ${logPath.split(/[\\/]/).pop()}` : "Inventory updated", "ok");
   } catch (error) {
+    if (error.stale) {
+      // The ids this review holds point at other rows now: it can't be applied, only
+      // redone. fetchJson already toasted the reason and is reloading the list.
+      audio.matches = null;
+      resetPicks();
+      render();
+      return;
+    }
     setAudioStatus(`Apply failed: ${error.message}`, "error");
     if (button) button.disabled = false;
   }

@@ -63,6 +63,8 @@ class SimulatePayload(PicksPayload):
 
 class ChangePayload(BaseModel):
     id: int
+    # The item as the client showed it; a row that no longer matches refuses the batch (#313).
+    name: Optional[str] = None
     store: str
     cantidad: int = Field(..., ge=0)
     # The stock converted by pack size (#160); left out → `tenemos` unchanged.
@@ -243,6 +245,9 @@ def apply_preview(payload: PicksPayload) -> dict[str, Any]:
 @router.post("/api/stores/apply")
 def apply(payload: ApplyPayload) -> dict[str, Any]:
     df = load_inventory_or_error()
+    for c in payload.changes:
+        if c.name is not None:  # one moved row refuses the whole batch (#313)
+            get_row(df, c.id, c.name)
     changes = [{"row": c.id, "store": c.store, "cantidad": c.cantidad, "tenemos": c.tenemos}
                for c in payload.changes]
     _call(store_links.apply_changes, df, changes)

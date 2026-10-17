@@ -95,6 +95,34 @@ def test_api_simulate(api):
     assert api.post("/api/stores/simulate", json={"orders_per_month": 0}).status_code == 422
 
 
+def test_stale_stores_apply_is_refused_whole(api):
+    """#313: client A deletes a row, so client B's batch (ids from before) names
+    rows that moved. The whole batch is refused and nothing is written."""
+    api.post("/api/stores/import-latest")
+    snapshot = api.get("/api/inventory").json()
+    comida = snapshot["columns"]["comida"]
+    by_id = {i["id"]: i[comida] for i in snapshot["items"]}
+    [change] = api.post("/api/stores/apply-preview", json={"picks": {str(BURGUER): "carrefour"}}).json()["changes"]
+    deleted = api.delete("/api/items/0", params={"name": by_id[0]})
+    assert deleted.status_code == 200
+
+    resp = api.post("/api/stores/apply", json={"changes": [
+        {"id": BURGUER, "name": by_id[BURGUER], "store": "carrefour", "cantidad": change["cantidad"]}]})
+    assert resp.status_code == 409
+    assert "reload" in resp.json()["detail"]
+    assert resp.headers["x-inventory-stale"] == "1"
+    assert api.get("/api/inventory").json()["items"] == deleted.json()["items"]
+
+
+def test_stores_apply_with_a_current_name_goes_through(api):
+    api.post("/api/stores/import-latest")
+    snapshot = api.get("/api/inventory").json()
+    name = next(i for i in snapshot["items"] if i["id"] == BURGUER)[snapshot["columns"]["comida"]]
+    resp = api.post("/api/stores/apply", json={"changes": [
+        {"id": BURGUER, "name": name, "store": "carrefour", "cantidad": 2}]})
+    assert resp.status_code == 200 and resp.json()["applied"] == 1
+
+
 def test_api_simulate_without_a_run_is_404(api, monkeypatch, tmp_path):
     monkeypatch.setitem(data.CONFIG, "benchmark", {"runs_dir": str(tmp_path / "none")})
     assert api.post("/api/stores/simulate", json={"picks": {}}).status_code == 404
