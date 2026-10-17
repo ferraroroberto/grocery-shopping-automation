@@ -293,8 +293,6 @@ el.app.addEventListener("click", async (event) => {
   const url = (path) => itemUrl(id, itemById(id)?.[c().comida], path);
   if (action === "current-minus") await mutate(url("/current-delta"), { delta: -1 });
   if (action === "current-plus") await mutate(url("/current-delta"), { delta: 1 });
-  if (action === "target-minus") await mutate(url("/target-delta"), { delta: -1 });
-  if (action === "target-plus") await mutate(url("/target-delta"), { delta: 1 });
   // A row tap opens the item sheet (#255), wherever the row is; a Prices row
   // opens it on Stores & prices (#257).
   if (action === "open-item") await openItemSheet(id, event.target.closest("[data-sheet-page]")?.dataset.sheetPage);
