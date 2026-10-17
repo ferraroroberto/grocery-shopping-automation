@@ -1626,6 +1626,22 @@ def test_settings_gear_opens_settings_from_every_tab(page, monkeypatch):
 
 
 @pytest.mark.e2e
+def test_stepper_save_failure_surfaces_the_server_detail(page):
+    """#293: a failed stepper save (423 -- the spreadsheet is open in Excel) used
+    to leave the status on "Saving..." with no toast and an unhandled rejection.
+    The server's detail must reach the status line and an error toast."""
+    detail = "Spreadsheet is open in Excel -- close it and retry"
+    page.route("**/api/items/*/current-delta", lambda route: route.fulfill(
+        status=423, content_type="application/json", body=f'{{"detail": "{detail}"}}'))
+    goto_mode(page, "audit")
+    page.locator("#pane-audit .item-row [data-action='current-plus']").first.click()
+    page.wait_for_function("d => document.querySelector('#toast')?.textContent === d", arg=detail)
+    assert "error" in (page.locator("#toast").get_attribute("class") or "")
+    assert page.locator("#status").text_content() == detail
+    assert page._js_errors == [], f"JS errors: {page._js_errors}"
+
+
+@pytest.mark.e2e
 def test_export_csv_downloads_with_a_token_configured(browser, server, monkeypatch):
     """#293: Export CSV was a bare navigation carrying no bearer token, so off the
     PC (the cf-ray header makes the loopback test server look like tunnel
