@@ -5,7 +5,7 @@ import { initNavTabs } from "./_vendored/nav/nav-tabs.js";
 import { setSwitch } from "./_vendored/switch/switch.js";
 import { bindTextSize } from "./_vendored/text-size/text-size.js";
 import { initUsageLog } from "./_vendored/usage-log/usage-log.js";
-import { fetchVersion, loadInventory, mutate, onLoginSubmit } from "./modules/api.js";
+import { fetchVersion, itemUrl, loadInventory, mutate, onLoginSubmit } from "./modules/api.js";
 import {
   applyAudio,
   audioUnmatchedCount,
@@ -29,6 +29,7 @@ import {
   unseenFillMisses,
 } from "./modules/automation.js";
 import {
+  c,
   captureTokenFromURL,
   el,
   migrateRetiredTab,
@@ -62,6 +63,7 @@ import {
   storesNeedsChecking,
 } from "./modules/stores/index.js";
 import { loadMeta } from "./modules/stores/simulator.js";
+import { itemById } from "./modules/stores/state.js";
 
 // Page-header context lines (#254, design.md "page header"): the exception
 // that needs you, in its tone, else the plain fact — never the mode name the
@@ -288,10 +290,11 @@ el.app.addEventListener("click", async (event) => {
   if (!action) return;
   const card = event.target.closest("[data-id]");
   const id = card ? Number(card.dataset.id) : null;
-  if (action === "current-minus") await mutate(`/api/items/${id}/current-delta`, { delta: -1 });
-  if (action === "current-plus") await mutate(`/api/items/${id}/current-delta`, { delta: 1 });
-  if (action === "target-minus") await mutate(`/api/items/${id}/target-delta`, { delta: -1 });
-  if (action === "target-plus") await mutate(`/api/items/${id}/target-delta`, { delta: 1 });
+  const url = (path) => itemUrl(id, itemById(id)?.[c().comida], path);
+  if (action === "current-minus") await mutate(url("/current-delta"), { delta: -1 });
+  if (action === "current-plus") await mutate(url("/current-delta"), { delta: 1 });
+  if (action === "target-minus") await mutate(url("/target-delta"), { delta: -1 });
+  if (action === "target-plus") await mutate(url("/target-delta"), { delta: 1 });
   // A row tap opens the item sheet (#255), wherever the row is; a Prices row
   // opens it on Stores & prices (#257).
   if (action === "open-item") await openItemSheet(id, event.target.closest("[data-sheet-page]")?.dataset.sheetPage);

@@ -11,7 +11,7 @@
 // form did, and Esc or × discards. The two store pages (stores/review.js) keep
 // their per-store saves, which write at once as before.
 import { showToast } from "../_vendored/toast/toast.js";
-import { fetchJson } from "./api.js";
+import { fetchJson, itemUrl } from "./api.js";
 import { confirmSheet } from "./confirm.js";
 import { c, render, state } from "./core.js";
 import { esc, icon, pickerMarkup, syncPicker, text } from "./dom.js";
@@ -42,7 +42,9 @@ const PAGES = [
 ];
 const PAGE_TITLE = Object.fromEntries(PAGES.map(({ page, label }) => [page, label]));
 
-const sheet = { id: null, page: "main", draft: {} };
+// `name` is the item as opened: a reload under the open sheet must not
+// re-aim its writes at whatever row now holds this id (#293).
+const sheet = { id: null, name: "", page: "main", draft: {} };
 
 function item() {
   return itemById(sheet.id);
@@ -80,7 +82,7 @@ function dialog() {
     shell.addEventListener("change", onSheetChange);
     shell.addEventListener("submit", (event) => {
       event.preventDefault();
-      if (!onFallbackSubmit(event, shell, sheet.id, afterFallbackWrite)) onReviewSubmit(event);
+      if (!onFallbackSubmit(event, shell, sheet, afterFallbackWrite)) onReviewSubmit(event);
     });
     shell.addEventListener("close", onSheetClose);
   });
@@ -241,6 +243,7 @@ export async function openItemSheet(id, page = "main") {
   if (!itemById(id)) return;
   const d = dialog();
   sheet.id = id;
+  sheet.name = item()[c().comida];
   sheet.draft = {};
   setDialogStatus(d, "");
   paintFieldPages();
@@ -249,7 +252,7 @@ export async function openItemSheet(id, page = "main") {
   showPage(page);
   if (!d.open) d.showModal();
   if (page !== "main") openPage(page);
-  await openReview(id, { dialog: d, value, setDraft, onDetail: paintValues });
+  await openReview(id, { dialog: d, name: sheet.name, value, setDraft, onDetail: paintValues });
   // The store picker needs the registry names openReview just made sure of.
   if (sheet.id === id && !d.querySelector("[data-fallback-form]")?.hasAttribute("data-touched")) paintFallbackPage(d, item());
 }
@@ -263,7 +266,7 @@ function afterFallbackWrite() {
 async function onSheetClick(event) {
   if (await onReviewClick(event)) return;
   const target = event.target;
-  if (onFallbackClick(event, dialog(), sheet.id, afterFallbackWrite)) return;
+  if (onFallbackClick(event, dialog(), sheet, afterFallbackWrite)) return;
   const to = target.closest("[data-page-to]");
   if (to) {
     openPage(to.dataset.pageTo);
@@ -313,7 +316,7 @@ async function save() {
   button.disabled = true;
   setDialogStatus(d, "");
   try {
-    state.payload = await fetchJson(`/api/items/${sheet.id}`, jsonInit("PUT", row));
+    state.payload = await fetchJson(itemUrl(sheet.id, sheet.name), jsonInit("PUT", row));
     sheet.draft = {};
     d.close();
     showToast("Saved");
@@ -338,7 +341,7 @@ async function remove() {
   if (!yes) return;
   setDialogStatus(d, "");
   try {
-    state.payload = await fetchJson(`/api/items/${sheet.id}`, { method: "DELETE" });
+    state.payload = await fetchJson(itemUrl(sheet.id, sheet.name), { method: "DELETE" });
     sheet.draft = {};
     d.close();
     showToast(`${name} deleted`);

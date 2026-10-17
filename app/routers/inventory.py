@@ -4,7 +4,7 @@ inventory payload, so the PWA re-renders from one authoritative response."""
 
 import csv
 from io import StringIO
-from typing import Any
+from typing import Any, Optional
 
 import pandas as pd
 from fastapi import APIRouter, HTTPException
@@ -54,33 +54,33 @@ def inventory() -> dict[str, Any]:
 
 
 @router.post("/api/items/{item_id}/current-delta")
-def current_delta(item_id: int, payload: DeltaPayload) -> dict[str, Any]:
+def current_delta(item_id: int, payload: DeltaPayload, name: Optional[str] = None) -> dict[str, Any]:
     df = load_inventory_or_error()
-    get_row(df, item_id)
+    get_row(df, item_id, name)
     mutate_or_error(update_item_quantity, df, item_id, payload.delta)
     return inventory_payload(load_inventory_or_error())
 
 
 @router.post("/api/items/{item_id}/target-delta")
-def target_delta(item_id: int, payload: DeltaPayload) -> dict[str, Any]:
+def target_delta(item_id: int, payload: DeltaPayload, name: Optional[str] = None) -> dict[str, Any]:
     df = load_inventory_or_error()
-    get_row(df, item_id)
+    get_row(df, item_id, name)
     mutate_or_error(update_target_quantity, df, item_id, payload.delta)
     return inventory_payload(load_inventory_or_error())
 
 
 @router.post("/api/items/{item_id}/current")
-def set_current(item_id: int, payload: QuantityPayload) -> dict[str, Any]:
+def set_current(item_id: int, payload: QuantityPayload, name: Optional[str] = None) -> dict[str, Any]:
     df = load_inventory_or_error()
-    get_row(df, item_id)
+    get_row(df, item_id, name)
     mutate_or_error(bulk_apply_tenemos, df, {item_id: payload.value}, save=True)
     return inventory_payload(load_inventory_or_error())
 
 
 @router.put("/api/items/{item_id}")
-def update_item(item_id: int, payload: ItemPayload) -> dict[str, Any]:
+def update_item(item_id: int, payload: ItemPayload, name: Optional[str] = None) -> dict[str, Any]:
     df = load_inventory_or_error()
-    snap = get_row(df, item_id).copy()
+    snap = get_row(df, item_id, name).copy()
     apply_item_edit(
         df,
         item_id,
@@ -100,9 +100,9 @@ def update_item(item_id: int, payload: ItemPayload) -> dict[str, Any]:
 
 
 @router.delete("/api/items/{item_id}")
-def delete_item(item_id: int) -> dict[str, Any]:
+def delete_item(item_id: int, name: Optional[str] = None) -> dict[str, Any]:
     df = load_inventory_or_error()
-    get_row(df, item_id)
+    get_row(df, item_id, name)
     df = df.drop(item_id)
     save_or_error(df)
     return inventory_payload(load_inventory_or_error())

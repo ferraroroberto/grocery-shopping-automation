@@ -9,12 +9,14 @@ Routers import from here rather than from each other, so no router module
 depends on another.
 """
 
+import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import pandas as pd
 from fastapi import HTTPException
 
+from benchmark.build_basket import item_key
 from src.data import (
     COLUMNS,
     CONFIG,
@@ -33,6 +35,15 @@ from src.store_links import link_kind
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 STATIC_DIR = Path(__file__).resolve().parent / "static"
+
+# Item ids are row positions, re-numbered on every load, so a client holding
+# the list from before another device's delete would write to the wrong row
+# (#293). Item routes take the item's name and answer 409 with this marker
+# header when the row at that id is no longer that item.
+STALE_ITEM_HEADER = "X-Inventory-Stale"
+STALE_ITEM_DETAIL = "This list changed on another device; reload and try again."
+
+logger = logging.getLogger(__name__)
 
 
 def inventory_error(status_code: int, detail: str) -> HTTPException:
@@ -74,10 +85,21 @@ def mutate_or_error(fn: Any, *args: Any, **kwargs: Any) -> Any:
         raise inventory_error(500, str(exc)) from exc
 
 
-def get_row(df: pd.DataFrame, item_id: int) -> pd.Series:
-    if item_id not in df.index:
+def get_row(df: pd.DataFrame, item_id: int, name: Optional[str] = None) -> pd.Series:
+    """The row at `item_id`; with `name`, only while it is still that item.
+
+    `name` is compared by the item key the store links use (case, accents and
+    spacing don't count). A mismatch, or an id past the end, means the caller's
+    list is stale: 409 with `STALE_ITEM_HEADER`, never a write to another row.
+    """
+    row = df.loc[item_id] if item_id in df.index else None
+    if name is not None and (row is None or item_key(cell_text(row[COLUMNS["comida"]])) != item_key(name)):
+        found = None if row is None else cell_text(row[COLUMNS["comida"]])
+        logger.warning("⚠️ Stale item request refused: id %s expected %r, row holds %r", item_id, name, found)
+        raise HTTPException(status_code=409, detail=STALE_ITEM_DETAIL, headers={STALE_ITEM_HEADER: "1"})
+    if row is None:
         raise inventory_error(404, f"item {item_id} not found")
-    return df.loc[item_id]
+    return row
 
 
 def _records_from_frame(df: pd.DataFrame) -> list[dict[str, Any]]:
