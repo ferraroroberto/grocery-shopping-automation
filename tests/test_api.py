@@ -404,6 +404,47 @@ def test_item_add_and_delete_routes(client):
     assert all(item[cols["comida"]] != "smoke test item" for item in deleted.json()["items"])
 
 
+def test_stale_client_write_after_a_delete_is_refused(client):
+    # Ids are row positions (#293): client B still holds the list from before
+    # client A deleted row 2, so B's id 3 now points at what was row 4.
+    snapshot = client.get("/api/inventory").json()
+    cols = snapshot["columns"]
+    stale = next(item for item in snapshot["items"] if item["id"] == 3)
+    deleted = client.delete("/api/items/2", params={"name": snapshot["items"][2][cols["comida"]]})
+    assert deleted.status_code == 200
+    now = next(item for item in deleted.json()["items"] if item["id"] == 3)
+    assert now[cols["comida"]] != stale[cols["comida"]]
+
+    name = {"name": stale[cols["comida"]]}
+    edit = {
+        "super": stale[cols["super"]], "lugar": stale[cols["lugar"]], "comida": "overwritten",
+        "cantidad": 9, "tenemos": 9, "buscador": "",
+    }
+    responses = [
+        client.post("/api/items/3/current-delta", json={"delta": 1}, params=name),
+        client.put("/api/items/3", json=edit, params=name),
+        client.delete("/api/items/3", params=name),
+    ]
+    for resp in responses:
+        assert resp.status_code == 409
+        assert "reload" in resp.json()["detail"]
+        assert resp.headers["x-inventory-stale"] == "1"
+    after = next(item for item in client.get("/api/inventory").json()["items"] if item["id"] == 3)
+    assert after == now
+
+
+def test_item_write_with_a_matching_name_goes_through(client):
+    payload = client.get("/api/inventory").json()
+    first = payload["items"][0]
+    name = first[payload["columns"]["comida"]]
+    # The name key, not the exact text: case and spacing don't make a row stale.
+    resp = client.post(f"/api/items/{first['id']}/current-delta", json={"delta": 1}, params={"name": f"  {name.upper()} "})
+    assert resp.status_code == 200
+    # Past the end is the same stale list, not a plain 404.
+    gone = client.post(f"/api/items/{len(payload['items'])}/current-delta", json={"delta": 1}, params={"name": name})
+    assert gone.status_code == 409
+
+
 def test_automation_status_route(client):
     resp = client.get("/api/automation/status")
     assert resp.status_code == 200

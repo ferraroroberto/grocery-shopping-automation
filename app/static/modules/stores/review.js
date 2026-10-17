@@ -6,7 +6,7 @@
 // figure lands in its draft, while the store edits here save as they always did.
 import { emptyStateEl } from "../../_vendored/empty-state/empty-state.js";
 import { setSwitch } from "../../_vendored/switch/switch.js";
-import { fetchJson } from "../api.js";
+import { fetchJson, itemUrl } from "../api.js";
 import { state } from "../core.js";
 import { chip, esc, icon, switchMarkup } from "../dom.js";
 import { setDialogStatus } from "./dialog.js";
@@ -27,7 +27,7 @@ const OVERRIDE_UNITS = ["kg", "l", "ud", "m"];
 
 const QTY_LABEL = { cantidad: "Target", tenemos: "In stock" };
 
-// The sheet these pages live in — { dialog, value(field), setDraft(field, n),
+// The sheet these pages live in — { dialog, name, value(field), setDraft(field, n),
 // onDetail() } — handed over by openReview().
 let sheet = null;
 
@@ -425,7 +425,7 @@ async function toggleChecked(sw) {
   sw.disabled = true;
   setDialogStatus(dialog, "");
   try {
-    const body = await fetchJson(`/api/items/${id}/checked`, jsonInit("PUT", { checked: sw.getAttribute("aria-checked") !== "true" }));
+    const body = await fetchJson(itemUrl(id, sheet.name, "/checked"), jsonInit("PUT", { checked: sw.getAttribute("aria-checked") !== "true" }));
     if (id !== local.detailId) return;
     setSwitch(sw, !!body.checked);
     local.detail.checked = body.checked;
@@ -476,14 +476,14 @@ async function saveStoreEdit(form) {
   let saved = false;
   try {
     if (urlChanged) {
-      state.payload = await fetchJson(`/api/items/${d.id}/store-url`, jsonInit("PUT", { store, url }));
+      state.payload = await fetchJson(itemUrl(d.id, sheet.name, "/store-url"), jsonInit("PUT", { store, url }));
       saved = true;
     }
     let detail = null;
     if (ovChanged && Object.values(fields).some((v) => v !== null)) {
-      detail = await fetchJson(`/api/items/${d.id}/store-override`, jsonInit("PUT", { store, ...fields }));
+      detail = await fetchJson(itemUrl(d.id, sheet.name, "/store-override"), jsonInit("PUT", { store, ...fields }));
     } else if (ovChanged && entry.override) {
-      detail = await fetchJson(`/api/items/${d.id}/store-override?store=${encodeURIComponent(store)}`, { method: "DELETE" });
+      detail = await fetchJson(itemUrl(d.id, sheet.name, `/store-override?store=${encodeURIComponent(store)}`), { method: "DELETE" });
     }
     saved = true;
     local.detail = detail || await fetchJson(`/api/items/${d.id}/store-detail`);
@@ -504,7 +504,7 @@ async function resetOverride(button) {
   const status = button.closest("form")?.querySelector(".review-edit-status");
   button.disabled = true;
   try {
-    local.detail = await fetchJson(`/api/items/${local.detailId}/store-override?store=${encodeURIComponent(store)}`, { method: "DELETE" });
+    local.detail = await fetchJson(itemUrl(local.detailId, sheet.name, `/store-override?store=${encodeURIComponent(store)}`), { method: "DELETE" });
     local.editing = null;
     paintReview();
     setDialogStatus(dialog, `${storeName(store)} is back to the benchmark's values.`, "ok");
@@ -527,7 +527,7 @@ async function addStoreLink(dialog) {
   }
   setDialogStatus(dialog, "");
   try {
-    state.payload = await fetchJson(`/api/items/${local.detailId}/store-url`, jsonInit("PUT", { store, url }));
+    state.payload = await fetchJson(itemUrl(local.detailId, sheet.name, "/store-url"), jsonInit("PUT", { store, url }));
     await loadDetail();
     setDialogStatus(dialog, `${storeName(store)} link added.`, "ok");
     afterReviewChange();

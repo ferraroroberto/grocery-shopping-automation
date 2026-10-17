@@ -3,7 +3,7 @@
 // short (#283). Two spreadsheet cells, saved together at once like the sheet's
 // store pages; the server owns the rules (a registered store, an http(s) link,
 // not the item's own buy link) and flags a link that isn't a product page.
-import { fetchJson } from "./api.js";
+import { fetchJson, itemUrl } from "./api.js";
 import { state } from "./core.js";
 import { esc, icon } from "./dom.js";
 import { setDialogStatus } from "./stores/dialog.js";
@@ -64,12 +64,12 @@ export function paintFallbackPage(dialog, record) {
 }
 
 // Save, or with `clear` blank both cells. `after()` repaints the sheet.
-async function write(dialog, id, body, done, after) {
+async function write(dialog, ref, body, done, after) {
   const buttons = [...dialog.querySelectorAll("[data-fallback-form] button")];
   buttons.forEach((b) => { b.disabled = true; });
   setDialogStatus(dialog, "");
   try {
-    state.payload = await fetchJson(`/api/items/${id}/fallback`, jsonInit("PUT", body));
+    state.payload = await fetchJson(itemUrl(ref.id, ref.name, "/fallback"), jsonInit("PUT", body));
     after();
     setDialogStatus(dialog, done, "ok");
   } catch (error) {
@@ -79,17 +79,17 @@ async function write(dialog, id, body, done, after) {
 }
 
 // The sheet's delegated submit and click; false when the event isn't ours.
-export function onFallbackSubmit(event, dialog, id, after) {
+export function onFallbackSubmit(event, dialog, ref, after) {
   const form = event.target.closest("[data-fallback-form]");
   if (!form) return false;
   const store = form.elements["fallback-store"].value;
   const url = form.elements["fallback-url"].value.trim();
-  write(dialog, id, { store, url }, store || url ? "Fallback saved." : "Fallback cleared.", after);
+  write(dialog, ref, { store, url }, store || url ? "Fallback saved." : "Fallback cleared.", after);
   return true;
 }
 
-export function onFallbackClick(event, dialog, id, after) {
+export function onFallbackClick(event, dialog, ref, after) {
   if (!event.target.closest("[data-fallback-clear]")) return false;
-  write(dialog, id, { store: "", url: "" }, "Fallback cleared.", after);
+  write(dialog, ref, { store: "", url: "" }, "Fallback cleared.", after);
   return true;
 }

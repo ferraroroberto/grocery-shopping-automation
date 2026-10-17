@@ -768,7 +768,7 @@ def test_item_sheet_sets_and_clears_a_fallback(page, server):
     form = sheet.locator("[data-page='fallback'] [data-fallback-form]")
     form.locator("[data-fallback-store]").select_option("carrefour")
     form.locator("[data-fallback-url]").fill(product)
-    with page.expect_response(lambda r: r.request.method == "PUT" and r.url.endswith("/fallback")) as resp:
+    with page.expect_response(lambda r: r.request.method == "PUT" and "/fallback?name=" in r.url) as resp:
         form.get_by_role("button", name="Save fallback").click()
     assert resp.value.request.post_data_json == {"store": "carrefour", "url": product}
     assert resp.value.ok
@@ -1325,7 +1325,7 @@ def test_stores_plan_simulate_and_apply(page, server):
     # rest of the row is untouched.
     dialog.locator("[data-sheet-qty='cantidad'] [data-action='target-plus']").click()
     dialog.locator("[data-sheet-qty='tenemos'] [data-action='current-plus']").click()
-    with page.expect_response(lambda r: r.request.method == "PUT" and r.url.endswith(f"/api/items/{item['id']}")) as resp:
+    with page.expect_response(lambda r: r.request.method == "PUT" and f"/api/items/{item['id']}?name=" in r.url) as resp:
         dialog.locator(".detail-save-btn").click()
     assert resp.value.ok
     dialog.wait_for(state="hidden")
@@ -1671,13 +1671,37 @@ def test_stepper_save_failure_surfaces_the_server_detail(page):
     to leave the status on "Saving..." with no toast and an unhandled rejection.
     The server's detail must reach the status line and an error toast."""
     detail = "Spreadsheet is open in Excel -- close it and retry"
-    page.route("**/api/items/*/current-delta", lambda route: route.fulfill(
+    page.route(lambda url: "/current-delta?" in url, lambda route: route.fulfill(
         status=423, content_type="application/json", body=f'{{"detail": "{detail}"}}'))
     goto_mode(page, "audit")
     page.locator("#pane-audit .item-row [data-action='current-plus']").first.click()
     page.wait_for_function("d => document.querySelector('#toast')?.textContent === d", arg=detail)
     assert "error" in (page.locator("#toast").get_attribute("class") or "")
     assert page.locator("#status").text_content() == detail
+    assert page._js_errors == [], f"JS errors: {page._js_errors}"
+
+
+@pytest.mark.e2e
+def test_stale_list_write_shows_the_reason_and_reloads(page):
+    """#293: ids are row positions, so a stepper tap names the item it means and
+    a stale list (another device deleted a row) gets a 409. The PWA must say so
+    and re-read the inventory instead of leaving the stale rows up."""
+    detail = "This list changed on another device; reload and try again."
+    sent = []
+
+    def refuse(route):
+        sent.append(route.request.url)
+        route.fulfill(status=409, content_type="application/json", headers={"X-Inventory-Stale": "1"},
+                      body=f'{{"detail": "{detail}"}}')
+
+    page.route(lambda url: "/current-delta?" in url, refuse)
+    goto_mode(page, "audit")
+    row = page.locator("#pane-audit .item-row").first
+    with page.expect_request(lambda r: r.method == "GET" and r.url.endswith("/api/inventory")):
+        row.locator("[data-action='current-plus']").click()
+    page.wait_for_function("d => document.querySelector('#toast')?.textContent === d", arg=detail)
+    assert "error" in (page.locator("#toast").get_attribute("class") or "")
+    assert "name=" in sent[0]
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
 
 

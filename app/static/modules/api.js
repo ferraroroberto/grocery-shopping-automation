@@ -34,8 +34,30 @@ async function fetchUnlocked(url, init = {}) {
 export async function fetchJson(url, init = {}) {
   const response = await fetchUnlocked(url, init);
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.detail || `HTTP ${response.status}`);
+  if (!response.ok) {
+    const error = new Error(body.detail || `HTTP ${response.status}`);
+    if (response.headers.get("X-Inventory-Stale")) onStaleList(error);
+    throw error;
+  }
   return body;
+}
+
+// An item route that names the item it means (#293). Ids are row positions,
+// so the server checks the name and refuses (409, X-Inventory-Stale) once
+// another device's delete has moved the list under this one.
+export function itemUrl(id, name, path = "") {
+  const sep = path.includes("?") ? "&" : "?";
+  return `/api/items/${id}${path}${sep}name=${encodeURIComponent(name ?? "")}`;
+}
+
+// Every open sheet was built from the stale list: close them, say why, and
+// reload so the next tap targets the right row. `stale` lets a caller skip
+// its own error toast.
+function onStaleList(error) {
+  error.stale = true;
+  document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
+  showToast(error.message, "error");
+  loadInventory();
 }
 
 // A file download: the bearer header a plain navigation can't carry.
@@ -126,7 +148,7 @@ export async function mutate(url, payload, method = "POST") {
     // The server's detail (a 423 "spreadsheet open in Excel" is the common one);
     // callers are bare click handlers, so a rethrow would only go unhandled (#293).
     setStatus(error.message);
-    showToast(error.message, "error");
+    if (!error.stale) showToast(error.message, "error");
     return;
   }
   render();

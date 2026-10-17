@@ -115,25 +115,25 @@ def _picks_by_id(df: pd.DataFrame, picks_by_key: dict[str, str]) -> dict[str, st
 
 
 @router.put("/api/items/{item_id}/store-url")
-def set_store_url(item_id: int, payload: StoreUrlPayload) -> dict[str, Any]:
+def set_store_url(item_id: int, payload: StoreUrlPayload, name: Optional[str] = None) -> dict[str, Any]:
     df = load_inventory_or_error()
-    get_row(df, item_id)
+    get_row(df, item_id, name)
     _call(store_links.set_store_url, df, item_id, payload.store, payload.url)
     return inventory_payload(load_inventory_or_error())
 
 
 @router.put("/api/items/{item_id}/fallback")
-def set_fallback(item_id: int, payload: FallbackPayload) -> dict[str, Any]:
+def set_fallback(item_id: int, payload: FallbackPayload, name: Optional[str] = None) -> dict[str, Any]:
     df = load_inventory_or_error()
-    get_row(df, item_id)
+    get_row(df, item_id, name)
     _call(store_links.set_fallback, df, item_id, payload.store, payload.url)
     return inventory_payload(load_inventory_or_error())
 
 
 @router.post("/api/items/{item_id}/pick")
-def pick_store(item_id: int, payload: PickPayload) -> dict[str, Any]:
+def pick_store(item_id: int, payload: PickPayload, name: Optional[str] = None) -> dict[str, Any]:
     df = load_inventory_or_error()
-    get_row(df, item_id)
+    get_row(df, item_id, name)
     _call(store_links.pick_store, df, item_id, payload.store)
     return inventory_payload(load_inventory_or_error())
 
@@ -158,25 +158,25 @@ def store_detail(item_id: int) -> dict[str, Any]:
 
 
 @router.put("/api/items/{item_id}/store-override")
-def set_store_override(item_id: int, payload: StoreOverridePayload) -> dict[str, Any]:
+def set_store_override(item_id: int, payload: StoreOverridePayload, name: Optional[str] = None) -> dict[str, Any]:
     df = load_inventory_or_error()
-    get_row(df, item_id)
+    get_row(df, item_id, name)
     return _call(store_links.set_override, df, item_id, payload.store, name=payload.name,
                  pack_size=payload.pack_size, unit=payload.unit, pack_price=payload.pack_price,
                  note=payload.note)
 
 
 @router.delete("/api/items/{item_id}/store-override")
-def reset_store_override(item_id: int, store: str) -> dict[str, Any]:
+def reset_store_override(item_id: int, store: str, name: Optional[str] = None) -> dict[str, Any]:
     df = load_inventory_or_error()
-    get_row(df, item_id)
+    get_row(df, item_id, name)
     return _call(store_links.reset_override, df, item_id, store)
 
 
 @router.put("/api/items/{item_id}/checked")
-def set_checked(item_id: int, payload: CheckedPayload) -> dict[str, Any]:
+def set_checked(item_id: int, payload: CheckedPayload, name: Optional[str] = None) -> dict[str, Any]:
     df = load_inventory_or_error()
-    get_row(df, item_id)
+    get_row(df, item_id, name)
     return _call(store_links.set_item_checked, df, item_id, payload.checked)
 
 
