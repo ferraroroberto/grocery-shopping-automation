@@ -428,6 +428,32 @@ def test_password_and_query_token_auth(client):
         cfg.auth_password = orig_password
 
 
+def test_non_ascii_password_and_token_never_500(client):
+    """Regression for #293: hmac.compare_digest raises TypeError on non-ASCII
+    str operands, which turned a valid accented password (or a non-ASCII
+    ?token=) into a 500 instead of a 200 / 401."""
+    cfg = api.app.state.webapp_config
+    orig_token, orig_password = cfg.auth_token, cfg.auth_password
+    cfg.auth_token = "tokén"
+    cfg.auth_password = "contraseña"
+    try:
+        good = client.post("/api/login", json={"password": "contraseña"})
+        assert good.status_code == 200
+        assert good.json() == {"token": "tokén"}
+
+        bad = client.post("/api/login", json={"password": "contraseñb"})
+        assert bad.status_code == 401
+
+        wrong_query = client.get("/api/inventory", params={"token": "tóken"})
+        assert wrong_query.status_code == 401
+
+        right_query = client.get("/api/inventory", params={"token": "tokén"})
+        assert right_query.status_code == 200
+    finally:
+        cfg.auth_token = orig_token
+        cfg.auth_password = orig_password
+
+
 def test_check_logins_route(client, monkeypatch):
     import app.login_check_runner as login_check_runner
 

@@ -95,7 +95,8 @@ async def login(request: Request) -> dict[str, str]:
     except ValueError:
         body = {}
     presented = str(body.get("password") or "")
-    if not hmac.compare_digest(presented, cfg.auth_password):
+    # Compare bytes: compare_digest raises TypeError on non-ASCII str operands.
+    if not hmac.compare_digest(presented.encode("utf-8"), cfg.auth_password.encode("utf-8")):
         raise HTTPException(status_code=401, detail="bad password")
     return {"token": cfg.auth_token}
 
