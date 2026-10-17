@@ -808,6 +808,46 @@ def test_item_sheet_sets_and_clears_a_fallback(page, server):
 
 
 @pytest.mark.e2e
+def test_fallback_typing_survives_the_store_detail_load(page, server):
+    """#293: typing in the item sheet's Fallback form while the store detail is
+    still loading must not be repainted away when the load resolves (the guard
+    read dataset.touched, which is "" -- falsy -- once the attribute is set)."""
+    name = "zzz e2e fallback typing"
+    created = page.request.post(
+        f"{server.url}/api/items",
+        data={"super": "mercadona", "lugar": "nevera", "comida": name, "cantidad": 2, "tenemos": 0, "buscador": ""},
+    )
+    assert created.ok, created.text()
+    page.reload()
+    page.wait_for_selector("[data-tab='audit']")
+    held = []
+    page.route("**/api/items/*/store-detail", lambda route: held.append(route))
+
+    sheet = _open_sheet_from(page, "list", name)
+    sheet.locator("[data-page-to='fallback']").click()
+    url = sheet.locator("[data-fallback-url]")
+    url.fill("https://www.carrefour.es/supermercado/fixture-pavo/R-FIX-pavo/p")
+    for _ in range(100):
+        if held:
+            break
+        page.wait_for_timeout(50)
+    assert held, "the store detail request should be waiting"
+    with page.expect_response("**/api/items/*/store-detail"):
+        for route in held:
+            route.continue_()
+    page.wait_for_timeout(300)  # let the resolved openReview run its repaint guard
+    assert url.input_value() == "https://www.carrefour.es/supermercado/fixture-pavo/R-FIX-pavo/p"
+
+    page.unroute("**/api/items/*/store-detail")
+    page.keyboard.press("Escape")
+    sheet.wait_for(state="hidden")
+    payload = page.request.get(f"{server.url}/api/inventory").json()
+    item_id = next(i["id"] for i in payload["items"] if i[payload["columns"]["comida"]] == name)
+    assert page.request.delete(f"{server.url}/api/items/{item_id}").ok
+    assert page._js_errors == [], f"JS errors: {page._js_errors}"
+
+
+@pytest.mark.e2e
 def test_phone_geometry_fits_and_targets_meet_the_floor(browser, server):
     """Rendered geometry at phone width (design-lint `rendered-leg`,
     project-scaffolding#157): no view scrolls sideways, and the nav tabs and the
