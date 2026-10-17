@@ -37,6 +37,12 @@ rule   = "LAYOUT-03"
 reason = "Prices rows keep one-tap product links per store as wrapping pills under the picker, the row tap opening the item sheet (#257) — household decision (the #153 round had made them labels)"
 record = "https://github.com/ferraroroberto/grocery-shopping-automation/issues/194"
 
+[[design.accepted]]
+check  = "glyph-icons"
+detail = "3 arrow/shape character(s) drawn as icons in rendered text; use the matching Lucide glyph (design.md Icons): app/static/modules/audio.js:432, app/static/modules/audio.js:450, app/static/modules/audio.js:518"
+reason = "the arrow is a numeric from/to separator inside row meta text (`current → proposed`, `3 → 0`), not an icon standing for an action; audio.js:432 and :450 are those two meta strings, :518 is a code comment the lint's scan also reads"
+record = "https://github.com/ferraroroberto/grocery-shopping-automation/issues/299"
+
 # [design.review] -- the rendered design review's walk (fleet-config
 # skills/_lib/design_review, docs/skills.md "Two legs, two interpreters").
 # The walk clicks the primary tabs, opens every <details> and showModal()s
