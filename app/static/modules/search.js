@@ -60,12 +60,12 @@ export function renderSearch() {
       </button>
       <input id="search-term" class="search-term" type="search" enterkeyhint="search" autocomplete="off"
              aria-label="Product to search" placeholder="e.g. sandía" value="${esc(s.term)}"${s.running ? " disabled" : ""} />
-      <button id="search-run" data-track="add.search-run" class="big-btn"${s.running ? " disabled" : ""} type="button">
+      <button id="search-run" data-track="add.search-run" class="button-tint"${s.running ? " disabled" : ""} type="button">
         ${icon("search")}Search
       </button>
     </div>
     <div id="search-status" class="panel-status" role="status" aria-live="polite"></div>
-    <button id="search-cancel" class="secondary btn-block" type="button"${s.running ? "" : " hidden"}>Cancel</button>
+    <button id="search-cancel" class="button-surface btn-block" type="button"${s.running ? "" : " hidden"}>Cancel</button>
     <div id="search-results"></div>`;
   renderSearchStatus();
   renderSearchResults();
@@ -169,8 +169,8 @@ function candidateConfirmPanel() {
     <label class="field-label">Target
       <input class="field" data-confirm="cantidad" type="number" min="0" inputmode="numeric" value="${html(d.cantidad)}" />
     </label>
-    <button class="big-btn candidate-confirm-add" type="button" data-action="search-confirm">Update item</button>
-    <button class="secondary candidate-confirm-new" type="button" data-action="search-add-new">Add as new item</button>
+    <button class="button-tint candidate-confirm-add" type="button" data-action="search-confirm">Update item</button>
+    <button class="button-surface candidate-confirm-new" type="button" data-action="search-add-new">Add as new item</button>
   </div>`;
 }
 
@@ -197,7 +197,7 @@ function candidateRow(cand, item) {
       <a class="icon-button" href="${html(cand.product_url)}" target="_blank" rel="noopener" aria-label="Open product" title="Open">
         ${icon("external-link")}
       </a>
-      <button class="secondary candidate-use" type="button" data-action="search-use"${expanded}${done ? " disabled" : ""}>${useLabel}</button>
+      <button class="button-surface candidate-use" type="button" data-action="search-use"${expanded}${done ? " disabled" : ""}>${useLabel}</button>
     </div>
     ${open ? candidateConfirmPanel() : ""}
   </article>`;

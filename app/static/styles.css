@@ -240,10 +240,10 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 /* The same expansion for every control drawn at --control-h: (36 - 44) / 2 = -4px
    a side. Neighbours keep >= 8px between them (--space-sm) so the expanded
    rectangles touch but never overlap. */
-:is(.primary, .secondary, .danger, .pill, .store-chip, .button-surface) {
+:is(.danger, .pill, .store-chip, .button-surface) {
   position: relative;
 }
-:is(.primary, .secondary, .danger, .pill, .store-chip, .button-surface)::before {
+:is(.danger, .pill, .store-chip, .button-surface)::before {
   content: "";
   position: absolute;
   inset: calc((var(--control-h) - var(--hit-min)) / 2);
@@ -329,7 +329,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 }
 
 /* ------------------------------------------------------------- surfaces */
-.card, .panel {
+.card {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -337,8 +337,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 /* Collapsible cards zero their own padding (vendored disclosure contract) and
    the page header (vendored home-head) sets its own 52px row — this rule
    loads after both, so it must not re-add padding to either. */
-.card:not(.card--collapsible):not(.home-head), .panel { padding: var(--space-md); }
-.panel > * + * { margin-top: var(--gap); }
+.card:not(.card--collapsible):not(.home-head) { padding: var(--space-md); }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
 .card-title {
   margin: 0;
@@ -368,33 +367,11 @@ h3 { font-size: var(--font-body); font-weight: 600; }
 /* Every stack in the pane chain pins its single track to minmax(0, 1fr):
    an implicit `auto` track takes the min-content of its widest item
    (grid items default to min-width:auto), so the zone-pills' no-wrap row
-   was silently widening .panel → .pane-body → .pane past the viewport and
+   was silently widening .pane-body → .pane past the viewport and
    the WHOLE PAGE scrolled horizontally on the phone — its own
    overflow-x:auto never got the chance to scroll. */
-.grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
 main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
 .pane-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
-
-/* Repeated list rows: flat separator-row canon (app-launcher#365) — rows lose
-   their per-row box; the *list* is the card. Gap collapses so the separators
-   meet; per-row status accents survive as text color, not borders. */
-.grid:has(> .item) { gap: 0; }
-.pane-body > .grid:has(> .item) {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-.item {
-  min-height: var(--row-lg);
-  padding: var(--space-sm) var(--space-md);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--gap);
-  align-items: center;
-  border-bottom: 1px solid var(--line-muted);
-}
-.item:last-child { border-bottom: 0; }
 
 /* Item rows (#254): rows.js itemRow() on the vendored action-row. Its glyph
    trailing items (a buy link, a quick-add's remove, the stepper's − and +)
@@ -430,11 +407,8 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
   font-variant-numeric: tabular-nums;
 }
 
-/* Audio match: the change a proposed count makes. */
-.buy { color: var(--deficit); }
-
 /* ------------------------------------------------------------- controls */
-.primary, .secondary, .danger {
+.danger {
   min-height: var(--control-h);
   border-radius: var(--radius-md);
   border: 1px solid var(--line);
@@ -444,9 +418,8 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
   font-size: var(--font-label);
   font-weight: 600;
 }
-.primary { background: var(--accent-fill); border-color: var(--accent-fill); color: var(--accent-fg); padding: 0 14px; }
 /* button-primary height for the view's primary action and every form submit */
-.primary, form button[type="submit"] { min-height: var(--primary-h); }
+form button[type="submit"] { min-height: var(--primary-h); }
 /* A destructive action's paint is the vendored `.button-tint.danger` (outlined:
    a transparent fill, danger-text label, --deficit hairline; button.css). The
    app restates none of it, so a re-vendor changes every destructive button at once. */
@@ -454,24 +427,6 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
    floor, so neighbours at the row gap never overlap targets. */
 .search-bar, .candidate-actions, .review-cell-edit { --icon-btn-box: var(--hit-min); }
 
-/* Accent-ghost feature button — home-automation's .big-btn recipe verbatim
-   (Net tab "Run speed test"): accent tint fill, accent text, soft accent
-   border, one shared 48px height. Match/Apply/Clear, Add Item, Run
-   Automation all wear it so the feature buttons read as one family. */
-.big-btn {
-  background: var(--accent-soft);
-  color: var(--accent-text);
-  border: 1px solid var(--accent-border-soft);
-  border-radius: var(--radius-md);
-  padding: 13px;
-  min-height: var(--primary-h);
-  font-size: var(--font-body);
-  font-weight: 700;
-  cursor: pointer;
-}
-.big-btn:active { transform: scale(0.98); }
-
-.actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-sm); }
 /* Full-width feature button (home-automation .net-speed-btn identity):
    secondary shade, icon + label centered, spans the card. */
 .btn-block {
@@ -483,7 +438,7 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
 }
 /* A glyph beside a button's label is icons.size.inline, never the label's own
    14px em (COMP-02). */
-:is(.primary, .secondary, .danger, .big-btn, .button-primary, .button-tint, .button-surface) > .icon {
+:is(.danger, .button-primary, .button-tint, .button-surface) > .icon {
   width: var(--icon-inline);
   height: var(--icon-inline);
 }
@@ -509,11 +464,10 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 
 .form { display: grid; gap: var(--space-sm); }
 .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-sm); }
-.three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-sm); align-items: start; }
 .row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
 
 @media (max-width: 560px) {
-  .two, .three { grid-template-columns: 1fr; }
+  .two { grid-template-columns: 1fr; }
 }
 
 /* ------------------------------------------------------------ statuses */
@@ -541,9 +495,6 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
   line-height: 1.5;
   margin: 0;
 }
-/* .log's `margin: 0` (same specificity, later in source) silently killed the
-   panel's stack spacing — the "no space after the Dry run toggle" bug. */
-.panel > .log { margin-top: var(--gap); }
 
 /* --------------------------------------------------------- disclosures */
 /* Stack spacing inside any open disclosure body (offsets / list / quick-add). */
@@ -580,7 +531,7 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 }
 /* Compact tint action at the control height — Buscar sits in line with the
    term box and reads the same size as the Usar buttons (issue #92 feedback). */
-.search-bar .big-btn {
+.search-bar .button-tint {
   flex: 0 0 auto;
   width: auto;
   min-height: var(--field-h);
@@ -924,7 +875,6 @@ a.button-tint[data-open-link-page] {
 /* Two short fields share a row at every width (the sheet is phone-narrow). */
 .add-form-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-sm); align-items: start; }
 .review-section { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
-.review-subtitle { font-weight: 700; }
 .review-head { display: grid; gap: var(--space-sm); }
 .review-head .hint { margin: 0; }
 .review-checked { display: flex; align-items: center; gap: var(--space-sm); min-height: var(--hit-min); }
