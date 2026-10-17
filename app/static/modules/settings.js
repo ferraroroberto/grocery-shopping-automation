@@ -8,7 +8,7 @@
 // failure of the command (COLOR-02). The last result is kept on the device, so
 // the row's value survives a reload.
 import { showToast } from "../_vendored/toast/toast.js";
-import { fetchJson } from "./api.js";
+import { fetchBlob, fetchJson } from "./api.js";
 import { storeLabel } from "./automation.js";
 import { state } from "./core.js";
 import { chip, esc, icon } from "./dom.js";
@@ -48,8 +48,17 @@ export async function copyLink() {
   showToast("Link copied");
 }
 
-export function exportCsv() {
-  window.location.href = "/api/export.csv";
+// Fetched, not navigated to: a navigation carries no bearer token, so off the PC
+// it landed on a 401 page (#293).
+export async function exportCsv() {
+  try {
+    const url = URL.createObjectURL(await fetchBlob("/api/export.csv"));
+    const link = Object.assign(document.createElement("a"), { href: url, download: "inventory.csv" });
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000); // after the browser has taken the file
+  } catch (error) {
+    showToast(error.message, "error");
+  }
 }
 
 // ------------------------------------------------------- store logins
