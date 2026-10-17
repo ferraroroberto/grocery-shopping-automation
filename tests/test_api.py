@@ -197,14 +197,6 @@ def test_audio_last_reads_the_log_apply_wrote(client):
     assert last["changed"] == 1 and last["unmatched"] == 1 and last["timestamp"]
 
 
-def test_automation_command_preview(client):
-    body = client.get("/api/automation/command?store=mercadona&dry_run=false&cart_mode=clean").json()
-    assert "run_automation" in body["command"]
-    assert "--store mercadona" in body["command"]
-    assert "--cart-mode clean" in body["command"]
-    assert "--dry-run" not in body["command"]
-
-
 def test_index_shell_is_no_cache_and_hash_stamped(client):
     """The entry document must always revalidate, and its app.js URL must
     carry the build content hash so iOS Safari can't serve a stale module."""

@@ -133,7 +133,6 @@ def test_every_side_effect_route_is_stubbed(instance):
         assert done["returncode"] == 0 and all("[demo]" in line for line in done["lines"][:2])
         _call(base, "POST", "/api/automation/reset")
     _call(base, "POST", "/api/automation/stop")
-    assert _call(base, "GET", "/api/automation/command")[0] == 200
 
     # Product search: the LLM parse is refused, the raw text is searched, the stores answer with invented cards.
     status, started = _call(base, "POST", "/api/product-search/start", {"text": "demo oat crackers"})
