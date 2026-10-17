@@ -22,7 +22,7 @@ Comprehensive household inventory management across multiple operational modes. 
   - *Legacy (Streamlit fallback on `:8501`):* `app.py` (entrypoint — page config, session state, sidebar, mode routing), `audit.py` / `audio_audit.py` / `edit_targets.py` / `edit_item.py` / `add_item.py` / `shopping.py` / `export.py` / `ui_helpers.py` (per-mode modules, each exposing `main(df)`).
 - **`src/`** — UI-free data/business layer.
   - `data.py` — config loading, XLSX load/save, supermarket stats, quantity mutators, optional per-store `url_<store>` column helpers.
-  - `store_links.py` — per-store product links, store picks and the cost simulator (#148): imports URLs from the benchmark mappings, picks a row's store (`super` + `buscador`), prices any store split with `benchmark.score` against the latest scored run, and applies picks with pack-size conversion.
+  - `store_links/` (package) — per-store product links, store picks and the cost simulator (#148): imports URLs from the benchmark mappings, picks a row's store (`super` + `buscador`), prices any store split with `benchmark.score` against the latest scored run, and applies picks with pack-size conversion. One module per concern (`registry`, `state`, `context`, `edits`, `simulation`, `apply`, `review`); `src.store_links` re-exports every public name.
   - `gen_ssl_cert.py` — generate a local CA + server cert for HTTPS.
   - `inventory_extract.py` / `transcribe_client.py` — audio-audit transcription + LLM extraction (via the `local-llm-hub` hub).
   - `audit_resolve.py` — deterministic fuzzy resolver mapping a dictated phrase back to one inventory row when the LLM leaves it unresolved (#132); declines on a weak or ambiguous match rather than guessing.
@@ -474,7 +474,7 @@ local). Methodology, quality tiers and schemas:
 Each inventory row can hold one product URL per supermarket in optional
 `url_<store>` columns of `list.xlsx` (store keys from `benchmark/stores.json`;
 a sheet without them loads unchanged). `super` + `buscador` stay the chosen
-store and its URL, so the cart automation keeps working. `src/store_links.py`
+store and its URL, so the cart automation keeps working. `src/store_links/`
 does the work; the API (`app/routers/stores.py`) exposes it:
 
 | Route | Does |
