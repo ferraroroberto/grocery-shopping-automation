@@ -1625,6 +1625,30 @@ def test_settings_gear_opens_settings_from_every_tab(page, monkeypatch):
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
 
 
+@pytest.mark.e2e
+def test_export_csv_downloads_with_a_token_configured(browser, server, monkeypatch):
+    """#293: Export CSV was a bare navigation carrying no bearer token, so off the
+    PC (the cf-ray header makes the loopback test server look like tunnel
+    traffic) it landed on a 401 JSON page. It must fetch with the stored token
+    and save the file."""
+    cfg = app.state.webapp_config
+    monkeypatch.setattr(cfg, "auth_token", "e2e-token")
+    context = browser.new_context(viewport={"width": 1100, "height": 950}, extra_http_headers={"cf-ray": "e2e-LHR"})
+    context.add_init_script("localStorage.setItem('grocery.authToken', 'e2e-token')")
+    try:
+        pg = context.new_page()
+        pg.goto(server.url)
+        pg.wait_for_function(LOADED_JS)
+        goto_mode(pg, "settings")
+        with pg.expect_download() as download:
+            pg.click("#export-csv")
+        assert download.value.suggested_filename == "inventory.csv"
+        with open(download.value.path(), encoding="utf-8") as saved:
+            assert saved.readline().strip()
+    finally:
+        context.close()
+
+
 # What every switch that is on must draw: the theme's accent-fill (#200,
 # design.md switch.trackOn) -- resolved from the token, never hard-coded.
 _ACCENT_PROBE = """() => {

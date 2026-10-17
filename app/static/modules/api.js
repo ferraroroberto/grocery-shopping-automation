@@ -23,15 +23,29 @@ export function authFetch(input, init = {}) {
   return fetch(input, options);
 }
 
-export async function fetchJson(url, init = {}) {
+// authFetch, but a 401 raises the login prompt and retries once unlocked.
+async function fetchUnlocked(url, init = {}) {
   const response = await authFetch(url, init);
-  if (response.status === 401) {
-    await promptForPassword();
-    return fetchJson(url, init);
-  }
+  if (response.status !== 401) return response;
+  await promptForPassword();
+  return fetchUnlocked(url, init);
+}
+
+export async function fetchJson(url, init = {}) {
+  const response = await fetchUnlocked(url, init);
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.detail || `HTTP ${response.status}`);
   return body;
+}
+
+// A file download: the bearer header a plain navigation can't carry.
+export async function fetchBlob(url, init = {}) {
+  const response = await fetchUnlocked(url, init);
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.detail || `HTTP ${response.status}`);
+  }
+  return response.blob();
 }
 
 // Concurrent 401s (e.g. the parallel inventory + access fetches) must share
