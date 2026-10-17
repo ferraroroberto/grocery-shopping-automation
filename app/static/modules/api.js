@@ -116,11 +116,19 @@ export async function loadInventory() {
 
 export async function mutate(url, payload, method = "POST") {
   setStatus("Saving...");
-  state.payload = await fetchJson(url, {
-    method,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  try {
+    state.payload = await fetchJson(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    // The server's detail (a 423 "spreadsheet open in Excel" is the common one);
+    // callers are bare click handlers, so a rethrow would only go unhandled (#293).
+    setStatus(error.message);
+    showToast(error.message, "error");
+    return;
+  }
   render();
   showToast("Saved");
 }
