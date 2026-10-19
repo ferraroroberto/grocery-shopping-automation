@@ -107,6 +107,17 @@ def open_fill_options(page):
     return sheet
 
 
+def open_fill_history(page):
+    """Shop -> the carts glance's History row -> the Fill history sheet (#323)."""
+    if not page.locator("#pane-shopping #fill-carts").is_visible():
+        goto_mode(page, "shopping")
+    page.click("#automation-history")
+    sheet = page.locator("#fill-history")
+    sheet.wait_for()
+    sheet.locator(".fill-day").first.wait_for()
+    return sheet
+
+
 def open_store_sheet(page, store: str = "mercadona"):
     """Shop -> a store group -> its Store options row -> the store sheet (#258)."""
     if not page.locator("#pane-shopping").is_visible():
@@ -495,6 +506,98 @@ def test_four_tab_nav_and_relocated_sections(page, pw, server):
         assert phone.evaluate("() => document.documentElement.scrollWidth <= innerWidth")
         # #260: Home -- the This week card and the search -- fits above the pill.
         assert phone.evaluate(_HOME_FITS_JS), phone.evaluate(_HOME_RECTS_JS)
+        assert errors == [], f"WebKit JS errors: {errors}"
+    finally:
+        webkit.close()
+
+
+@pytest.mark.e2e
+def test_fill_history_and_mark_done_on_a_phone(pw, server, tmp_path, monkeypatch):
+    """#323: Shop's History row opens the last fill days, and Mark purchase done
+    clears the red state everywhere at once while History keeps the fill. Runs on
+    the WebKit iPhone profile against invented run records in a temp dir -- never
+    the shared server's fill, which other tests read."""
+    import json
+
+    runs = tmp_path / "purchase_logs" / "runs"
+    runs.mkdir(parents=True)
+
+    def record(stamp: str, store: str, items: list[tuple[str, str]], mode: str = "keep") -> None:
+        (runs / f"{stamp}_{store}.json").write_text(json.dumps({
+            "run": stamp, "store": store, "cart_mode": mode,
+            "items": [{"comida": name, "status": status} for name, status in items],
+        }), encoding="utf-8")
+
+    record("2026-10-07T180000", "carrefour", [("invented rice", "added_verified")])
+    record("2026-10-14T191701", "mercadona", [("invented soup", "added_verified"), ("invented broth", "out_of_stock")])
+    record("2026-10-14T191701", "carrefour",
+           [("invented rice", "added_verified"), ("invented oats", "added_unverified")], mode="clean")
+    monkeypatch.setitem(data.CONFIG["automation"], "purchase_logs_dir", str(tmp_path / "purchase_logs"))
+
+    webkit = pw.webkit.launch()
+    try:
+        phone = webkit.new_page(**pw.devices["iPhone 13"])
+        errors: list[str] = []
+        phone.on("pageerror", lambda exc: errors.append(str(exc)))
+        phone.goto(server.url)
+        phone.wait_for_function(LOADED_JS)
+        goto_mode(phone, "shopping")
+        fill = phone.locator("#pane-shopping #fill-carts")
+        fill.wait_for()
+        mark = fill.locator("#automation-mark-done")
+        mark.wait_for()
+        assert mark.inner_text().strip() == "Mark purchase done"
+        assert phone.locator("#shop-context").inner_text().startswith("1 not in cart")
+        assert fill.locator("#automation-history-value").inner_text() == "Wed 14 Oct"
+
+        # History: newest day first, a line per store, only the misses folded.
+        sheet = open_fill_history(phone)
+        days = sheet.locator(".fill-day")
+        assert days.locator(".fill-day-title").all_inner_texts() == ["Wed 14 Oct · 19:17", "Wed 7 Oct · 18:00"]
+        assert sheet.locator(".chip", has_text="Done").count() == 0
+        newest = days.first.locator(".fill-store")
+        assert newest.locator(".fill-store-name").all_inner_texts() == ["Carrefour", "Mercadona"]
+        assert "2 in cart" in newest.first.inner_text() and "Clean cart" in newest.first.inner_text()
+        assert newest.first.locator(".chip[data-tone='attention']").inner_text() == "1 not confirmed"
+        assert newest.nth(1).locator(".chip[data-tone='danger']").inner_text() == "1 not in cart"
+        assert newest.first.locator("details").count() == 0
+        broth = newest.nth(1).locator("details")
+        broth.locator("summary").click()
+        assert " ".join(broth.locator("li").inner_text().split()) == "invented broth Out of stock"
+        assert_no_horizontal_overflow(phone)
+        assert_min_target(sheet.locator("button:visible, summary:visible"))
+        assert_no_overlap(sheet.locator("button:visible, summary:visible"))
+        sheet.locator(".detail-save-btn").click()
+        sheet.wait_for(state="hidden")
+
+        # Mark done: one tap, a toast, and every red surface lets go together.
+        mark.click()
+        phone.locator("#toast").filter(has_text="Marked done. Still in History.").wait_for()
+        mark.wait_for(state="hidden")
+        assert fill.locator("#carts-last-fill").inner_text() == "Last fill Wed 14 Oct · done"
+        assert fill.locator("#carts-stores .chip").count() == 0
+        assert "in cart" not in fill.locator("#carts-stores").inner_text()
+        assert not phone.locator("#shop-context").inner_text().startswith("1 not in cart")
+        assert phone.locator("nav.tabs [data-tab='shopping'] .tab-badge").count() == 0
+        goto_mode(phone, "dashboard")
+        assert phone.locator("#week-carts").inner_text() == "Last fill Wed 14 Oct · done"
+        assert phone.locator("#week-carts").get_attribute("data-tone") is None
+        assert phone.locator("#status").inner_text() != "1 not in cart"
+
+        # History keeps the cleared fill, with its outcome and a Done chip.
+        sheet = open_fill_history(phone)
+        assert sheet.locator(".fill-day").first.locator(".chip", has_text="Done").count() == 1
+        assert sheet.locator(".fill-day").first.locator(".chip[data-tone='danger']").inner_text() == "1 not in cart"
+        phone.keyboard.press("Escape")
+        sheet.wait_for(state="hidden")
+
+        # Another device (a fresh load) reads the same mark from the server.
+        phone.reload()  # reopens on Shop, the tab it was left on
+        phone.locator("#carts-last-fill").filter(has_text="Last fill Wed 14 Oct · done").wait_for()
+        assert phone.locator("#automation-mark-done").is_hidden()
+        goto_mode(phone, "dashboard")
+        phone.wait_for_function(LOADED_JS)
+        assert phone.locator("#week-carts").inner_text() == "Last fill Wed 14 Oct · done"
         assert errors == [], f"WebKit JS errors: {errors}"
     finally:
         webkit.close()
@@ -898,7 +1001,8 @@ def test_phone_geometry_fits_and_targets_meet_the_floor(browser, server):
         assert_no_overlap(add_row.locator("button:visible, input:visible"))
         assert_no_horizontal_overflow(pg)
         for opener in (open_item_sheet, lambda: open_add_sheet(pg), lambda: open_benchmark_sheet(pg),
-                       lambda: open_fill_options(pg), lambda: open_store_sheet(pg), lambda: open_transcript_menu(pg)):
+                       lambda: open_fill_options(pg), lambda: open_fill_history(pg), lambda: open_store_sheet(pg),
+                       lambda: open_transcript_menu(pg)):
             if opener is open_item_sheet:
                 goto_mode(pg, "list")
             sheet = opener()

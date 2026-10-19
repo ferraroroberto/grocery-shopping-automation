@@ -562,3 +562,46 @@ def test_automation_fills_names_stores_and_the_last_fill(client, temp_env):
     last = client.get("/api/automation/fills").json()["last_fill"]
     assert last == {"run": "2026-10-06T191701", "date": "2026-10-06",
                     "stores": {"mercadona": {"in_cart": 1, "unconfirmed": 0, "missing": 1, "cart_mode": "keep"}}}
+
+
+def _write_run(runs, stamp, store, statuses):
+    (runs / f"{stamp}_{store}.json").write_text(json.dumps({
+        "run": stamp, "store": store, "cart_mode": "keep",
+        "items": [{"comida": f"item {n}", "status": status} for n, status in enumerate(statuses)],
+    }), encoding="utf-8")
+
+
+def test_automation_fill_history_and_mark_done(client, temp_env):
+    """#323: History lists the fill days; Mark done records the latest fill's
+    stamp, changes no run record, and a newer fill is not covered by it."""
+    runs = temp_env / "purchase_logs" / "runs"
+    runs.mkdir(parents=True)
+    assert client.get("/api/automation/fills/history").json() == {"days": []}
+    assert client.post("/api/automation/fills/clear", json={"run": "2026-10-06T191701"}).status_code == 404
+
+    _write_run(runs, "2026-09-29T190000", "mercadona", ["added_verified"])
+    _write_run(runs, "2026-10-06T191701", "mercadona", ["added_verified", "out_of_stock"])
+    before = {p.name: p.read_bytes() for p in runs.iterdir()}
+
+    fills = client.get("/api/automation/fills").json()
+    assert fills["cleared"] is False and fills["last_fill"]["run"] == "2026-10-06T191701"
+    days = client.get("/api/automation/fills/history").json()["days"]
+    assert [(d["date"], d["cleared"]) for d in days] == [("2026-10-06", False), ("2026-09-29", False)]
+    assert days[0]["stores"]["mercadona"]["problems"] == [{"item": "item 1", "status": "out_of_stock"}]
+
+    assert client.post("/api/automation/fills/clear", json={"run": "2026-09-29T190000"}).status_code == 409
+    for _ in range(2):  # the repeat is idempotent
+        resp = client.post("/api/automation/fills/clear", json={"run": "2026-10-06T191701"})
+        assert resp.status_code == 200 and resp.json() == {"cleared": True, "run": "2026-10-06T191701"}
+    assert client.get("/api/automation/fills").json()["cleared"] is True
+    days = client.get("/api/automation/fills/history").json()["days"]
+    assert [(d["date"], d["cleared"]) for d in days] == [("2026-10-06", True), ("2026-09-29", False)]
+    assert days[0]["stores"]["mercadona"]["missing"] == 1  # history still shows the cleared fill
+    assert {p.name: p.read_bytes() for p in runs.iterdir()} == before
+
+    # A newer fill un-clears the card; the old fill keeps its Done mark in History.
+    _write_run(runs, "2026-10-13T180000", "mercadona", ["out_of_stock"])
+    assert client.get("/api/automation/fills").json()["cleared"] is False
+    days = client.get("/api/automation/fills/history").json()["days"]
+    assert [(d["date"], d["cleared"]) for d in days][:2] == [("2026-10-13", False), ("2026-10-06", True)]
+    assert client.post("/api/automation/fills/clear", json={"run": "2026-10-06T191701"}).status_code == 409

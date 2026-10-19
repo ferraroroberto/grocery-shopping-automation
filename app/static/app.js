@@ -21,6 +21,8 @@ import {
   dismissAutomation,
   fillMissingCount,
   loadFills,
+  markFillDone,
+  openFillHistory,
   openFillOptions,
   renderFillCarts,
   startAutomation,
@@ -336,6 +338,8 @@ el.app.addEventListener("click", async (event) => {
   if (id === "automation-stop") await stopAutomation();
   if (id === "automation-dismiss") await dismissAutomation();
   if (id === "automation-options") openFillOptions();
+  if (id === "automation-history") openFillHistory();
+  if (id === "automation-mark-done") await markFillDone();
   if (button?.matches("[data-store-sheet]")) openStoreSheet(button.closest("[data-store]").dataset.store);
   if (id === "open-store-logins") openStoreLogins();
   if (id === "open-email-watch") openEmailWatch();

@@ -10,8 +10,14 @@
 // from the status endpoint and its event stream. Run state and the picks are
 // local to this module; Shop's header, its tab badge and its store groups, and
 // Home's header and Carts row, read the outcome through the exports below.
+//
+// Two more things hang off the last fill (#323): a History row opening the last
+// ten fill days, and Mark purchase done, which clears the latest fill's red
+// state everywhere at once. The mark lives server-side next to the run records
+// (GET /api/automation/fills says `cleared`), so every device sees it.
 import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
 import { setSwitch } from "../_vendored/switch/switch.js";
+import { showToast } from "../_vendored/toast/toast.js";
 import { fetchJson } from "./api.js";
 import { c, items, state, storedToken, updateHeaders } from "./core.js";
 import { chip, esc, formatElapsed, html, icon, shortDate, switchMarkup } from "./dom.js";
@@ -19,6 +25,7 @@ import { dialogShell } from "./stores/dialog.js";
 import { local, storeName } from "./stores/state.js";
 
 const OPTIONS_ID = "fill-carts-options";
+const HISTORY_ID = "fill-history";
 const SEEN_KEY = "grocery.fillSeen";
 
 const run = {
@@ -35,7 +42,11 @@ const picks = { store: "all", cartMode: "keep", dryRun: false, cleanConfirmed: f
 // The last fill day's outcome per store key, once read. Display names and
 // cart-handler flags come from the shared Stores registry (stores/state.js),
 // not a second copy of the same server-side directory.
-const fills = { last: null, loaded: false };
+// `cleared`: the owner marked that fill done — its misses stop showing.
+const fills = { last: null, cleared: false, loaded: false };
+
+// The History sheet's days, read each time it opens. `status`: loading | ready | error.
+const history = { days: [], status: "loading" };
 
 const IDLE_LOG = "Not running. Press Fill carts to fill the store carts; progress appears here.";
 
@@ -80,9 +91,19 @@ function listStores() {
 }
 
 // ---------------------------------------------------------------- the outcome
+// The per-store outcomes the glance, headers and badge show: none once the fill
+// is marked done. History reads the full record from the server instead.
+function liveOutcomes() {
+  return fills.cleared ? {} : fills.last?.stores || {};
+}
+
 // Items the last fill left out of the carts: Shop's header exception.
 export function fillMissingCount() {
-  return Object.values(fills.last?.stores || {}).reduce((n, s) => n + s.missing, 0);
+  return Object.values(liveOutcomes()).reduce((n, s) => n + s.missing, 0);
+}
+
+function fillUnconfirmedCount() {
+  return Object.values(liveOutcomes()).reduce((n, s) => n + s.unconfirmed, 0);
 }
 
 function seenRun() {
@@ -114,6 +135,7 @@ export async function loadFills() {
   try {
     const body = await fetchJson("/api/automation/fills");
     fills.last = body.last_fill;
+    fills.cleared = !!body.cleared;
     fills.loaded = true;
   } catch (_) {
     return; // keep what we had; the glance still runs a fill without it
@@ -149,6 +171,7 @@ export function renderFillCarts({ force = false } = {}) {
         <button id="automation-start" data-track="shop.fill-carts" class="button-primary btn-block" type="button"></button>
         <button id="automation-stop" data-track="shop.stop" class="button-tint danger btn-block" type="button" hidden>${icon("square")}Stop</button>
         <button id="automation-dismiss" class="button-surface btn-block" type="button" hidden>Dismiss</button>
+        <button id="automation-mark-done" data-track="shop.mark-done" class="button-surface btn-block" type="button" hidden>${icon("circle-check")}Mark purchase done</button>
       </div>
       <p id="automation-blocked" class="panel-status warn" hidden>Clean cart needs your OK in Options.</p>
       <ul class="action-rows carts-glance-foot"><li class="action-row">
@@ -156,6 +179,13 @@ export function renderFillCarts({ force = false } = {}) {
           ${icon("sliders-horizontal", "sheet-link-icon")}
           <span class="action-row-title">Options</span>
           <span class="sheet-link-value" id="automation-options-value"></span>
+          ${icon("chevron-right", "sheet-link-chevron")}
+        </button>
+      </li><li class="action-row">
+        <button id="automation-history" data-track="shop.fill-history" type="button" class="action-row-main sheet-link" aria-haspopup="dialog">
+          ${icon("clock", "sheet-link-icon")}
+          <span class="action-row-title">History</span>
+          <span class="sheet-link-value" id="automation-history-value"></span>
           ${icon("chevron-right", "sheet-link-chevron")}
         </button>
       </li></ul>
@@ -180,14 +210,19 @@ function storeChip(store) {
   if (inRun(store)) return { label: "Filling", tone: "accent" };
   const entry = registryEntry(store);
   if (entry && !entry.has_handler) return { label: "Manual order", tone: "neutral" };
-  const outcome = fills.last?.stores[storeKey(store)];
+  const outcome = liveOutcomes()[storeKey(store)];
+  return outcomeChip(outcome);
+}
+
+// The exception chip for one store's outcome: misses first, else unconfirmed.
+function outcomeChip(outcome) {
   if (outcome?.missing) return { label: `${outcome.missing} not in cart`, tone: "danger" };
   if (outcome?.unconfirmed) return { label: `${outcome.unconfirmed} not confirmed`, tone: "attention" };
   return null;
 }
 
 function storeRow({ store, count, label }) {
-  const outcome = fills.last?.stores[storeKey(store)];
+  const outcome = liveOutcomes()[storeKey(store)];
   const filled = outcome ? ` · ${outcome.in_cart + outcome.unconfirmed} in cart` : "";
   const status = storeChip(store);
   const chipMarkup = status ? ` ${chip(status.label, status.tone)}` : "";
@@ -199,9 +234,13 @@ function storeRow({ store, count, label }) {
     </li>`;
 }
 
+function fillDay(date) {
+  return shortDate(`${date}T00:00:00`);
+}
+
 function fillDateText() {
   if (!fills.last) return "Not filled yet";
-  return `Last fill ${shortDate(`${fills.last.date}T00:00:00`)}`;
+  return `Last fill ${fillDay(fills.last.date)}${fills.cleared ? " · done" : ""}`;
 }
 
 // Home's Carts row (#260): the last fill's worst outcome, in its tone, else
@@ -210,9 +249,16 @@ export function lastFillValue() {
   if (!fills.loaded) return { text: "–" };
   const missing = fillMissingCount();
   if (missing) return { text: `${missing} not in cart`, tone: "danger" };
-  const unconfirmed = Object.values(fills.last?.stores || {}).reduce((n, s) => n + s.unconfirmed, 0);
+  const unconfirmed = fillUnconfirmedCount();
   if (unconfirmed) return { text: `${unconfirmed} not confirmed`, tone: "attention" };
   return { text: fillDateText() };
+}
+
+// Mark purchase done is for a fill that left something to sort out: it shows
+// only while the latest fill has misses or unconfirmed items, is not already
+// done, and no run is in flight (that run's records will replace this fill).
+function markDoneVisible() {
+  return !!fills.last && !fills.cleared && !run.status?.running && (fillMissingCount() > 0 || fillUnconfirmedCount() > 0);
 }
 
 function cleanBlocked() {
@@ -237,6 +283,8 @@ export function paintCarts() {
   start.disabled = cleanBlocked();
   document.querySelector("#automation-blocked").hidden = !cleanBlocked() || start.hidden;
   document.querySelector("#automation-options-value").textContent = optionsValue();
+  document.querySelector("#automation-mark-done").hidden = !markDoneVisible();
+  document.querySelector("#automation-history-value").textContent = fills.last ? fillDay(fills.last.date) : "";
 }
 
 // ------------------------------------------------------------ Options sheet
@@ -324,6 +372,117 @@ function onOptionsChange(event) {
   }
   paintOptions();
   paintCarts();
+}
+
+// ------------------------------------------------------------ Mark done
+// One POST, no confirm: the fill stays in History, and the next fill shows
+// its own outcome again. A 409 means another device filled since this one last
+// read, so the fill on screen is not the latest any more: re-read it.
+export async function markFillDone() {
+  const stamp = fills.last?.run;
+  if (!stamp) return;
+  const button = document.querySelector("#automation-mark-done");
+  if (button) button.disabled = true;
+  try {
+    await fetchJson("/api/automation/fills/clear", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ run: stamp }),
+    });
+    fills.cleared = true;
+    showToast("Marked done. Still in History.");
+  } catch (error) {
+    showToast(error.message, "error");
+    await loadFills();
+  } finally {
+    if (button) button.disabled = false;
+  }
+  updateHeaders();
+  paintCarts();
+}
+
+// ----------------------------------------------------------- History sheet
+// A run record's status as a person says it. A status this list doesn't know
+// is shown as its words, never swallowed.
+const PROBLEM_LABELS = {
+  out_of_stock: "Out of stock",
+  unavailable: "Unavailable",
+  no_url: "No link",
+  error: "Error",
+  added_not_in_cart: "Not in cart",
+  partial_in_cart: "Partly in cart",
+  not_tried: "Not tried",
+};
+
+function problemLabel(status) {
+  return PROBLEM_LABELS[status] || String(status).replaceAll("_", " ");
+}
+
+function historySheet() {
+  return dialogShell(HISTORY_ID, "Fill history", "Done", (shell) => {
+    shell.classList.add("fill-history-sheet");
+    const done = shell.querySelector(".detail-save-btn");
+    done.disabled = false;
+    done.addEventListener("click", () => shell.close());
+    shell.addEventListener("close", () => document.querySelector("#automation-history")?.focus());
+  });
+}
+
+export async function openFillHistory() {
+  const d = historySheet();
+  history.status = "loading";
+  paintHistory();
+  if (!d.open) d.showModal();
+  try {
+    history.days = (await fetchJson("/api/automation/fills/history")).days;
+    history.status = "ready";
+  } catch (_) {
+    history.status = "error";
+  }
+  paintHistory();
+}
+
+function storeLine(store, outcome) {
+  const status = outcomeChip(outcome);
+  const chipMarkup = status ? ` ${chip(status.label, status.tone)}` : "";
+  const note = outcome.cart_mode === "clean" ? ` <span class="fill-store-note">Clean cart</span>` : "";
+  const problems = outcome.problems?.length
+    ? `<details class="inline-disclosure fill-problems">
+        <summary class="inline-disclosure-summary"><span>${esc(plural(outcome.problems.length, "item"))} not in cart</span><span class="inline-chevron" aria-hidden="true">›</span></summary>
+        <ul class="fill-problem-list">${outcome.problems.map((p) => `<li><span class="fill-problem-item">${html(p.item)}</span><span class="fill-problem-status">${esc(problemLabel(p.status))}</span></li>`).join("")}</ul>
+      </details>`
+    : "";
+  return `<li class="fill-store">
+      <div class="fill-store-line">
+        <span class="fill-store-name">${html(storeLabel(store))}</span>
+        <span class="fill-store-meta">${esc(`${outcome.in_cart + outcome.unconfirmed} in cart`)}${chipMarkup}${note}</span>
+      </div>${problems}
+    </li>`;
+}
+
+function dayRow(day) {
+  const done = day.cleared ? ` ${chip("Done", "neutral")}` : "";
+  return `<li class="fill-day">
+      <div class="fill-day-head"><span class="fill-day-title">${esc(`${fillDay(day.date)} · ${day.time}`)}</span>${done}</div>
+      <ul class="fill-stores">${Object.entries(day.stores).map(([store, outcome]) => storeLine(store, outcome)).join("")}</ul>
+    </li>`;
+}
+
+function paintHistory() {
+  const d = document.getElementById(HISTORY_ID);
+  if (!d) return;
+  const body = d.querySelector(".stores-dialog-body");
+  body.dataset.state = history.status;
+  if (history.status === "error") {
+    const block = emptyStateEl("circle-alert", "Couldn't load the history.", { actionLabel: "Retry", onAction: openFillHistory });
+    body.replaceChildren(block);
+  } else if (history.status === "loading") {
+    body.replaceChildren(emptyStateEl("clock", "Reading the fill history…"));
+  } else if (!history.days.length) {
+    body.replaceChildren(emptyStateEl("shopping-cart", "No fills yet. Each Fill carts run shows up here."));
+  } else {
+    body.innerHTML = `<ul class="fill-days">${history.days.map(dayRow).join("")}</ul>`;
+  }
 }
 
 // ------------------------------------------------------------- the run
