@@ -28,6 +28,7 @@ if not Path(os.environ.get(_USAGE_DIR_ENV, "")).name.startswith("grocery-usage-"
 import src.data as data  # noqa: E402
 from app.api import app  # noqa: E402
 from src.inventory_extract import ExtractionResult
+from tests.e2e._surface import pytest_collection_modifyitems  # noqa: E402,F401
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE = REPO_ROOT / "tests" / "list_test_fixture.xlsx"
