@@ -23,6 +23,7 @@ card = { src = "app/webapp/static/_vendored/card", sha = "4c699636afecd5cae5e966
 empty-state = { src = "app/webapp/static/_vendored/empty-state", sha = "4c699636afecd5cae5e966bc2bcb17fa49744390", dest = "app/static/_vendored/empty-state" }
 segmented = { src = "app/webapp/static/_vendored/segmented", sha = "f52eb75625cbfd8dcef8a71731390a47b795508d", dest = "app/static/_vendored/segmented" }
 action-row = { src = "app/webapp/static/_vendored/action-row", sha = "59ae763c4dea588aef07a66c236ee3e57c8459ac", dest = "app/static/_vendored/action-row" }
+surface_capture = { src = "tests/e2e/_surface.py", sha = "5c4d3a7947dae8b3b4a028bf636c0f052ea3b1f7", dest = "tests/e2e/_surface.py" }
 geometry = { src = "tests/e2e/_geometry.py", sha = "4c699636afecd5cae5e966bc2bcb17fa49744390", dest = "tests/e2e/_geometry.py" }
 notify = { src = "src/notify", sha = "4c699636afecd5cae5e966bc2bcb17fa49744390", dest = "src/notify" }
 text-size = { src = "app/webapp/static/_vendored/text-size", sha = "4c699636afecd5cae5e966bc2bcb17fa49744390", dest = "app/static/_vendored/text-size" }
@@ -203,6 +204,13 @@ tab       = "inventory"
 id        = "settings-email-watch"
 clicks    = ['#pane-inventory .home-settings', "#open-email-watch"]
 synthetic = false
+
+# --- the e2e suite as a second walk (fleet-config#1383) ---------------------
+# `measure --e2e` runs this suite with the surface() capture hook on
+# (tests/e2e/_surface.py, vendored). It boots its own in-thread uvicorn on
+# invented fixtures, so there is no live-app guard flag to pass.
+[design.review.e2e]
+command = ["-m", "pytest", "tests/test_e2e_pwa.py"]
 
 # --- the synthetic instance (#251) ---------------------------------------
 # scripts/design_review_synthetic.py boots a throwaway copy of this checkout on

@@ -27,6 +27,7 @@ from src.inventory_extract import ExtractionResult
 pytest.importorskip("playwright.sync_api")
 from playwright.sync_api import sync_playwright  # noqa: E402
 from tests.e2e._geometry import assert_min_target, assert_no_horizontal_overflow, assert_no_overlap  # noqa: E402
+from tests.e2e._surface import surface  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE = REPO_ROOT / "tests" / "list_test_fixture.xlsx"
@@ -389,6 +390,7 @@ def test_four_tab_nav_and_relocated_sections(page, pw, server):
     assert page.locator("#shop-context").inner_text().startswith("1 not in cart")
     assert fill.locator("#automation-start").inner_text().strip() == "Fill carts"
     assert shop_tab.locator(".tab-badge").count() == 0
+    surface(page, "shop.carts-miss")
     # Options in a sheet: every pick still there, "what will run" in words --
     # never the interpreter command line or a lower-case store key.
     sheet = open_fill_options(page)
@@ -398,10 +400,12 @@ def test_four_tab_nav_and_relocated_sections(page, pw, server):
     plan = sheet.locator("#automation-plan").inner_text()
     assert plan.startswith("Adds 41 items to the Ametller Origen and Mercadona carts"), plan
     assert "python" not in sheet.inner_text().lower() and page.locator("#automation-command").count() == 0
+    surface(page, "shop.fill-options")
     # Clean cart: Fill carts waits for the confirm, which the sheet asks for.
     sheet.locator("#automation-cart-mode").select_option("clean")
     sheet.locator("#automation-clean-confirm").wait_for()
     assert sheet.locator("#automation-plan").inner_text().startswith("Empties the")
+    surface(page, "shop.fill-options-clean")
     page.keyboard.press("Escape")
     sheet.wait_for(state="hidden")
     assert fill.locator("#automation-start").is_disabled()
@@ -434,8 +438,10 @@ def test_four_tab_nav_and_relocated_sections(page, pw, server):
     extra = group.locator(".item-row", has_text="Invented extra")
     extra.wait_for()
     assert extra.locator("[data-action='remove-extra']").count() == 0
+    surface(page, "shop.store-group")
     store_sheet = open_store_sheet(page)
     assert store_sheet.locator("#store-sheet-title").inner_text() == "Mercadona"
+    surface(page, "shop.store-sheet")
     store_sheet.locator("[data-action='offset-items']").fill("2")
     store_sheet.locator("[data-action='offset-items']").dispatch_event("change")
     assert group.locator("[data-store-sheet] .sheet-link-value").inner_text() == "2 already in cart"
@@ -446,6 +452,7 @@ def test_four_tab_nav_and_relocated_sections(page, pw, server):
     assert edit.get_attribute("aria-pressed") == "false"
     edit.click()
     assert edit.get_attribute("aria-pressed") == "true"
+    surface(page, "shop.store-sheet-edit")
     store_sheet.locator("[data-action='remove-extra']").click()
     extra.wait_for(state="detached")
     assert store_sheet.locator("[data-action='edit-extras']").count() == 0
@@ -506,6 +513,7 @@ def test_four_tab_nav_and_relocated_sections(page, pw, server):
         assert phone.evaluate("() => document.documentElement.scrollWidth <= innerWidth")
         # #260: Home -- the This week card and the search -- fits above the pill.
         assert phone.evaluate(_HOME_FITS_JS), phone.evaluate(_HOME_RECTS_JS)
+        surface(phone, "home.this-week-phone")
         assert errors == [], f"WebKit JS errors: {errors}"
     finally:
         webkit.close()
@@ -567,6 +575,7 @@ def test_fill_history_and_mark_done_on_a_phone(pw, server, tmp_path, monkeypatch
         assert_no_horizontal_overflow(phone)
         assert_min_target(sheet.locator("button:visible, summary:visible"))
         assert_no_overlap(sheet.locator("button:visible, summary:visible"))
+        surface(phone, "shop.fill-history")
         sheet.locator(".detail-save-btn").click()
         sheet.wait_for(state="hidden")
 
@@ -579,15 +588,18 @@ def test_fill_history_and_mark_done_on_a_phone(pw, server, tmp_path, monkeypatch
         assert "in cart" not in fill.locator("#carts-stores").inner_text()
         assert not phone.locator("#shop-context").inner_text().startswith("1 not in cart")
         assert phone.locator("nav.tabs [data-tab='shopping'] .tab-badge").count() == 0
+        surface(phone, "shop.carts-done")
         goto_mode(phone, "dashboard")
         assert phone.locator("#week-carts").inner_text() == "Last fill Wed 14 Oct · done"
         assert phone.locator("#week-carts").get_attribute("data-tone") is None
         assert phone.locator("#status").inner_text() != "1 not in cart"
+        surface(phone, "home.this-week-done")
 
         # History keeps the cleared fill, with its outcome and a Done chip.
         sheet = open_fill_history(phone)
         assert sheet.locator(".fill-day").first.locator(".chip", has_text="Done").count() == 1
         assert sheet.locator(".fill-day").first.locator(".chip[data-tone='danger']").inner_text() == "1 not in cart"
+        surface(phone, "shop.fill-history-done")
         phone.keyboard.press("Escape")
         sheet.wait_for(state="hidden")
 
@@ -623,13 +635,16 @@ def test_home_this_week_and_search(page, server):
     assert page.locator("#status").inner_text() == "1 not in cart"
     assert page.locator("#week-audit").inner_text().startswith(("No audit yet", "Last audit "))
     assert page.locator("#week-prices").inner_text().startswith(("Next review ", "Review due"))
+    surface(page, "home.this-week")
     # Nothing under the search until something is typed.
     assert page.locator("#pane-inventory .item-row").count() == 0
     page.fill("#search", "burguer")
     titles = page.locator("#pane-inventory .item-row .action-row-title").all_inner_texts()
     assert titles and all("burguer" in t.lower() for t in titles)
+    surface(page, "home.search-results")
     page.fill("#search", "zzz nothing matches")
     assert page.locator("#pane-inventory .empty-state").inner_text().strip() == "No matching items."
+    surface(page, "home.search-empty")
     page.fill("#search", "")
     assert page.locator("#pane-inventory .item-row, #pane-inventory .empty-state").count() == 0
     # Each row opens the tab that owns its fact, on the segment that shows it.
@@ -661,6 +676,7 @@ def test_search_only_on_filterable_modes(page):
     assert all("burguer" in t.lower() for t in groups.locator(".action-row-title").all_inner_texts())
     page.fill("#search", "zzz nothing matches")
     assert page.locator("#pane-items .empty-state").inner_text().strip() == "No matching items."
+    surface(page, "items.list-empty")
     page.fill("#search", "")
     goto_mode(page, "stores")
     assert not page.locator("#items-add").is_visible()
@@ -679,6 +695,7 @@ def test_item_forms_label_every_field(page):
     form = open_add_sheet(page).locator("#add-form")
     for label in ["Item", "Supermarket", "Zone", "Target", "In stock", "URL"]:
         assert form.get_by_label(label, exact=True).count() == 1, label
+    surface(page, "items.add-sheet")
     page.keyboard.press("Escape")
     goto_mode(page, "list")
     page.locator("#pane-items .item-row .action-row-main").first.click()
@@ -686,7 +703,9 @@ def test_item_forms_label_every_field(page):
     for to, label in (("zone", "Zone"), ("store", "Store"), ("link", "Buy link"), ("name", "Name")):
         sheet.locator(f"[data-page-to='{to}']").click()
         assert sheet.locator(f"[data-page='{to}']").get_by_label(label, exact=True).count() == 1, label
+        surface(page, f"items.item-sheet-{to}")
         sheet.locator("[data-sheet-back]").click()
+    surface(page, "items.item-sheet")
     page.keyboard.press("Escape")
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
 
@@ -816,6 +835,7 @@ def test_item_sheet_opens_everywhere_edits_and_deletes(page, server):
     sheet.locator("[data-sheet-delete]").click()
     confirm.wait_for()
     assert name in confirm.locator(".confirm-message").inner_text()
+    surface(page, "items.delete-confirm")
     confirm.locator("[data-confirm='no']").click()
     assert not confirm.is_visible() and sheet.is_visible()
     assert row()[0] is not None
@@ -859,6 +879,7 @@ def test_item_sheet_sets_and_clears_a_fallback(page, server):
     sheet.locator("[data-page-to='fallback']").click()
     form = sheet.locator("[data-page='fallback'] [data-fallback-form]")
     assert form.locator("[data-fallback-clear]").count() == 0  # nothing to clear yet
+    surface(page, "items.item-sheet-fallback")
 
     # Unsaved typing is dropped with the sheet: nothing is written.
     form.locator("[data-fallback-url]").fill(product)
@@ -891,6 +912,7 @@ def test_item_sheet_sets_and_clears_a_fallback(page, server):
     assert "search page" in flag.inner_text()
     assert record()["fallback"]["kind"] == "search"
     assert value.get_attribute("data-tone") == "attention" and "check link" in value.inner_text()
+    surface(page, "items.item-sheet-fallback-flagged")
 
     # Clear fallback blanks both cells.
     sheet.locator("[data-fallback-clear]").click()
@@ -1097,9 +1119,11 @@ def test_audio_match_and_apply_writes_log(page, server):
     menu = open_transcript_menu(page)
     assert menu.locator("#audio-model option:checked").inner_text() == "Gemini Pro"
     assert menu.locator("#audio-clear").is_visible()
+    surface(page, "audit.transcript-menu")
     page.keyboard.press("Escape")
     menu.wait_for(state="hidden")
     assert page.locator("#pane-audit #audio-clear").count() == 0
+    surface(page, "audit.voice")
 
     page.fill("#transcript", TRANSCRIPT)
     page.click("#match-transcript")
@@ -1136,11 +1160,13 @@ def test_audio_match_and_apply_writes_log(page, server):
             assert paint["w"] >= 44 and paint["h"] >= 44, where
     page.evaluate("() => document.documentElement.setAttribute('data-theme', 'light')")
     page.set_viewport_size({"width": 1100, "height": 950})
+    surface(page, "audit.voice-results")
     find.click()
     assert page.locator("#pane-audit [data-mode='audit']").get_attribute("aria-pressed") == "true"
     assert page.input_value("#search") == UNMATCHED_PHRASE
     rows = page.locator("#pane-audit .item-row")
     assert rows.count() == 1 and "pulpo cocido" in rows.first.inner_text()
+    surface(page, "audit.manual-find")
     before = rows.first.locator(".stepper-value").inner_text()
     # Tap 2: the stepper.
     rows.first.locator("[data-action='current-plus']").click()
@@ -1161,6 +1187,7 @@ def test_audio_match_and_apply_writes_log(page, server):
     assert page.locator("#voice-results").count() == 0
     page.wait_for_function("document.querySelector('#voice-last-date')?.textContent?.startsWith('Last audit')")
     assert page.locator("#voice-last-unmatched").inner_text() == "1"
+    surface(page, "audit.voice-applied")
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
     logs = list(server.logs_dir.glob("*.json"))
     assert logs, "apply should have written an audit log"
@@ -1250,6 +1277,7 @@ def test_stores_plan_simulate_and_apply(page, server):
     assert "2026-01-15" in status and "2026-04-15" in status
     assert bench.locator("[data-stores-action='copy-steps']").count() == 1
     assert "Pricing" not in bench.locator(".benchmark-section", has_text="Cost breakdown").inner_text()
+    surface(page, "items.benchmark-sheet")
     bench.locator("[data-dialog-close]").click()
     bench.wait_for(state="hidden")
     # The footer row names the run's exception (the fixture's review is overdue).
@@ -1261,6 +1289,7 @@ def test_stores_plan_simulate_and_apply(page, server):
     # card (the re-homed global toolbar search), not a second search box.
     assert page.locator(".stores-list-card input[type='search']").count() == 1
     assert page.locator("#toolbar input[type='search']").count() == 1  # the same node, moved
+    surface(page, "items.prices")
     # LAYOUT-03 (#194, accepted in .fleet.toml): a store chip with a product
     # URL is a link that opens it in a new tab — the picked (today's) store's
     # chip here is the imported Ametller link.
@@ -1303,6 +1332,7 @@ def test_stores_plan_simulate_and_apply(page, server):
     # The plan differs from the list now, so the one action is Review & apply.
     page.wait_for_function("document.querySelector('#stores-sim .button-primary')?.dataset.storesAction === 'review'")
     assert glance.locator(".button-primary").count() == 1
+    surface(page, "items.prices-plan")
 
     # Back to the list (from the Benchmark sheet, which closes), then one
     # what-if pick: nothing is written until Apply.
@@ -1333,6 +1363,7 @@ def test_stores_plan_simulate_and_apply(page, server):
     row.first.wait_for()
     assert row.count() == 1
     assert row.first.locator(".apply-qty").input_value() == "2"
+    surface(page, "items.apply-dialog")
     with page.expect_request(lambda r: r.url.endswith("/api/stores/apply")) as sent:
         page.click("#stores-apply-dialog .detail-save-btn")
     # The batch names the item it means, so a moved row is refused (#313).
@@ -1384,6 +1415,7 @@ def test_stores_plan_simulate_and_apply(page, server):
     # Items header names the exception instead of the mode.
     assert burger.locator(".chip[data-tone='attention']").inner_text().startswith("Moved store")
     assert page.locator("#items-context").inner_text() == "1 needs checking"
+    surface(page, "items.prices-needs-checking")
 
     # ── Baseline (#183), in the Benchmark sheet's cost breakdown: freeze the
     # list as the new "today", confirm shows the unchecked count (over the
@@ -1396,6 +1428,7 @@ def test_stores_plan_simulate_and_apply(page, server):
     baseline_dialog = page.locator("#stores-baseline-dialog")
     baseline_dialog.wait_for()
     assert "1 item" in baseline_dialog.inner_text() and "checking" in baseline_dialog.inner_text()
+    surface(page, "items.baseline-dialog")
     baseline_dialog.locator(".detail-save-btn").click()
     page.wait_for_function("() => !document.querySelector('#stores-baseline-dialog').open")
     page.wait_for_function(f"() => {hint}.includes('baseline')")
@@ -1423,6 +1456,7 @@ def test_stores_plan_simulate_and_apply(page, server):
     assert link.inner_text() == "Open at Ametller Origen"
     assert link.get_attribute("href").startswith("https://www.ametllerorigen.com/")
     assert link.bounding_box()["height"] >= 44
+    surface(page, "items.item-sheet-prices")
     # Wide on a desktop, no sideways scroll on a phone.
     page.set_viewport_size({"width": 1280, "height": 900})
     assert dialog.bounding_box()["width"] >= 900
@@ -1435,6 +1469,7 @@ def test_stores_plan_simulate_and_apply(page, server):
     assert "€14.40/mo" in carrefour_chip.inner_text()
     dialog.locator("[data-review-edit='carrefour']").click()
     dialog.locator("[data-review-form='carrefour'] [name='pack_price']").fill("6")
+    surface(page, "items.item-sheet-price-editor")
     dialog.locator("[data-review-form='carrefour'] button[type='submit']").click()
     dialog.locator("tr[data-review-store='carrefour'] .chip:has-text('yours')").wait_for()
     page.wait_for_function(
@@ -1457,6 +1492,7 @@ def test_stores_plan_simulate_and_apply(page, server):
     qty = dialog.locator(".review-qty-lines").inner_text()
     assert "Ametller Origen 2 × 0.3 kg = 0.6 kg" in qty
     assert "Carrefour 2 × 0.6 kg = 1.2 kg (+100%)" in qty
+    surface(page, "items.item-sheet-quantity")
     dialog.locator("[data-sheet-back]").click()
 
     # Target and stock are staged on the steppers and saved to the list; the
@@ -1594,6 +1630,7 @@ def test_dialog_controls_are_styled(page, theme):
     # Login is static markup; the fixture server has auth off, so open it directly.
     page.evaluate("document.getElementById('login-dialog').showModal()")
     assert check("login-dialog")["buttons"] == ["Unlock"]
+    surface(page, "app.login-dialog")
     page.evaluate("document.getElementById('login-dialog').close()")
 
     # The Add item sheet (#256): the search's tint button, the two pickers,
@@ -1694,6 +1731,7 @@ def test_add_item_product_search(page, server):
     assert "Carrefour: 1 result" in lines
     assert "Timeout" not in " ".join(lines)  # failure copy is sanitized
     assert "Ametller" not in search.locator(".hint").inner_text()
+    surface(page, "items.add-sheet-results")
 
     new_card.locator("[data-action='search-use']").click()
     form = sheet.locator("#add-form")
@@ -1702,6 +1740,7 @@ def test_add_item_product_search(page, server):
     assert form.locator("[name='buscador']").input_value() == new_url
     assert form.locator("[name='cantidad']").input_value() == "1"
     assert "Filled in Add by hand below" in search.locator("#search-status").inner_text()
+    surface(page, "items.add-sheet-prefilled")
     assert not [i for i in page.request.get(inventory).json()["items"] if i["comida"] == "zzz sandia e2e"]
     form.locator("[data-picker] select").nth(1).select_option("nevera")
     sheet.locator(".detail-save-btn").click()
@@ -1774,11 +1813,13 @@ def test_settings_gear_opens_settings_from_every_tab(page, monkeypatch):
     for row in settings.locator(".sheet-link").all():
         assert row.locator(".sheet-link-value").inner_text().strip(), row.inner_text()
     assert page.locator("#store-logins-value").inner_text() == "Not checked"
+    surface(page, "settings.main")
 
     # Email watch: its sheet holds what the folded card did.
     page.click("#open-email-watch")
     email = page.locator("#email-watch-sheet")
     email.locator("#email-check-now, .panel-status.error").first.wait_for()
+    surface(page, "settings.email-watch")
     page.keyboard.press("Escape")
     email.wait_for(state="hidden")
 
@@ -1790,10 +1831,13 @@ def test_settings_gear_opens_settings_from_every_tab(page, monkeypatch):
     })
     page.click("#open-store-logins")
     logins = page.locator("#store-logins-sheet")
+    logins.wait_for()
+    surface(page, "settings.store-logins")
     logins.locator("#check-logins").click()
     logins.locator(".login-rows .action-row").nth(1).wait_for()
     assert logins.locator(".login-rows .chip[data-tone='attention']").inner_text() == "Logged out"
     assert logins.locator(".login-ok").count() == 1
+    surface(page, "settings.store-logins-checked")
     page.wait_for_function("document.querySelector('#toast')?.textContent === '1 store logged out'")
     assert "error" not in (page.locator("#toast").get_attribute("class") or "")
     page.keyboard.press("Escape")
@@ -1816,6 +1860,7 @@ def test_stepper_save_failure_surfaces_the_server_detail(page):
     page.wait_for_function("d => document.querySelector('#toast')?.textContent === d", arg=detail)
     assert "error" in (page.locator("#toast").get_attribute("class") or "")
     assert page.locator("#status").text_content() == detail
+    surface(page, "audit.save-failed")
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
 
 
@@ -2040,6 +2085,7 @@ def test_empty_automation_log_says_what_fills_it(page):
     log.wait_for(state="attached")
     text = log.text_content()
     assert "Fill carts" in text and "progress appears here" in text
+    surface(page, "shop.run-log-idle")
 
 
 @pytest.mark.e2e
@@ -2092,6 +2138,9 @@ def test_every_tab_opens_on_a_heading_not_a_control(page, mode, tab):
     page.wait_for_timeout(300)
     first = page.evaluate(_FIRST_AFTER_HEADER_JS, tab)
     assert first and first.startswith("h2:"), f"{tab} opens on {first}"
+    # Home's richer captures are in the This week test; the other tabs' plain landing views are here.
+    if mode != "dashboard":
+        surface(page, {"shopping": "shop.carts", "audit": "audit.manual", "list": "items.list"}[mode])
 
 
 @pytest.mark.e2e
