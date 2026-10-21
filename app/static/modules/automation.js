@@ -409,6 +409,7 @@ const PROBLEM_LABELS = {
   unavailable: "Unavailable",
   no_url: "No link",
   error: "Error",
+  timed_out: "Timed out",
   added_not_in_cart: "Not in cart",
   partial_in_cart: "Partly in cart",
   not_tried: "Not tried",
