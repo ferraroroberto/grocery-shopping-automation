@@ -26,6 +26,7 @@ from playwright.sync_api import (
     Playwright,
     sync_playwright,
 )
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +100,16 @@ class NotLoggedInError(StoreAccessError):
 
     def __init__(self, store: str, detail: str) -> None:
         super().__init__(store, f"'{store}' reports no logged-in account ({detail}). {_RELOGIN_HINT}")
+
+
+class NavigationTimeoutError(StoreAccessError):
+    """Raised when a page navigation outlasts its timeout — the site is slow or
+    throttling the tab, which is neither a login problem nor a broken product."""
+
+    def __init__(self, store: str, url: str, elapsed_s: float) -> None:
+        super().__init__(store, f"'{store}' did not load {url} within {elapsed_s:.0f}s")
+        self.url = url
+        self.elapsed_s = elapsed_s
 
 
 class BotChallengeError(StoreAccessError):
@@ -285,9 +296,14 @@ def goto_with_login_check(
 
     Raises:
         SessionExpiredError: the store bounced the request to a sign-in page.
+        NavigationTimeoutError: the page did not load within ``timeout_ms``.
     """
     logger.debug("➡️ [%s] navigating to %s", store, url)
-    page.goto(url, timeout=timeout_ms, wait_until="domcontentloaded")
+    started = time.monotonic()
+    try:
+        page.goto(url, timeout=timeout_ms, wait_until="domcontentloaded")
+    except PlaywrightTimeoutError as err:
+        raise NavigationTimeoutError(store, url, time.monotonic() - started) from err
     current = (page.url or "").lower()
     markers = _LOGIN_URL_MARKERS.get(store.lower(), ())
     if any(marker in current for marker in markers):

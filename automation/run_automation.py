@@ -40,6 +40,7 @@ from typing import Callable, Optional
 
 from automation import ametller, carrefour, mercadona, product_search
 from automation.browser import (
+    NavigationTimeoutError,
     NotLoggedInError,
     ProfileBusyError,
     ProfileNotInitializedError,
@@ -66,6 +67,7 @@ from automation.report import (
     NOT_TRIED,
     OUT_OF_STOCK,
     PARTIAL_IN_CART,
+    TIMED_OUT,
     UNAVAILABLE,
     WOULD_ADD,
     FallbackOutcome,
@@ -224,6 +226,11 @@ def _add_one(handler: ModuleType, page, store: str, outcome: ItemOutcome) -> boo
         logger.error("❌ [%s] %s — %s", store, item.comida, err)
         outcome.status, outcome.message = ERROR, str(err)
         return False
+    except NavigationTimeoutError as err:
+        # The site is slow, not the product broken: one line, no traceback.
+        logger.warning("⚠️  [%s] %s — page did not load within %.0fs (site slow)",
+                       store, item.comida, err.elapsed_s)
+        outcome.status, outcome.message = TIMED_OUT, str(err)
     except (AddToCartFailed, StoreAccessError) as err:
         logger.error("❌ [%s] %s — %s", store, item.comida, err)
         outcome.status, outcome.message = ERROR, str(err)
@@ -233,22 +240,94 @@ def _add_one(handler: ModuleType, page, store: str, outcome: ItemOutcome) -> boo
     return True
 
 
+# Consecutive navigation timeouts that read as the site throttling the tab
+# rather than one slow product, and the pause before the page is recovered.
+_STREAK_LIMIT = 3
+_STREAK_BACKOFF_S = 30
+
+
+class _TimeoutStreak:
+    """Watches one store's pass for a run of consecutive navigation timeouts.
+
+    The first streak earns one backoff and a page recovery, after which the pass
+    resumes. A second streak, or a recovery that itself times out, means the
+    store is not coming back: ``gave_up`` is set and the caller ends the pass
+    instead of burning the full timeout on every remaining item.
+    """
+
+    def __init__(self, handler: ModuleType, page, store: str) -> None:
+        self._handler, self._page, self._store = handler, page, store
+        self._count = 0
+        self._recovered = False
+        self.gave_up = False
+
+    def note(self, outcome: ItemOutcome) -> None:
+        """Count ``outcome`` (the item just tried) toward the streak and react to it."""
+        if outcome.status != TIMED_OUT:
+            self._count = 0
+            return
+        self._count += 1
+        if self._count < _STREAK_LIMIT:
+            return
+        self._count = 0
+        if self._recovered or not self._recover():
+            self.gave_up = True
+        self._recovered = True
+
+    def _recover(self) -> bool:
+        """Back off, drop the hung navigation, and probe the store's home page."""
+        logger.warning("⚠️  [%s] %d page loads in a row timed out — backing off %ds, then recovering the page",
+                       self._store, _STREAK_LIMIT, _STREAK_BACKOFF_S)
+        time.sleep(_STREAK_BACKOFF_S)
+        try:
+            self._page.goto("about:blank")
+            self._handler.read_cart_total(self._page)
+        except NavigationTimeoutError:
+            return False
+        except Exception as err:  # noqa: BLE001 — the probe only asks "does the store answer?"
+            logger.warning("⚠️  [%s] recovery probe hit %s: %s — carrying on", self._store, type(err).__name__, err)
+        logger.info("ℹ️ [%s] the store answers again — resuming", self._store)
+        return True
+
+
+def _skip_rest(store: str, outcomes: list[ItemOutcome]) -> None:
+    """End a store's pass early: log one clear message and mark every untried item."""
+    reason = "not tried — the store kept timing out"
+    logger.error("❌ [%s] the store kept timing out — ending its pass early, %d item(s) %s",
+                 store, len(outcomes), reason)
+    for outcome in outcomes:
+        outcome.status, outcome.message = TIMED_OUT, reason
+
+
 def _add_with_retry(handler: ModuleType, page, store: str, outcomes: list[ItemOutcome]) -> int:
     """Add every outcome's item in order, then retry each transient failure once.
 
-    Returns how many adds were retried.
+    A run of navigation timeouts is handled by :class:`_TimeoutStreak`; when it
+    gives up, the untried items are marked timed out and the retry pass is
+    skipped. Returns how many adds were retried.
     """
+    streak = _TimeoutStreak(handler, page, store)
     retry: list[ItemOutcome] = []
-    for outcome in outcomes:
+    for i, outcome in enumerate(outcomes):
         if _add_one(handler, page, store, outcome):
             retry.append(outcome)
+        streak.note(outcome)
+        if streak.gave_up:
+            _skip_rest(store, outcomes[i + 1:])
+            return 0
         human_delay()
+    retried = 0
     for outcome in retry:
         logger.info("🔁 [%s] retrying %s once", store, outcome.item.comida)
         outcome.retries = 1
+        retried += 1
         _add_one(handler, page, store, outcome)
+        streak.note(outcome)
+        if streak.gave_up:
+            logger.error("❌ [%s] the store kept timing out — skipping the remaining retries", store)
+            break
         human_delay()
-    return len(retry)
+    return retried
 
 
 def _read_cart_lines_safe(handler: ModuleType, page, store: str) -> Optional[dict[str, float]]:

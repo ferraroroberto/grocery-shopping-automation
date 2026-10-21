@@ -106,14 +106,19 @@ What the run says is in the cart must be in the cart, so every live run:
    never registered, a timeout, an unexpected store answer) is retried once at
    the end of the store's pass. Out-of-stock and unavailable items, a stock cap
    (the handler saw some units go in and the line stop growing), and a lost
-   login, are not retried: a retry can't help them.
+   login, are not retried: a retry can't help them. A product page that does not
+   load within its timeout is a `timed_out` item (one warning line, no
+   traceback, retried like any transient failure). Three timeouts in a row earn
+   one backoff and a page recovery; if the store still does not answer, or
+   times out in a second streak, the pass ends early and the untried items read
+   `timed_out` rather than each burning the full timeout.
 2. **Verifies against the final cart.** After each store's pass the store's
    own cart is read (Carrefour: the cart API; Mercadona: the cart JSON its home
    page fetches) and every intended item is reconciled against it. That check,
    not the handler's own "added", decides the outcome: `added_verified`,
    `partial_in_cart` (some units are in, fewer than wanted, whatever the add
    reported — usually a stock cap), `added_not_in_cart` (the add "worked" but
-   the cart holds none), `out_of_stock`, `unavailable`, `no_url` or `error`. A
+   the cart holds none), `out_of_stock`, `unavailable`, `timed_out`, `no_url` or `error`. A
    store with no cart reader (Ametller),
    or a cart that can't be read, leaves its adds `added_unverified`: reported
    as **not confirmed**, never as verified.

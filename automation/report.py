@@ -20,6 +20,8 @@ OUT_OF_STOCK = "out_of_stock"
 UNAVAILABLE = "unavailable"
 NO_URL = "no_url"
 ERROR = "error"
+# A page load outlasted its timeout — the site is slow, not the product broken.
+TIMED_OUT = "timed_out"
 # Dry run only — nothing was added.
 WOULD_ADD = "would_add"
 # Fallback only — the run could not try it (a single-store run, no handler, ...).
@@ -280,7 +282,7 @@ def miss_line(outcome: ItemOutcome) -> str:
         if fb is not None:
             text += f" (primary {outcome.primary_units:g}, fallback {fb.units:g})"
     else:
-        text += outcome.status
+        text += "timed out (site slow)" if outcome.status == TIMED_OUT else outcome.status
     if outcome.message:
         text += f": {outcome.message}"
     if outcome.retries:
