@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "entries": [
+    {"key": "docs/browser-automation-build.md", "markers": 10},
+    {"key": "docs/supermarket-benchmark.md", "markers": 1}
+  ]
+}

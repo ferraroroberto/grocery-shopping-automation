@@ -45,21 +45,27 @@ def classify_exit(code: int) -> tuple[bool, str]:
     return False, _FAIL_LABELS.get(code, f"unexpected exit {code}")
 
 
-def run(script: Path = SCRIPT) -> int:
-    """Run `script` under this interpreter (the venv python, which has ruff),
-    echo its output, then the verdict. Returns the gate's exit code."""
+def run_script(script: Path, timeout_s: int = RUN_TIMEOUT_S) -> tuple[int, str]:
+    """Run `script` under this interpreter (the venv python, which has ruff) and
+    return `(exit code, combined output)`. A timeout or an unstartable script is
+    exit 3: nothing was checked."""
     try:
         proc = subprocess.run(
             [sys.executable, str(script)],
             cwd=REPO_ROOT, capture_output=True, text=True, encoding="utf-8",
             errors="replace", stdin=subprocess.DEVNULL, creationflags=NO_WINDOW,
-            timeout=RUN_TIMEOUT_S, check=False,
+            timeout=timeout_s, check=False,
         )
-        code, output = proc.returncode, (proc.stdout or "") + (proc.stderr or "")
+        return proc.returncode, (proc.stdout or "") + (proc.stderr or "")
     except subprocess.TimeoutExpired:
-        code, output = EXIT_NOT_CONFIRMED, f"{script.name} did not finish in {RUN_TIMEOUT_S}s\n"
+        return EXIT_NOT_CONFIRMED, f"{script.name} did not finish in {timeout_s}s\n"
     except OSError as exc:
-        code, output = EXIT_NOT_CONFIRMED, f"{script.name} could not start: {exc}\n"
+        return EXIT_NOT_CONFIRMED, f"{script.name} could not start: {exc}\n"
+
+
+def run(script: Path = SCRIPT) -> int:
+    """Run `script`, echo its output, then the verdict. Returns the gate's exit code."""
+    code, output = run_script(script)
     if output:
         sys.stdout.write(output if output.endswith("\n") else output + "\n")
     ok, label = classify_exit(code)
