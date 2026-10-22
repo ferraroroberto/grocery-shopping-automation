@@ -88,7 +88,7 @@
       "shop_url": "https://www.dia.es/",
       "hints": [
         "Plain HTTP to the search API → Akamai 403. Real Chrome works: `python -m benchmark.browser_fetch --store dia --url \"https://www.dia.es/search?q=...\"` returns rendered results with price and €/kg. (verified 2026-09-27)",
-        "Set postcode once in the modal (persists in the profile). Cards: data-test-id=search-product-card-*; detail /<category>/p/<id> has an 'Ingredientes' section; no EAN exposed. Drive Playwright directly for volume rather than one browser_fetch per lookup. (2026-09-27)",
+        "Set postcode once in the modal (persists in the profile). Cards: data-test-id=search-product-card-*; detail /<category>/p/<id> has an 'Ingredientes' section; no EAN exposed. benchmark.browser_fetch's fetch() can't click — use `benchmark.browser_fetch.open_actions_context(\"dia\")` for high-volume or click-driven work instead of a hand-rolled Playwright launch; it shares the same stealth config and profile. (2026-09-27)",
         "Delivery to the home postcode (2026-09-27): 4.99 EUR, free from 100 EUR, no minimum."
       ],
       "delivery_hints": "Check delivery fee and minimum order for the basket postal code."

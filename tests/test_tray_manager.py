@@ -18,7 +18,13 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 
-from app.tray.manager import WebappManager, WebappManagerConfig, cert_hostname, load_config
+from app.tray.manager import (
+    WebappManager,
+    WebappManagerConfig,
+    _renew_tailscale_cert,
+    cert_hostname,
+    load_config,
+)
 
 
 def _write_self_signed_cert(cert_dir: Path, san_names: list[str]) -> None:
@@ -91,3 +97,38 @@ def test_load_config_defaults_without_a_webapp_config(tmp_path: Path, monkeypatc
     monkeypatch.setattr("src.webapp_config.DEFAULT_CONFIG_PATH", tmp_path / "missing.json")
     cfg = load_config()
     assert (cfg.host, cfg.port) == ("0.0.0.0", 8502)
+
+
+def test_renew_tailscale_cert_logs_a_nonzero_check_exit(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Regression for audit #340: the `--check` child's output and exit code
+    used to be captured and discarded, so a failing renewal left no trace."""
+    import app.tray.manager as manager_module
+
+    class _FakeResult:
+        returncode = 1
+        stdout = ""
+        stderr = "cert expiry could not be read"
+
+    monkeypatch.setattr(manager_module.subprocess, "run", lambda *a, **k: _FakeResult())
+    with caplog.at_level("WARNING", logger=manager_module.__name__):
+        _renew_tailscale_cert()
+    assert "exited 1" in caplog.text
+    assert "cert expiry could not be read" in caplog.text
+
+
+def test_renew_tailscale_cert_logs_a_clean_check_at_info_level(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    import app.tray.manager as manager_module
+
+    class _FakeResult:
+        returncode = 0
+        stdout = "Tailscale cert renewed."
+        stderr = ""
+
+    monkeypatch.setattr(manager_module.subprocess, "run", lambda *a, **k: _FakeResult())
+    with caplog.at_level("INFO", logger=manager_module.__name__):
+        _renew_tailscale_cert()
+    assert "Tailscale cert renewed." in caplog.text

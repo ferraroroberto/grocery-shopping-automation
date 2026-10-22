@@ -99,7 +99,7 @@ def _renew_tailscale_cert() -> None:
     if not script.exists():
         return
     try:
-        subprocess.run(
+        result = subprocess.run(
             [sys.executable, str(script), "--check"],
             cwd=str(PROJECT_ROOT),
             capture_output=True,
@@ -109,6 +109,12 @@ def _renew_tailscale_cert() -> None:
         )
     except (OSError, subprocess.SubprocessError) as exc:
         logger.warning(f"⚠️  Tailscale cert renew check failed: {exc}")
+        return
+    output = f"{result.stdout or ''}{result.stderr or ''}".strip()
+    if result.returncode != 0:
+        logger.warning(f"⚠️  Tailscale cert --check exited {result.returncode}: {output}")
+    elif output:
+        logger.info(f"ℹ️  Tailscale cert --check: {output}")
 
 
 def _probe_url(scheme: str, host: str, port: int) -> str:
