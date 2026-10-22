@@ -2,6 +2,7 @@
   "version": 1,
   "tools": {"jscpd": "5.4.0", "ruff": "0.17.1"},
   "entries": [
+    {"key": "dup:4306bb086600:scripts/docs_ratchet.py|scripts/static_ratchet.py", "files": ["scripts/docs_ratchet.py", "scripts/static_ratchet.py"]},
     {"key": "unused:F401:app/audio_audit.py:src.inventory_extract.ExtractionError", "files": ["app/audio_audit.py"]},
     {"key": "unused:F401:app/audio_audit.py:src.transcribe_client.TranscriptionError", "files": ["app/audio_audit.py"]},
     {"key": "unused:F401:app/email_poller.py:src.gmail_config.MonitoredSender", "files": ["app/email_poller.py"]},
