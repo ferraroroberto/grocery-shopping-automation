@@ -36,6 +36,11 @@ CERT_DIR = PROJECT_ROOT / "certificates"
 RENEW_WITHIN_DAYS = 30
 
 
+class CertReadError(Exception):
+    """The cert file could not be loaded or parsed — expiry/SAN is unknown,
+    distinct from a cert that loaded cleanly but isn't a Tailscale cert."""
+
+
 def _tailscale_hostname() -> str:
     result = subprocess.run(
         ["tailscale", "status", "--json"],
@@ -53,32 +58,45 @@ def _tailscale_hostname() -> str:
 
 
 def _tailscale_hostname_from_cert(cert_path: Path) -> Optional[str]:
-    """Return the .ts.net DNS SAN from the cert, or None if not a Tailscale cert."""
+    """Return the .ts.net DNS SAN from the cert, or None if it loads cleanly
+    but isn't a Tailscale cert (no SAN extension, or no .ts.net name in it).
+
+    Raises `CertReadError` when the file can't be loaded or parsed — that
+    state must not collapse into the same None a legitimate non-Tailscale
+    cert returns.
+    """
+    from cryptography import x509
     try:
-        from cryptography import x509
         cert = x509.load_pem_x509_certificate(cert_path.read_bytes())
+    except (OSError, ValueError) as exc:
+        raise CertReadError(f"could not load {cert_path}: {exc}") from exc
+    try:
         san = cert.extensions.get_extension_for_class(x509.SubjectAlternativeName)
-        for name in san.value.get_values_for_type(x509.DNSName):
-            if ".ts.net" in name:
-                return name
-    except Exception:
-        pass
+    except x509.ExtensionNotFound:
+        return None
+    for name in san.value.get_values_for_type(x509.DNSName):
+        if ".ts.net" in name:
+            return name
     return None
 
 
 def _expiring_within(cert_path: Path, days: int) -> bool:
-    """Return True if the cert expires within `days` days."""
+    """Return True if the cert expires within `days` days.
+
+    Raises `CertReadError` when the file can't be loaded or parsed — the
+    caller must report that as its own state, never as "not expiring".
+    """
+    from cryptography import x509
     try:
-        from cryptography import x509
         cert = x509.load_pem_x509_certificate(cert_path.read_bytes())
-        try:
-            expiry = cert.not_valid_after_utc
-        except AttributeError:  # cryptography < 42
-            expiry = cert.not_valid_after.replace(tzinfo=datetime.timezone.utc)
-        threshold = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=days)
-        return expiry < threshold
-    except Exception:
-        return False
+    except (OSError, ValueError) as exc:
+        raise CertReadError(f"could not load {cert_path}: {exc}") from exc
+    try:
+        expiry = cert.not_valid_after_utc
+    except AttributeError:  # cryptography < 42
+        expiry = cert.not_valid_after.replace(tzinfo=datetime.timezone.utc)
+    threshold = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=days)
+    return expiry < threshold
 
 
 def _provision(hostname: str) -> None:
@@ -117,11 +135,20 @@ def _check_and_renew() -> None:
     if not cert_path.exists():
         return
 
-    hostname = _tailscale_hostname_from_cert(cert_path)
+    try:
+        hostname = _tailscale_hostname_from_cert(cert_path)
+    except CertReadError as exc:
+        print(f"[WARN] Tailscale cert expiry could not be read — renewal not checked: {exc}")
+        return
     if hostname is None:
         return  # self-signed cert; leave it alone
 
-    if not _expiring_within(cert_path, RENEW_WITHIN_DAYS):
+    try:
+        expiring = _expiring_within(cert_path, RENEW_WITHIN_DAYS)
+    except CertReadError as exc:
+        print(f"[WARN] Tailscale cert expiry could not be read — renewal not checked: {exc}")
+        return
+    if not expiring:
         return
 
     print(f"[INFO] Tailscale cert for {hostname} expires within {RENEW_WITHIN_DAYS} days — renewing.")

@@ -18,22 +18,17 @@ import pytest
 
 from scripts import docs_ratchet_gate as gate
 
+from _ratchet_gate_contract import assert_exit_code_contract, fake_ratchet_script
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _fake_script(tmp_path: Path, code: int, message: str) -> Path:
-    script = tmp_path / "fake_docs_ratchet.py"
-    script.write_text(f"import sys\nprint({message!r})\nsys.exit({code})\n", encoding="utf-8")
-    return script
+    return fake_ratchet_script(tmp_path, code, message, filename="fake_docs_ratchet.py")
 
 
-def test_only_exit_zero_passes_and_three_is_not_confirmed() -> None:
-    assert gate.classify_exit(0)[0] is True
-    for code in (1, 2, 3, 4, -1):
-        assert gate.classify_exit(code)[0] is False, code
-    _, label = gate.classify_exit(3)
-    assert "NOT CONFIRMED" in label
-    assert "skip" not in label.lower()
+def test_classify_exit_follows_the_shared_ratchet_gate_contract() -> None:
+    assert_exit_code_contract(gate.classify_exit)
 
 
 @pytest.mark.parametrize(("code", "expected"), [(0, 0), (1, 1), (2, 1), (3, 1)])

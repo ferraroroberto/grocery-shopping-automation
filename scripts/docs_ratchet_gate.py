@@ -6,13 +6,11 @@ r"""The gate's docs-ratchet stage: run the vendored script, map its exit code.
 when `[docs_ratchet]` is not enabled), 1 when a README byte budget or a doc's
 history-marker count rose, 2 on a bad table or baseline and 3 when it could not
 confirm (git unusable, a non-UTF-8 file, an unclosed fence or HTML comment).
-Exit 3 means nothing was checked, so it must fail the gate as its own state and
-never read as a pass or a skip. This wrapper is the one place that mapping
-lives, so a test can pin it; `verify-before-ship.ps1` calls the wrapper, never
-the script.
 
-Exit 0 only when the script exited 0; every other outcome exits 1 with its
-reason on the last line.
+Shares its exit-3-is-NOT-CONFIRMED / exit-0-only-passes contract and the
+echo-then-verdict shape with every other `*_ratchet_gate` wrapper via
+`static_ratchet_gate.report()` -- see that module's docstring for the
+full rationale.
 """
 
 from __future__ import annotations
@@ -21,7 +19,7 @@ import sys
 from pathlib import Path
 
 from scripts.static_ratchet_gate import (
-    EXIT_CONFIG, EXIT_NEW, EXIT_NOT_CONFIRMED, EXIT_PASS, REPO_ROOT, run_script,
+    EXIT_CONFIG, EXIT_NEW, EXIT_NOT_CONFIRMED, EXIT_PASS, REPO_ROOT, report,
 )
 
 SCRIPT = REPO_ROOT / "scripts" / "docs_ratchet.py"
@@ -46,12 +44,7 @@ def classify_exit(code: int) -> tuple[bool, str]:
 
 def run(script: Path = SCRIPT) -> int:
     """Run `script`, echo its output, then the verdict. Returns the gate's exit code."""
-    code, output = run_script(script, RUN_TIMEOUT_S)
-    if output:
-        sys.stdout.write(output if output.endswith("\n") else output + "\n")
-    ok, label = classify_exit(code)
-    print(f"{'OK' if ok else 'FAIL'}: docs ratchet: {label}")
-    return 0 if ok else 1
+    return report(script, "docs ratchet", classify_exit, RUN_TIMEOUT_S)
 
 
 if __name__ == "__main__":

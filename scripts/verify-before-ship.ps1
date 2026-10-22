@@ -19,6 +19,12 @@
                          changelog heading beyond .docs-ratchet-baseline.json. A scan that
                          cannot complete (exit 3) fails as NOT CONFIRMED. Not path-routed:
                          a count needs the whole tree.
+      4. comment ratchet - scripts/comment_ratchet.py through scripts/comment_ratchet_gate.py:
+                         fails when a file's count of `#NNN` issue references inside
+                         comments rises above .comment-ratchet-baseline.json. Existing
+                         debt is baselined and never blocks; it just cannot grow. A scan
+                         that cannot complete (exit 3) fails as NOT CONFIRMED. Not
+                         path-routed: the count needs the whole tree.
 
     Anchors to the repo root, so run it from anywhere:  & .\scripts\verify-before-ship.ps1
 #>
@@ -47,9 +53,10 @@ function Invoke-Stage {
     Write-Host "[PASS] $Name" -ForegroundColor Green
 }
 
-Invoke-Stage "pytest"         { & $py -m pytest }
-Invoke-Stage "static ratchet" { & $py -m scripts.static_ratchet_gate }
-Invoke-Stage "docs ratchet"   { & $py -m scripts.docs_ratchet_gate }
+Invoke-Stage "pytest"          { & $py -m pytest }
+Invoke-Stage "static ratchet"  { & $py -m scripts.static_ratchet_gate }
+Invoke-Stage "docs ratchet"    { & $py -m scripts.docs_ratchet_gate }
+Invoke-Stage "comment ratchet" { & $py -m scripts.comment_ratchet_gate }
 
 Write-Host ""
 Write-Host "[PASS] verify-before-ship" -ForegroundColor Green

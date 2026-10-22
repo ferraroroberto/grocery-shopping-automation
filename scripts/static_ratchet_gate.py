@@ -19,6 +19,7 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
+from typing import Callable
 
 from src.no_window import NO_WINDOW
 
@@ -63,14 +64,24 @@ def run_script(script: Path, timeout_s: int = RUN_TIMEOUT_S) -> tuple[int, str]:
         return EXIT_NOT_CONFIRMED, f"{script.name} could not start: {exc}\n"
 
 
-def run(script: Path = SCRIPT) -> int:
-    """Run `script`, echo its output, then the verdict. Returns the gate's exit code."""
-    code, output = run_script(script)
+def report(
+    script: Path, stage: str, classify: Callable[[int], tuple[bool, str]],
+    timeout_s: int = RUN_TIMEOUT_S,
+) -> int:
+    """Run `script`, echo its output, print the verdict, return the gate's exit
+    code. Shared by every `*_ratchet_gate` wrapper's own `run()` so the
+    echo-then-verdict shape lives in one place rather than once per stage."""
+    code, output = run_script(script, timeout_s)
     if output:
         sys.stdout.write(output if output.endswith("\n") else output + "\n")
-    ok, label = classify_exit(code)
-    print(f"{'OK' if ok else 'FAIL'}: static ratchet: {label}")
+    ok, label = classify(code)
+    print(f"{'OK' if ok else 'FAIL'}: {stage}: {label}")
     return 0 if ok else 1
+
+
+def run(script: Path = SCRIPT) -> int:
+    """Run `script`, echo its output, then the verdict. Returns the gate's exit code."""
+    return report(script, "static ratchet", classify_exit)
 
 
 if __name__ == "__main__":
