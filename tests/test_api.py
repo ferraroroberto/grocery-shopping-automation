@@ -276,6 +276,32 @@ def test_tunnel_traffic_still_requires_token_despite_loopback_client(temp_env):
         cfg.auth_token = orig_token
 
 
+def test_tunnel_traffic_with_no_token_configured(temp_env):
+    """With no auth_token set, a request that arrived through the Cloudflare
+    tunnel gets only the exempt app shell; the API answers 401. Same-machine
+    and LAN callers keep the open, token-less behaviour."""
+    from fastapi.testclient import TestClient
+
+    cfg = api.app.state.webapp_config
+    orig_token = cfg.auth_token
+    cfg.auth_token = ""
+    try:
+        with TestClient(api.app, client=("127.0.0.1", 51234)) as tunnel_client:
+            for headers in ({"cf-ray": "abc123-LHR"}, {"cf-connecting-ip": "203.0.113.7"}):
+                refused = tunnel_client.get("/api/inventory", headers=headers)
+                assert refused.status_code == 401
+                assert "no auth_token is configured" in refused.json()["detail"]
+                assert tunnel_client.get("/api/automation/status", headers=headers).status_code == 401
+                assert tunnel_client.get("/api/health", headers=headers).status_code == 200
+
+            assert tunnel_client.get("/api/inventory").status_code == 200
+
+        with TestClient(api.app, client=("192.168.1.20", 51234)) as lan_client:
+            assert lan_client.get("/api/inventory").status_code == 200
+    finally:
+        cfg.auth_token = orig_token
+
+
 # --------------------------------------------------------------------------- #
 # Routes formerly only exercised by the standalone tests/smoke_fastapi_pwa.py
 # script (issue #95: folded into pytest so they share the client/temp_env

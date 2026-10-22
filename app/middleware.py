@@ -27,7 +27,8 @@ def _via_cloudflare(headers) -> bool:
 
 
 class BearerTokenMiddleware(BaseHTTPMiddleware):
-    """Require a bearer token on non-loopback API calls when configured."""
+    """Require a bearer token on non-loopback API calls when configured; with
+    none configured, refuse API calls that arrived through the tunnel."""
 
     def __init__(self, app, get_token: Callable[[], str]) -> None:
         super().__init__(app)
@@ -35,17 +36,29 @@ class BearerTokenMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         token = (self._get_token() or "").strip()
+        via_cloudflare = _via_cloudflare(request.headers)
+        path = request.url.path
+        exempt = path in _AUTH_EXEMPT_EXACT or any(
+            path.startswith(prefix) for prefix in _AUTH_EXEMPT_PREFIXES
+        )
+
         if not token:
+            # No token keeps the gate open for this machine and the LAN, but a
+            # tunnel request came from the public internet: with nothing to
+            # check it against, it gets only the exempt app shell.
+            if via_cloudflare and not exempt:
+                return JSONResponse(
+                    status_code=401,
+                    content={"detail": "tunnel access refused: no auth_token is configured on this server"},
+                    headers={"WWW-Authenticate": 'Bearer realm="grocery"'},
+                )
             return await call_next(request)
 
         client_host = request.client.host if request.client else ""
-        if client_host in _LOOPBACK_HOSTS and not _via_cloudflare(request.headers):
+        if client_host in _LOOPBACK_HOSTS and not via_cloudflare:
             return await call_next(request)
 
-        path = request.url.path
-        if path in _AUTH_EXEMPT_EXACT or any(
-            path.startswith(prefix) for prefix in _AUTH_EXEMPT_PREFIXES
-        ):
+        if exempt:
             return await call_next(request)
 
         presented = ""
