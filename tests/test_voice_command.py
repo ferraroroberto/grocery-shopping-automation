@@ -9,7 +9,6 @@ frames, no I/O.
 from __future__ import annotations
 
 import pandas as pd
-import pytest
 
 import app.api_common as api_common
 import app.routers.voice as voice_api

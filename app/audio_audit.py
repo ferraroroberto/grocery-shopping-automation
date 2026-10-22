@@ -32,9 +32,9 @@ from src.data import (
     SpreadsheetLockedError,
     bulk_apply_tenemos,
 )
-from src.inventory_extract import ExtractionError, ExtractionResult, extract
+from src.inventory_extract import ExtractionResult, extract
 from src.net import is_port_open, whisper_host_hint
-from src.transcribe_client import TRANSCRIBE_TIMEOUT_S, TranscriptionError, transcribe
+from src.transcribe_client import TRANSCRIBE_TIMEOUT_S, transcribe
 
 logger = logging.getLogger(__name__)
 

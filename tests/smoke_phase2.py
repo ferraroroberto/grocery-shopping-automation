@@ -16,7 +16,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 import src.data as data  # noqa: E402
-from src.inventory_extract import extract, ExtractionError  # noqa: E402
+from src.inventory_extract import extract  # noqa: E402
 from src.net import is_port_open as whisper_health  # noqa: E402
 
 cfg = data.CONFIG["audio_audit"]

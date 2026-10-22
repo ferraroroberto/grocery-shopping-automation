@@ -229,7 +229,6 @@ def main(df: pd.DataFrame) -> None:
         total_u = stats["total_unique"] + len(extras)
         total_q = stats["total_quantity"] + sum(e["qty"] for e in extras)
         done_u = stats["got_it_unique"] + len([e for e in extras if e["id"] in extra_bought_set])
-        done_q = stats["got_it_quantity"] + sum(e["qty"] for e in extras if e["id"] in extra_bought_set)
 
         done_txt = f" · ✅ {done_u}/{total_u}" if done_u > 0 else ""
         label = f"🏪 {supermarket.title()} — {total_u} items · {total_q} units{done_txt}"
