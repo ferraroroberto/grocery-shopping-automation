@@ -151,7 +151,7 @@ a blank store, a value that isn't an `http(s)` URL, or a fallback that is the
 row's own primary all mean "no fallback". One fallback per row; a fallback
 never has its own. The item sheet's **Fallback if short** page edits these
 columns (#284, `app/static/modules/fallback.js`, `PUT /api/items/{id}/fallback`);
-see the root README's Items section for how it reads.
+see `docs/items.md` for how it reads.
 
 When the final cart shows the primary short — partly (a stock cap) or
 completely (out of stock, unavailable, no URL) — the missing units go to the
