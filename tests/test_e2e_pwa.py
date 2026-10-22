@@ -1715,7 +1715,11 @@ def test_add_item_product_search(page, server):
                          "price_text": "3,00 EUR", "thumbnail": "", "match": "strong"}]},
         # Same store + link as the row already holds, so /select rewrites it unchanged.
         {"term": existing["comida"], "inventory_idx": existing["id"], "existing_super": existing["super"],
-         "inventory_name": "zzz fila existente e2e",
+         # The real server always sends the row's actual name (#339: the
+         # frontend echoes it back on /select, so the server can refuse a
+         # pick whose row moved under it — a mismatched value here would
+         # 409 the confirm below as stale).
+         "inventory_name": existing["comida"],
          "store_errors": {}, "candidates": [{"store": existing["super"], "name": "Existing e2e",
                                               "product_url": existing["buscador"], "price_text": "",
                                               "thumbnail": "", "match": ""}]},
@@ -1753,7 +1757,7 @@ def test_add_item_product_search(page, server):
     # The header names the exact term searched; a matched row is only a hint (#214).
     heads = page.locator(".search-group-term").all_inner_texts()
     assert heads == ["Results for “zzz sandia e2e”", f"Results for “{existing['comida']}”"]
-    assert "Matches your item zzz fila existente e2e" in page.locator(".search-group-hint").inner_text()
+    assert f"Matches your item {existing['comida']}" in page.locator(".search-group-hint").inner_text()
 
     old_card = page.locator(".candidate", has_text="Existing e2e")
     old_card.locator("[data-action='search-use']").click()
@@ -1764,6 +1768,7 @@ def test_add_item_product_search(page, server):
     with page.expect_response(lambda r: r.url.endswith("/api/product-search/select")) as resp:
         old_card.locator("[data-action='search-confirm']").click()
     assert resp.value.ok and resp.value.request.post_data_json["inventory_idx"] == existing["id"]
+    assert resp.value.request.post_data_json["inventory_name"] == existing["comida"]  # #339
     old_card.locator("button:has-text('Updated')").wait_for()
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
 
@@ -1844,6 +1849,21 @@ def test_settings_gear_opens_settings_from_every_tab(page, monkeypatch):
     logins.wait_for(state="hidden")
     assert page.locator("#store-logins-value").inner_text() == "1 logged out"
     assert page.locator("#store-logins-value").get_attribute("data-tone") == "attention"
+    assert page._js_errors == [], f"JS errors: {page._js_errors}"
+
+
+@pytest.mark.e2e
+def test_copy_link_falls_back_without_a_secure_context(page):
+    """#339: the documented plain-HTTP LAN access (docs/running-and-access.md)
+    has no secure context, so `navigator.clipboard` is undefined there and
+    "Copy link" used to throw unhandled with nothing on screen, instead of
+    falling back to a selected textarea + `execCommand('copy')` the way
+    Prices' "Copy steps" already does."""
+    goto_mode(page, "settings")
+    page.evaluate("() => Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true })")
+    page.click("#copy-link")
+    page.wait_for_function("document.querySelector('#toast')?.textContent === 'Link copied'")
+    assert "error" not in (page.locator("#toast").get_attribute("class") or "")
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
 
 
@@ -2086,6 +2106,27 @@ def test_empty_automation_log_says_what_fills_it(page):
     text = log.text_content()
     assert "Fill carts" in text and "progress appears here" in text
     surface(page, "shop.run-log-idle")
+
+
+@pytest.mark.e2e
+def test_automation_start_conflict_toasts_and_leaves_the_button_ready(page):
+    """#339: a 409 ("automation already running" -- another device started a
+    run, or a double tap) from /api/automation/start used to reject silently:
+    no toast, no status line, and the elapsed timer left armed with nothing
+    actually running. The PWA must say so and never show a run in flight that
+    never started."""
+    detail = "automation already running"
+    page.route(lambda url: "/api/automation/start" in url, lambda route: route.fulfill(
+        status=409, content_type="application/json", body=f'{{"detail": "{detail}"}}'))
+    goto_mode(page, "shopping")
+    fill = page.locator("#pane-shopping #fill-carts")
+    fill.wait_for()
+    fill.locator("#automation-start").click()
+    page.wait_for_function("d => document.querySelector('#toast')?.textContent === d", arg=detail)
+    assert "error" in (page.locator("#toast").get_attribute("class") or "")
+    assert fill.locator("#automation-elapsed").inner_text() == ""
+    assert fill.locator("#automation-start").inner_text().strip() == "Fill carts"
+    assert page._js_errors == [], f"JS errors: {page._js_errors}"
 
 
 @pytest.mark.e2e

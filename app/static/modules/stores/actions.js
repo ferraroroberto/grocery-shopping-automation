@@ -3,6 +3,7 @@
 // and the Benchmark sheet (#257) both reach them through index.js.
 import { showToast } from "../../_vendored/toast/toast.js";
 import { fetchJson } from "../api.js";
+import { copyText } from "../clipboard.js";
 import { render, state } from "../core.js";
 import { closeBenchmarkSheet, paintBenchmarkSheet } from "./benchmark.js";
 import { scheduleSimulate } from "./simulator.js";
@@ -70,28 +71,9 @@ export function resetPicks() {
   scheduleSimulate(0);
 }
 
-// The Clipboard API needs a secure context (plain-HTTP LAN access has none),
-// so fall back to a selected textarea + execCommand before giving up.
 export async function copySteps() {
   const text = `How to refresh the supermarket prices:\n${REFRESH_STEPS.map((step, i) => `${i + 1}. ${step}`).join("\n")}`;
-  let copied = false;
-  try {
-    await navigator.clipboard.writeText(text);
-    copied = true;
-  } catch (_) {
-    const area = document.createElement("textarea");
-    area.value = text;
-    area.setAttribute("readonly", "");
-    area.className = "visually-hidden";
-    document.body.appendChild(area);
-    area.select();
-    try {
-      copied = document.execCommand("copy");
-    } catch (_) {
-      copied = false;
-    }
-    area.remove();
-  }
+  const copied = await copyText(text);
   const status = document.querySelector("#stores-copy-status");
   if (!status) return;
   status.className = `panel-status ${copied ? "ok" : "error"}`;

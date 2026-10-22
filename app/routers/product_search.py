@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 
 from app import audio_hub, product_search_runner
 from app.api_common import (
+    get_row,
     inventory_error,
     inventory_payload,
     load_inventory_or_error,
@@ -56,6 +57,7 @@ class ProductSearchSelectPayload(BaseModel):
     product_url: str
     name: str = ""
     inventory_idx: int | None = None
+    inventory_name: str | None = None
     lugar: str | None = None
     tenemos: int | None = Field(None, ge=0)
     cantidad: int | None = Field(None, ge=0)
@@ -242,10 +244,15 @@ def product_search_select(payload: ProductSearchSelectPayload) -> dict[str, Any]
     """Fill `buscador` (+ `super`) from the validated card — the human's pick.
 
     Updates the existing row when `inventory_idx` is given, else creates a new
-    row named `term`. The staged add-time parameters (`lugar` / `tenemos` /
-    `cantidad`, issue #92) apply when sent; when omitted the pre-#92 defaults
-    hold (keep the existing row's values with target raised to at least 1, or
-    zone-less present 0 / target 1 for a new row).
+    row named `term`. A search runs for tens of seconds to minutes; `idx` is
+    resolved through `get_row(df, idx, inventory_name)` so a row another
+    device deleted or repurposed in the meantime refuses with the same 409
+    `X-Inventory-Stale` every other item route uses, rather than overwriting
+    whatever now sits at that position (or, past the end, silently creating a
+    new row — issue #339). The staged add-time parameters (`lugar` /
+    `tenemos` / `cantidad`, issue #92) apply when sent; when omitted the
+    pre-#92 defaults hold (keep the existing row's values with target raised
+    to at least 1, or zone-less present 0 / target 1 for a new row).
     """
     store = payload.store.strip().lower()
     url = payload.product_url.strip()
@@ -254,8 +261,8 @@ def product_search_select(payload: ProductSearchSelectPayload) -> dict[str, Any]
 
     df = load_inventory_or_error()
     idx = payload.inventory_idx
-    if idx is not None and idx in df.index:
-        row = df.loc[idx]
+    if idx is not None:
+        row = get_row(df, idx, payload.inventory_name)
         # The chosen card's store is authoritative (the user picked *that*
         # product). Without an explicit target, ensure the item is actually on
         # a shopping list: a target of 0 leaves it unbuyable, so raise it to 1

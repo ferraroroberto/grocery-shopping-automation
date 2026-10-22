@@ -148,7 +148,13 @@ def _click_until(page: Page, selector: str, moved, item: CartItem, *, what: str)
 
 
 def _set_quantity(page: Page, item: CartItem, target: int) -> None:
-    """Drive the add button / +/- picker until this product's cart qty == target."""
+    """Drive the add button / +/- picker until this product's cart qty reaches `target`.
+
+    Only ever adds. The caller (`add_to_cart`) already returns before this
+    when the line is at or above `target`, matching Ametller and Carrefour:
+    `--cart-mode keep` means "add the list on top of whatever is already in
+    the cart" (issue #339), never shrink a line someone else filled by hand.
+    """
     qty = _read_product_qty(page)
 
     if qty == 0 and target > 0:
@@ -176,26 +182,15 @@ def _set_quantity(page: Page, item: CartItem, target: int) -> None:
         if guard > target + 5:
             raise AddToCartFailed(item, "increment loop stalled")
 
-    guard = 0
-    while qty > target:
-        before = qty
-        _click_until(
-            page, SELECTORS["decrease"],
-            lambda b=before: _read_product_qty(page) < b, item, what="decrease",
-        )
-        qty = _read_product_qty(page)
-        human_delay()
-        guard += 1
-        if guard > before + 5:
-            raise AddToCartFailed(item, "decrement loop stalled")
-
 
 def add_to_cart(page: Page, item: CartItem) -> None:
-    """Add `item` to the Mercadona cart at quantity `item.comprar`.
+    """Add `item` to the Mercadona cart so its line totals at least `item.comprar`.
 
-    Idempotent: sets this product's cart line to exactly ``item.comprar`` units,
-    so re-running a partially-completed run is safe. Other items already in the
-    cart are left untouched.
+    Idempotent: reads the current cart quantity and only adds what is missing,
+    so a re-run after a partial failure is safe. Never reduces a line that
+    already holds more than ``item.comprar`` — ``--cart-mode keep`` means "add
+    the list on top of whatever is already in the cart" (issue #339), and the
+    other two handlers already leave such a line alone.
 
     Raises:
         SessionExpiredError: navigation was redirected to the login page.
@@ -221,6 +216,13 @@ def add_to_cart(page: Page, item: CartItem) -> None:
     cart_before = _read_cart_badge(page)
     qty_before = _read_product_qty(page)
     target = item.comprar
+
+    if qty_before >= target:
+        logger.info(
+            "✅ [mercadona] %s — already %d in cart (≥ %d wanted), leaving as is",
+            item.comida, qty_before, target,
+        )
+        return
 
     _set_quantity(page, item, target)
 
