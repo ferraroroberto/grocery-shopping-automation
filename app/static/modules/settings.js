@@ -10,6 +10,7 @@
 import { showToast } from "../_vendored/toast/toast.js";
 import { fetchBlob, fetchJson } from "./api.js";
 import { storeLabel } from "./automation.js";
+import { copyText } from "./clipboard.js";
 import { state } from "./core.js";
 import { chip, esc, icon } from "./dom.js";
 import { refreshEmailWatch } from "./email.js";
@@ -44,8 +45,8 @@ export function openSpreadsheet() {
 
 export async function copyLink() {
   const url = state.access?.cloudflare || state.access?.lan || window.location.href;
-  await navigator.clipboard.writeText(url);
-  showToast("Link copied");
+  const copied = await copyText(url);
+  showToast(copied ? "Link copied" : "Couldn't copy — copy the address bar instead", copied ? undefined : "error");
 }
 
 // Fetched, not navigated to: a navigation carries no bearer token, so off the PC

@@ -215,6 +215,45 @@ def test_select_updates_existing_row(client):
     assert updated[cols["cantidad"]] >= 1  # never lowered below buyable
 
 
+def test_select_with_stale_name_refuses_instead_of_overwriting(client):
+    """Issue #339: a search runs for tens of seconds to minutes. If another
+    device renamed/replaced the row at `inventory_idx` meanwhile, the pick
+    must refuse (409, X-Inventory-Stale) instead of overwriting whatever now
+    sits at that position — the same guard every other item route already has."""
+    inv = client.get("/api/inventory").json()
+    cols = inv["columns"]
+    item = inv["items"][0]
+    idx = item["id"]
+    resp = client.post("/api/product-search/select", json={
+        "term": "whatever", "store": "mercadona",
+        "product_url": "https://tienda.mercadona.es/product/9/x",
+        "name": "X", "inventory_idx": idx,
+        "inventory_name": "a name that no longer matches this row",
+    })
+    assert resp.status_code == 409
+    assert resp.headers.get("X-Inventory-Stale") == "1"
+    after = client.get("/api/inventory").json()
+    assert after["summary"]["total_items"] == inv["summary"]["total_items"]
+    untouched = [it for it in after["items"] if it["id"] == idx][0]
+    assert untouched[cols["buscador"]] == item[cols["buscador"]]
+
+
+def test_select_with_idx_past_the_end_refuses_instead_of_creating(client):
+    """Issue #339: an id past the end used to fall through to "create a new
+    row" instead of refusing — the same 404 every other item route gives for
+    an id that is not (or no longer) in the list."""
+    inv = client.get("/api/inventory").json()
+    out_of_range_idx = inv["summary"]["total_items"] + 50
+    resp = client.post("/api/product-search/select", json={
+        "term": "whatever", "store": "mercadona",
+        "product_url": "https://tienda.mercadona.es/product/9/x",
+        "name": "X", "inventory_idx": out_of_range_idx,
+    })
+    assert resp.status_code == 404
+    after = client.get("/api/inventory").json()
+    assert after["summary"]["total_items"] == inv["summary"]["total_items"]
+
+
 # --- Per-store streaming + bounded parse (issue #211) ------------------------
 
 _CAND = {

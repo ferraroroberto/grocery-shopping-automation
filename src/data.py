@@ -187,6 +187,28 @@ def _is_spreadsheet_lock_error(exc: BaseException) -> bool:
     )
 
 
+def _coerce_quantity_column(df: pd.DataFrame, col: str) -> pd.Series:
+    """Coerce `col` to int, treating a blank cell as 0 and a non-numeric one as an error.
+
+    A blank or stray-text `cantidad`/`tenemos` cell is an ordinary result of
+    editing the sheet through "Open spreadsheet", and plain `.astype(int)` on
+    such a column raises `IntCastingNaNError` — neither `SpreadsheetLockedError`
+    nor `InventoryFileError`, so `load_inventory_or_error` didn't translate it
+    and every inventory endpoint returned a bare 500 with no message (issue
+    #339). A blank cell defaults to 0; a cell that is filled in but still not a
+    number names the offending rows instead.
+    """
+    original = df[col]
+    numeric = pd.to_numeric(original, errors="coerce")
+    unparsable = numeric.isna() & original.notna()
+    if unparsable.any():
+        names = df.loc[unparsable, COLUMNS["comida"]].fillna("(unnamed row)").tolist()
+        raise InventoryFileError(
+            f"'{col}' is not a number for: {', '.join(map(str, names))}"
+        )
+    return numeric.fillna(0).astype(int)
+
+
 def load_inventory_data() -> Optional[pd.DataFrame]:
     """Load inventory data from XLSX file.
 
@@ -215,8 +237,8 @@ def load_inventory_data() -> Optional[pd.DataFrame]:
         logger.error(f"Missing columns in data: {missing_cols}")
         return None
 
-    df[COLUMNS["cantidad"]] = df[COLUMNS["cantidad"]].astype(int)
-    df[COLUMNS["tenemos"]] = df[COLUMNS["tenemos"]].astype(int)
+    df[COLUMNS["cantidad"]] = _coerce_quantity_column(df, COLUMNS["cantidad"])
+    df[COLUMNS["tenemos"]] = _coerce_quantity_column(df, COLUMNS["tenemos"])
     df[COLUMNS["comprar"]] = (df[COLUMNS["cantidad"]] - df[COLUMNS["tenemos"]]).clip(lower=0)
 
     logger.info(f"✅ Loaded inventory data: {len(df)} items")

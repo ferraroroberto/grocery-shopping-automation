@@ -187,7 +187,8 @@ function candidateRow(cand, item) {
   const useLabel = done ? `${isNew ? "Added" : "Updated"} ${icon("check")}` : "Use";
   const expanded = isNew ? "" : ` aria-expanded="${open}"`;
   return `<article class="candidate${open ? " confirming" : ""}" data-term="${html(item.term)}" data-idx="${isNew ? "" : item.inventory_idx}"
-      data-store="${html(cand.store)}" data-url="${html(cand.product_url)}" data-name="${html(cand.name)}">
+      data-store="${html(cand.store)}" data-url="${html(cand.product_url)}" data-name="${html(cand.name)}"
+      data-inventory-name="${html(isNew ? "" : item.inventory_name || "")}">
     ${thumb}
     <div class="candidate-main">
       <div class="candidate-name">${html(cand.name)}${match}</div>
@@ -409,6 +410,7 @@ export async function useCandidate(cardEl) {
     product_url: cardEl.dataset.url,
     name: cardEl.dataset.name,
     inventory_idx: idxRaw === "" ? null : Number(idxRaw),
+    inventory_name: idxRaw === "" ? null : cardEl.dataset.inventoryName,
     lugar: String(d.lugar ?? ""),
     tenemos: Math.max(Number(d.tenemos) || 0, 0),
     cantidad: Math.max(Number(d.cantidad) || 0, 0),

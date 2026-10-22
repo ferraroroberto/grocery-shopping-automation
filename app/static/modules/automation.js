@@ -591,19 +591,30 @@ function connectAutomationEvents() {
 }
 
 export async function startAutomation() {
-  run.startedAt = Date.now();
-  const status = await fetchJson("/api/automation/start", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ store: picks.store, dry_run: picks.dryRun, cart_mode: picks.cartMode }),
-  });
-  applyAutomationStatus(status);
-  startAutomationTimer();
-  connectAutomationEvents();
+  // A 409 ("already running" — another device started a run, or a double
+  // tap) or a 500 from start_run must not leave `startedAt` set with nothing
+  // actually running (issue #339), so it is set only once the start succeeds.
+  try {
+    const status = await fetchJson("/api/automation/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ store: picks.store, dry_run: picks.dryRun, cart_mode: picks.cartMode }),
+    });
+    run.startedAt = Date.now();
+    applyAutomationStatus(status);
+    startAutomationTimer();
+    connectAutomationEvents();
+  } catch (error) {
+    showToast(error.message, "error");
+  }
 }
 
 export async function stopAutomation() {
-  await fetchJson("/api/automation/stop", { method: "POST" });
+  try {
+    await fetchJson("/api/automation/stop", { method: "POST" });
+  } catch (error) {
+    showToast(error.message, "error");
+  }
 }
 
 export async function dismissAutomation() {
