@@ -72,7 +72,7 @@ Then run:
 webapp_tunnel_named.bat
 ```
 
-Optional app-level auth matches the sibling pattern. `auth_token` is off by default; when set, non-loopback API calls need `Authorization: Bearer <token>` or a `?token=...` bootstrap URL. The page stores the token in `localStorage` and removes it from the visible URL. A password can also be set so a fresh phone can unlock by typing the password, then the server hands back the bearer token.
+App-level auth matches the sibling pattern. `auth_token` is off by default, which leaves this PC and the LAN open but refuses every API call that arrives through the Cloudflare tunnel, so set a token before using `webapp_tunnel_named.bat`. When set, non-loopback API calls need `Authorization: Bearer <token>` or a `?token=...` bootstrap URL. The page stores the token in `localStorage` and removes it from the visible URL. A password can also be set so a fresh phone can unlock by typing the password, then the server hands back the bearer token.
 
 ```powershell
 & .\.venv\Scripts\python.exe scripts\gen_token.py
