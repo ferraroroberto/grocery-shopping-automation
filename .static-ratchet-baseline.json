@@ -2,16 +2,6 @@
   "version": 1,
   "tools": {"jscpd": "5.4.0", "ruff": "0.17.1"},
   "entries": [
-    {"key": "dup:4306bb086600:scripts/docs_ratchet.py|scripts/static_ratchet.py", "files": ["scripts/docs_ratchet.py", "scripts/static_ratchet.py"]},
-    {"key": "unused:F401:app/audio_audit.py:src.inventory_extract.ExtractionError", "files": ["app/audio_audit.py"]},
-    {"key": "unused:F401:app/audio_audit.py:src.transcribe_client.TranscriptionError", "files": ["app/audio_audit.py"]},
-    {"key": "unused:F401:app/email_poller.py:src.gmail_config.MonitoredSender", "files": ["app/email_poller.py"]},
-    {"key": "unused:F401:automation/email_check.py:dataclasses.field", "files": ["automation/email_check.py"]},
-    {"key": "unused:F401:benchmark/score.py:dataclasses.asdict", "files": ["benchmark/score.py"]},
-    {"key": "unused:F401:scripts/synthetic_demo_app.py:app.api.app", "files": ["scripts/synthetic_demo_app.py"]},
-    {"key": "unused:F401:tests/smoke_phase2.py:src.inventory_extract.ExtractionError", "files": ["tests/smoke_phase2.py"]},
-    {"key": "unused:F401:tests/test_voice_command.py:pytest", "files": ["tests/test_voice_command.py"]},
-    {"key": "unused:F841:app/shopping.py:done_q", "files": ["app/shopping.py"]},
-    {"key": "unused:F841:launcher.py:args", "files": ["launcher.py"]}
+    {"key": "dup:4306bb086600:scripts/docs_ratchet.py|scripts/static_ratchet.py", "files": ["scripts/docs_ratchet.py", "scripts/static_ratchet.py"]}
   ]
 }

@@ -24,7 +24,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="launcher.py")
     parser.add_argument("command", nargs="?", default="tray", choices=["tray"])
-    args = parser.parse_args(argv)
+    parser.parse_args(argv)
 
     from app.tray.tray import run_tray  # noqa: E402 — deferred, optional deps
 

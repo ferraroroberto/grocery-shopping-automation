@@ -22,7 +22,6 @@ from typing import Any, Optional
 
 from automation.email_check import ConfirmationCheckResult, check_latest_confirmation
 from src.gmail_config import (
-    MonitoredSender,
     PollerSettings,
     load_monitored_senders,
     load_poller_settings,
