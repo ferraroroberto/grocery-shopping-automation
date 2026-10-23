@@ -25,6 +25,13 @@
                          debt is baselined and never blocks; it just cannot grow. A scan
                          that cannot complete (exit 3) fails as NOT CONFIRMED. Not
                          path-routed: the count needs the whole tree.
+      5. structure ratchet - scripts/structure_ratchet.py through scripts/structure_ratchet_gate.py:
+                         fails when a file passes 1,000 lines, a Python/JS function 100
+                         lines or a directory 40 modules beyond
+                         .structure-ratchet-baseline.json, when a src module imports app,
+                         or when a root folder falls outside the shape and extra_roots
+                         declared in .fleet.toml. A tree that cannot be measured (exit 3)
+                         fails as NOT CONFIRMED. Not path-routed: it reads the whole tree.
 
     Anchors to the repo root, so run it from anywhere:  & .\scripts\verify-before-ship.ps1
 #>
@@ -57,6 +64,7 @@ Invoke-Stage "pytest"          { & $py -m pytest }
 Invoke-Stage "static ratchet"  { & $py -m scripts.static_ratchet_gate }
 Invoke-Stage "docs ratchet"    { & $py -m scripts.docs_ratchet_gate }
 Invoke-Stage "comment ratchet" { & $py -m scripts.comment_ratchet_gate }
+Invoke-Stage "structure ratchet" { & $py -m scripts.structure_ratchet_gate }
 
 Write-Host ""
 Write-Host "[PASS] verify-before-ship" -ForegroundColor Green
