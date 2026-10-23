@@ -35,7 +35,7 @@ For each store, spawn one `general-purpose` agent with `model: "sonnet"` in a **
 
 If an agent returns early, check `python -m benchmark.results status --run {run_dir} --store {store}` and resume it (SendMessage) or spawn a fresh one — it continues from the missing keys.
 
-### 4. Recover blocked stores (orchestrator)
+### 4. Recover blocked stores (orchestrator) *(Claude Code only — skip on other agents)*
 
 A store whose `access.blocked` is true or with many `unknown` items gets handled by the orchestrator **sequentially** — `benchmark.browser_fetch` first, then a Claude-in-Chrome tab if needed.
 
