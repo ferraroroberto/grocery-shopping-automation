@@ -40,6 +40,14 @@ logger = logging.getLogger("email_check")
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PROCESSED_STATE_PATH = _REPO_ROOT / "config" / "gmail_processed_state.json"
 
+# Gmail search window: wide enough that a confirmation email arriving a few
+# weeks late (slow store, holiday) still counts as "the latest", which is
+# what the `regressed=True` staleness guard above depends on.
+_LOOKBACK_DAYS = 30
+# Fetch cap per sender/search source: comfortably above a realistic
+# multi-week order volume per store without pulling a mailbox's full history.
+_MAX_MESSAGES_PER_SOURCE = 50
+
 # Store key -> canonical "order prepared" subject, accents/emoji stripped.
 # Add a sibling entry once another store's confirmation-email format is
 # available (issue #72 scope note). Carrefour's real subject embeds the order
@@ -245,10 +253,10 @@ def check_latest_confirmation(
         return ConfirmationCheckResult(store, checked=False, reason=f"Gmail connection failed: {exc}")
 
     try:
-        sources = mailbox.resolve_sources(senders=senders, lookback_days=30)
+        sources = mailbox.resolve_sources(senders=senders, lookback_days=_LOOKBACK_DAYS)
         candidates = []
         for source in sources:
-            candidates.extend(mailbox.messages(source.search, limit=50))
+            candidates.extend(mailbox.messages(source.search, limit=_MAX_MESSAGES_PER_SOURCE))
     except (GmailReadError, ValueError) as exc:
         return ConfirmationCheckResult(store, checked=False, reason=f"Gmail fetch failed: {exc}")
     finally:
