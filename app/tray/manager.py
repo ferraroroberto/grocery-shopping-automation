@@ -38,6 +38,11 @@ OWNERSHIP_EXTERNAL = "external"
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
+# Tailscale's own ACME round-trip is typically sub-second (cache hit, no
+# renewal due); 60s covers a full issuance/renewal against Let's Encrypt
+# without blocking tray startup indefinitely on a hung network call.
+_CERT_RENEW_TIMEOUT_S = 60
+
 
 @dataclass(frozen=True)
 class WebappManagerConfig:
@@ -104,7 +109,7 @@ def _renew_tailscale_cert() -> None:
             cwd=str(PROJECT_ROOT),
             capture_output=True,
             text=True,
-            timeout=60,
+            timeout=_CERT_RENEW_TIMEOUT_S,
             creationflags=NO_WINDOW,
         )
     except (OSError, subprocess.SubprocessError) as exc:
