@@ -1,6 +1,6 @@
 # Supermarket benchmark — methodology
 
-Reference for `benchmark/` and the `/supermarket-benchmark` project skill (issue #145). The skill (`.claude/skills/supermarket-benchmark/SKILL.md`) owns the step-by-step recipe and the research-agent prompt; this document owns the *why* and the data contracts.
+Reference for `benchmark/` and the `/supermarket-benchmark` project skill. The skill (`.claude/skills/supermarket-benchmark/SKILL.md`) owns the step-by-step recipe and the research-agent prompt; this document owns the *why* and the data contracts.
 
 ## Question it answers
 
