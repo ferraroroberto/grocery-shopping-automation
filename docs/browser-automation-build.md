@@ -36,14 +36,14 @@ written (purchase log, email-confirmation check, product search, benchmark).
 
 The hard rule that paid off: **`automation/` never imports `streamlit`, and
 `app/` never drives Playwright.** The CLI runner is the seam — both the PWA
-(`app/routers/automation.py`) and the legacy Streamlit integration (#4) are
+(`app/routers/automation.py`) and the legacy Streamlit integration are
 "just" a subprocess wrapper around the exact command you would type in a
 terminal, which means the terminal stays a first-class debugging path
 forever.
 
 ---
 
-## 2. Issue #1 — the thing that almost sank the project: reCAPTCHA
+## 2. reCAPTCHA — the thing that almost sank the project
 
 The original plan was the textbook one: log in once, export cookies to JSON,
 re-inject them into a fresh Playwright Chromium context. **It does not work
@@ -73,11 +73,12 @@ whole package.
 A consequence to remember: a persistent profile directory **can only be opened
 by one browser process at a time.** That is why the runner does stores
 *sequentially* (open Mercadona context, finish, close, open Ametller) and why
-"both store windows open side by side" is not possible — see #4 notes.
+"both store windows open side by side" is not possible — see the Streamlit
+integration section below.
 
 ---
 
-## 3. Issues #2 & #3 — the first two stores, two completely different DOMs
+## 3. The first two stores, two completely different DOMs
 
 We verified every selector live and pinned them in a `SELECTORS` dict per
 handler with a "verified live on <date>" note, so a DOM change is a one-line
@@ -105,7 +106,7 @@ walk-through.
 ### Ametller Origen (`ametller.py`) — Salesforce Commerce Cloud, SCAPI verification
 
 Ametller Origen migrated off VTEX to **Salesforce Commerce Cloud** (the
-Chakra-UI "Composable Storefront") in May 2026 (issue #12).
+Chakra-UI "Composable Storefront") in May 2026.
 
 - Quantity model: set the stepper *first*, then click "AÑADIR" once. The
   site hydrates slowly — navigation waits are deliberately generous (3–4 s).
@@ -148,10 +149,10 @@ Chakra-UI "Composable Storefront") in May 2026 (issue #12).
 
 ---
 
-## 4. Issue #4 — surfacing it in the Streamlit app
+## 4. Surfacing it in the Streamlit app
 
-The CLI already printed a clean ✅/⚠️/❌ summary, so #4 is a subprocess wrapper,
-not new automation logic.
+The CLI already printed a clean ✅/⚠️/❌ summary, so this integration is a
+subprocess wrapper, not new automation logic.
 
 - `app/automation_runner.py` — `build_command()`, `start_run()` (spawns
   `python -u -m automation.run_automation`, attaches a daemon thread draining
@@ -175,9 +176,10 @@ deque live in `st.session_state`, so a page rerun never orphans a run, and
 - The subprocess inherits the repo root as `cwd` so the relative paths in
   `config.json` resolve exactly as they do in a terminal run.
 
-**What #4 deliberately does *not* do:** leave both browser windows open side by
-side "ready to pay". It can't — the shared persistent profile is single-process
-(see #2 above). What actually happens is better anyway: the filled cart
+**What this integration deliberately does *not* do:** leave both browser
+windows open side by side "ready to pay". It can't — the shared persistent
+profile is single-process (see the reCAPTCHA section above). What actually
+happens is better anyway: the filled cart
 **persists server-side in your store account**, so you open either store when
 you like and the cart is already there. For an interactive terminal run, the
 new `--keep-open` flag pauses after each store so you can review and pay before
