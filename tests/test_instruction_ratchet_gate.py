@@ -18,7 +18,9 @@ import pytest
 
 from scripts import instruction_ratchet_gate as gate
 
-from _ratchet_gate_contract import assert_exit_code_contract, fake_ratchet_script
+from _ratchet_gate_contract import (
+    assert_exit_code_contract, assert_gate_calls_wrapper, fake_ratchet_script,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -28,24 +30,18 @@ def test_classify_exit_follows_the_shared_ratchet_gate_contract() -> None:
 
 
 @pytest.mark.parametrize(("code", "expected"), [(0, 0), (1, 1), (2, 1), (3, 1)])
-def test_run_echoes_the_finding_and_fails_on_every_nonzero_exit(
+def test_run_echoes_the_hit_and_fails_on_every_nonzero_exit(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], code: int, expected: int
 ) -> None:
     script = fake_ratchet_script(tmp_path, code, "CLAUDE.md: R-03 x1", filename="fake_instruction.py")
-    got = gate.run(script)
+    assert gate.run(script) == expected
     out = capsys.readouterr().out
-    assert got == expected
     assert "CLAUDE.md: R-03 x1" in out
     assert out.rstrip().splitlines()[-1].startswith("OK" if code == 0 else "FAIL")
 
 
-def test_the_pre_ship_gate_calls_the_wrapper_not_the_script() -> None:
-    gate_ps1 = (REPO_ROOT / "scripts" / "verify-before-ship.ps1").read_text(encoding="utf-8")
-    stages = [line for line in gate_ps1.splitlines() if line.lstrip().startswith("Invoke-Stage")]
-    instruction = [line for line in stages if "instruction_ratchet" in line]
-    assert len(instruction) == 1
-    assert "-m scripts.instruction_ratchet_gate" in instruction[0]
-    assert "instruction_ratchet.py" not in instruction[0]
+def test_the_pre_ship_gate_calls_the_instruction_wrapper() -> None:
+    assert_gate_calls_wrapper(REPO_ROOT, "instruction")
 
 
 def test_the_stage_is_enabled_baselined_and_its_script_vendored() -> None:
