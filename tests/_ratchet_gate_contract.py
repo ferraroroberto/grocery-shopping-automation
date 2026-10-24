@@ -6,8 +6,12 @@ itself rejected the copy-paste.
 
 from __future__ import annotations
 
+import tomllib
 from pathlib import Path
+from types import ModuleType
 from typing import Callable
+
+import pytest
 
 
 def assert_exit_code_contract(classify_exit: Callable[[int], tuple[bool, str]]) -> None:
@@ -41,3 +45,33 @@ def assert_gate_calls_wrapper(repo_root: Path, name: str) -> None:
     assert len(matching) == 1
     assert f"-m scripts.{name}_ratchet_gate" in matching[0]
     assert f"{name}_ratchet.py" not in matching[0]
+
+
+def assert_run_maps_exit_code(
+    gate: ModuleType,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    *,
+    code: int,
+    finding: str,
+) -> None:
+    """`gate.run` echoes the script's finding and ends on the verdict line: 0
+    passes and every other exit (3 included) fails."""
+    script = fake_ratchet_script(tmp_path, code, finding, filename=f"fake_{gate.__name__}.py")
+    assert gate.run(script) == (0 if code == 0 else 1)
+    out = capsys.readouterr().out
+    assert finding in out
+    assert out.rstrip().splitlines()[-1].startswith("OK" if code == 0 else "FAIL")
+
+
+def assert_stage_declared(repo_root: Path, name: str) -> None:
+    """`.fleet.toml` enables `<name>_ratchet`, its baseline exists and its
+    script is vendored; an absent or disabled table would make the script print
+    "not enabled" and exit 0."""
+    fleet = tomllib.loads((repo_root / ".fleet.toml").read_text(encoding="utf-8"))
+    table = fleet[f"{name}_ratchet"]
+    assert table["enabled"] is True
+    assert (repo_root / table["baseline"]).is_file()
+    entry = fleet["vendored"][f"{name}_ratchet"]
+    assert entry["dest"] == f"scripts/{name}_ratchet.py"
+    assert (repo_root / entry["dest"]).is_file()
