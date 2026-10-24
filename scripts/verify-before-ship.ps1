@@ -32,6 +32,12 @@
                          or when a root folder falls outside the shape and extra_roots
                          declared in .fleet.toml. A tree that cannot be measured (exit 3)
                          fails as NOT CONFIRMED. Not path-routed: it reads the whole tree.
+      6. instruction ratchet - scripts/instruction_ratchet.py through scripts/instruction_ratchet_gate.py:
+                         fails when a prompt-audit rule count in CLAUDE.md, AGENTS.md or a
+                         SKILL.md rises above .instruction-ratchet-baseline.json, or an
+                         instruction file passes its size cap. A file that cannot be linted
+                         (exit 3) fails as NOT CONFIRMED. Not path-routed: one file's reader
+                         depends on another (AGENTS.md pointing at CLAUDE.md).
 
     Anchors to the repo root, so run it from anywhere:  & .\scripts\verify-before-ship.ps1
 #>
@@ -65,6 +71,7 @@ Invoke-Stage "static ratchet"  { & $py -m scripts.static_ratchet_gate }
 Invoke-Stage "docs ratchet"    { & $py -m scripts.docs_ratchet_gate }
 Invoke-Stage "comment ratchet" { & $py -m scripts.comment_ratchet_gate }
 Invoke-Stage "structure ratchet" { & $py -m scripts.structure_ratchet_gate }
+Invoke-Stage "instruction ratchet" { & $py -m scripts.instruction_ratchet_gate }
 
 Write-Host ""
 Write-Host "[PASS] verify-before-ship" -ForegroundColor Green
