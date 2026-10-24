@@ -42,7 +42,7 @@ _FAIL_LABELS = {
 def classify_exit(code: int) -> tuple[bool, str]:
     """`(ok, label)` for one script exit code. Only 0 passes."""
     if code == EXIT_PASS:
-        return True, "no new duplicate block or unused import/variable"
+        return True, "no new duplicate block, unused import/variable or bug/security finding"
     return False, _FAIL_LABELS.get(code, f"unexpected exit {code}")
 
 
