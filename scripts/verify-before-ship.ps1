@@ -44,6 +44,12 @@
                          exist, beyond .doc-refs-ratchet-baseline.json. A scan that cannot
                          complete (exit 3) fails as NOT CONFIRMED. Not path-routed: a code
                          change can strand a doc reference without touching the doc.
+      8. dead-code ratchet - scripts/dead_code_ratchet.py through scripts/dead_code_ratchet_gate.py:
+                         fails when a Python function, class or method that nothing in the
+                         tracked tree references is not in .dead-code-ratchet-baseline.json.
+                         A tree that cannot be parsed (exit 3) fails as NOT CONFIRMED. Not
+                         path-routed: deleting the last caller in one file strands a
+                         definition in another.
 
     Anchors to the repo root, so run it from anywhere:  & .\scripts\verify-before-ship.ps1
 #>
@@ -79,6 +85,7 @@ Invoke-Stage "comment ratchet" { & $py -m scripts.comment_ratchet_gate }
 Invoke-Stage "structure ratchet" { & $py -m scripts.structure_ratchet_gate }
 Invoke-Stage "instruction ratchet" { & $py -m scripts.instruction_ratchet_gate }
 Invoke-Stage "doc-refs ratchet" { & $py -m scripts.doc_refs_ratchet_gate }
+Invoke-Stage "dead-code ratchet" { & $py -m scripts.dead_code_ratchet_gate }
 
 Write-Host ""
 Write-Host "[PASS] verify-before-ship" -ForegroundColor Green
