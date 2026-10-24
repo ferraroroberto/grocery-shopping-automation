@@ -92,8 +92,7 @@ def launch_bootstrap_chrome(chrome_path: str | Path | None = None) -> subprocess
 
     # Plain Chrome — only --user-data-dir, no automation flags. This is what
     # makes the reCAPTCHA-protected login pages behave normally.
-    # no-window-exempt: the user logs in by hand, so the Chrome window must show.
-    return subprocess.Popen(
+    return subprocess.Popen(  # no-window-exempt: the user logs in by hand, so the window must show
         [str(resolved), f"--user-data-dir={USER_DATA_DIR}", *_BOOTSTRAP_URLS]
     )
 
