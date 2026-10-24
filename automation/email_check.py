@@ -50,7 +50,7 @@ _MAX_MESSAGES_PER_SOURCE = 50
 
 # Store key -> canonical "order prepared" subject, accents/emoji stripped.
 # Add a sibling entry once another store's confirmation-email format is
-# available (issue #72 scope note). Carrefour's real subject embeds the order
+# available. Carrefour's real subject embeds the order
 # number ("Aviso de pedido 93752541 preparado. Carrefour."); the similarity
 # match in `subject_matches` absorbs it, so the canonical form omits it.
 STORE_SUBJECTS: dict[str, str] = {
@@ -76,8 +76,8 @@ class ConfirmationCheckResult:
     notified: bool = False
     reason: Optional[str] = None
     # The newest email Gmail returned is *older* than the one already
-    # processed — its own state, never folded into `already_processed`
-    # (issue #134). Means the mailbox changed under us, not "nothing new".
+    # processed — its own state, never folded into `already_processed`.
+    # Means the mailbox changed under us, not "nothing new".
     regressed: bool = False
 
 
@@ -283,7 +283,7 @@ def check_latest_confirmation(
             # The email we already processed is gone from the search window
             # (trashed, spammed, or aged past the lookback), so `latest` has
             # fallen back to an older one. Alerting on it would match a stale
-            # confirmation against the current purchase log — issue #134.
+            # confirmation against the current purchase log.
             reason = (
                 f"newest confirmation {latest.message_id} ({latest.timestamp}) is older than "
                 f"the last processed {previous.message_id} ({previous.timestamp}); the newer "

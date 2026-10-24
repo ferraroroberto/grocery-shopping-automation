@@ -81,7 +81,7 @@ _CARREFOUR_CARD_SELECTOR = '[data-test="search-grid-result"]'
 
 # How long to let the (client-rendered) results grid settle after navigation,
 # and how long to wait for the first card before treating the term as a
-# genuine no-match (verified live 2026-09-29, issue #157).
+# genuine no-match (verified live 2026-09-29).
 _CARREFOUR_SEARCH_SETTLE_S = 4.0
 _CARREFOUR_CARD_TIMEOUT_MS = 10000
 
@@ -261,7 +261,7 @@ _STORE_LABEL = {"mercadona": "Mercadona", "carrefour": "Carrefour"}
 # advances, so the app can show what's happening instead of a static spinner.
 ProgressFn = Callable[[str], None]
 
-# A per-store sink (issue #211): called with one event dict each time a store
+# A per-store sink: called with one event dict each time a store
 # changes state for a query — ``{"query", "store", "state", "candidates",
 # "error", "reason", "elapsed_s"}`` where ``state`` is ``waiting`` (browser not
 # up yet) / ``searching`` / ``done`` / ``failed``. ``done`` with no candidates
@@ -412,7 +412,7 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     def emit_store(event: dict) -> None:
         # One NDJSON line per store state change so the app can show each
-        # store's cards (or its failure) as soon as it lands (issue #211).
+        # store's cards (or its failure) as soon as it lands.
         if args.json:
             print(json.dumps({"event": "store", **event}, ensure_ascii=False), flush=True)
 

@@ -1,4 +1,4 @@
-// Prices: the "Review & apply" dialog (#148) and the baseline confirm/reset (#183).
+// Prices: the "Review & apply" dialog and the baseline confirm/reset.
 import { emptyStateEl } from "../../_vendored/empty-state/empty-state.js";
 import { showToast } from "../../_vendored/toast/toast.js";
 import { fetchJson } from "../api.js";
@@ -132,7 +132,7 @@ async function submitApply(dialog) {
       }
       values[field] = n;
     }
-    // `comida` is the name as of the preview: the server refuses the batch if a row moved (#313).
+    // `comida` is the name as of the preview: the server refuses the batch if a row moved.
     changes.push({ id: change.id, name: change.comida, store: change.to, ...values });
   }
   save.disabled = true;

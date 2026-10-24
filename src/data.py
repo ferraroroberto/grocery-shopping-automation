@@ -105,12 +105,12 @@ _suppress_known_log_noise()
 COLUMNS = CONFIG["data"]["columns"]
 MODES = CONFIG["ui"]["modes"]
 
-# Optional per-store product-URL columns (issue #148): `url_<store>`, one per
+# Optional per-store product-URL columns: `url_<store>`, one per
 # store key in `benchmark/stores.json`. Never required — a sheet without any
 # loads unchanged; `super` + `buscador` stay the chosen store and its URL.
 STORE_URL_PREFIX = "url_"
 
-# Optional per-row fallback columns (issue #283): the store and product URL the
+# Optional per-row fallback columns: the store and product URL the
 # cart run sends the shortfall to when the primary comes up short. Never
 # required; blank or invalid cells mean the row has no fallback.
 FALLBACK_SUPER_COLUMN = "fallback_super"
@@ -230,7 +230,7 @@ def load_inventory_data() -> Optional[pd.DataFrame]:
         raise InventoryFileError(str(e)) from e
 
     # Only the configured columns are required; optional `url_<store>`
-    # columns (#148) and any hand-added ones ride along untouched.
+    # columns and any hand-added ones ride along untouched.
     required_columns = list(COLUMNS.values())
     missing_cols = [col for col in required_columns if col not in df.columns]
     if missing_cols:

@@ -43,7 +43,7 @@ class StoreUrlPayload(BaseModel):
 
 
 class FallbackPayload(BaseModel):
-    # Both blank clears the fallback (#284).
+    # Both blank clears the fallback.
     store: str = ""
     url: str = ""
 
@@ -63,11 +63,11 @@ class SimulatePayload(PicksPayload):
 
 class ChangePayload(BaseModel):
     id: int
-    # The item as the client showed it; a row that no longer matches refuses the batch (#313).
+    # The item as the client showed it; a row that no longer matches refuses the batch.
     name: Optional[str] = None
     store: str
     cantidad: int = Field(..., ge=0)
-    # The stock converted by pack size (#160); left out → `tenemos` unchanged.
+    # The stock converted by pack size; left out → `tenemos` unchanged.
     tenemos: Optional[int] = Field(default=None, ge=0)
 
 
@@ -152,7 +152,7 @@ def store_detail(item_id: int) -> dict[str, Any]:
     df = load_inventory_or_error()
     get_row(df, item_id)
     detail = _call(store_links.item_detail, df, item_id)
-    # The page options the cart automation picks per product (#179). Added here,
+    # The page options the cart automation picks per product. Added here,
     # not in src/: product ids are the store handlers' business.
     for entry in detail["stores"]:
         entry["options"] = options_for_url(entry["store"], entry["url"] or "")
@@ -201,7 +201,7 @@ def store_directory() -> list[dict[str, Any]]:
 @router.get("/api/stores")
 def stores() -> dict[str, Any]:
     return {
-        # run_date, age_days, next_due, stores_covered, overrides (#165)
+        # run_date, age_days, next_due, stores_covered, overrides
         **store_links.run_status(),
         "stores": store_directory(),
         "frequencies": store_links.FREQUENCIES,
@@ -246,7 +246,7 @@ def apply_preview(payload: PicksPayload) -> dict[str, Any]:
 def apply(payload: ApplyPayload) -> dict[str, Any]:
     df = load_inventory_or_error()
     for c in payload.changes:
-        if c.name is not None:  # one moved row refuses the whole batch (#313)
+        if c.name is not None:  # one moved row refuses the whole batch
             get_row(df, c.id, c.name)
     changes = [{"row": c.id, "store": c.store, "cantidad": c.cantidad, "tenemos": c.tenemos}
                for c in payload.changes]

@@ -35,13 +35,13 @@ _SEARCH_RUN: dict[str, Any] = {}
 # The LLM parse only tidies the utterance ("añade dos de mascarpone" →
 # "mascarpone"); the raw text is a usable fallback, so it gets a short budget
 # with no SDK retries rather than the audit's 10-minute one. A slow or broken
-# hub model held the whole search for 380 s before this (issue #211).
+# hub model held the whole search for 380 s before this.
 _PARSE_TIMEOUT_DEFAULT_S = 20
 
 
 class ProductSearchStartPayload(BaseModel):
     # Free Spanish text (spoken transcript or typed) — parsed into item term(s)
-    # via the same LLM path as the HA voice bridge, then searched (issue #87).
+    # via the same LLM path as the HA voice bridge, then searched.
     text: str = ""
     model: str | None = None
     limit: int = 6
@@ -50,8 +50,8 @@ class ProductSearchStartPayload(BaseModel):
 class ProductSearchSelectPayload(BaseModel):
     # Which product the user validated for which item. `inventory_idx` is the
     # existing row to fill (or null → create a new row named `term`).
-    # `lugar` / `tenemos` / `cantidad` are the staged add-time parameters
-    # (issue #92); None keeps the pre-#92 behavior so older clients still work.
+    # `lugar` / `tenemos` / `cantidad` are the staged add-time parameters;
+    # None keeps the original behavior so older clients still work.
     term: str
     store: str
     product_url: str
@@ -181,7 +181,7 @@ def product_search_start(payload: ProductSearchStartPayload) -> dict[str, Any]:
 
     # Same LLM parse as the HA voice bridge — strips "añade"/quantities and maps
     # to an existing row when possible; the row is kept as a hint, the query is
-    # the user's own phrase (issue #214). If the hub is down, fall back to the raw
+    # the user's own phrase. If the hub is down, fall back to the raw
     # text as a single term so a typed query still works.
     items_meta: list[dict[str, Any]] = []
     budget = cfg.get("product_search_parse_timeout", _PARSE_TIMEOUT_DEFAULT_S)

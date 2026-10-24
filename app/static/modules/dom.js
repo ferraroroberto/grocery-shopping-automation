@@ -12,8 +12,8 @@ export function text(value) {
 }
 
 // Raw HTML escape: null/undefined become "", never the "-" placeholder. Use it
-// for editable `value=` attributes, where a "-" would be posted back as data
-// (#228); `html()` is for read-only display text.
+// for editable `value=` attributes, where a "-" would be posted back as data.
+// `html()` is for read-only display text.
 export function esc(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -26,7 +26,7 @@ export function html(value) {
   return esc(text(value));
 }
 
-// The one status chip (design.md "status chip", #254): one class, the tone in
+// The one status chip (design.md "status chip"): one class, the tone in
 // data-tone — neutral (a plain fact), accent (work in progress), attention
 // (needs you soon) or danger (broken). Exceptions only: a normal state gets no
 // chip, and success is never one. `title` carries the longer reason, if any.
@@ -35,7 +35,7 @@ export function chip(label, tone = "neutral", title = "") {
 }
 
 // A pick-from-a-list field with a "New…" escape hatch, for values that live in
-// the sheet (zone, supermarket) so nobody types them on a phone (#241). The
+// the sheet (zone, supermarket) so nobody types them on a phone. The
 // named text input is the one source of truth the form posts; the <select>
 // only fills it, and stays hidden until "New…" is chosen. A required input
 // that is hidden would silently block submit, so `required` follows visibility.

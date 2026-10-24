@@ -17,7 +17,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SCAFFOLDING_ROOT = Path(
-    os.environ.get("PROJECT_SCAFFOLDING_ROOT", r"E:\automation\project-scaffolding")
+    os.environ.get("PROJECT_SCAFFOLDING_ROOT", PROJECT_ROOT.parent / "project-scaffolding")
 )
 sys.path.insert(0, str(SCAFFOLDING_ROOT / "scripts"))
 

@@ -50,12 +50,14 @@ conventions_ratchet = { src = "scripts/conventions_ratchet.py", sha = "4d75f1ebf
 # unused import/variable (ruff F401,F841) or a likely-bug or security pattern (the curated
 # ruff B and S families, S113 included) that is not in .static-ratchet-baseline.json
 # fails. Needs Node and ruff in the gate's venv; a detector that cannot run exits 3,
-# which fails the gate. Vendored copies are duplicates by design, so they are excluded.
+# which fails the gate. Vendored copies are duplicates by design, so they are excluded;
+# so are the per-stage gate wrappers and their tests, one scaffold-templated file per
+# ratchet that differ only in the stage name and messages.
 # Procedure + limits: project-scaffolding docs/static-ratchet.md.
 [static_ratchet]
 enabled  = true
 baseline = ".static-ratchet-baseline.json"
-exclude  = ["**/_vendored/**"]
+exclude  = ["**/_vendored/**", "scripts/*_ratchet_gate.py", "tests/ratchet_gates/**"]
 
 # [docs_ratchet] -- the scaffold's baseline-and-ratchet docs stage. The gate
 # (scripts/verify-before-ship.ps1) runs scripts/docs_ratchet.py through

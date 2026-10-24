@@ -63,14 +63,14 @@ ROWS: List[Tuple[str, str, str, str, int, int, Optional[int], bool]] = [
 STORES = ("mercadona", "ametller", "carrefour")
 RUN_DATES = ("2026-08-01", "2026-09-01")      # two runs, so the Stores view has a price history
 BASKET_ROWS = 20                              # the first rows with a product link are priced
-# The last Fill carts (#258): one store wholly in its cart, one with a miss, so
+# The last Fill carts: one store wholly in its cart, one with a miss, so
 # Shop's glance, its header and its tab badge each have something to show.
 LAST_FILL_RUN = "2026-10-06T191701"
 LAST_FILL = {
     "mercadona": ["added_verified", "added_verified", "out_of_stock"],
     "carrefour": ["added_verified", "added_verified"],
 }
-# The last voice audit (#259): two counts changed, one mention left unmatched,
+# The last voice audit: two counts changed, one mention left unmatched,
 # so the Audit glance has a date and both figures to show.
 LAST_AUDIT_FILE = "2026-10-06_183000.json"
 LAST_AUDIT = {

@@ -1,4 +1,4 @@
-// Home (#260, #252 decision 1): the landing page. The This week card answers
+// Home: the landing page. The This week card answers
 // "what does this week still need?" with one row each for the audit, the
 // list, the carts and the prices; a row tap opens the tab that owns the fact
 // (one home per fact). Under it, a search over every item, its rows opening

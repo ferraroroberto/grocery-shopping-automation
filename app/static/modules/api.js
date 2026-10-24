@@ -42,7 +42,7 @@ export async function fetchJson(url, init = {}) {
   return body;
 }
 
-// An item route that names the item it means (#293). Ids are row positions,
+// An item route that names the item it means. Ids are row positions,
 // so the server checks the name and refuses (409, X-Inventory-Stale) once
 // another device's delete has moved the list under this one.
 export function itemUrl(id, name, path = "") {
@@ -146,7 +146,7 @@ export async function mutate(url, payload, method = "POST") {
     });
   } catch (error) {
     // The server's detail (a 423 "spreadsheet open in Excel" is the common one);
-    // callers are bare click handlers, so a rethrow would only go unhandled (#293).
+    // callers are bare click handlers, so a rethrow would only go unhandled.
     setStatus(error.message);
     if (!error.stale) showToast(error.message, "error");
     return;

@@ -33,7 +33,7 @@ from src.product_match import normalize
 logger = logging.getLogger(__name__)
 
 # A phrase must clear this to resolve at all. Calibrated on the 2026-08-17 audit
-# log (issue #132): the genuine whisper-drift pairs land at 0.72–1.0, while the
+# log: the genuine whisper-drift pairs land at 0.72–1.0, while the
 # nearest wrong rows for those same phrases sit at or below 0.55.
 RESOLVE_THRESHOLD = 0.62
 

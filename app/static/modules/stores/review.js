@@ -1,4 +1,4 @@
-// Stores: the item sheet's two store pages (#165, #255). Quantity check is the
+// Stores: the item sheet's two store pages. Quantity check is the
 // quantity maths in real units with the suggested target / in stock; Stores &
 // prices is the server-side Checked mark, the flags, every store's product /
 // pack / price with your overrides, and the link / override editors.
@@ -238,7 +238,7 @@ function storeRowMarkup(d, s) {
     s.is_list_store ? chip("in list") : "",
     s.is_basket_store ? chip("benchmarked from") : "",
   ].join("");
-  // Labelled 44px links, not the raw URL (TOUCH-01, #257): the address
+  // Labelled 44px links, not the raw URL (TOUCH-01): the address
   // itself is one tap away in the edit form, and in the link's tooltip.
   const link = s.url
     ? reviewLink(s.url, `Open at ${s.store_name}`)
@@ -271,7 +271,7 @@ function reviewLink(url, label) {
   return `<a class="review-url" href="${esc(url)}" target="_blank" rel="noopener noreferrer" title="${esc(url)}">${icon("external-link")}<span>${esc(label)}</span></a>`;
 }
 
-// A page option the cart automation picks for this product (#179), e.g. the
+// A page option the cart automation picks for this product, e.g. the
 // fish cut; set in config/product_options.json, shown here so it isn't hidden.
 function optionsMarkup(s) {
   const cut = s.options?.cut;

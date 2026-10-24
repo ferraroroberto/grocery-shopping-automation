@@ -98,7 +98,7 @@ def run_tray() -> int:
         )
         return 1
 
-    # In-process single-instance guard (project-scaffolding#39): the tray.bat CIM
+    # In-process single-instance guard: the tray.bat CIM
     # pre-check can let two near-simultaneous launches through, so the guarantee
     # must live in the process. Held for the tray's lifetime; the OS frees the
     # named mutex on exit. `instance` is intentionally kept referenced (quit).

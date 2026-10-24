@@ -1,4 +1,4 @@
-// Audio audit — Audit's Voice segment (#259): record a spoken walk-through,
+// Audio audit — Audit's Voice segment: record a spoken walk-through,
 // transcribe it, match what was said to inventory rows via the LLM hub, and
 // apply the accepted counts.
 //
@@ -8,7 +8,7 @@
 // you" first and the detected items by zone), the checklist card, and the
 // transcript card, whose menu holds the match model and Clear.
 //
-// Recording is hardened (issue #30): every 1 s chunk is streamed to the PC and
+// Recording is hardened: every 1 s chunk is streamed to the PC and
 // archived to disk by the voice-transcriber app the moment it arrives, so the
 // take survives a dying phone. Rolling partials flow back over SSE; Stop yields
 // the canonical transcript. grocery only proxies — VT owns the audio.
@@ -41,7 +41,7 @@ const audio = {
   eventSource: null,
   matches: null,
   // Every row's name as of the match: Apply names the item it means for each id,
-  // so a reload under the review can't re-aim it at whatever row now holds the id (#313).
+  // so a reload under the review can't re-aim it at whatever row now holds the id.
   names: {},
   // The review's choices, kept here so a hop to Manual (and back) never
   // re-ticks a match you unticked or drops a count you typed.
@@ -125,7 +125,7 @@ async function refreshAudioHealth() {
   renderAudioHealth();
 }
 
-// Only a problem is shown: an always-on "all reachable" line was noise (#252).
+// Only a problem is shown: an always-on "all reachable" line was noise.
 function renderAudioHealth() {
   const banner = document.querySelector("#audio-health-banner");
   if (!banner) return;
@@ -250,7 +250,7 @@ function checklistCard() {
 }
 
 // ----------------------------------------------------------- the last audit
-// Also Home's (#260): its This week Audit row and its page-header line.
+// Also Home's: its This week Audit row and its page-header line.
 export async function loadLastAudit() {
   try {
     audio.last = (await fetchJson("/api/audio/last")).last;
@@ -279,7 +279,7 @@ function paintLastAudit() {
 }
 
 // ----------------------------------------------------------- the menu sheet
-// The transcript card's menu (#252 decision 8): the match model, and Clear
+// The transcript card's menu: the match model, and Clear
 // behind a confirm. Built once at <body> level, so it carries its own listeners.
 function transcriptSheet() {
   return dialogShell(MENU_ID, "Transcript", "Done", (shell) => {
@@ -327,7 +327,7 @@ function setAudioModel(value) {
 }
 
 // ---------------------------------------------------------------- results
-// The Audit header's exception (#254): mentions the match tied to no row at all.
+// The Audit header's exception: mentions the match tied to no row at all.
 export function audioUnmatchedCount() {
   if (!audio.matches) return 0;
   const ids = new Set(items().map((item) => item.id));
@@ -365,7 +365,7 @@ function renderMatches() {
   updateHeaders();
   const target = document.querySelector("#match-results");
   if (!target) return;
-  // After a match, Apply is the view's one primary (#252 decision 8).
+  // After a match, Apply is the view's one primary.
   const record = document.querySelector("#record-toggle");
   if (record) record.className = `${audio.matches ? "button-tint" : "button-primary"} btn-block`;
   if (!audio.matches) {
@@ -380,7 +380,7 @@ function renderMatches() {
   const name = (item) => text(item[cols.comida]);
 
   // Mentions the speaker made that resolved to a row but carried no count —
-  // either the LLM named the row or src/audit_resolve.py did (issue #132). These
+  // either the LLM named the row or src/audit_resolve.py did. These
   // are *named* items: they get their own "type the count" row, and they must
   // never reach the zero-list below, which would zero what was just dictated.
   const matchedIdx = new Set(matched.map((m) => m.idx));
@@ -390,7 +390,7 @@ function renderMatches() {
   );
   const namedIdx = new Set([...matchedIdx, ...needCount.map((m) => m.idx)]);
   // Whatever is left really is unmatched — no row to apply to. Its row opens
-  // Manual searching every zone for what was heard (#259).
+  // Manual searching every zone for what was heard.
   const stillUnmatched = mentions.filter((m) => !Number.isInteger(m.idx) || !byId.has(m.idx));
 
   // "Needs you" comes first: typing a number *is* the accept on a count row —

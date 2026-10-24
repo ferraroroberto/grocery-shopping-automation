@@ -42,7 +42,7 @@ UNIDADES_COLUMN = "unidades"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Per-item review: detail, checks, overrides, checked (#165)
+# Per-item review: detail, checks, overrides, checked
 # ─────────────────────────────────────────────────────────────────────────────
 
 _SNAPSHOT_FIELDS = ("name", "pack_size", "unit", "pack_price")

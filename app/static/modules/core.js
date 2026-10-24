@@ -18,13 +18,13 @@ export const THEME_KEY = "grocery.theme";
 export const SEARCHABLE_MODES = new Set(["dashboard", "audit", "list", "stores"]);
 
 // The 7 modes group into the fleet nav's 4 tabs plus Settings, which is never a
-// tab (#200): its pane is opened by the header gear. The audit and items tabs
+// tab: its pane is opened by the header gear. The audit and items tabs
 // switch their two modes with a segmented control (static markup in
-// index.html): Audit is Voice ("audio", the default, #259) and Manual
-// ("audit"); Items is the item list ("list") and Prices ("stores", #256).
+// index.html): Audit is Voice ("audio", the default) and Manual
+// ("audit"); Items is the item list ("list") and Prices ("stores").
 // Product search lives in the Add item sheet the list opens, cart automation
-// ("Fill carts") in the carts glance that leads Shop (#258), Email Watch in
-// Settings (#182).
+// ("Fill carts") in the carts glance that leads Shop, Email Watch in
+// Settings.
 export const MODE_TO_TAB = {
   dashboard: "inventory",
   shopping: "shopping",
@@ -41,7 +41,7 @@ export const TAB_DEFAULT_MODE = {
   items: "list",
 };
 
-// Audit opens on Voice at every launch (#252 decision 7), so its sub-mode is
+// Audit opens on Voice at every launch, so its sub-mode is
 // kept for the session only: a hop to Manual to fix a miss survives a tab
 // switch, never the next week's launch. Every other tab's lasts on the device.
 const SESSION_SUB_TABS = new Set(["audit"]);
@@ -50,13 +50,13 @@ function subStore(tab) {
   return SESSION_SUB_TABS.has(tab) ? sessionStorage : localStorage;
 }
 
-// Items' modes retired in #256 → the segment that now holds them: Targets and
+// Retired Items modes → the segment that now holds them: Targets and
 // Edit item folded into the list's item sheet, Add item into its Add item
 // sheet. A PWA last closed on one still has it saved under grocery.sub.items;
 // restoreSubMode() rewrites it, so the tab never opens on an empty pane.
 const RETIRED_MODES = { targets: "list", edit: "list", add: "list" };
 
-// Tabs retired in #182 → their content's new home. A PWA that last closed on
+// Retired tabs → their content's new home. A PWA that last closed on
 // one still has it saved in TAB_KEY; the vendored nav would silently fall
 // back to Home, so migrateRetiredTab() rewrites it before the nav boots.
 // `reveal` is the section scrolled into view once the pane has rendered.
@@ -75,7 +75,7 @@ export const state = {
 };
 
 // ------------------------------------------------------ page header
-// design.md "page header" contract (#153 J-04, #200): the first element of
+// design.md "page header" contract: the first element of
 // every pane — the vendored home-head (icon + bold title, one optional context
 // line, then the theme toggle and the Settings gear pinned right). One markup
 // source here instead of 5 hand-copied HTML blocks that would drift. Settings

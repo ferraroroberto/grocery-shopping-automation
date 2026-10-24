@@ -78,7 +78,7 @@ SELECTORS = {
     "stepper_input": "input.chakra-numberinput__field",
     "stepper_plus": "button[aria-label='quantity-selector.add']",
     "stepper_minus": "button[aria-label='quantity-selector.remove']",
-    # Didomi cookie-consent notice (issue #143) — its backdrop intercepts every
+    # Didomi cookie-consent notice — its backdrop intercepts every
     # click until answered. Didomi re-prompts when stored consent expires, so
     # the persistent profile cannot be relied on to carry it. Verified live
     # 2026-09-16.
@@ -168,7 +168,7 @@ def _basket_items(page: Page, auth: dict) -> list[dict]:
     the run; the caller's quantity check then finds 0 and triggers the add).
 
     ``basketId`` / ``itemId`` are the handles the Shopper Baskets *delete*
-    endpoint needs to remove a line (clean mode, issue #19).
+    endpoint needs to remove a line (clean mode).
     """
     token = auth.get("token") or ""
     customer_id = auth.get("customer_id") or ""
@@ -426,7 +426,7 @@ def add_to_cart(page: Page, item: CartItem) -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Whole-cart helpers (run-level before/after snapshot + clean mode, issue #19).
+# Whole-cart helpers (run-level before/after snapshot + clean mode).
 # ─────────────────────────────────────────────────────────────────────────────
 
 

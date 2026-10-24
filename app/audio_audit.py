@@ -472,8 +472,8 @@ def _render_review(df: pd.DataFrame, cfg: Dict) -> pd.DataFrame:
             )
 
     # Mentions that resolved to a row were *named* by the speaker — they only
-    # lack a count. Offering them for zeroing would wipe what was just dictated
-    # (issue #132), so they are excluded here exactly as in the PWA.
+    # lack a count. Offering them for zeroing would wipe what was just dictated,
+    # so they are excluded here exactly as in the PWA.
     named_idxs = set(detected_idxs) | {
         mention["idx"]
         for mention in result.unmatched_mentions

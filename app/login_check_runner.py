@@ -26,8 +26,8 @@ LOG_PATH = _REPO_ROOT / "logs" / "check_logins.log"
 # Generous per-store page-load allowance once the shared profile is free
 # (bot-challenge retries included).
 _PAGE_LOAD_ALLOWANCE_S = 60
-# Only used if automation.run_automation.HANDLERS can't be imported (issue
-# #339) — mercadona, ametller, carrefour.
+# Only used if automation.run_automation.HANDLERS can't be imported:
+# mercadona, ametller, carrefour.
 _FALLBACK_STORE_COUNT = 3
 
 

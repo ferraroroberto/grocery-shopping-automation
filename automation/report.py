@@ -8,13 +8,13 @@ from typing import Optional
 
 from automation.models import CartItem
 
-# Per-item outcome statuses (issue #247). Only the store's own final cart
+# Per-item outcome statuses. Only the store's own final cart
 # decides "in cart": the handler's "added" is provisional until verified.
 ADDED_VERIFIED = "added_verified"
 # The handler added it but the store cart could not be read — not confirmed.
 ADDED_UNVERIFIED = "added_unverified"
 ADDED_NOT_IN_CART = "added_not_in_cart"
-# Some units are in the cart, fewer than wanted — a stock cap (issue #283).
+# Some units are in the cart, fewer than wanted — a stock cap.
 PARTIAL_IN_CART = "partial_in_cart"
 OUT_OF_STOCK = "out_of_stock"
 UNAVAILABLE = "unavailable"

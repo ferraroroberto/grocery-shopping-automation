@@ -1,4 +1,4 @@
-// The shopping list under Shop's carts glance (#258): one folding group per
+// The shopping list under Shop's carts glance: one folding group per
 // store, with Got-it marks and free-text quick-adds. The list comes second —
 // the household fills the carts and rarely ticks items off after — so it stays
 // folded and plain. Each group ends on an "Add to <store>" row and a Store
@@ -21,7 +21,7 @@ function buyUrl(item, cols) {
   return url === "-" ? "" : url.trim();
 }
 
-// Shop's page-header exception (#254): items on the list with no buy link.
+// Shop's page-header exception: items on the list with no buy link.
 // Each such row also closes its meta line with a "No link" chip.
 export function shoppingMissingLinkCount() {
   const cols = c();
@@ -70,7 +70,7 @@ export function renderShopping() {
   }).join("");
 }
 
-// A list row: Complete is the leading check (#252 decision 4), the buy link the
+// A list row: Complete is the leading check, the buy link the
 // one trailing item; a row with no link says so in its meta instead.
 function shoppingRow(item, cols) {
   const bought = state.shopping.bought.has(item.id);
@@ -88,7 +88,7 @@ function shoppingRow(item, cols) {
 }
 
 // A free-text quick-add: no spreadsheet row behind it, so nothing to open. Its
-// Remove lives in the store sheet (#252 decision 6).
+// Remove lives in the store sheet.
 function extraRow(item, store, extraBought) {
   const bought = extraBought.has(item.id);
   return itemRow({

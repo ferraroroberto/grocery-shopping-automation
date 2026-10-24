@@ -31,7 +31,7 @@
   /* derived surface roles (mapped onto the neutral tokens above) */
   --input-bg: var(--card-off);
   --toggle-knob: #ffffff;
-  --close-bg: transparent; /* glyph-only controls draw nothing at rest (fleet-config#1259) */
+  --close-bg: transparent; /* glyph-only controls draw nothing at rest */
   --scrim: rgba(0, 0, 0, 0.5);
   --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
   --neutral-soft: color-mix(in srgb, var(--muted) 16%, transparent);
@@ -71,7 +71,7 @@
   --field-h: var(--hit-min);
   /* components.button-primary.height — a view's primary / submit action */
   --primary-h: 48px;
-  /* repeated-list row heights (flat separator-row canon, app-launcher#365) */
+  /* repeated-list row heights (flat separator-row canon) */
   --row-sm: 44px;
   --row-md: 52px;
   --row-lg: 60px;
@@ -92,7 +92,7 @@
      the only element with a real shadow. */
   --shadow: 0 8px 24px rgba(31, 35, 40, 0.12);
   /* Mobile floating bottom tab bar (phone-validated geometry,
-     home-automation#118 — see _vendored/nav/README.md). */
+     see _vendored/nav/README.md). */
   --bottom-tabs-height: 61px;
   --bottom-tabs-margin: 21px;
   --bottom-tabs-pill-height: 53px;
@@ -205,7 +205,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   padding-right: var(--gap);
 }
 /* Bottom padding is desktop/wide-only, deliberately split out of the rule
-   above (app-launcher#355 lesson): the coarse-pointer + narrow breakpoint is
+   above: the coarse-pointer + narrow breakpoint is
    where nav-tabs.css reserves .app's bottom padding for the floating tab bar
    (its own `.app { padding: ... }` in that media condition) — a shorthand
    `padding` here would win the cascade (equal specificity, later in source
@@ -277,7 +277,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   border-radius: var(--radius);
   padding: 0 14px;
 }
-/* Items' list (#256): the Add item button shares the search's row, at its
+/* Items' list: the Add item button shares the search's row, at its
    height, so the filter sits straight above the list it filters. */
 .toolbar { display: flex; align-items: stretch; gap: var(--space-sm); }
 /* The display above would otherwise beat the UA's [hidden] rule. */
@@ -356,7 +356,7 @@ h1, h2, h3 { margin: 0; line-height: 1.2; }
    The full text scale is exactly four steps: heading-lg 1.5 / body 1 /
    label 0.92 (controls, statuses, hints) / caption 0.78 (data metas). */
 h2 { font-size: var(--font-body); font-weight: 700; }
-/* A tab's first line under the page header (#153 J-04): the section title the
+/* A tab's first line under the page header: the section title the
    mode pills and the search box sit under. Inset to the cards' text edge. */
 .pane-title { padding: 0 var(--space-xs); }
 h3 { font-size: var(--font-body); font-weight: 600; }
@@ -373,7 +373,7 @@ h3 { font-size: var(--font-body); font-weight: 600; }
 main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
 .pane-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
 
-/* Item rows (#254): rows.js itemRow() on the vendored action-row. Its glyph
+/* Item rows: rows.js itemRow() on the vendored action-row. Its glyph
    trailing items (a buy link, a quick-add's remove, the stepper's − and +)
    take the row's 44px box, like the row's own accessories. */
 .item-row .action-row-trail.icon-button,
@@ -389,9 +389,9 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
-/* Items' list (#256): one inset group per zone, its name as the overline
+/* Items' list: one inset group per zone, its name as the overline
    header over the group's card (design.md "settings group"); Settings' groups
-   (#261) are the same recipe. */
+   are the same recipe. */
 .item-group, .settings-group { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-xs); }
 .item-group-head { padding: 0 var(--space-md); }
 /* Bare rows in a disclosure body bleed to its edges: the row's own 14px inset
@@ -480,7 +480,7 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 .count-input { width: 68px; text-align: center; font-weight: 700; }
 
 /* Log surface: the design.md `code-listing` frame — card on a hairline, mono
-   13px / 1.5, in both themes (COMP-17, #291). */
+   13px / 1.5, in both themes (COMP-17). */
 .log {
   white-space: pre-wrap;
   overflow: auto;
@@ -516,7 +516,7 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 }
 .zone-item:last-child { border-bottom: 0; }
 
-/* ------------------------------------------------------ product search (#87) */
+/* ------------------------------------------------------ product search */
 .search-bar { display: flex; align-items: center; gap: var(--space-sm); margin-top: var(--space-sm); }
 .search-term {
   flex: 1 1 auto;
@@ -530,7 +530,7 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
   font-size: var(--font-label);
 }
 /* Compact tint action at the control height — Buscar sits in line with the
-   term box and reads the same size as the Usar buttons (issue #92 feedback). */
+   term box and reads the same size as the Usar buttons. */
 .search-bar .button-tint {
   flex: 0 0 auto;
   width: auto;
@@ -556,7 +556,7 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 }
 .search-group-term { font-weight: 700; font-size: var(--font-body); }
 .search-group-hint { margin-bottom: var(--space-xs); }
-/* One line per store (#211): waiting / searching / N results / failed. */
+/* One line per store: waiting / searching / N results / failed. */
 .search-store-states { list-style: none; margin: 0 0 var(--space-xs); padding: 0; display: grid; gap: 2px; }
 .candidate-list { display: grid; gap: 0; }
 .candidate {
@@ -566,7 +566,7 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
   border-bottom: 1px solid var(--line-muted);
 }
 .candidate:last-child { border-bottom: 0; }
-/* Staged add controls (issue #92): zone combo + present/target quantities. */
+/* Staged add controls: zone combo + present/target quantities. */
 .candidate-confirm {
   flex: 1 1 100%;
   display: grid;
@@ -611,7 +611,7 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
   font-weight: 600; font-size: var(--font-label);
 }
 .candidate-actions { flex: 0 0 auto; display: flex; align-items: center; gap: var(--space-xs); }
-/* The one status chip (design.md "status chip", #254; dom.js chip()): the chip
+/* The one status chip (design.md "status chip"; dom.js chip()): the chip
    geometry, the tone in data-tone. Exceptions only; success is never a chip. */
 .chip {
   display: inline-block;
@@ -629,8 +629,8 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 .chip[data-tone="attention"] { background: color-mix(in srgb, var(--attention) 16%, transparent); color: var(--attention-text); }
 .chip[data-tone="danger"] { background: var(--danger-soft); color: var(--danger-text); }
 
-/* ------------------------------------------------- Items → Prices (#148) */
-/* The glance card (#257): the figure and its delta, the frequency, the one
+/* ------------------------------------------------- Items → Prices */
+/* The glance card: the figure and its delta, the frequency, the one
    action, then the footer row to the Benchmark sheet on a hairline. */
 .stores-glance > * + * { margin-top: var(--gap); }
 .stores-glance p { margin-bottom: 0; }
@@ -675,7 +675,7 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
    own card, instead of the toolbar section above the pane — so it filters
    the Prices list without a second, duplicate search box on screen. */
 #stores-search-slot:not(:empty) { margin-top: var(--gap); }
-/* Prices rows (#257): the shared item row — a tap opens the item sheet on
+/* Prices rows: the shared item row — a tap opens the item sheet on
    Stores & prices, the what-if picker is the one trailing item — with the
    store links wrapping under it as reference pills. The rows bleed to the
    card's edges like a disclosure body's, so the text lines up with it. */
@@ -716,7 +716,7 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 /* A link that is not a product page (a store search, or a URL missing its
    product id): dashed, so it never reads as a verified product link. */
 .store-chip.is-search, .store-chip.is-suspect { border-style: dashed; }
-/* "Only items I buy" (#172) and "Show all stores": each row is a full 44px
+/* "Only items I buy" and "Show all stores": each row is a full 44px
    hit-target tall, so the switches' expanded tap areas (26 + 2x9) stack
    edge to edge and never reach into each other or the pill rows above. */
 .stores-switches { margin: var(--space-sm) 0; }
@@ -764,12 +764,12 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
 .stores-howto-summary > .icon { width: var(--icon-inline); height: var(--icon-inline); color: var(--muted); }
 .inline-chevron { margin-left: auto; color: var(--muted); font-size: var(--font-heading-lg); line-height: 1; transition: transform 0.15s ease; }
 details[open] > summary .inline-chevron { transform: rotate(90deg); }
-/* The carts glance's folded run log (#258): a quiet row, the log spaced off
+/* The carts glance's folded run log: a quiet row, the log spaced off
    its summary. */
 .inline-disclosure-summary { color: var(--muted); }
 .inline-disclosure[open] > .log { margin-top: var(--space-sm); }
 
-/* All · Needs checking · Checked, then the multi-select Store row (#170) —
+/* All · Needs checking · Checked, then the multi-select Store row —
    above the show-all switch; both wrap on a phone. */
 .stores-filter { margin-top: var(--space-sm); }
 .stores-filter .pill { display: inline-flex; align-items: center; gap: var(--space-xs); padding: 0 12px; }
@@ -784,7 +784,7 @@ details[open] > summary .inline-chevron { transform: rotate(90deg); }
   font-variant-numeric: tabular-nums;
 }
 
-/* --------------------------------------------------- item sheet (#255)
+/* --------------------------------------------------- item sheet
    item-sheet.js on the vendored modal shell: the detail sheet every item row
    opens. A full-height sheet on a phone; on a desktop the Stores & prices
    page widens to fit every store as a table row (one flat block per store on
@@ -793,7 +793,7 @@ details[open] > summary .inline-chevron { transform: rotate(90deg); }
 .detail-dialog.item-sheet[data-page="prices"] { width: min(960px, calc(100vw - 2 * var(--gap))); }
 @media (max-width: 520px) {
   /* Clamped by the vendored max-height, so the sheet fills the screen — the
-     Add item sheet too, so arriving search results never grow it (#256). */
+     Add item sheet too, so arriving search results never grow it. */
   .detail-dialog:is(.item-sheet, .add-sheet, .fill-history-sheet) { height: 100dvh; }
   :is(.item-sheet, .add-sheet, .fill-history-sheet) .detail-card { min-height: 100%; display: flex; flex-direction: column; }
   :is(.item-sheet, .add-sheet, .fill-history-sheet) .stores-dialog-body { flex: 1; }
@@ -831,7 +831,7 @@ details[open] > summary .inline-chevron { transform: rotate(90deg); }
 .sheet-link-value[data-tone="attention"] { color: var(--attention-text); }
 .sheet-link-value[data-tone="danger"] { color: var(--danger-text); }
 .sheet-link-chevron { flex: none; width: var(--icon-inline); height: var(--icon-inline); color: var(--muted); }
-/* #264: the open-link action on the Buy link page; its empty slot takes no
+/* The open-link action on the Buy link page; its empty slot takes no
    room in the page grid. */
 [data-open-link-page]:empty { display: none; }
 a.button-tint[data-open-link-page] {
@@ -858,7 +858,7 @@ a.button-tint[data-open-link-page] {
   font-size: var(--font-body);
 }
 
-/* ------------------------------------------------- Add item sheet (#256)
+/* ------------------------------------------------- Add item sheet
    add-sheet.js on the same modal shell: the product search, then Add by
    hand, as two flat sections on a divider — no card nested in the sheet. */
 .add-sheet-section { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
@@ -918,7 +918,7 @@ a.button-tint[data-open-link-page] {
 .review-cell-product > * + * { margin-top: var(--space-xs); }
 .review-product-name { font-weight: 600; }
 .review-option { display: block; margin: 4px 0; }
-/* A store's product link: a labelled 44px target, never the raw URL (TOUCH-01, #257). */
+/* A store's product link: a labelled 44px target, never the raw URL (TOUCH-01). */
 .review-cell-product > .review-url {
   display: flex;
   align-items: center;
@@ -970,7 +970,7 @@ a.button-tint[data-open-link-page] {
 .review-edit-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-sm); }
 .review-edit-actions > button { min-height: var(--primary-h); font-size: var(--font-label); }
 .review-edit-status:empty { display: none; }
-/* The item sheet's Fallback if short page (#284): a flat form, no nested card. */
+/* The item sheet's Fallback if short page: a flat form, no nested card. */
 .fallback-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
 .fallback-form .hint { margin: 0; }
 .fallback-form .field-label :is(.field, .select-native) { font-weight: 400; }
@@ -988,7 +988,7 @@ a.button-tint[data-open-link-page] {
 .review-evidence-list { list-style: none; margin: 0; padding: 0; }
 .review-evidence-list li { display: grid; gap: var(--space-xs); padding: var(--space-sm) 0; border-top: 1px solid var(--line-muted); }
 
-/* ----------------------------------------------- confirm sheet (#254) */
+/* ----------------------------------------------- confirm sheet */
 /* confirm.js on the vendored modal shell. Its one button keeps the spec's 48px
    even as the destructive tint (the app's own .danger is a 36px control). */
 .confirm-dialog .confirm-message { margin: 0; }
@@ -997,7 +997,7 @@ a.button-tint[data-open-link-page] {
 /* ------------------------------------------------------------ login dialog */
 .login-error { min-height: 20px; color: var(--deficit); font-size: var(--font-label); }
 
-/* ------------------------------------------------------------ Home (#260) */
+/* ------------------------------------------------------------ Home */
 /* The This week card: four link rows under its title, their text on the
    card's text edge like the glance footers, each value in its tone. */
 .this-week > * + * { margin-top: var(--gap); }
@@ -1006,7 +1006,7 @@ a.button-tint[data-open-link-page] {
 /* Nothing under the search until something is typed: no empty grid track. */
 #pane-inventory .pane-body:empty { display: none; }
 
-/* ------------------------------------------------------------ Shop (#258) */
+/* ------------------------------------------------------------ Shop */
 /* The carts glance: one row per store (text aligned with the card title, not
    tappable), the run's status and the one action, the Options row on a
    hairline, then the run log folded. */
@@ -1019,7 +1019,7 @@ a.button-tint[data-open-link-page] {
 .carts-actions, .voice-actions { display: grid; gap: var(--space-sm); }
 .carts-actions > [hidden], .voice-actions > [hidden] { display: none; }
 
-/* ------------------------------------------------------- Audit › Voice (#259) */
+/* ------------------------------------------------------- Audit › Voice */
 /* The Voice and results glances: label / figure rows like the carts glance,
    the figure on the card's text edge. */
 .voice-glance-rows .action-row-trail { margin-right: 0; }
@@ -1072,7 +1072,7 @@ a.button-tint[data-open-link-page] {
 .store-sheet-head .icon-button { --icon-btn-box: var(--row-sm); }
 .fill-plan .hint, .sheet-section .meta, .email-sheet .hint { margin: 0; }
 
-/* Fill history (#323): the last ten fill days as flat list rows on a hairline,
+/* Fill history: the last ten fill days as flat list rows on a hairline,
    one line per store with its exception chip, the misses folded under it. */
 .fill-days, .fill-stores, .fill-problem-list { list-style: none; margin: 0; padding: 0; }
 .fill-day { padding: 12px 0; display: grid; gap: var(--space-sm); }
@@ -1089,7 +1089,7 @@ a.button-tint[data-open-link-page] {
 .fill-problem-item { min-width: 0; overflow-wrap: anywhere; }
 .fill-problem-status { flex: none; color: var(--muted); }
 
-/* ------------------------------------------------------- Settings (#261) */
+/* ------------------------------------------------------- Settings */
 /* Inset groups (above): the rows are link rows (glyph, label, muted value,
    chevron to a sheet), their text on the row's own 14px inset in the
    full-bleed card; the Data rows act on tap, so they carry no chevron. */

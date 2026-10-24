@@ -1,6 +1,6 @@
 // Prices: the plan and run actions — import the latest run, load the
 // recommended plan, reset the picks, copy the refresh steps. The glance card
-// and the Benchmark sheet (#257) both reach them through index.js.
+// and the Benchmark sheet both reach them through index.js.
 import { showToast } from "../../_vendored/toast/toast.js";
 import { fetchJson } from "../api.js";
 import { copyText } from "../clipboard.js";

@@ -1,13 +1,13 @@
-// Items → Prices (issue #148; the Stores mode until #256): every item's
+// Items → Prices (formerly the Stores mode): every item's
 // per-store product links, a what-if store picker, and the monthly cost
 // simulator priced from the latest
 // supermarket-benchmark run. Picks are a local what-if — nothing is written to
 // the spreadsheet until the Review & apply dialog posts them.
 //
-// The glance card (#257) leads: the monthly cost, its delta and the one
+// The glance card leads: the monthly cost, its delta and the one
 // action; its footer row opens the Benchmark sheet (the run's status, the
-// plan actions, the cost breakdown). The per-item review (#165): a row tap
-// opens the item sheet (#255) on its Stores & prices page — every store's
+// plan actions, the cost breakdown). The per-item review: a row tap
+// opens the item sheet on its Stores & prices page — every store's
 // product / pack / price with your overrides beside the benchmark's values,
 // and the server-side Checked mark; its Quantity check page has the quantity
 // maths in real units — and the list filters to the items that still need
@@ -137,7 +137,7 @@ export async function runStoresAction(button) {
   if (action === "reset-baseline") await resetBaseline();
 }
 
-// Search-only repaint (#193): a keystroke in the shared search box must not
+// Search-only repaint: a keystroke in the shared search box must not
 // rebuild the whole Stores pane — the Monthly cost card, the simulator call
 // and the toolbar re-home all stay untouched. Just refilter the rows and the
 // "N items · M with links" count.
@@ -145,7 +145,7 @@ export function repaintStoresList() {
   paintList();
 }
 
-// For Items' page header (#254): what still needs checking, once the review
+// For Items' page header: what still needs checking, once the review
 // state has been read; loadStoresChecks() reads it the first time Items opens.
 export function storesNeedsChecking() {
   return local.checks?.counts?.needs_checking || 0;
@@ -155,8 +155,8 @@ export function loadStoresChecks() {
   if (!local.checks) loadChecks();
 }
 
-// For Home's Prices row (#260): the next review only — the cost and the
-// what-if stay on the Prices glance (#252 "one home per fact"). A dash until
+// For Home's Prices row: the next review only — the cost and the
+// what-if stay on the Prices glance ("one home per fact"). A dash until
 // the run status has been read; a failed read is retried on the next visit.
 export function loadPricesReview() {
   if (local.metaState === "idle" || local.metaState === "error") loadMeta();

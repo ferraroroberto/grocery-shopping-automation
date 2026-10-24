@@ -39,7 +39,7 @@ export const local = {
   timer: 0,
   seq: 0,
   preview: [],        // apply-preview changes shown in the apply dialog
-  detailId: null,     // item the item sheet is showing (#255)
+  detailId: null,     // item the item sheet is showing
   detail: null,       // GET /api/items/{id}/store-detail
   detailError: "",
   editing: null,      // store whose edit form is open on the sheet's Stores & prices page

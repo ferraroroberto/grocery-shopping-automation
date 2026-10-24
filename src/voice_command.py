@@ -235,8 +235,8 @@ def apply_set(
 
 
 # --------------------------------------------------------------------------- #
-# Speech — one short SPANISH sentence (issue #89): the voice loop runs on a
-# dedicated Spanish pipeline with an es_ES TTS voice (home-automation#315's
+# Speech — one short SPANISH sentence: the voice loop runs on a
+# dedicated Spanish pipeline with an es_ES TTS voice (home-automation's
 # redesign), so replies are Spanish end-to-end.
 # --------------------------------------------------------------------------- #
 SPEECH_BUSY = "La lista está abierta en otro sitio; inténtalo en un momento."

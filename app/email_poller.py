@@ -69,7 +69,7 @@ def outcome_text(result: ConfirmationCheckResult) -> str:
         return f"Check skipped: {result.reason}"
     if result.regressed:
         # Its own state, not "nothing new" — the mailbox lost the email we
-        # already handled and Gmail is now offering an older one (#134).
+        # already handled and Gmail is now offering an older one.
         return f"Stale email ignored: {result.reason}"
     if result.already_processed:
         return "No new email — latest already processed"
@@ -106,14 +106,14 @@ def run_checks(*, force: bool = False, trigger: str = "manual") -> list[dict[str
                 }
             )
         for store in stores:
-            # Scheduled/normal checks keep a clean order silent (issue #73);
+            # Scheduled/normal checks keep a clean order silent;
             # a forced test run always sends, to prove the loop end to end.
             try:
                 result = check_latest_confirmation(
                     store, ignore_processed=force, notify_only_on_problem=not force
                 )
             except Exception as exc:
-                # A per-store failure (e.g. an unrefreshable Gmail token, #109)
+                # A per-store failure (e.g. an unrefreshable Gmail token)
                 # must still produce its own log entry — never silently drop
                 # out of the loop before _append_log/_last_run_at run below,
                 # or the Settings pane's log and next-check ETA go stale with no

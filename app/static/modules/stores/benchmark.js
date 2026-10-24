@@ -1,4 +1,4 @@
-// Prices: the Benchmark sheet (#257) the glance card's footer row opens — the
+// Prices: the Benchmark sheet the glance card's footer row opens — the
 // latest run's status and how to refresh it, the plan actions, and the cost
 // breakdown behind the glance figure (goods, delivery, per store, the
 // baseline, the items without a price). Its one primary imports the latest run.
@@ -74,7 +74,7 @@ function reviewDue() {
 }
 
 // What the latest run says about itself, for the glance's Benchmark row and
-// Home's Prices row (#260): a review due is the exception that earns the
+// Home's Prices row: a review due is the exception that earns the
 // attention tone.
 export function reviewValue() {
   const m = local.meta;
@@ -84,7 +84,7 @@ export function reviewValue() {
 
 // The run as label/value rows (design.md "editor modal" body rows), then the
 // last import's result. The benchmark itself runs in Claude Code (it needs
-// your quality-spec confirmation), never from here (#165).
+// your quality-spec confirmation), never from here.
 function runMarkup() {
   const m = local.meta;
   const note = local.note;
@@ -123,7 +123,7 @@ function planMarkup() {
     </div>`;
 }
 
-// The baseline (#183) is "active" once set and still tied to the latest run;
+// The baseline is "active" once set and still tied to the latest run;
 // a stale one (an older run superseded it) reads as not set — the household
 // sets a fresh one instead of resurrecting a dropped run's stores.
 function activeBaseline() {
@@ -140,7 +140,7 @@ function todayHint() {
   return `Today = your stores when prices were benchmarked (${esc(local.sim?.run_date || "")}).${stale}`;
 }
 
-// Target-0 items aren't bought, so the simulator leaves them out of both sides (#178).
+// Target-0 items aren't bought, so the simulator leaves them out of both sides.
 function excludedNote() {
   const n = (local.sim?.excluded || []).length;
   return n ? ` ${n} item${n === 1 ? "" : "s"} with target 0 ${n === 1 ? "is" : "are"} left out of both.` : "";
