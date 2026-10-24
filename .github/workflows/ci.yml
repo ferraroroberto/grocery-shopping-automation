@@ -86,8 +86,8 @@ jobs:
           }
 
       - name: Unit suite
-        # ADAPT: the repo's non-browser test command. The e2e tests live in one
-        # file marked `e2e`, so the split is by marker, not by directory. The
+        # ADAPT: the repo's non-browser test command. The e2e tests live under
+        # tests/e2e/ and carry the `e2e` marker, so the split is by marker. The
         # smoke_*.py and automation_smoke_*.py scripts that drive a real store
         # are not named test_*.py, so pytest never collects them.
         run: .\.venv\Scripts\python.exe -m pytest -m "not e2e"
@@ -97,7 +97,7 @@ jobs:
         # launches its own browsers (chromium for the pages, webkit with an
         # iPhone 13 profile for the phone nav check), so there are no
         # pytest-playwright flags. A failing test writes a screenshot to
-        # test-results/ (tests/conftest.py), uploaded below only on failure.
+        # test-results/ (tests/e2e/conftest.py), uploaded below only on failure.
         # There is no separate phone step: the phone checks are inside this
         # suite. ADAPT: the e2e selection.
         run: .\.venv\Scripts\python.exe -m pytest -m e2e

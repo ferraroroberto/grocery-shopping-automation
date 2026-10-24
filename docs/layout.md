@@ -12,7 +12,7 @@ Where new code goes. The structure ratchet (`scripts/structure_ratchet.py`, run 
 
 - `app/` — UI layer. `api.py` composes the FastAPI app; `routers/` holds one `APIRouter` per concern; `tray/` is the Windows tray and its single-instance primitive; `static/` is the PWA (`modules/` the ES modules, `_vendored/` the fleet components). The legacy Streamlit modes (`app.py`, `audit.py`, `shopping.py`, and the other per-mode files) sit beside `api.py`.
 - `src/` — UI-free data and business logic. `store_links/` is the per-store links, picks and cost simulator, one module per concern; `notify/` is the vendored notification primitive; every other module is one concern (`data.py`, `webapp_config.py`, `certs.py`).
-- `tests/` — the pytest suite. `e2e/` holds the vendored browser-test helpers and `fixtures/` the test data; the `test_*.py` files stay flat.
+- `tests/` — the pytest suite. `e2e/` holds the Playwright stories, one `test_<story>.py` per area, with their shared fixtures and the vendored browser-test helpers; `fixtures/` holds the test data; the other `test_*.py` files stay flat.
 - `docs/` — durable reference by topic, indexed in the README.
 - `scripts/` — the pre-ship gate, its ratchet wrappers and the vendored ratchets, plus the one-shot tools (token, password, icons, tunnel) and the design-review demo instance.
 - `config/` — committed config templates and the alias and product-option tables.

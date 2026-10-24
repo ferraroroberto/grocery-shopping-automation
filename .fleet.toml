@@ -264,7 +264,7 @@ synthetic = false
 # (tests/e2e/_surface.py, vendored). It boots its own in-thread uvicorn on
 # invented fixtures, so there is no live-app guard flag to pass.
 [design.review.e2e]
-command = ["-m", "pytest", "tests/test_e2e_pwa.py"]
+command = ["-m", "pytest", "tests/e2e"]
 
 # --- the synthetic instance (#251) ---------------------------------------
 # scripts/design_review_synthetic.py boots a throwaway copy of this checkout on

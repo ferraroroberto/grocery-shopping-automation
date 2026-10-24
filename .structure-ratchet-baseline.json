@@ -1,7 +1,7 @@
 {
   "version": 1,
   "entries": [
-    {"key": "dir:tests", "modules": 63},
+    {"key": "dir:tests", "modules": 62},
     {"key": "fn:app/audio_audit.py:_render_record", "lines": 121},
     {"key": "fn:app/audio_audit.py:_render_review", "lines": 147},
     {"key": "fn:app/edit_item.py:main", "lines": 120},
@@ -11,10 +11,6 @@
     {"key": "fn:automation/carrefour.py:add_to_cart", "lines": 107},
     {"key": "fn:automation/email_check.py:check_latest_confirmation", "lines": 110},
     {"key": "fn:benchmark/report.py:render", "lines": 193},
-    {"key": "fn:tests/test_e2e_pwa.py:test_four_tab_nav_and_relocated_sections", "lines": 203},
-    {"key": "fn:tests/test_e2e_pwa.py:test_item_sheet_opens_everywhere_edits_and_deletes", "lines": 123},
-    {"key": "fn:tests/test_e2e_pwa.py:test_stores_plan_simulate_and_apply", "lines": 266},
-    {"key": "size:app/static/styles.css", "lines": 1109},
-    {"key": "size:tests/test_e2e_pwa.py", "lines": 2220}
+    {"key": "size:app/static/styles.css", "lines": 1109}
   ]
 }

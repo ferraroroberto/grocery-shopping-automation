@@ -236,7 +236,7 @@ orchestration recipe + Sonnet research-agent prompt"]
   SCAFFOLD --> GENICONS
 
   subgraph tests["tests/ — pytest suite + smoke scripts"]
-    TESTFILES["test_api.py · test_e2e_pwa.py (Playwright e2e) ·\ntest_inventory_extract.py · test_audit_resolve.py ·\ntest_transcribe_client.py · test_audio_audit_core.py ·\ntest_benchmark_*.py · test_store_links.py · smoke_*.py · automation_smoke_*.py"]
+    TESTFILES["test_api.py · tests/e2e/ (Playwright e2e) ·\ntest_inventory_extract.py · test_audit_resolve.py ·\ntest_transcribe_client.py · test_audio_audit_core.py ·\ntest_benchmark_*.py · test_store_links.py · smoke_*.py · automation_smoke_*.py"]
   end
   TESTFILES --> API
   TESTFILES --> ROUTERS
