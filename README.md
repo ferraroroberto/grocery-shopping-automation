@@ -26,7 +26,7 @@ Open `http://127.0.0.1:8502` (or `https://` once a cert exists in `certificates/
 & .\.venv\Scripts\python.exe -m pytest
 ```
 
-Unit + FastAPI `TestClient` + a Playwright e2e that drives the real buttons. The whole pre-ship gate (pytest, then the static, docs, comment, structure and instruction ratchets) is `& .\scripts\verify-before-ship.ps1`. Details: [docs/testing.md](docs/testing.md). Where new code goes, and what the structure ratchet holds: [docs/layout.md](docs/layout.md).
+Unit + FastAPI `TestClient` + a Playwright e2e that drives the real buttons. The whole pre-ship gate (pytest, then the static, docs, comment, structure, instruction and doc-refs ratchets) is `& .\scripts\verify-before-ship.ps1`. Details: [docs/testing.md](docs/testing.md). Where new code goes, and what the structure ratchet holds: [docs/layout.md](docs/layout.md).
 
 ## Typical workflow
 

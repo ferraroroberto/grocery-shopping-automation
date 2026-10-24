@@ -38,6 +38,12 @@
                          instruction file passes its size cap. A file that cannot be linted
                          (exit 3) fails as NOT CONFIRMED. Not path-routed: one file's reader
                          depends on another (AGENTS.md pointing at CLAUDE.md).
+      7. doc-refs ratchet - scripts/doc_refs_ratchet.py through scripts/doc_refs_ratchet_gate.py:
+                         fails when README.md, CLAUDE.md or docs/**/*.md names a repo path,
+                         python -m module, relative link or loopback port that does not
+                         exist, beyond .doc-refs-ratchet-baseline.json. A scan that cannot
+                         complete (exit 3) fails as NOT CONFIRMED. Not path-routed: a code
+                         change can strand a doc reference without touching the doc.
 
     Anchors to the repo root, so run it from anywhere:  & .\scripts\verify-before-ship.ps1
 #>
@@ -72,6 +78,7 @@ Invoke-Stage "docs ratchet"    { & $py -m scripts.docs_ratchet_gate }
 Invoke-Stage "comment ratchet" { & $py -m scripts.comment_ratchet_gate }
 Invoke-Stage "structure ratchet" { & $py -m scripts.structure_ratchet_gate }
 Invoke-Stage "instruction ratchet" { & $py -m scripts.instruction_ratchet_gate }
+Invoke-Stage "doc-refs ratchet" { & $py -m scripts.doc_refs_ratchet_gate }
 
 Write-Host ""
 Write-Host "[PASS] verify-before-ship" -ForegroundColor Green
