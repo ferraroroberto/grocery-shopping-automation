@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Overrides store (#165) — format in the package docstring
+# Overrides store — format in the package docstring
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -71,7 +71,7 @@ def _update_overrides(base: Optional[Path], change: Callable[[dict[str, dict]], 
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Monthly cost what-if baseline (#183) — format in the package docstring
+# Monthly cost what-if baseline — format in the package docstring
 # ─────────────────────────────────────────────────────────────────────────────
 
 

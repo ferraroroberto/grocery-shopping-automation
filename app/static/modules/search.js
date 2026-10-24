@@ -1,5 +1,5 @@
-// On-demand product search (issue #87) — the "Find a store product" section at
-// the top of the Add item sheet (add-sheet.js, #256; it was the Search tab,
+// On-demand product search — the "Find a store product" section at
+// the top of the Add item sheet (add-sheet.js; it was the Search tab,
 // then the top of Items → Add item).
 //
 // Speak or type a product (Spanish — the stores are); search every store; the
@@ -38,7 +38,7 @@ const FAILURE_COPY = {
 };
 
 // Before /start returns, the server is still reading the text (an LLM call) —
-// say so rather than claim the stores are being searched (issue #211).
+// say so rather than claim the stores are being searched.
 function searchStage(elapsed) {
   const t = formatElapsed(elapsed);
   return search.pendingStart ? `Reading “${search.term}”… (${t})` : `Starting the search… (${t})`;
@@ -93,7 +93,7 @@ function renderSearchResults() {
   const wrap = document.querySelector("#search-results");
   if (!wrap) return;
   const s = search;
-  // Each store's cards and state show as soon as it reports (issue #211), so
+  // Each store's cards and state show as soon as it reports, so
   // only a run with nothing reported yet renders empty.
   const anyReported = s.items.some((i) => (i.stores || []).length || (i.candidates || []).length);
   if (s.running && !anyReported) { wrap.replaceChildren(); return; }
@@ -102,7 +102,7 @@ function renderSearchResults() {
 
 function searchItemGroup(item) {
   const cands = item.candidates || [];
-  // The header names exactly what was looked up (issue #214); a matched row is
+  // The header names exactly what was looked up; a matched row is
   // only a hint — the query is never that row's name.
   const matched = item.inventory_idx != null;
   const tag = matched ? "" : chip("New");
@@ -127,7 +127,7 @@ function searchItemGroup(item) {
 }
 
 // One line per store: waiting for the browser / searching / N results /
-// no results / couldn't search (issue #211). Older payloads without `stores`
+// no results / couldn't search. Older payloads without `stores`
 // fall back to naming the stores in `store_errors`.
 function storeStates(item, stores) {
   const rows = stores.length
@@ -152,7 +152,7 @@ function candidateKey(term, productUrl) {
 }
 
 // The staged confirm row under a tapped candidate for an item already on the
-// list: zone combo + present/target quantities (issue #92) — supermarket and
+// list: zone combo + present/target quantities — supermarket and
 // URL come from the candidate itself.
 function candidateConfirmPanel() {
   const d = search.draft || { lugar: "", tenemos: 0, cantidad: 1 };
@@ -280,7 +280,7 @@ function startSearchPoll() {
   const tick = async () => {
     renderSearchStatus();
     // Until /start returns, /status still describes the PREVIOUS run — applying
-    // it would resurrect the old term's results under the new search (issue #92).
+    // it would resurrect the old term's results under the new search.
     if (search.pendingStart) return;
     const status = await fetchJson("/api/product-search/status").catch(() => null);
     if (status) applySearchStatus(status);

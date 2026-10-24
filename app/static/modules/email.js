@@ -1,7 +1,6 @@
-// Email watch (issue #73) — a Settings row and its sheet (#261; a folded card
-// until then, moved from the retired Auto tab in #182).
+// Email watch — a Settings row and its sheet.
 //
-// Server-side poller over the #72 confirmation-email check: the sheet selects
+// Server-side poller over the confirmation-email check: the sheet selects
 // which monitored senders (each mapped to a store) are active, sets the poll
 // cadence, and shows the last-check log. "Test last email" re-processes the
 // newest confirmation even if already seen — the end-to-end dry run. Every

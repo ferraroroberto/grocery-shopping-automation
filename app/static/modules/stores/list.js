@@ -24,7 +24,7 @@ function storesInUse() {
   return new Set((state.payload?.items || []).map(currentStore).filter(Boolean));
 }
 
-// "Only items I buy" (#172): a target of 0 keeps the item in the list but it
+// "Only items I buy": a target of 0 keeps the item in the list but it
 // is never ordered, so it is noise when reviewing where things are bought.
 function inScope(item) {
   return !local.targetOnly || Number(item[c().cantidad]) > 0;
@@ -58,7 +58,7 @@ export function flagLabel(flag) {
   return FLAG_LABELS[flag]?.[0] || flag;
 }
 
-// The reason a row needs checking, as the attention status chip (#254). A
+// The reason a row needs checking, as the attention status chip. A
 // checked row is the normal state: no chip (success is never one) — the
 // Checked filter still lists them.
 function reviewBadge(item) {
@@ -71,7 +71,7 @@ function reviewBadge(item) {
   };
 }
 
-// One Prices row (#257) on the shared item row: a tap opens the item sheet on
+// One Prices row on the shared item row: a tap opens the item sheet on
 // Stores & prices (it replaced the pencil), the what-if picker is the one
 // trailing item, and the store links wrap under it as reference pills.
 function rowMarkup(item, inUse = storesInUse()) {
@@ -92,7 +92,7 @@ function rowMarkup(item, inUse = storesInUse()) {
         `<option value="${esc(key)}"${key === pick ? " selected" : ""}>${esc(storeName(key))}${key === today ? " (in list)" : ""}</option>`).join("")}</select>`
     : "";
   // The picked store leads, then the cheapest (LAYOUT-03, accepted in
-  // .fleet.toml — issue #194: one-tap product links per store are how the
+  // .fleet.toml: one-tap product links per store are how the
   // list is used, so each pill opens that store's product page).
   const rank = ([key]) => (key === pick ? -1 : prices[key] ?? Number.MAX_VALUE);
   const chips = Object.entries(urls).sort((a, b) => rank(a) - rank(b)).map(([key, url]) => {
@@ -131,9 +131,9 @@ function filterMarkup() {
   }).join("")}</div>`;
 }
 
-// Store (#170): one toggle per store the list buys from, with its item count
-// over the whole list — or, with "Only items I buy" on, over the items bought
-// (#172), so the count matches the rows. Several can be on at once; none on =
+// Store: one toggle per store the list buys from, with its item count
+// over the whole list — or, with "Only items I buy" on, over the items bought,
+// so the count matches the rows. Several can be on at once; none on =
 // every store. Composes with the status pills and the search box.
 function storeFilterMarkup(inUse = storesInUse()) {
   const counts = {};

@@ -26,7 +26,7 @@ logger = logging.getLogger("email_poller")
 @asynccontextmanager
 async def _lifespan(_: FastAPI):
     # The poller is opt-in per process: only the tray sets EMAIL_POLLER_ENV, so a
-    # worktree, fixture or dev instance never reads the real mailbox (#301). The
+    # worktree, fixture or dev instance never reads the real mailbox. The
     # pytest guard stays on top — a test run must never trigger a live Gmail
     # check, even with the flag inherited.
     if "PYTEST_CURRENT_TEST" in os.environ:

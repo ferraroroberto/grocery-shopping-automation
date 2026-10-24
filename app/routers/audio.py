@@ -35,7 +35,7 @@ class MatchPayload(BaseModel):
 class ApplyPayload(BaseModel):
     updates: dict[int, int]
     # The item name the client showed for each id; one row that no longer matches
-    # refuses the whole batch (#313). Ids without a name go through unchecked.
+    # refuses the whole batch. Ids without a name go through unchecked.
     names: dict[int, str] = {}
     # Optional traceability context, sent by the PWA so the apply step can write
     # the same audit log the Streamlit app produced. All optional — a bare
@@ -69,7 +69,7 @@ def audio_health() -> dict[str, Any]:
         "voice_url": url,
         # Best-effort: which host local-llm-hub actually has whisper running on
         # right now, only worth asking when the hub itself is up but the direct
-        # port isn't — see whisper_host_hint's docstring (#138).
+        # port isn't — see whisper_host_hint's docstring.
         "whisper_host": (
             whisper_host_hint(cfg["llm_base_url"], cfg["whisper_model"])
             if hub_ok and not whisper_ok

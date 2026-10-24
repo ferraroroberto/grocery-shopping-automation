@@ -1,4 +1,4 @@
-// The item sheet (#255): one home for an item's facts, opened from every row
+// The item sheet: one home for an item's facts, opened from every row
 // that shows an item (design.md "editor modal", the detail sheet). The main
 // page holds the in-stock and target steppers, then link rows (design.md
 // "settings group": glyph, label, muted value, chevron) to pages of the same
@@ -29,7 +29,7 @@ const FIELDS = ["comida", "lugar", "super", "buscador", "cantidad", "tenemos"];
 const NUMBERS = new Set(["cantidad", "tenemos"]);
 const STEPPER_FIELD = { current: "tenemos", target: "cantidad" };
 
-// The link rows, in the spec's order (#252); Name is last, as in the fleet's
+// The link rows, in the spec's order; Name is last, as in the fleet's
 // other sheets, since it keeps the old Edit item's rename reachable.
 const PAGES = [
   { page: "zone", glyph: "map-pin", label: "Zone" },
@@ -43,7 +43,7 @@ const PAGES = [
 const PAGE_TITLE = Object.fromEntries(PAGES.map(({ page, label }) => [page, label]));
 
 // `name` is the item as opened: a reload under the open sheet must not
-// re-aim its writes at whatever row now holds this id (#293).
+// re-aim its writes at whatever row now holds this id.
 const sheet = { id: null, name: "", page: "main", draft: {} };
 
 function item() {
@@ -113,7 +113,7 @@ function pagesMarkup() {
 }
 
 // The four field pages, filled from the sheet's values each time it opens.
-// Zone and Store are the Add item pickers (#241): the sheet's values, plus a
+// Zone and Store are the Add item pickers: the sheet's values, plus a
 // "New…" escape for a first-time one.
 function paintFieldPages() {
   const d = dialog();
@@ -154,7 +154,7 @@ function buyLinkValue() {
 }
 
 // The buy link as a page to open: only a real http(s) URL qualifies — a blank
-// cell or a plain search term (some rows hold one) has nothing to open (#264).
+// cell or a plain search term (some rows hold one) has nothing to open.
 function openableUrl(raw) {
   try {
     const url = new URL(raw.trim());
@@ -213,7 +213,7 @@ function paintTitle() {
     sheet.page === "main" ? text(value("comida")) : PAGE_TITLE[sheet.page];
 }
 
-// One page at a time (home-automation's unit sheet, #881): a link row opens
+// One page at a time (home-automation's unit sheet): a link row opens
 // its page, whose header then names it and carries Back.
 function showPage(page) {
   const d = dialog();

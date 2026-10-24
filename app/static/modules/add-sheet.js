@@ -1,4 +1,4 @@
-// The Add item sheet (#256): Items' list opens it from its Add item button.
+// The Add item sheet: Items' list opens it from its Add item button.
 // The store product search comes first (search.js renders into
 // #product-search; a picked new product pre-fills the form below it), then
 // adding by hand. The sheet's one primary submits that form with the same
@@ -28,7 +28,7 @@ import { dialogShell, setDialogStatus } from "./stores/dialog.js";
 const SHEET_ID = "add-sheet";
 
 // A visible caption above a form input (wrapping <label>, so the name is
-// programmatic too) — placeholders alone vanish once the box holds a value (#213).
+// programmatic too) — placeholders alone vanish once the box holds a value.
 const labelled = (caption, input) => `<label class="field-label">${caption}${input}</label>`;
 
 function dialog() {

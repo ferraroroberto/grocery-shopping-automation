@@ -1,9 +1,9 @@
-// Settings (#261, #252 decision 10): inset groups under overline headers
+// Settings: inset groups under overline headers
 // (design.md "settings group") — Display, Stores, Data — every row showing its
 // value. Store logins opens its sheet here; Email watch is email.js's sheet;
 // the Data rows act on tap.
 //
-// The login check (#217) reports into its sheet, one row per store, never the
+// The login check reports into its sheet, one row per store, never the
 // error toast: a logged-out store is an exception (an attention chip), not a
 // failure of the command (COLOR-02). The last result is kept on the device, so
 // the row's value survives a reload.
@@ -50,7 +50,7 @@ export async function copyLink() {
 }
 
 // Fetched, not navigated to: a navigation carries no bearer token, so off the PC
-// it landed on a 401 page (#293).
+// it landed on a 401 page.
 export async function exportCsv() {
   try {
     const url = URL.createObjectURL(await fetchBlob("/api/export.csv"));
@@ -141,7 +141,7 @@ function paintLogins() {
     </div>`;
 }
 
-// Read-only (#217): a Chrome window opens briefly, no cart is touched.
+// Read-only: a Chrome window opens briefly, no cart is touched.
 function checkLogins() {
   const d = loginsSheet();
   checking = true;

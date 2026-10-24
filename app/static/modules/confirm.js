@@ -1,4 +1,4 @@
-// The confirm sheet (#254): the vendored modal shell asking one yes/no
+// The confirm sheet: the vendored modal shell asking one yes/no
 // question, in place of the browser's confirm(), which ignores the theme, the
 // type scale and the button tiers (design.md "editor modal"). One <dialog> at
 // <body> level, built on first use; the × close and Esc answer no.

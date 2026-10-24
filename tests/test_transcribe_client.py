@@ -5,6 +5,7 @@ import subprocess
 
 import pytest
 
+from src.no_window import NO_WINDOW
 from src.transcribe_client import transcode_to_wav, transcribe
 
 _FFMPEG = shutil.which("ffmpeg")
@@ -59,6 +60,7 @@ def test_transcode_to_wav_produces_riff(tmp_path):
          "-f", "lavfi", "-i", "sine=frequency=440:duration=0.3",
          "-ar", "44100", "-ac", "2", str(src)],
         check=True,
+        creationflags=NO_WINDOW,
     )
     out = transcode_to_wav(src.read_bytes())
     assert out[:4] == b"RIFF" and out[8:12] == b"WAVE"

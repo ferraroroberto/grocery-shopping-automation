@@ -1,5 +1,5 @@
 // Prices: loading the benchmark meta + review checks, the debounced what-if
-// simulation, and the glance card it paints (#257) — am I on the cheapest
+// simulation, and the glance card it paints — am I on the cheapest
 // plan? The monthly cost and its delta, the ordering frequency, the one
 // action, and a footer row to the Benchmark sheet (benchmark.js), which holds
 // the breakdown behind the figure.

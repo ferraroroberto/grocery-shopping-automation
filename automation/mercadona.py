@@ -63,14 +63,14 @@ SELECTORS = {
     # "Tienes cambios sin guardar en tu pedido" modal — "Más tarde" dismisses
     # it without touching the cart (keeps the existing order intact).
     "unsaved_modal_dismiss": ".ui-modal button:has-text('Más tarde')",
-    # ── Cart-panel selectors (clean mode, issue #19) ─────────────────────────
+    # ── Cart-panel selectors (clean mode) ─────────────────────────
     # The cart contents are not enumerable from a product page, so emptying the
     # cart means opening the side cart and driving each line down to zero.
     # `cart_button` opens the side cart drawer. The decrease control MUST be
     # scoped to `cart-product-cell`: the home page also renders ~50 hidden
     # carousel/product-detail pickers reusing `button-picker-decrease`, and an
     # unscoped `.first` resolves to one of those (display:none → click never
-    # becomes actionable). Verified live 2026-06-03 (issue #19).
+    # becomes actionable). Verified live 2026-06-03.
     "cart_button": "button[data-testid='cart-button']",
     "cart_line_decrease": (
         "[data-testid='cart-product-cell'] "
@@ -252,7 +252,7 @@ def add_to_cart(page: Page, item: CartItem) -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Whole-cart helpers (run-level before/after snapshot + clean mode, issue #19).
+# Whole-cart helpers (run-level before/after snapshot + clean mode).
 # ─────────────────────────────────────────────────────────────────────────────
 
 # How many decrement clicks to attempt before giving up on emptying the cart —
@@ -276,8 +276,8 @@ def read_cart_total(page: Page) -> int:
     return _read_cart_badge(page)
 
 
-# The cart JSON the storefront home GETs on every load (seen live 2026-10-09,
-# issue #247) — read from the page's own response, so no auth is re-implemented.
+# The cart JSON the storefront home GETs on every load (seen live 2026-10-09) —
+# read from the page's own response, so no auth is re-implemented.
 _CART_API_RE = re.compile(r"/api/customers/[^/]+/cart/$")
 _CART_RESPONSE_TIMEOUT_MS = 20000
 

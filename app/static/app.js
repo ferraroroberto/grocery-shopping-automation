@@ -67,11 +67,11 @@ import {
 import { loadMeta } from "./modules/stores/simulator.js";
 import { itemById } from "./modules/stores/state.js";
 
-// Page-header context lines (#254, design.md "page header"): the exception
+// Page-header context lines (design.md "page header"): the exception
 // that needs you, in its tone, else the plain fact — never the mode name the
 // segmented control already shows. Home's names the last fill's misses, else
-// when you last counted (#260). The Shop tab also carries a badge while the
-// last fill's misses are unseen (#258, #252 decision 11). A late read that
+// when you last counted. The Shop tab also carries a badge while the
+// last fill's misses are unseen. A late read that
 // changes one of these also refills Home's This week rows.
 function updatePageHeaderContexts() {
   if (!state.payload) return;
@@ -113,7 +113,7 @@ function render() {
   if (state.mode === "settings") renderSettings();
   if (state.mode === "stores") {
     // A full render() (as opposed to the search-only repaintStoresList() used
-    // for keystrokes, #193) rebuilds the pane body from scratch, detaching
+    // for keystrokes) rebuilds the pane body from scratch, detaching
     // the toolbar from its slot — capture focus/caret first so it can be
     // restored below if the search was mid-edit.
     const hadFocus = document.activeElement === el.search;
@@ -147,7 +147,7 @@ function render() {
 setRenderer(render);
 
 // ---------------------------------------------------------------- settings
-// Settings is never a tab (design.md "Navigation", #200): every pane's header
+// Settings is never a tab (design.md "Navigation"): every pane's header
 // carries a gear that opens #pane-settings over whichever tab is showing. The
 // nav only knows its own tab panes, so opening hides them here and leaves no
 // tab selected; a tap on any tab (or on the gear again) comes back.
@@ -155,7 +155,7 @@ const settingsPane = document.querySelector("#pane-settings");
 let nav = null;
 let settingsReturnTab = "inventory";
 
-// Local usage log (#276, vendored usage-log): which views and `data-track`
+// Local usage log (vendored usage-log): which views and `data-track`
 // controls get used, on which device class — posted to this app's own origin
 // only. The API sits behind the bearer token off loopback, so the token rides
 // as a header (never a wrapped fetch). Nothing but constant ids is recorded.
@@ -188,7 +188,7 @@ function closeSettings() {
   nav.setTab(settingsReturnTab);
 }
 
-// Voice's "Needs you" → Manual (#259): a mention no item matched opens Manual
+// Voice's "Needs you" → Manual: a mention no item matched opens Manual
 // searching every zone for what was heard, where one stepper tap fixes it.
 // The match results wait on Voice, as they were left.
 function findInManual(phrase) {
@@ -218,7 +218,7 @@ function onTabChange(tab) {
   render();
 }
 
-// A This week row (#260) opens the tab that owns its fact, on the segment
+// A This week row opens the tab that owns its fact, on the segment
 // that shows it: the Audit row on Voice, the Prices row on Prices.
 function openWeekRow(mode) {
   saveSubMode(mode);
@@ -236,7 +236,7 @@ function applyTheme(theme) {
   localStorage.setItem(THEME_KEY, theme);
   // The button holds both sprite glyphs; CSS shows the one for the *action*
   // keyed on html[data-theme] — no JS glyph swap. Every pane's page header
-  // carries its own toggle (#153 J-04), so update all of them, not just one.
+  // carries its own toggle, so update all of them, not just one.
   const title = theme === "dark" ? "Switch to light mode" : "Switch to dark mode";
   document.querySelectorAll(".theme-toggle").forEach((button) => { button.title = title; });
 }
@@ -263,7 +263,7 @@ el.app.addEventListener("click", (event) => {
   else openSettings();
 });
 
-// Theme toggle: one per pane's page header (#153 J-04), so the id lives only
+// Theme toggle: one per pane's page header, so the id lives only
 // on Home's for back-compat — delegate on the shared class instead.
 el.app.addEventListener("click", (event) => {
   if (event.target.closest(".theme-toggle")) toggleTheme();
@@ -295,13 +295,13 @@ el.app.addEventListener("click", async (event) => {
   const url = (path) => itemUrl(id, itemById(id)?.[c().comida], path);
   if (action === "current-minus") await mutate(url("/current-delta"), { delta: -1 });
   if (action === "current-plus") await mutate(url("/current-delta"), { delta: 1 });
-  // A row tap opens the item sheet (#255), wherever the row is; a Prices row
-  // opens it on Stores & prices (#257).
+  // A row tap opens the item sheet, wherever the row is; a Prices row
+  // opens it on Stores & prices.
   if (action === "open-item") await openItemSheet(id, event.target.closest("[data-sheet-page]")?.dataset.sheetPage);
   if (action === "audio-find") findInManual(event.target.closest("[data-phrase]").dataset.phrase);
   if (action === "mark-buy") { state.shopping.bought.add(id); saveShoppingState(); render(); }
   if (action === "undo-buy") { state.shopping.bought.delete(id); saveShoppingState(); render(); }
-  // A quick-add's Complete; its Remove lives in the store sheet (#258).
+  // A quick-add's Complete; its Remove lives in the store sheet.
   const extraCard = event.target.closest("[data-extra-id]");
   if (extraCard) {
     const store = extraCard.dataset.store;
@@ -356,14 +356,14 @@ el.app.addEventListener("click", async (event) => {
   if (button?.matches("[data-goto]")) openWeekRow(button.dataset.goto);
 });
 
-// Items → Prices: the view owns its data-stores-* hooks (store_links, #148).
+// Items → Prices: the view owns its data-stores-* hooks (store_links).
 el.app.addEventListener("click", onStoresClick);
 el.app.addEventListener("change", onStoresChange);
 
 // ------------------------------------------------------- top-bar controls
 el.search.addEventListener("input", () => {
   state.query = el.search.value.trim().toLowerCase();
-  // Stores mode repaints just the list (#193) — a full render() rebuilds the
+  // Stores mode repaints just the list — a full render() rebuilds the
   // pane and re-homes the toolbar, which drops focus mid-keystroke. Every
   // other mode keeps the old full-render behaviour.
   if (state.mode === "stores") repaintStoresList();
@@ -376,7 +376,7 @@ el.loginDialog.addEventListener("cancel", (event) => event.preventDefault());
 // ------------------------------------------------------------------ boot
 captureTokenFromURL();
 applyTheme(currentTheme());
-// A saved Search/Auto tab (retired in #182) is rewritten to its new home
+// A saved Search/Auto tab (retired) is rewritten to its new home
 // before the nav reads it — otherwise the nav would fall back to Home.
 const retiredReveal = migrateRetiredTab();
 // The nav restores the persisted tab and fires onChange once at init

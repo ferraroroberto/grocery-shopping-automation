@@ -1,5 +1,5 @@
-// The two inventory views: the manual Audit, and Items' list (#256) — every
-// item, grouped by zone; each row opens the item sheet (#255), and the Add
+// The two inventory views: the manual Audit, and Items' list — every
+// item, grouped by zone; each row opens the item sheet, and the Add
 // item sheet (add-sheet.js) adds one. Home's search (home.js) shares the row.
 import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
 import { activePaneBody, c, filteredItems, items, state } from "./core.js";
@@ -35,10 +35,10 @@ function zoneTabs() {
 }
 
 // The manual Audit: the zone's kept items (target above 0), each with ONE
-// in-stock stepper and the target in its meta (#252 decision 3; the target is
+// in-stock stepper and the target in its meta (the target is
 // edited in the item sheet). A search looks in every zone instead, the zone
 // leading the meta — typed, or a mention Voice heard and matched to no item,
-// sent here from "Needs you" (#259).
+// sent here from "Needs you".
 export function renderAudit() {
   const cols = c();
   const kept = items().filter((item) => Number(item[cols.cantidad]) > 0);
@@ -88,7 +88,7 @@ function auditSearch(kept, cols, byName) {
     .map(({ item }) => item);
 }
 
-// Items' list (#256): every item the search lets through, one group per zone
+// Items' list: every item the search lets through, one group per zone
 // in the zones' own order, an overline header over each group's card
 // (design.md "settings group" inset groups), A–Z inside a group.
 export function renderItems() {

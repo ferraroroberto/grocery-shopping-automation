@@ -1,6 +1,6 @@
-// The item sheet's "Fallback if short" page (#284): the store and product link
+// The item sheet's "Fallback if short" page: the store and product link
 // the cart run sends the missing units to when the item's own product comes up
-// short (#283). Two spreadsheet cells, saved together at once like the sheet's
+// short. Two spreadsheet cells, saved together at once like the sheet's
 // store pages; the server owns the rules (a registered store, an http(s) link,
 // not the item's own buy link) and flags a link that isn't a product page.
 import { fetchJson, itemUrl } from "./api.js";

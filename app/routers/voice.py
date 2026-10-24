@@ -22,8 +22,8 @@ router = APIRouter()
 
 
 class VoiceCommandPayload(BaseModel):
-    # intent is decided by HA's deterministic sentence match (home-automation
-    # #315) — the LLM only ever parses items/quantities, never the operation.
+    # intent is decided by HA's deterministic sentence match — the LLM
+    # only ever parses items/quantities, never the operation.
     intent: str = Field(..., pattern="^(add|target|stock|query)$")
     text: str = ""
     model: str | None = None

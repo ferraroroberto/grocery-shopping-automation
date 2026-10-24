@@ -1,4 +1,4 @@
-// The one item row (#254): every list that shows an inventory item draws it
+// The one item row: every list that shows an inventory item draws it
 // here, on the vendored action-row (design.md "action-row", "One renderer").
 // A row is an optional leading check, the name with one muted line, and one
 // trailing item — a stepper, a value or a link. Tapping the row opens the
@@ -11,10 +11,10 @@ import { chip, esc, html, icon } from "./dom.js";
 // exception only. `trail`: the markup of the one trailing item (stepper(),
 // rowValue(), rowLink(), a picker). `attrs`: the row's data-*
 // hooks. `open: false` keeps the row inert (a free-text quick-add has no item
-// to open). Optional, for Prices (#257): `page`, the item sheet page a row tap
+// to open). Optional, for Prices: `page`, the item sheet page a row tap
 // opens; `className`, an extra class on the row; `after`, a full-width line
 // under the row (the store reference pills). Optional, for Audit's "Needs
-// you" (#259): `action`, what a row tap does instead of opening the item sheet.
+// you": `action`, what a row tap does instead of opening the item sheet.
 export function itemRow({ title, meta = "", chip: status = null, lead = null, trail = "", attrs = "", open = true, struck = false, page = "", className = "", after = "", action = "open-item" }) {
   const name = struck ? `<s>${html(title)}</s>` : html(title);
   const metaLine = meta || status
@@ -39,7 +39,7 @@ export function itemList(rows, { bare = false } = {}) {
   return bare ? list : `<div class="card action-list">${list}</div>`;
 }
 
-// The one stepper (#254): − value +, each button a real 44px target, sized so
+// The one stepper: − value +, each button a real 44px target, sized so
 // the row's name keeps its width (design-review J-01/J-10). `kind` is
 // "current" (in stock) or "target"; the actions are app.js's mutate hooks.
 const STEPPER_LABEL = { current: "in stock", target: "target" };

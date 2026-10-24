@@ -37,8 +37,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 # Item ids are row positions, re-numbered on every load, so a client holding
-# the list from before another device's delete would write to the wrong row
-# (#293). Item routes take the item's name and answer 409 with this marker
+# the list from before another device's delete would write to the wrong row.
+# Item routes take the item's name and answer 409 with this marker
 # header when the row at that id is no longer that item.
 STALE_ITEM_HEADER = "X-Inventory-Stale"
 STALE_ITEM_DETAIL = "This list changed on another device; reload and try again."
@@ -106,7 +106,7 @@ def _records_from_frame(df: pd.DataFrame) -> list[dict[str, Any]]:
     indexed_df = df.reset_index(names="id")
     safe_df = indexed_df.astype(object).where(pd.notna(indexed_df), None)
     records = safe_df.to_dict(orient="records")
-    # Per-store product links (#148): {store: url} for every non-empty
+    # Per-store product links: {store: url} for every non-empty
     # `url_<store>` cell, so the UI needn't know the column naming.
     url_cols = store_url_columns(df)
     for record in records:
@@ -120,7 +120,7 @@ def _records_from_frame(df: pd.DataFrame) -> list[dict[str, Any]]:
             store: kind for store, url in record["urls"].items()
             if (kind := link_kind(store, url)) != "product"
         }
-        # The fallback the cart run would use (#283, #284): the shared rule in
+        # The fallback the cart run would use: the shared rule in
         # src.data, so the sheet never shows one the run would ignore.
         pair = fallback_pair(
             record.get(FALLBACK_SUPER_COLUMN), record.get(FALLBACK_URL_COLUMN),

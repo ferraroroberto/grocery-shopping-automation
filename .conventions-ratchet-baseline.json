@@ -1,9 +1,4 @@
 {
   "version": 1,
-  "entries": [
-    {"key": "automation/bootstrap_session.py", "counts": {"no-window": 1}},
-    {"key": "scripts/gen_icons.py", "counts": {"no-drive-path": 1}},
-    {"key": "tests/test_design_review_synthetic.py", "counts": {"no-window": 2}},
-    {"key": "tests/test_transcribe_client.py", "counts": {"no-window": 1}}
-  ]
+  "entries": []
 }

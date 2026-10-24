@@ -30,7 +30,7 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 logger = logging.getLogger(__name__)
 
-# Single shared profile for every store (decided during issue #1 planning).
+# Single shared profile for every store.
 USER_DATA_DIR = Path(__file__).resolve().parent / "chrome_user_data"
 
 # Chrome launch config — disable the flag that automation-aware sites sniff.

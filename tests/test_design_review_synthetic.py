@@ -28,6 +28,7 @@ import pytest
 
 from scripts import synthetic_demo_data as demo_data
 from scripts import synthetic_demo_guard as guard
+from src.no_window import NO_WINDOW
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = REPO_ROOT / "scripts" / "design_review_synthetic.py"
@@ -71,7 +72,8 @@ def instance(tmp_path_factory):
     before = _digest(canary)
     env = {**os.environ, "PYTHONUTF8": "1", "SYNTHETIC_PROTECT_EXTRA": str(canary)}
     proc = subprocess.Popen([sys.executable, str(SCRIPT)], cwd=REPO_ROOT, env=env, stdin=subprocess.PIPE,
-                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8")
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8",
+                            creationflags=NO_WINDOW)
     values: dict[str, str] = {}
     for line in proc.stdout:  # type: ignore[union-attr]
         key, _, value = line.strip().partition("=")
@@ -205,7 +207,8 @@ def _in_guarded_child(snippet: str, tmp_path: Path, protected: Path) -> subproce
     env = {**os.environ, guard.ENV_ROOT: str(root), guard.ENV_PROTECT: str(protected),
            guard.ENV_LOG: str(root / "guard.log"), "PYTHONPATH": str(REPO_ROOT)}
     code = ("from scripts import synthetic_demo_guard as g\ng.install_from_env()\n" + snippet)
-    return subprocess.run([sys.executable, "-c", code], env=env, capture_output=True, text=True, timeout=60)
+    return subprocess.run([sys.executable, "-c", code], env=env, capture_output=True, text=True, timeout=60,
+                          creationflags=NO_WINDOW)
 
 
 @pytest.mark.parametrize("snippet", [

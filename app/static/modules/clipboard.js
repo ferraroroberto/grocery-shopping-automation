@@ -1,4 +1,4 @@
-// Copy-to-clipboard with a textarea + execCommand fallback (issue #339): the
+// Copy-to-clipboard with a textarea + execCommand fallback: the
 // Clipboard API needs a secure context, which the documented plain-HTTP LAN
 // access (`http://<local-ip>:8502`, docs/running-and-access.md) never has, so
 // `navigator.clipboard` is undefined there and a bare `writeText` throws with

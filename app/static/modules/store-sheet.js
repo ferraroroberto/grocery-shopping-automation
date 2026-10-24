@@ -1,10 +1,10 @@
-// The store sheet (#258, #252 decision 6): what a store group keeps out of the
+// The store sheet: what a store group keeps out of the
 // way — the counts already in the cart before you started (the cart offsets),
 // the quick-adds, and Unmark all for the store. Opened by the Store options row
 // at the foot of each group in Shop.
 //
 // A quick-add row shows no Remove at rest (design.md: Delete and Remove are
-// never a visible verb on a row, fleet-config#1420, COMP-15). The Added here
+// never a visible verb on a row, COMP-15). The Added here
 // header carries an explicit Edit toggle; only while it is pressed do the rows
 // grow their Remove. A sheet's one destructive verb does not earn a floating
 // row menu, and removal is trivially undone (re-add from the store group), so

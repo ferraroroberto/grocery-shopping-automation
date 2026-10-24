@@ -157,7 +157,7 @@ def instance_env(root: Path, protected: List[str]) -> Dict[str, str]:
         "TMPDIR": str(scratch), "PYTHONUTF8": "1", "PYTHONDONTWRITEBYTECODE": "1",
         guard.ENV_ROOT: str(root), guard.ENV_PROTECT: os.pathsep.join(protected),
         guard.ENV_LOG: str(root / "guard.log"),
-        # The usage log (#276): the walk's taps land in the instance, never in the real file.
+        # The usage log: the walk's taps land in the instance, never in the real file.
         "GROCERY_SHOPPING_AUTOMATION_DATA_DIR": str(root / "runtime-data"),
     })
     return env

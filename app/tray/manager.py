@@ -207,7 +207,7 @@ class WebappManager:
         )
 
     def start(self, wait: bool = True) -> WebappStatus:
-        # Race-safe adopt-or-spawn (project-scaffolding#39): serialize the
+        # Race-safe adopt-or-spawn: serialize the
         # status()-then-Popen critical section across processes so two trays
         # starting at once cannot both spawn uvicorn. The loser blocks, then
         # re-checks below and adopts the now-listening webapp. cross_process_lock
@@ -228,7 +228,7 @@ class WebappManager:
             env = os.environ.copy()
             env["PYTHONIOENCODING"] = "utf-8"
             env["PYTHONUTF8"] = "1"
-            env[EMAIL_POLLER_ENV] = "1"  # the tray-owned webapp is the one that polls Gmail (#301)
+            env[EMAIL_POLLER_ENV] = "1"  # the tray-owned webapp is the one that polls Gmail
 
             try:
                 popen_kwargs: Dict[str, Any] = dict(

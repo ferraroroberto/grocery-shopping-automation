@@ -1,4 +1,4 @@
-// Cart automation — Shop's carts glance (#258; Fill carts since #182, the
+// Cart automation — Shop's carts glance (Fill carts; the
 // retired Auto tab before that). The glance card leads the tab and answers
 // "are the carts filled?": one row per store on the list with the last fill's
 // outcome, the one Fill carts button, the run's progress and outcome, and the
@@ -11,7 +11,7 @@
 // local to this module; Shop's header, its tab badge and its store groups, and
 // Home's header and Carts row, read the outcome through the exports below.
 //
-// Two more things hang off the last fill (#323): a History row opening the last
+// Two more things hang off the last fill: a History row opening the last
 // ten fill days, and Mark purchase done, which clears the latest fill's red
 // state everywhere at once. The mark lives server-side next to the run records
 // (GET /api/automation/fills says `cleared`), so every device sees it.
@@ -56,7 +56,7 @@ function host() {
 
 // ------------------------------------------------------------ store names
 // The list holds the store as typed in the sheet; the registry key it
-// lower-cased. Never show the key (#252 decision 5).
+// lower-cased. Never show the key.
 function storeKey(store) {
   return String(store ?? "").trim().toLowerCase();
 }
@@ -114,7 +114,7 @@ function seenRun() {
   }
 }
 
-// The Shop tab badge (#252 decision 11): the last fill's misses until Shop has
+// The Shop tab badge: the last fill's misses until Shop has
 // been seen since that fill. Seeing Shop is what clears it, so this marks the
 // fill seen whenever Shop is the open tab.
 export function unseenFillMisses() {
@@ -243,7 +243,7 @@ function fillDateText() {
   return `Last fill ${fillDay(fills.last.date)}${fills.cleared ? " · done" : ""}`;
 }
 
-// Home's Carts row (#260): the last fill's worst outcome, in its tone, else
+// Home's Carts row: the last fill's worst outcome, in its tone, else
 // when it ran; a dash until the run records have been read.
 export function lastFillValue() {
   if (!fills.loaded) return { text: "–" };
@@ -332,7 +332,7 @@ function paintOptions() {
     </section>`;
 }
 
-// "What will run", in words — never the interpreter command line (#252 decision 5).
+// "What will run", in words — never the interpreter command line.
 function planText() {
   const stores = listStores().filter(({ store }) => picks.store === "all" || storeKey(store) === storeKey(picks.store));
   if (!stores.length) return "Nothing on the list to fill.";
@@ -529,7 +529,7 @@ function applyAutomationStatus(status) {
       || ["error", `Fill carts stopped with code ${status.returncode}. See the run log.`];
     elapsed.className = `panel-status ${tone}`;
     elapsed.textContent = text;
-    // The run's own end-of-run summary (#247), lifted out of the long log so a
+    // The run's own end-of-run summary, lifted out of the long log so a
     // miss is in front of the user, not scrolled away.
     const lines = status.lines || [];
     const at = lines.lastIndexOf(SUMMARY_HEADER);
@@ -541,7 +541,7 @@ function applyAutomationStatus(status) {
   paintCarts();
 }
 
-// Exit codes from automation/run_automation.py (#247): 0 every item verified in
+// Exit codes from automation/run_automation.py: 0 every item verified in
 // the cart, 1 some item is NOT in the cart, 3 added but the cart couldn't be read.
 const RUN_OUTCOME = {
   0: ["ok", "Every item is verified in the cart. Review and pay in the browser."],
@@ -593,7 +593,7 @@ function connectAutomationEvents() {
 export async function startAutomation() {
   // A 409 ("already running" — another device started a run, or a double
   // tap) or a 500 from start_run must not leave `startedAt` set with nothing
-  // actually running (issue #339), so it is set only once the start succeeds.
+  // actually running, so it is set only once the start succeeds.
   try {
     const status = await fetchJson("/api/automation/start", {
       method: "POST",

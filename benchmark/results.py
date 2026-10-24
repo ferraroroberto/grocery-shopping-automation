@@ -60,7 +60,7 @@ MATCHED = {"exact", "equivalent"}
 CONFIDENCE = {"high", "medium", "low"}
 DELIVERS = {"yes", "no", "unknown"}
 
-# The store registry (issue #156's ``product_url_pattern``) is the single
+# The store registry (its ``product_url_pattern``) is the single
 # source of truth for what a store's real product-page URL looks like —
 # src.store_links.link_kind() checks the same field. Read directly (like
 # benchmark/report.py already does) rather than importing src, which would
