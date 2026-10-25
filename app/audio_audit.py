@@ -286,22 +286,7 @@ def _write_audit_log(
     )
 
 
-def _render_record(df: pd.DataFrame, cfg: Dict) -> None:
-    st.markdown(
-        "**How to record (in Spanish):** announce the zone, then the items. "
-        "E.g. *\"ahora en la nevera, dos yogures, un litro de leche, "
-        "ningún queso… ahora en el congelador, tres salmones…\"*"
-    )
-    st.caption(f"Recognised zones: {', '.join(ZONE_KEYWORDS)}")
-
-    with st.expander("ℹ️ Quick tips", expanded=False):
-        st.markdown(
-            "- Use explicit numbers (*dos*, *tres*). Avoid *algunos* / *varios*.\n"
-            "- To zero an item, say *cero* or *ninguno*.\n"
-            "- Switch zone out loud: *\"ahora paso a la despensa\"*.\n"
-            "- A 2–3 minute clip is enough for the whole house."
-        )
-
+def _render_zone_lists(df: pd.DataFrame) -> None:
     tracked = df[df[COLUMNS["cantidad"]] > 0]
     zones_in_df = sorted(tracked[COLUMNS["lugar"]].dropna().astype(str).unique(), key=str.lower)
     if zones_in_df:
@@ -317,18 +302,8 @@ def _render_record(df: pd.DataFrame, cfg: Dict) -> None:
             with st.expander(f"{zone.title()} ({len(items)})", expanded=False):
                 st.markdown("\n".join(f"- {it}" for it in items))
 
-    audio_input = st.audio_input(
-        "🎙️ Record walk",
-        key="audio_audit_recorder",
-        help="Works on mobile and desktop. Tap the mic, speak, tap Stop.",
-    )
 
-    uploaded = st.file_uploader(
-        "…or upload an audio file",
-        type=["wav", "webm", "m4a", "mp3", "ogg", "mp4"],
-        key="audio_audit_uploader",
-    )
-
+def _render_paste_transcript() -> None:
     with st.expander("📝 Or paste / type a transcript instead", expanded=False):
         st.caption(
             "Skip recording — paste a transcript from elsewhere (e.g. WhatsApp voice "
@@ -359,6 +334,10 @@ def _render_record(df: pd.DataFrame, cfg: Dict) -> None:
             st.session_state.audio_audit_stage = "transcribed"
             st.rerun()
 
+
+def _resolve_audio(audio_input, uploaded) -> Optional[bytes]:
+    """Pick the audio source (mic, upload or the session cache), persist fresh
+    audio so reruns don't lose it, and caption what was captured."""
     audio_bytes: Optional[bytes] = None
     mime = "audio/wav"
     filename = "audio.wav"
@@ -396,6 +375,42 @@ def _render_record(df: pd.DataFrame, cfg: Dict) -> None:
             st.caption(f"📦 {source} · {size_kb:.0f} KB · {mime} · {filename}")
         else:
             st.warning("⚠️ Audio captured but 0 bytes received — try again or use the file uploader.")
+    return audio_bytes
+
+
+def _render_record(df: pd.DataFrame, cfg: Dict) -> None:
+    st.markdown(
+        "**How to record (in Spanish):** announce the zone, then the items. "
+        "E.g. *\"ahora en la nevera, dos yogures, un litro de leche, "
+        "ningún queso… ahora en el congelador, tres salmones…\"*"
+    )
+    st.caption(f"Recognised zones: {', '.join(ZONE_KEYWORDS)}")
+
+    with st.expander("ℹ️ Quick tips", expanded=False):
+        st.markdown(
+            "- Use explicit numbers (*dos*, *tres*). Avoid *algunos* / *varios*.\n"
+            "- To zero an item, say *cero* or *ninguno*.\n"
+            "- Switch zone out loud: *\"ahora paso a la despensa\"*.\n"
+            "- A 2–3 minute clip is enough for the whole house."
+        )
+
+    _render_zone_lists(df)
+
+    audio_input = st.audio_input(
+        "🎙️ Record walk",
+        key="audio_audit_recorder",
+        help="Works on mobile and desktop. Tap the mic, speak, tap Stop.",
+    )
+
+    uploaded = st.file_uploader(
+        "…or upload an audio file",
+        type=["wav", "webm", "m4a", "mp3", "ogg", "mp4"],
+        key="audio_audit_uploader",
+    )
+
+    _render_paste_transcript()
+
+    audio_bytes = _resolve_audio(audio_input, uploaded)
 
     run_disabled = not bool(audio_bytes)
     if st.button(
@@ -409,34 +424,13 @@ def _render_record(df: pd.DataFrame, cfg: Dict) -> None:
         st.rerun()
 
 
-def _render_review(df: pd.DataFrame, cfg: Dict) -> pd.DataFrame:
-    result: ExtractionResult = st.session_state.audio_audit_result
-    transcript: str = st.session_state.audio_audit_transcript
-
-    st.success(
-        f"✅ {len(result.items)} items detected · "
-        f"{len(result.unmatched_mentions)} unmatched · "
-        f"zones: {', '.join(result.zones_mentioned) or '—'}"
-    )
-
-    with st.expander("📜 Transcript", expanded=False):
-        st.text_area(
-            "Transcript",
-            value=transcript,
-            height=160,
-            label_visibility="collapsed",
-            key="audio_audit_review_transcript",
-        )
-
-    detected_idxs = {it["idx"]: it for it in result.items}
-    detected_zones = {z.lower().strip() for z in result.zones_mentioned}
-
+def _render_detected_items(df: pd.DataFrame, result: ExtractionResult, cfg: Dict) -> None:
     items_by_zone: Dict[str, List[Dict]] = {}
     for it in result.items:
         items_by_zone.setdefault(it.get("zone", "—") or "—", []).append(it)
 
     st.markdown("### 🎯 Detected items")
-    if not detected_idxs:
+    if not result.items:
         st.info("The transcript didn't mention any recognisable item.")
     for zone in sorted(items_by_zone):
         st.markdown(f"**{zone.title()}**")
@@ -471,16 +465,21 @@ def _render_review(df: pd.DataFrame, cfg: Dict) -> pd.DataFrame:
                 label_visibility="collapsed",
             )
 
+
+def _find_unseen(df: pd.DataFrame, result: ExtractionResult) -> List[int]:
+    detected_idxs = {it["idx"] for it in result.items}
+    detected_zones = {z.lower().strip() for z in result.zones_mentioned}
+
     # Mentions that resolved to a row were *named* by the speaker — they only
     # lack a count. Offering them for zeroing would wipe what was just dictated,
     # so they are excluded here exactly as in the PWA.
-    named_idxs = set(detected_idxs) | {
+    named_idxs = detected_idxs | {
         mention["idx"]
         for mention in result.unmatched_mentions
         if isinstance(mention.get("idx"), int) and mention["idx"] in df.index
     }
 
-    unseen = [
+    return [
         idx
         for idx in df.index
         if idx not in named_idxs
@@ -489,43 +488,93 @@ def _render_review(df: pd.DataFrame, cfg: Dict) -> pd.DataFrame:
         and int(df.at[idx, COLUMNS["tenemos"]]) > 0
     ]
 
-    if unseen:
-        st.markdown("### 🔍 Not mentioned (in audited zones)")
-        st.caption(
-            f"{len(unseen)} items in the zones you walked but didn't name. "
-            f"Tick to set them to 0."
+
+def _render_unseen(df: pd.DataFrame, unseen: List[int]) -> None:
+    st.markdown("### 🔍 Not mentioned (in audited zones)")
+    st.caption(
+        f"{len(unseen)} items in the zones you walked but didn't name. "
+        f"Tick to set them to 0."
+    )
+    for idx in unseen:
+        comida = str(df.at[idx, COLUMNS["comida"]])
+        lugar = str(df.at[idx, COLUMNS["lugar"]])
+        cur = int(df.at[idx, COLUMNS["tenemos"]])
+        c1, c2, c3 = st.columns([5, 2, 1])
+        c1.markdown(f"{comida} *(list: {lugar})*")
+        c2.markdown(f"current: {cur} → **0**")
+        c3.checkbox(
+            " ",
+            value=False,
+            key=f"audio_audit_zero_{idx}",
+            label_visibility="collapsed",
         )
-        for idx in unseen:
-            comida = str(df.at[idx, COLUMNS["comida"]])
-            lugar = str(df.at[idx, COLUMNS["lugar"]])
-            cur = int(df.at[idx, COLUMNS["tenemos"]])
-            c1, c2, c3 = st.columns([5, 2, 1])
-            c1.markdown(f"{comida} *(list: {lugar})*")
-            c2.markdown(f"current: {cur} → **0**")
-            c3.checkbox(
-                " ",
-                value=False,
-                key=f"audio_audit_zero_{idx}",
-                label_visibility="collapsed",
-            )
+
+
+def _render_unmatched(df: pd.DataFrame, result: ExtractionResult) -> None:
+    st.markdown("### ❓ Mentions without a count")
+    st.caption(
+        "Heard, but no usable number. Rows that resolved to an item are left "
+        "out of the zero list above — set them from Audit mode. Editing counts "
+        "here is PWA-only (`:8502`)."
+    )
+    for mention in result.unmatched_mentions:
+        phrase = mention.get("phrase", "")
+        note = mention.get("note", "")
+        idx = mention.get("idx")
+        if isinstance(idx, int) and idx in df.index:
+            row = f"→ **{df.at[idx, COLUMNS['comida']]}**"
+            how = mention.get("resolved_by") or "?"
+            st.markdown(f"- *{phrase}* {row} ({how}) — {note}")
+        else:
+            st.markdown(f"- *{phrase}* — {note}")
+
+
+def _apply_accepted(df: pd.DataFrame, result: ExtractionResult, unseen: List[int]) -> None:
+    accepted = _collect_accepted(df, result, unseen)
+    if not accepted:
+        st.warning("Nothing to apply.")
+        return
+    target_path = CONFIG["data"]["xlsx_file"]
+    old_tenemos = {idx: int(df.at[idx, COLUMNS["tenemos"]]) for idx in accepted}
+    try:
+        new_df = bulk_apply_tenemos(df, accepted, save=True)
+    except (SpreadsheetLockedError, InventoryFileError) as e:
+        render_save_error(e)
+    else:
+        log_path = _write_audit_log(new_df, result, accepted, target_path, old_tenemos)
+        st.session_state.inventory_data = new_df
+        st.session_state.audio_audit_log_path = str(log_path)
+        st.session_state.audio_audit_stage = "done"
+        st.rerun()  # full rerun — inventory changed, sidebar must update
+
+
+def _render_review(df: pd.DataFrame, cfg: Dict) -> pd.DataFrame:
+    result: ExtractionResult = st.session_state.audio_audit_result
+    transcript: str = st.session_state.audio_audit_transcript
+
+    st.success(
+        f"✅ {len(result.items)} items detected · "
+        f"{len(result.unmatched_mentions)} unmatched · "
+        f"zones: {', '.join(result.zones_mentioned) or '—'}"
+    )
+
+    with st.expander("📜 Transcript", expanded=False):
+        st.text_area(
+            "Transcript",
+            value=transcript,
+            height=160,
+            label_visibility="collapsed",
+            key="audio_audit_review_transcript",
+        )
+
+    _render_detected_items(df, result, cfg)
+
+    unseen = _find_unseen(df, result)
+    if unseen:
+        _render_unseen(df, unseen)
 
     if result.unmatched_mentions:
-        st.markdown("### ❓ Mentions without a count")
-        st.caption(
-            "Heard, but no usable number. Rows that resolved to an item are left "
-            "out of the zero list above — set them from Audit mode. Editing counts "
-            "here is PWA-only (`:8502`)."
-        )
-        for mention in result.unmatched_mentions:
-            phrase = mention.get("phrase", "")
-            note = mention.get("note", "")
-            idx = mention.get("idx")
-            if isinstance(idx, int) and idx in df.index:
-                row = f"→ **{df.at[idx, COLUMNS['comida']]}**"
-                how = mention.get("resolved_by") or "?"
-                st.markdown(f"- *{phrase}* {row} ({how}) — {note}")
-            else:
-                st.markdown(f"- *{phrase}* — {note}")
+        _render_unmatched(df, result)
 
     st.divider()
     bcol1, bcol2 = st.columns([1, 1])
@@ -535,22 +584,7 @@ def _render_review(df: pd.DataFrame, cfg: Dict) -> pd.DataFrame:
         width="stretch",
         key="audio_audit_apply_btn",
     ):
-        accepted = _collect_accepted(df, result, unseen)
-        if not accepted:
-            st.warning("Nothing to apply.")
-        else:
-            target_path = CONFIG["data"]["xlsx_file"]
-            old_tenemos = {idx: int(df.at[idx, COLUMNS["tenemos"]]) for idx in accepted}
-            try:
-                new_df = bulk_apply_tenemos(df, accepted, save=True)
-            except (SpreadsheetLockedError, InventoryFileError) as e:
-                render_save_error(e)
-            else:
-                log_path = _write_audit_log(new_df, result, accepted, target_path, old_tenemos)
-                st.session_state.inventory_data = new_df
-                st.session_state.audio_audit_log_path = str(log_path)
-                st.session_state.audio_audit_stage = "done"
-                st.rerun()  # full rerun — inventory changed, sidebar must update
+        _apply_accepted(df, result, unseen)
     if bcol2.button("🔄 Cancel and start over", width="stretch", key="audio_audit_cancel_btn"):
         _reset_state()
         st.rerun()

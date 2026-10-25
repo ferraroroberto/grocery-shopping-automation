@@ -306,6 +306,24 @@ def _click_once(page: Page, selector: str) -> bool:
     return True
 
 
+def _open_product(page: Page, item: CartItem) -> str:
+    """Open the product page and return its product id; raise when the URL
+    redirected away from the product the item points at."""
+    wanted_id = product_id_from_url(item.buscador)
+    goto_with_login_check(page, STORE, item.buscador)
+    human_delay(*_NAV_SETTLE)
+    _require_session(page)
+
+    landed_id = product_id_from_url(page.url)
+    if not landed_id or (wanted_id and landed_id != wanted_id):
+        raise ProductUnavailableError(
+            item,
+            f"product URL redirected to {page.url} — the product is discontinued "
+            "or not sold at this account's Carrefour store",
+        )
+    return landed_id
+
+
 def add_to_cart(page: Page, item: CartItem) -> None:
     """Add ``item`` to the Carrefour cart so its line totals ``item.comprar`` units.
 
@@ -327,18 +345,7 @@ def add_to_cart(page: Page, item: CartItem) -> None:
             in another cut, or the add came back in another cut.
     """
     logger.info("🛒 [carrefour] %s ×%d", item.comida, item.comprar)
-    wanted_id = product_id_from_url(item.buscador)
-    goto_with_login_check(page, STORE, item.buscador)
-    human_delay(*_NAV_SETTLE)
-    _require_session(page)
-
-    landed_id = product_id_from_url(page.url)
-    if not landed_id or (wanted_id and landed_id != wanted_id):
-        raise ProductUnavailableError(
-            item,
-            f"product URL redirected to {page.url} — the product is discontinued "
-            "or not sold at this account's Carrefour store",
-        )
+    landed_id = _open_product(page, item)
 
     cut = product_options.preferred_cut(STORE, landed_id)
     target = item.comprar

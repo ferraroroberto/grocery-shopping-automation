@@ -13,6 +13,61 @@ from src.data import (
 )
 
 
+def _render_item_fields(filtered_df: pd.DataFrame, idx):
+    """Render the editable fields for one row; return their current values."""
+    col1, col2 = st.columns(2)
+
+    with col1:
+        current_super = filtered_df.at[idx, COLUMNS["super"]]
+        new_super = st.text_input(
+            "🏪 Supermarket",
+            value=current_super if pd.notna(current_super) else "",
+            key=f"edit_super_{idx}",
+        )
+
+        current_lugar = filtered_df.at[idx, COLUMNS["lugar"]]
+        new_lugar = st.text_input(
+            "🏠 Zone",
+            value=current_lugar if pd.notna(current_lugar) else "",
+            key=f"edit_lugar_{idx}",
+        )
+
+        current_comida = filtered_df.at[idx, COLUMNS["comida"]]
+        new_comida = st.text_input(
+            "🥘 Item Name",
+            value=current_comida if pd.notna(current_comida) else "",
+            key=f"edit_comida_{idx}",
+        )
+
+    with col2:
+        current_cantidad = int(filtered_df.at[idx, COLUMNS["cantidad"]])
+        new_cantidad = st.number_input(
+            "🎯 Target",
+            value=current_cantidad,
+            min_value=0,
+            step=1,
+            key=f"edit_cantidad_{idx}",
+        )
+
+        current_tenemos = int(filtered_df.at[idx, COLUMNS["tenemos"]])
+        new_tenemos = st.number_input(
+            "📦 Current",
+            value=current_tenemos,
+            min_value=0,
+            step=1,
+            key=f"edit_tenemos_{idx}",
+        )
+
+        current_buscador = filtered_df.at[idx, COLUMNS["buscador"]]
+        new_buscador = st.text_input(
+            "🔗 URL",
+            value=current_buscador if pd.notna(current_buscador) else "",
+            key=f"edit_buscador_{idx}",
+        )
+
+    return new_super, new_lugar, new_comida, new_cantidad, new_tenemos, new_buscador
+
+
 def main(df: pd.DataFrame) -> pd.DataFrame:
     """Render the edit-item interface for searching and editing individual items."""
     search_term = st.text_input(
@@ -38,55 +93,14 @@ def main(df: pd.DataFrame) -> pd.DataFrame:
 
         with st.expander(f"🔧 {item_name}", expanded=len(filtered_df) == 1):
             with st.form(key=f"edit_form_{idx}"):
-                col1, col2 = st.columns(2)
-
-                with col1:
-                    current_super = filtered_df.at[idx, COLUMNS["super"]]
-                    new_super = st.text_input(
-                        "🏪 Supermarket",
-                        value=current_super if pd.notna(current_super) else "",
-                        key=f"edit_super_{idx}",
-                    )
-
-                    current_lugar = filtered_df.at[idx, COLUMNS["lugar"]]
-                    new_lugar = st.text_input(
-                        "🏠 Zone",
-                        value=current_lugar if pd.notna(current_lugar) else "",
-                        key=f"edit_lugar_{idx}",
-                    )
-
-                    current_comida = filtered_df.at[idx, COLUMNS["comida"]]
-                    new_comida = st.text_input(
-                        "🥘 Item Name",
-                        value=current_comida if pd.notna(current_comida) else "",
-                        key=f"edit_comida_{idx}",
-                    )
-
-                with col2:
-                    current_cantidad = int(filtered_df.at[idx, COLUMNS["cantidad"]])
-                    new_cantidad = st.number_input(
-                        "🎯 Target",
-                        value=current_cantidad,
-                        min_value=0,
-                        step=1,
-                        key=f"edit_cantidad_{idx}",
-                    )
-
-                    current_tenemos = int(filtered_df.at[idx, COLUMNS["tenemos"]])
-                    new_tenemos = st.number_input(
-                        "📦 Current",
-                        value=current_tenemos,
-                        min_value=0,
-                        step=1,
-                        key=f"edit_tenemos_{idx}",
-                    )
-
-                    current_buscador = filtered_df.at[idx, COLUMNS["buscador"]]
-                    new_buscador = st.text_input(
-                        "🔗 URL",
-                        value=current_buscador if pd.notna(current_buscador) else "",
-                        key=f"edit_buscador_{idx}",
-                    )
+                (
+                    new_super,
+                    new_lugar,
+                    new_comida,
+                    new_cantidad,
+                    new_tenemos,
+                    new_buscador,
+                ) = _render_item_fields(filtered_df, idx)
 
                 col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:

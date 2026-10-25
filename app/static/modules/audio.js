@@ -361,17 +361,8 @@ function trail(markup) {
   return `<span class="action-row-trail">${markup}</span>`;
 }
 
-function renderMatches() {
-  updateHeaders();
-  const target = document.querySelector("#match-results");
-  if (!target) return;
-  // After a match, Apply is the view's one primary.
-  const record = document.querySelector("#record-toggle");
-  if (record) record.className = `${audio.matches ? "button-tint" : "button-primary"} btn-block`;
-  if (!audio.matches) {
-    target.innerHTML = "";
-    return;
-  }
+// What the match review reads from the payload, resolved once per render.
+function matchContext() {
   const cols = c();
   const { picks } = audio;
   const clamp = Number(state.payload.audio?.clamp ?? 5);
@@ -392,11 +383,14 @@ function renderMatches() {
   // Whatever is left really is unmatched — no row to apply to. Its row opens
   // Manual searching every zone for what was heard.
   const stillUnmatched = mentions.filter((m) => !Number.isInteger(m.idx) || !byId.has(m.idx));
+  return { cols, picks, clamp, byId, matched, name, needCount, stillUnmatched, namedIdx };
+}
 
+function needRowsMarkup({ cols, picks, byId, name, needCount, stillUnmatched }) {
   // "Needs you" comes first: typing a number *is* the accept on a count row —
   // an empty box leaves the row untouched, so a mention resolved wrongly costs
   // nothing.
-  const needRows = needCount.map((m) => {
+  return needCount.map((m) => {
     const item = byId.get(m.idx);
     const heard = m.phrase && m.phrase.toLowerCase() !== name(item).toLowerCase() ? ` · heard “${m.phrase}”` : "";
     const value = picks.counts[m.idx] ?? (Number.isInteger(m.approx_count) ? m.approx_count : "");
@@ -414,7 +408,9 @@ function renderMatches() {
     attrs: `data-phrase="${esc(m.phrase)}"`,
     action: "audio-find",
   }))).join("");
+}
 
+function detectedGroups({ cols, picks, clamp, byId, matched, name }) {
   // Detected items, grouped by the zone the speaker was in (fall back to lugar).
   const byZone = {};
   matched.forEach((match) => {
@@ -434,8 +430,10 @@ function renderMatches() {
       attrs: `data-id="${match.idx}"`,
     });
   };
-  const zoneGroups = Object.keys(byZone).sort().map((zone) => group(zone, byZone[zone].map(detectedRow).join(""))).join("");
+  return Object.keys(byZone).sort().map((zone) => group(zone, byZone[zone].map(detectedRow).join(""))).join("");
+}
 
+function unseenRowsMarkup({ cols, picks, name, namedIdx }) {
   // "Not mentioned" — items in a walked zone with target>0 and current>0 that
   // the speaker didn't name. Tick to zero them.
   const zonesMentioned = new Set((audio.matches.zones_mentioned || []).map((z) => String(z).toLowerCase().trim()));
@@ -445,14 +443,31 @@ function renderMatches() {
     && Number(item[cols.cantidad]) > 0
     && Number(item[cols.tenemos]) > 0,
   );
-  const unseenRows = unseen.map((item) => itemRow({
+  return unseen.map((item) => itemRow({
     title: item[cols.comida],
     meta: `Not mentioned · ${Number(item[cols.tenemos])} → 0 · ${text(item[cols.lugar])}`,
     trail: trail(switchMarkup(picks.zero[item.id] ?? false, `Set ${name(item)} to zero`, { "data-audio-zero": item.id })),
     attrs: `data-id="${item.id}"`,
   })).join("");
+}
 
-  const needYou = needCount.length + stillUnmatched.length;
+function renderMatches() {
+  updateHeaders();
+  const target = document.querySelector("#match-results");
+  if (!target) return;
+  // After a match, Apply is the view's one primary.
+  const record = document.querySelector("#record-toggle");
+  if (record) record.className = `${audio.matches ? "button-tint" : "button-primary"} btn-block`;
+  if (!audio.matches) {
+    target.innerHTML = "";
+    return;
+  }
+  const ctx = matchContext();
+  const needRows = needRowsMarkup(ctx);
+  const zoneGroups = detectedGroups(ctx);
+  const unseenRows = unseenRowsMarkup(ctx);
+
+  const needYou = ctx.needCount.length + ctx.stillUnmatched.length;
   target.innerHTML = `<section id="voice-results" class="card voice-glance" aria-labelledby="voice-results-title">
       <div class="card-head">
         <h2 id="voice-results-title" class="card-title">${icon("circle-check")}Match results</h2>

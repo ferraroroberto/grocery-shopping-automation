@@ -21,7 +21,7 @@ from scripts.static_ratchet_gate import subprocess as ratchet_subprocess
 
 from _ratchet_gate_contract import assert_exit_code_contract, fake_ratchet_script
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_classify_exit_follows_the_shared_ratchet_gate_contract() -> None:

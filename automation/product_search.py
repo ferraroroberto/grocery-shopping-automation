@@ -196,7 +196,7 @@ def _parse_carrefour_card(raw: dict) -> Optional[dict]:
     """Turn one extracted search-result card into a candidate dict, or ``None``.
 
     Pure — no browser/page dependency, so it is unit-tested with recorded card
-    data (see ``tests/test_product_search.py``) rather than a live Cloudflare
+    data (see ``tests/store_automation/test_product_search.py``) rather than a live Cloudflare
     fetch. Returns ``None`` for a card with no product id or no name (e.g. a
     sponsored banner tile that isn't a real result), and for a card the store
     shows as unorderable (:func:`_carrefour_card_unorderable`, issue #249) so
