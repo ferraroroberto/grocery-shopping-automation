@@ -10,7 +10,7 @@ import pytest
 
 from benchmark import history, report, score
 from src import data
-from tests.test_benchmark_score import run_dir  # noqa: F401  (fixture)
+from tests.benchmarks.test_benchmark_score import run_dir  # noqa: F401  (fixture)
 
 
 @pytest.fixture()

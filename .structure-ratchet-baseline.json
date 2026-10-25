@@ -1,16 +1,4 @@
 {
   "version": 1,
-  "entries": [
-    {"key": "dir:tests", "modules": 62},
-    {"key": "fn:app/audio_audit.py:_render_record", "lines": 121},
-    {"key": "fn:app/audio_audit.py:_render_review", "lines": 147},
-    {"key": "fn:app/edit_item.py:main", "lines": 120},
-    {"key": "fn:app/shopping.py:main", "lines": 183},
-    {"key": "fn:app/static/modules/audio.js:renderMatches", "lines": 109},
-    {"key": "fn:automation/ametller.py:add_to_cart", "lines": 107},
-    {"key": "fn:automation/carrefour.py:add_to_cart", "lines": 107},
-    {"key": "fn:automation/email_check.py:check_latest_confirmation", "lines": 110},
-    {"key": "fn:benchmark/report.py:render", "lines": 193},
-    {"key": "size:app/static/styles.css", "lines": 1109}
-  ]
+  "entries": []
 }

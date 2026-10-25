@@ -19,7 +19,7 @@ from scripts import static_ratchet_gate as gate
 
 from _ratchet_gate_contract import assert_exit_code_contract, fake_ratchet_script
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _fake_script(tmp_path: Path, code: int, message: str = "") -> Path:
