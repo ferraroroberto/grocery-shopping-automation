@@ -8,7 +8,7 @@
 
 flowchart TB
   subgraph frontend["Primary surface — FastAPI + vanilla-JS PWA (:8502)"]
-    STATIC["app/static/\nindex.html · styles.css · generated PWA icons\n_vendored/ (fleet nav, icons, card, disclosure, modal, switch, empty-state, segmented, action-row, home-head, text-size, toast, usage-log)"]
+    STATIC["app/static/\nindex.html · tokens.css · styles.css · generated PWA icons\n_vendored/ (fleet nav, icons, card, disclosure, modal, switch, empty-state, segmented, action-row, home-head, text-size, toast, usage-log)"]
     APPJS["app/static/app.js\norchestrator: render() mode routing, delegated listeners, boot\n4 nav tabs (#182, #200): Home · Shop · Audit · Items; Settings is the header gear, never a tab"]
     JSMODULES["app/static/modules/ (ES modules, no bundler)\ncore (state + render mediator, header lines, retired-tab + retired-mode migration) · dom (+ status chip) · rows (one item row + stepper) · item-sheet (the one item sheet every row opens) · add-sheet (Add item sheet: search, then by hand) · confirm (confirm sheet) · media · api\nhome (Home: This week card + item search, #260) · inventory (Audit › Manual, Items list) · shopping · stores/ (Items › Prices; folder: index facade · state · simulator (glance card) · benchmark (Benchmark sheet) · list · actions · dialogs · review) · audio (Audit › Voice: glance, results, checklist, transcript sheet, #259)\nsearch → Add item sheet · automation (carts glance + Fill carts options sheet, #258; Fill history sheet + Mark purchase done, #323) · store-sheet → Shop · settings (Settings inset groups + Store logins sheet, #261) · email (Email watch sheet) → Settings"]
     API["app/api.py\ncomposition root: lifespan, middleware, static mount, router includes"]
