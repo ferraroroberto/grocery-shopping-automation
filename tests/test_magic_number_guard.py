@@ -24,7 +24,7 @@ RISK_KEYWORD_SUBSTRINGS = ("timeout", "lookback", "limit", "interval", "retries"
 # PR that names each one.
 BASELINE = frozenset({
     "automation/ametller.py:183:timeout",
-    "automation/ametller.py:488:timeout",
+    "automation/ametller.py:495:timeout",
     "automation/bootstrap_session.py:128:timeout",
     "automation/product_search.py:157:timeout",
 })

@@ -213,6 +213,62 @@ def _summary_message(store: str, match: MatchResult) -> str:
     return "\n".join(lines)
 
 
+def _fetch_candidates(mailbox, senders) -> tuple[list, Optional[str]]:
+    """Fetch the recent emails from every whitelisted source.
+
+    Returns ``(candidates, None)``, or ``([], reason)`` when Gmail failed. The
+    mailbox is closed either way.
+    """
+    try:
+        sources = mailbox.resolve_sources(senders=senders, lookback_days=_LOOKBACK_DAYS)
+        candidates = []
+        for source in sources:
+            candidates.extend(mailbox.messages(source.search, limit=_MAX_MESSAGES_PER_SOURCE))
+    except (GmailReadError, ValueError) as exc:
+        return [], f"Gmail fetch failed: {exc}"
+    finally:
+        mailbox.close()
+    return candidates, None
+
+
+def _regressed_result(store: str, latest, previous: ProcessedEntry) -> ConfirmationCheckResult:
+    """The email we already processed is gone from the search window
+    (trashed, spammed, or aged past the lookback), so ``latest`` has fallen
+    back to an older one. Alerting on it would match a stale confirmation
+    against the current purchase log."""
+    reason = (
+        f"newest confirmation {latest.message_id} ({latest.timestamp}) is older than "
+        f"the last processed {previous.message_id} ({previous.timestamp}); the newer "
+        "email left the Gmail search window (trashed/archived?)"
+    )
+    logger.info("ℹ️ Skipping stale confirmation (%s): %s", store, reason)
+    return ConfirmationCheckResult(
+        store,
+        checked=True,
+        message_id=latest.message_id,
+        regressed=True,
+        reason=reason,
+    )
+
+
+def _record_processed(
+    state: dict,
+    store: str,
+    latest,
+    previous: Optional[ProcessedEntry],
+    state_path: Path,
+) -> None:
+    # The watermark only ever moves forward. `ignore_processed=True` can
+    # deliberately re-process an older email (the Auto tab's "Test last
+    # email" while the newest one is trashed); letting that lower the
+    # watermark would disarm the guard for the next disappearance.
+    watermark = latest.timestamp
+    if previous is not None and previous.timestamp and previous.timestamp > watermark:
+        watermark = previous.timestamp
+    state[store] = ProcessedEntry(latest.message_id, watermark)
+    _write_processed_state(state_path, state)
+
+
 def check_latest_confirmation(
     store: str = "ametller",
     *,
@@ -252,15 +308,9 @@ def check_latest_confirmation(
     except (GmailReadError, FileNotFoundError, RuntimeError) as exc:
         return ConfirmationCheckResult(store, checked=False, reason=f"Gmail connection failed: {exc}")
 
-    try:
-        sources = mailbox.resolve_sources(senders=senders, lookback_days=_LOOKBACK_DAYS)
-        candidates = []
-        for source in sources:
-            candidates.extend(mailbox.messages(source.search, limit=_MAX_MESSAGES_PER_SOURCE))
-    except (GmailReadError, ValueError) as exc:
-        return ConfirmationCheckResult(store, checked=False, reason=f"Gmail fetch failed: {exc}")
-    finally:
-        mailbox.close()
+    candidates, fetch_error = _fetch_candidates(mailbox, senders)
+    if fetch_error is not None:
+        return ConfirmationCheckResult(store, checked=False, reason=fetch_error)
 
     canonical_subject = STORE_SUBJECTS[store]
     matching = [
@@ -280,23 +330,7 @@ def check_latest_confirmation(
                 store, checked=True, message_id=latest.message_id, already_processed=True
             )
         if previous.timestamp and latest.timestamp < previous.timestamp:
-            # The email we already processed is gone from the search window
-            # (trashed, spammed, or aged past the lookback), so `latest` has
-            # fallen back to an older one. Alerting on it would match a stale
-            # confirmation against the current purchase log.
-            reason = (
-                f"newest confirmation {latest.message_id} ({latest.timestamp}) is older than "
-                f"the last processed {previous.message_id} ({previous.timestamp}); the newer "
-                "email left the Gmail search window (trashed/archived?)"
-            )
-            logger.info("ℹ️ Skipping stale confirmation (%s): %s", store, reason)
-            return ConfirmationCheckResult(
-                store,
-                checked=True,
-                message_id=latest.message_id,
-                regressed=True,
-                reason=reason,
-            )
+            return _regressed_result(store, latest, previous)
 
     website_names = STORE_PARSERS[store].parse_confirmed_items(latest.body_text or "")
     catalog = load_latest_purchase_log(store, logs_dir)
@@ -310,15 +344,7 @@ def check_latest_confirmation(
             notifier.send_text(_summary_message(store, result))
             notified = True
 
-    # The watermark only ever moves forward. `ignore_processed=True` can
-    # deliberately re-process an older email (the Auto tab's "Test last
-    # email" while the newest one is trashed); letting that lower the
-    # watermark would disarm the guard for the next disappearance.
-    watermark = latest.timestamp
-    if previous is not None and previous.timestamp and previous.timestamp > watermark:
-        watermark = previous.timestamp
-    state[store] = ProcessedEntry(latest.message_id, watermark)
-    _write_processed_state(state_path, state)
+    _record_processed(state, store, latest, previous, state_path)
 
     return ConfirmationCheckResult(
         store, checked=True, message_id=latest.message_id, match=result, notified=notified

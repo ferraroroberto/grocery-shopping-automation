@@ -149,18 +149,10 @@ def _facts(entries: list[dict]) -> str:
     return "".join(f"<li><strong>{e(n['title'])}</strong> {e(n.get('text', ''))}</li>" for n in entries)
 
 
-def render(run_dir: Path) -> str:
-    sc = json.loads((run_dir / "scenarios.json").read_text(encoding="utf-8"))
-    basket, stores = S.load_run(run_dir)
-    items = {i["key"]: i for i in basket["items"]}
-    offers = S.build_offers(basket, stores)
-    names = store_names()
-    notes = _notes(run_dir)
-    sq, rs = sc["status_quo"], sc.get("resplit_current")
-    rec, top = sc.get("recommended"), sc.get("max_savings")
+def _option_bars(sc: dict, rs: Optional[dict], rec: Optional[dict], top: Optional[dict], names: dict) -> list[str]:
+    """The monthly-cost bars: today, the re-split of today's stores, and the best plan per store count."""
+    sq = sc["status_quo"]
     base = sq["total_optimised"]
-
-    # ── options chart: today, re-split of today's stores, best plan per store count
     options: list[tuple[str, str, float, list[str]]] = [("Today", plan_label(sorted(sq["per_store"]), names), base, [])]
     seen: set[tuple[str, ...]] = set()
     if rs:
@@ -185,7 +177,12 @@ def render(run_dir: Path) -> str:
             f"<div class='bar-label'><strong>{e(label)}{tags}</strong><span>{e(sub)}</span></div>"
             f"<div class='bar-track'><div class='bar' style='width:{70 * v / vmax:.1f}%'></div>"
             f"<span class='bar-val'>{eur(v)}{dtxt}</span></div></div>")
+    return bars
 
+
+def _plan_parts(sc: dict, items: dict, offers: dict, stores: dict, names: dict) -> tuple[str, str, list, list]:
+    """The recommended plan store by store: (plan cards, move rows, small moves, tier-B evidence)."""
+    sq, rec = sc["status_quo"], sc.get("recommended")
     def changed(key: str, store: str) -> bool:
         """The plan buys a different product than today (other store, or a same-store swap)."""
         return store != sq["items"].get(key) or offers[key][store].status == "same_store_swap"
@@ -223,8 +220,11 @@ def render(run_dir: Path) -> str:
                 ev = " ".join(str(rec_doc.get("evidence", "")).split())[:EVIDENCE_CHARS]
                 evidence.append(f"<li><strong>{e(items[k]['comida'])}</strong> → {e(new.name)}"
                                 f"<div class='evidence'>{e(ev)}</div></li>")
+    return plan_html, move_rows, small, evidence
 
-    # ── store scorecard
+
+def _scorecard_rows(sc: dict, names: dict) -> list[str]:
+    """One table row per single-store scenario."""
     srows = []
     for s in sorted(sc["single_store"], key=lambda x: x["common_subset"]["delta_pct"] or 0):
         st, dp = s["store"], s["common_subset"]["delta_pct"]
@@ -235,43 +235,30 @@ def render(run_dir: Path) -> str:
                      f"<td class='num'>{s['coverage_pct']:.0f}%</td>"
                      f"<td class='num'><span class='chip {cls}'>{'—' if dp is None else f'{dp:+.1f}%'}</span></td>"
                      f"<td class='num'>{unv or ''}</td></tr>")
+    return srows
 
-    # ── upgrades and history
-    ups = "".join(f"<li><strong>{e(items[u['key']]['comida'])}</strong> at {e(names.get(u['store'], u['store']))}: "
-                  f"<a href='{e(u['url'])}'>{e(u['name'])}</a> · {eur(u['monthly'], 2)} a month "
-                  f"({'+' if u['delta_vs_today'] > 0 else '−'}{eur(abs(u['delta_vs_today']), 2)} vs today)</li>"
-                  for u in sc.get("upgrades", []))
-    runs = history.load_history()
-    hrows = "".join(
-        f"<tr><td>{e(r['run_date'])}</td><td class='num'>{r['items']}</td>"
-        f"<td class='num'>{eur(r['status_quo']['total_optimised'])}</td>"
-        f"<td class='num'>{eur((r.get('recommended') or {}).get('total_optimised'))}</td>"
-        f"<td>{e(plan_label((r.get('recommended') or {}).get('stores', []), names))}</td></tr>"
-        for r in reversed(runs))
-    diff = sc.get("diff")
-    moves_txt = ""
-    if diff:
-        top_moves = sorted(diff["price_moves"], key=lambda m: -abs(m["pct"]))[:12]
-        moves_txt = "".join(f"<li>{e(items.get(m['key'], {}).get('comida', m['key']))} at {e(names.get(m['store'], m['store']))}: "
-                            f"{m['before']:.2f} → {m['now']:.2f} €/unit ({m['pct']:+.1f}%)</li>" for m in top_moves)
 
-    saving = base - rec["total_optimised"] if rec else 0.0
-    headline = notes.get("headline") or (
-        f"Shop at {plan_label(rec['stores'], names)}" if rec else "No plan covers the whole basket")
-    lede = (f"This plan saves about <strong>{eur(saving)} a month</strong> ({eur(12 * saving)} a year) against today, "
-            f"with every item at the same or better quality.") if rec else ""
-    if rec and top and top["stores"] != rec["stores"]:
-        extra = len(top["stores"]) - len(rec["stores"])
-        need = f"€{S.EXTRA_STORE_MIN_SAVING * extra:g} the {extra} extra stores have to earn" if extra > 1 else \
-            f"€{S.EXTRA_STORE_MIN_SAVING:g} an extra store has to earn"
-        lede += (f" Using {len(top['stores'])} stores would save another {eur(rec['total_optimised'] - top['total_optimised'])} "
-                 f"a month, below the {need}.")
-    if rs and rec and rs["stores"] != rec["stores"]:
-        lede += (f" Staying with today's stores but re-splitting them saves {eur(base - rs['total_optimised'])} a month.")
-
-    freq = basket.get("frequency", {})
-    dates = freq.get("log_dates") or []
-    period = f"{dates[0]} to {dates[-1]}" if dates else "the purchase logs"
+def _page(
+    *,
+    sc: dict,
+    basket: dict,
+    sq: dict,
+    headline: str,
+    lede: str,
+    dates: list,
+    period: str,
+    bars: list[str],
+    plan_html: str,
+    move_rows: str,
+    small: list,
+    evidence: list,
+    notes: dict,
+    ups: str,
+    srows: list[str],
+    hrows: str,
+    diff: Optional[dict],
+    moves_txt: str,
+) -> str:
     return f"""<title>Grocery Store Benchmark</title>
 <style>{CSS}</style>
 <main>
@@ -342,6 +329,65 @@ def render(run_dir: Path) -> str:
 <footer class="sub">Method: quality tiers (brand-locked; spec-locked deli, meat, fish and eggs; key-spec pantry; commodity) and pro-rata monthly costs. Re-run with <code>/supermarket-benchmark</code>; the method is in <code>docs/supermarket-benchmark.md</code>.</footer>
 </main>
 """
+
+
+def render(run_dir: Path) -> str:
+    sc = json.loads((run_dir / "scenarios.json").read_text(encoding="utf-8"))
+    basket, stores = S.load_run(run_dir)
+    items = {i["key"]: i for i in basket["items"]}
+    offers = S.build_offers(basket, stores)
+    names = store_names()
+    notes = _notes(run_dir)
+    sq, rs = sc["status_quo"], sc.get("resplit_current")
+    rec, top = sc.get("recommended"), sc.get("max_savings")
+    base = sq["total_optimised"]
+
+
+    bars = _option_bars(sc, rs, rec, top, names)
+    plan_html, move_rows, small, evidence = _plan_parts(sc, items, offers, stores, names)
+    srows = _scorecard_rows(sc, names)
+
+    # ── upgrades and history
+    ups = "".join(f"<li><strong>{e(items[u['key']]['comida'])}</strong> at {e(names.get(u['store'], u['store']))}: "
+                  f"<a href='{e(u['url'])}'>{e(u['name'])}</a> · {eur(u['monthly'], 2)} a month "
+                  f"({'+' if u['delta_vs_today'] > 0 else '−'}{eur(abs(u['delta_vs_today']), 2)} vs today)</li>"
+                  for u in sc.get("upgrades", []))
+    runs = history.load_history()
+    hrows = "".join(
+        f"<tr><td>{e(r['run_date'])}</td><td class='num'>{r['items']}</td>"
+        f"<td class='num'>{eur(r['status_quo']['total_optimised'])}</td>"
+        f"<td class='num'>{eur((r.get('recommended') or {}).get('total_optimised'))}</td>"
+        f"<td>{e(plan_label((r.get('recommended') or {}).get('stores', []), names))}</td></tr>"
+        for r in reversed(runs))
+    diff = sc.get("diff")
+    moves_txt = ""
+    if diff:
+        top_moves = sorted(diff["price_moves"], key=lambda m: -abs(m["pct"]))[:12]
+        moves_txt = "".join(f"<li>{e(items.get(m['key'], {}).get('comida', m['key']))} at {e(names.get(m['store'], m['store']))}: "
+                            f"{m['before']:.2f} → {m['now']:.2f} €/unit ({m['pct']:+.1f}%)</li>" for m in top_moves)
+
+    saving = base - rec["total_optimised"] if rec else 0.0
+    headline = notes.get("headline") or (
+        f"Shop at {plan_label(rec['stores'], names)}" if rec else "No plan covers the whole basket")
+    lede = (f"This plan saves about <strong>{eur(saving)} a month</strong> ({eur(12 * saving)} a year) against today, "
+            f"with every item at the same or better quality.") if rec else ""
+    if rec and top and top["stores"] != rec["stores"]:
+        extra = len(top["stores"]) - len(rec["stores"])
+        need = f"€{S.EXTRA_STORE_MIN_SAVING * extra:g} the {extra} extra stores have to earn" if extra > 1 else \
+            f"€{S.EXTRA_STORE_MIN_SAVING:g} an extra store has to earn"
+        lede += (f" Using {len(top['stores'])} stores would save another {eur(rec['total_optimised'] - top['total_optimised'])} "
+                 f"a month, below the {need}.")
+    if rs and rec and rs["stores"] != rec["stores"]:
+        lede += (f" Staying with today's stores but re-splitting them saves {eur(base - rs['total_optimised'])} a month.")
+
+    freq = basket.get("frequency", {})
+    dates = freq.get("log_dates") or []
+    period = f"{dates[0]} to {dates[-1]}" if dates else "the purchase logs"
+    return _page(
+        sc=sc, basket=basket, sq=sq, headline=headline, lede=lede, dates=dates, period=period,
+        bars=bars, plan_html=plan_html, move_rows=move_rows, small=small, evidence=evidence,
+        notes=notes, ups=ups, srows=srows, hrows=hrows, diff=diff, moves_txt=moves_txt,
+    )
 
 
 def main(argv: Optional[list[str]] = None) -> int:

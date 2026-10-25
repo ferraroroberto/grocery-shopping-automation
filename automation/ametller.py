@@ -316,27 +316,9 @@ def _set_stepper(page: Page, value: int, item: CartItem) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def add_to_cart(page: Page, item: CartItem) -> None:
-    """Add `item` to the Ametller Origen cart so its line totals `item.comprar`.
-
-    Idempotent: reads the current cart quantity via the SCAPI basket API and
-    only adds the missing units. Never reduces a line that already holds more
-    than ``item.comprar``.
-
-    The "AÑADIR" click is fired up to :data:`_MAX_ADD_ATTEMPTS` times; between
-    attempts the product page is reloaded.
-
-    Raises:
-        NotLoggedInError: the saved profile session has lapsed to a guest.
-        ProductUnavailableError: the page rendered no product at all — a likely
-            stale or discontinued URL. Surfaced as an end-of-run alert.
-        OutOfStockError: the product page renders but shows no add control.
-        PartialStockError: the cart line holds some units but never reached the
-            wanted quantity after every attempt — likely a stock cap.
-        AddToCartFailed: an expected control was missing, or the cart line never
-            reached the wanted quantity (and holds none) after every attempt.
-    """
-    logger.info("🛒 [ametller] %s ×%d", item.comida, item.comprar)
+def _open_product(page: Page, item: CartItem) -> tuple[dict, str]:
+    """Open the product page and return ``(auth, product_id)`` once it is a
+    sellable product page for a registered shopper; raise otherwise."""
     goto_with_login_check(page, "ametller", item.buscador)
     human_delay(*_NAV_SETW)
     _dismiss_consent_notice(page)
@@ -369,6 +351,31 @@ def add_to_cart(page: Page, item: CartItem) -> None:
         raise AddToCartFailed(item, "product title not found — page layout unexpected")
     if not has_add or not has_stepper:
         raise OutOfStockError(item)
+    return auth, product_id
+
+
+def add_to_cart(page: Page, item: CartItem) -> None:
+    """Add `item` to the Ametller Origen cart so its line totals `item.comprar`.
+
+    Idempotent: reads the current cart quantity via the SCAPI basket API and
+    only adds the missing units. Never reduces a line that already holds more
+    than ``item.comprar``.
+
+    The "AÑADIR" click is fired up to :data:`_MAX_ADD_ATTEMPTS` times; between
+    attempts the product page is reloaded.
+
+    Raises:
+        NotLoggedInError: the saved profile session has lapsed to a guest.
+        ProductUnavailableError: the page rendered no product at all — a likely
+            stale or discontinued URL. Surfaced as an end-of-run alert.
+        OutOfStockError: the product page renders but shows no add control.
+        PartialStockError: the cart line holds some units but never reached the
+            wanted quantity after every attempt — likely a stock cap.
+        AddToCartFailed: an expected control was missing, or the cart line never
+            reached the wanted quantity (and holds none) after every attempt.
+    """
+    logger.info("🛒 [ametller] %s ×%d", item.comida, item.comprar)
+    auth, product_id = _open_product(page, item)
 
     target = item.comprar
     qty = _cart_qty_by_id(page, auth, product_id)
