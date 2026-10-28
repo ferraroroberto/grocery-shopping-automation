@@ -8,10 +8,13 @@ rather than being copy-pasted between them.
 
 from __future__ import annotations
 
+import logging
 import socket
 from urllib.parse import urlparse
 
 import httpx
+
+log = logging.getLogger(__name__)
 
 
 def local_ip(fallback: str = "127.0.0.1") -> str:
@@ -43,20 +46,37 @@ def is_port_open(url: str, timeout: float = 1.5) -> bool:
         return False
 
 
-def whisper_route_ok(whisper_url: str, timeout: float = 2.0) -> bool:
-    """Whether the hub's audio route answers at ``whisper_url``.
+def whisper_route_ok(whisper_url: str, timeout: float = 10.0) -> bool:
+    """Whether the hub's audio service answers at ``whisper_url``.
 
     An open port only proves something listens: the hub stays up when its
     whisper placement is down, and a stale per-machine whisper port can still pass a
-    TCP check on some other process. The transcription route is POST-only,
-    so a bare GET gets 405 when the route is live and 404 when it is not; a
-    connection error or a 5xx is a failure too. Nothing is uploaded.
+    TCP check on some other process. The hub's own ``GET /v1/audio/health``
+    answers 200 with ``status: ok`` when the audio service is up; a 404 means
+    the URL is not the hub, and a connection error or 5xx means it is down.
+    Probing a POST-only route instead would make the hub count every poll as a
+    failed request. The hub checks every backend before it answers (about four
+    seconds), so the default timeout is generous. Nothing is uploaded.
     """
     try:
-        resp = httpx.get(f"{whisper_url.rstrip('/')}/v1/audio/transcriptions", timeout=timeout)
-    except httpx.HTTPError:
+        resp = httpx.get(f"{whisper_url.rstrip('/')}/v1/audio/health", timeout=timeout)
+    except httpx.HTTPError as exc:
+        log.debug("ℹ️ audio health probe: hub unreachable (%s)", exc)
         return False
-    return resp.status_code != 404 and resp.status_code < 500
+    if resp.status_code == 404:
+        log.debug("ℹ️ audio health probe: 404, %s is not the hub", whisper_url)
+        return False
+    if resp.status_code >= 500:
+        log.debug("ℹ️ audio health probe: hub answered %s", resp.status_code)
+        return False
+    try:
+        status = resp.json().get("status")
+    except (ValueError, AttributeError):
+        log.debug("ℹ️ audio health probe: reply was not the hub's health JSON")
+        return False
+    if status != "ok":
+        log.debug("ℹ️ audio health probe: status %r", status)
+    return status == "ok"
 
 
 def whisper_host_hint(hub_base_url: str, whisper_model: str, timeout: float = 2.0) -> str | None:

@@ -54,22 +54,22 @@ def test_whisper_url_defaults_to_the_hub():
     assert cfg["whisper_url"] == cfg["llm_base_url"] == cfg["transcribe_url"] == "http://127.0.0.1:8000"
 
 
-def test_audio_health_whisper_ok_when_hub_audio_route_answers(client, monkeypatch):
+def test_audio_health_whisper_ok_when_hub_audio_health_is_ok(client, monkeypatch):
     seen = []
 
     def fake_get(url, timeout):
         seen.append(url)
-        return httpx.Response(405, request=httpx.Request("GET", url))
+        return httpx.Response(200, json={"status": "ok", "backends": []}, request=httpx.Request("GET", url))
 
     monkeypatch.setattr("src.net.httpx.get", fake_get)
     monkeypatch.setattr(audio_router, "is_port_open", lambda *args, **kwargs: True)
     body = client.get("/api/audio/health").json()
     assert body["whisper_ok"] is True
     assert body["whisper_host"] is None
-    assert seen == [body["whisper_url"].rstrip("/") + "/v1/audio/transcriptions"]
+    assert seen == [body["whisper_url"].rstrip("/") + "/v1/audio/health"]
 
 
-def test_audio_health_whisper_not_ok_when_hub_audio_route_missing(client, monkeypatch):
+def test_audio_health_whisper_not_ok_when_not_the_hub(client, monkeypatch):
     monkeypatch.setattr(
         "src.net.httpx.get", lambda url, timeout: httpx.Response(404, request=httpx.Request("GET", url))
     )
