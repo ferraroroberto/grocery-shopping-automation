@@ -4,7 +4,7 @@ Production transcription goes through the local-llm-hub on `:8000`: with no
 `model` field, the hub applies its `roles.audio.transcribe` chain (parakeet
 primary + whisper failover) and records the request in its observability ring.
 Pass a concrete `model` to target one model directly (what the audio-audit
-diagnostic does against whisper-server on `:8090`). Both speak the same
+diagnostic does, still through the hub). Both speak the same
 OpenAI `/v1/audio/transcriptions` shape.
 """
 
@@ -29,7 +29,7 @@ TRANSCRIBE_TIMEOUT_S = 600
 
 
 class TranscriptionError(RuntimeError):
-    """Raised when whisper-server is unreachable or returns an error."""
+    """Raised when the transcription endpoint is unreachable or returns an error."""
 
 
 class FfmpegMissingError(TranscriptionError):

@@ -1,7 +1,7 @@
 """UI-free network helpers shared by the FastAPI PWA and the Streamlit app.
 
 Both front ends need to discover the LAN IP of this machine and probe whether a
-local service (LLM hub / whisper-server / voice-transcriber) is reachable. The
+local service (LLM hub / voice-transcriber) is reachable. The
 logic is UI-agnostic, so it lives here and is imported from both `app/` halves
 rather than being copy-pasted between them.
 """
@@ -32,7 +32,7 @@ def local_ip(fallback: str = "127.0.0.1") -> str:
 
 
 def is_port_open(url: str, timeout: float = 1.5) -> bool:
-    """TCP reachability probe for a service URL (hub / whisper-server)."""
+    """TCP reachability probe for a service URL (hub / voice-transcriber)."""
     parsed = urlparse(url)
     host = parsed.hostname or "127.0.0.1"
     port = parsed.port or (443 if parsed.scheme == "https" else 80)
@@ -41,6 +41,22 @@ def is_port_open(url: str, timeout: float = 1.5) -> bool:
             return True
     except OSError:
         return False
+
+
+def whisper_route_ok(whisper_url: str, timeout: float = 2.0) -> bool:
+    """Whether the hub's audio route answers at ``whisper_url``.
+
+    An open port only proves something listens: the hub stays up when its
+    whisper placement is down, and a stale per-machine whisper port can still pass a
+    TCP check on some other process. The transcription route is POST-only,
+    so a bare GET gets 405 when the route is live and 404 when it is not; a
+    connection error or a 5xx is a failure too. Nothing is uploaded.
+    """
+    try:
+        resp = httpx.get(f"{whisper_url.rstrip('/')}/v1/audio/transcriptions", timeout=timeout)
+    except httpx.HTTPError:
+        return False
+    return resp.status_code != 404 and resp.status_code < 500
 
 
 def whisper_host_hint(hub_base_url: str, whisper_model: str, timeout: float = 2.0) -> str | None:

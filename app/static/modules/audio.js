@@ -135,7 +135,7 @@ function renderAudioHealth() {
   if (h && !h.hub_ok) problems.push("The matching service isn't reachable — start local-llm-hub");
   if (h && !h.whisper_ok) {
     const hint = h.whisper_host ? " — local-llm-hub is running it somewhere else" : "";
-    problems.push(`Speech-to-text isn't reachable${hint}`);
+    problems.push(`Speech-to-text isn't reachable${hint} — check audio_audit.whisper_url (the hub, ${h.hub_url})`);
   }
   banner.className = `panel-status${problems.length ? " error" : ""}`;
   banner.innerHTML = problems.map((line) => `<span class="voice-problem">${icon("circle-alert")}${esc(line)}</span>`).join("");

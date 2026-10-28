@@ -54,5 +54,5 @@ has no console, so that file is where a slow or empty search is diagnosed.
 
 > **Pre-requisites:** the stores must be logged in
 > (`python -m automation.bootstrap_session`), and the LLM hub (`:8000`) +
-> whisper-server (`:8090`) running for the spoken-term parse/transcription.
+> the hub's speech-to-text route (also `:8000`) answering for the spoken-term parse/transcription.
 

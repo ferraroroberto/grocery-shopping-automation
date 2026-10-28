@@ -202,7 +202,6 @@ orchestration recipe + Sonnet research-agent prompt"]
 
   subgraph external["External dependencies (sibling projects, same machine)"]
     HUB["local-llm-hub\n127.0.0.1:8000 — LLM proxy + audio transcribe role\n(parakeet + whisper failover)"]
-    WHISPER["whisper-server\n127.0.0.1:8090 — OpenAI-compatible transcription"]
     VOICET["voice-transcriber webapp\n127.0.0.1:8443 — chunked recording/session API"]
     CHROME["Real installed Chrome\n(not bundled Chromium)"]
     CLOUDFLARE["cloudflared named tunnel\n(webapp/cloudflared.yml)"]
@@ -212,7 +211,7 @@ orchestration recipe + Sonnet research-agent prompt"]
   end
   HUBCLIENT -->|Anthropic SDK, base_url| HUB
   TRANSCRIBE -->|POST /v1/audio/transcriptions :8000, role| HUB
-  TRANSCRIBE -.->|audio-audit diagnostic, concrete model :8090| WHISPER
+  TRANSCRIBE -.->|audio-audit diagnostic, concrete whisper model| HUB
   AUDIOHUB -->|proxies recording lifecycle| VOICET
   BROWSER --> CHROME
   API -.->|optional public access| CLOUDFLARE
