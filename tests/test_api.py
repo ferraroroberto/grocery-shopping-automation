@@ -632,3 +632,35 @@ def test_automation_fill_history_and_mark_done(client, temp_env):
     days = client.get("/api/automation/fills/history").json()["days"]
     assert [(d["date"], d["cleared"]) for d in days][:2] == [("2026-10-13", False), ("2026-10-06", True)]
     assert client.post("/api/automation/fills/clear", json={"run": "2026-10-06T191701"}).status_code == 409
+
+
+def test_entry_document_answers_a_repeat_with_304(client):
+    """A phone that already holds the shell revalidates with its ETag and gets
+    a body-less 304 instead of the whole document again."""
+    first = client.get("/")
+    etag = first.headers.get("etag", "")
+    assert first.status_code == 200
+    assert etag.startswith('W/"')
+    assert "no-cache" in first.headers.get("cache-control", "")
+
+    for validator in (etag, etag[2:], f'"other", {etag}', "*"):
+        repeat = client.get("/", headers={"If-None-Match": validator})
+        assert repeat.status_code == 304, validator
+        assert repeat.content == b""
+        assert repeat.headers.get("etag") == etag
+        assert "no-cache" in repeat.headers.get("cache-control", "")
+
+    stale = client.get("/", headers={"If-None-Match": 'W/"not-this-build"'})
+    assert stale.status_code == 200
+
+
+def test_entry_document_etag_follows_the_build(client, monkeypatch):
+    """The stamped HTML names only direct assets, so the validator also keys on
+    the commit and the fleet asset hash: a changed transitive module or a new
+    commit must not be answered 304 against an old build."""
+    base = client.get("/").headers["etag"]
+    monkeypatch.setattr(api.BUILD_INFO, "git_sha", "feedbee")
+    assert client.get("/").headers["etag"] != base
+    monkeypatch.undo()
+    monkeypatch.setattr(api.BUILD_INFO, "fleet_hash", "0" * 16)
+    assert client.get("/").headers["etag"] != base
