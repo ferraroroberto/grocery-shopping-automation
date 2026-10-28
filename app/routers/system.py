@@ -3,11 +3,12 @@ install manifest, auth handshake, health, access URLs, and desktop actions
 (open the spreadsheet, bootstrap a fresh store login session, check the
 store logins)."""
 
+import hashlib
 import hmac
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 from app import login_check_runner
 from app.api_common import REPO_ROOT, STATIC_DIR, inventory_error
@@ -22,16 +23,45 @@ from src.webapp_config import WebappConfig, append_auth_token
 router = APIRouter()
 
 
+def _entry_etag(html: str) -> str:
+    """Weak validator for the stamped entry document.
+
+    The stamped HTML names only the directly-referenced assets, so a changed
+    nested module leaves it byte-identical; the commit and the fleet asset hash
+    are folded in so a stale copy is never answered 304. Weak because the wire
+    bytes vary with ``Content-Encoding``.
+    """
+    digest = hashlib.sha256()
+    for part in (html, BUILD_INFO.git_sha, BUILD_INFO.fleet_hash):
+        digest.update(part.encode("utf-8"))
+        digest.update(b"|")
+    return f'W/"{digest.hexdigest()[:32]}"'
+
+
+def _matches_etag(if_none_match: str, etag: str) -> bool:
+    """Whether an ``If-None-Match`` header names ``etag`` (weak compare, ``*`` matches)."""
+    wanted = etag.removeprefix("W/")
+    for candidate in if_none_match.split(","):
+        candidate = candidate.strip()
+        if candidate == "*" or candidate.removeprefix("W/") == wanted:
+            return True
+    return False
+
+
 @router.get("/", include_in_schema=False)
-def index() -> HTMLResponse:
+def index(request: Request) -> Response:
     """Serve the PWA shell.
 
     Stamp the directly-referenced asset URLs with their content hash and
     force the entry document to revalidate (``no-cache``), so an app restart
-    after an edit is always picked up — no stale iOS PWA cache.
+    after an edit is always picked up — no stale iOS PWA cache. A phone that
+    already holds this build gets a body-less 304.
     """
     html = BUILD_INFO.stamp_html((STATIC_DIR / "index.html").read_text(encoding="utf-8"))
-    return HTMLResponse(html, headers={"Cache-Control": "no-cache, must-revalidate"})
+    headers = {"Cache-Control": "no-cache, must-revalidate", "ETag": _entry_etag(html)}
+    if _matches_etag(request.headers.get("if-none-match", ""), headers["ETag"]):
+        return Response(status_code=304, headers=headers)
+    return HTMLResponse(html, headers=headers)
 
 
 @router.get("/api/version")
