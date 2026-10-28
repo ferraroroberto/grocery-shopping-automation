@@ -34,13 +34,14 @@ def test_inventory_audio_block(client):
     assert isinstance(audio["clamp"], int)
 
 
-def test_audio_health_shape(client):
+def test_audio_health_shape(client, monkeypatch):
+    # The host hint asks the live hub where whisper runs (only when the hub is up and whisper is not);
+    # stub it so the result never depends on the machine's hub.
+    monkeypatch.setattr(audio_router, "whisper_host_hint", lambda *args, **kwargs: None)
     body = client.get("/api/audio/health").json()
     assert set(body) >= {
         "hub_ok", "whisper_ok", "voice_ok", "hub_url", "whisper_url", "voice_url", "whisper_host",
     }
-    # Neither service is up in the test environment, so the host-hint lookup
-    # (only fired when hub_ok and not whisper_ok) never gets a hub to query.
     assert body["whisper_host"] is None
 
 
