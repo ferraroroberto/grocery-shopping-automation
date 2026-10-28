@@ -22,10 +22,13 @@ from src.data import (  # noqa: E402
     COLUMNS,
     FALLBACK_SUPER_COLUMN,
     FALLBACK_URL_COLUMN,
+    UNITS_PER_PACK_COLUMN,
     clean_url,
     fallback_pair,
     load_inventory_data,
+    packs_for,
     store_url_columns,
+    units_per_pack_of,
 )
 
 from automation.models import CartItem, Fallback  # noqa: E402
@@ -50,7 +53,9 @@ def read_cart_items(store: Optional[str] = None) -> list[CartItem]:
             are returned. When ``None``, every store's pending items come back.
 
     Returns:
-        :class:`CartItem` objects with ``comprar > 0``, in spreadsheet order.
+        :class:`CartItem` objects for rows short of their target, in spreadsheet
+        order. ``comprar`` is in store packs: the counted shortfall converted by
+        the row's ``units_per_pack`` (unset means 1, so units pass through).
         An empty list if the inventory file is missing or unreadable.
     """
     df = load_inventory_data()
@@ -72,11 +77,17 @@ def read_cart_items(store: Optional[str] = None) -> list[CartItem]:
     for _, row in pending.iterrows():
         super_name = str(row[col_super]).strip()
         buscador = clean_url(row[col_buscador])
+        comida = str(row[col_comida]).strip()
+        units = int(row[col_comprar])
+        per_pack = units_per_pack_of(row.get(UNITS_PER_PACK_COLUMN))
+        packs = packs_for(units, per_pack)
+        if per_pack is not None:
+            logger.info("📦 %s: %d unit(s) needed at %g per pack → %d pack(s)", comida, units, per_pack, packs)
         items.append(
             CartItem(
                 super_name=super_name,
-                comida=str(row[col_comida]).strip(),
-                comprar=int(row[col_comprar]),
+                comida=comida,
+                comprar=packs,
                 buscador=buscador,
                 alt_stores=tuple(
                     s for s, col in url_cols.items()

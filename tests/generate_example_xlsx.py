@@ -26,6 +26,8 @@ rows = [
 
 df = pd.DataFrame(rows, columns=["super", "buscador", "lugar", "comida", "cantidad", "tenemos"])
 df["comprar"] = (df["cantidad"] - df["tenemos"]).clip(lower=0)
+# Optional pack conversion (docs/items.md): the chicken is sold in 2-piece trays.
+df["units_per_pack"] = df["comida"].map({"pollo": 2})
 
 OUT.parent.mkdir(parents=True, exist_ok=True)
 df.to_excel(OUT, index=False, engine="openpyxl")

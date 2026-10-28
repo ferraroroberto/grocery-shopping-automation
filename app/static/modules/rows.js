@@ -53,6 +53,16 @@ export function stepper(kind, value, name) {
   </div>`;
 }
 
+// What a row still needs: the counted shortfall, and for an item sold in packs
+// the packs the cart run will buy for it ("14 units → 3 packs").
+export function buyText(item, cols) {
+  const units = Number(item[cols.comprar]) || 0;
+  const perPack = Number(item.units_per_pack) || 0;
+  if (!perPack || perPack === 1 || units <= 0) return String(units);
+  const packs = Number(item.packs) || 0;
+  return `${units} ${units === 1 ? "unit" : "units"} → ${packs} ${packs === 1 ? "pack" : "packs"}`;
+}
+
 // A read-only trailing figure (a count, a stock/target pair).
 export function rowValue(value) {
   return `<span class="action-row-trail action-row-value">${esc(value)}</span>`;

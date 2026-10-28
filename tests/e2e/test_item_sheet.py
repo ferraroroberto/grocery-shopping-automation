@@ -17,14 +17,14 @@ def test_item_forms_label_every_field(page):
     numbers read "Target" / "In stock" even when the box holds a value. The
     item sheet (#255) names the field on each of its pages the same way."""
     form = open_add_sheet(page).locator("#add-form")
-    for label in ["Item", "Supermarket", "Zone", "Target", "In stock", "URL"]:
+    for label in ["Item", "Supermarket", "Zone", "Target", "In stock", "Units per pack", "URL"]:
         assert form.get_by_label(label, exact=True).count() == 1, label
     surface(page, "items.add-sheet")
     page.keyboard.press("Escape")
     goto_mode(page, "list")
     page.locator("#pane-items .item-row .action-row-main").first.click()
     sheet = page.locator("#item-sheet")
-    for to, label in (("zone", "Zone"), ("store", "Store"), ("link", "Buy link"), ("name", "Name")):
+    for to, label in (("zone", "Zone"), ("store", "Store"), ("link", "Buy link"), ("pack", "Units per pack"), ("name", "Name")):
         sheet.locator(f"[data-page-to='{to}']").click()
         assert sheet.locator(f"[data-page='{to}']").get_by_label(label, exact=True).count() == 1, label
         surface(page, f"items.item-sheet-{to}")
@@ -45,6 +45,15 @@ def _open_sheet_from(page, mode: str, name: str):
     sheet = page.locator("#item-sheet")
     sheet.wait_for()
     return sheet
+
+
+def _stage_units_per_pack(sheet):
+    """Units per pack: a comma decimal is fine, and the link row echoes it."""
+    assert sheet.locator("[data-link-value='pack']").inner_text() == "Not set"
+    sheet.locator("[data-page-to='pack']").click()
+    sheet.locator("[data-page='pack'] input[name='units_per_pack']").fill("2,5")
+    sheet.locator("[data-sheet-back]").click()
+    assert sheet.locator("[data-link-value='pack']").inner_text() == "2,5 per pack"
 
 
 def _check_buy_link_opens_from_the_sheet(page, name, row):
@@ -145,13 +154,18 @@ def test_item_sheet_opens_everywhere_edits_and_deletes(page, server):
     sheet.locator("[data-page='zone'] [data-picker] select").select_option("congelador")
     sheet.locator("[data-sheet-back]").click()
     assert sheet.locator("[data-link-value='zone']").inner_text() == "congelador"
+    _stage_units_per_pack(sheet)
     with page.expect_response(lambda r: r.request.method == "PUT") as resp:
         sheet.locator(".detail-save-btn").click()
     assert resp.value.request.post_data_json["buscador"] == ""
+    assert resp.value.request.post_data_json["units_per_pack"] == 2.5
     sheet.wait_for(state="hidden")
     page.wait_for_function("document.querySelector('#toast')?.textContent?.includes('Saved')")
     saved, cols = row()
     assert (saved[cols["cantidad"]], saved[cols["tenemos"]], saved[cols["lugar"]]) == (2, 1, "congelador")
+    assert (saved["units_per_pack"], saved["packs"]) == (2.5, 1)
+    page.fill("#search", name)
+    assert "buy 1 unit → 1 pack" in page.locator("#pane-items .item-row", has_text=name).inner_text()
     assert saved[cols["super"]] == "mercadona"
     assert saved[cols["buscador"]] in (None, ""), saved[cols["buscador"]]
 

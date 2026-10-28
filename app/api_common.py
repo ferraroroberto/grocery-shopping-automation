@@ -22,14 +22,17 @@ from src.data import (
     CONFIG,
     FALLBACK_SUPER_COLUMN,
     FALLBACK_URL_COLUMN,
+    UNITS_PER_PACK_COLUMN,
     InventoryFileError,
     SpreadsheetLockedError,
     cell_text,
     fallback_pair,
     get_supermarket_stats,
     load_inventory_data,
+    packs_for,
     save_inventory_data,
     store_url_columns,
+    units_per_pack_of,
 )
 from src.store_links import link_kind
 
@@ -127,6 +130,11 @@ def _records_from_frame(df: pd.DataFrame) -> list[dict[str, Any]]:
             cell_text(record.get(COLUMNS["super"])), record.get(COLUMNS["buscador"]),
         )
         record["fallback"] = {"store": pair[0], "url": pair[1], "kind": link_kind(*pair)} if pair else None
+        # The pack conversion the cart run applies: the same rule, so "to buy"
+        # shows what the run will send. `units_per_pack` is null when unset.
+        per_pack = units_per_pack_of(record.get(UNITS_PER_PACK_COLUMN))
+        record[UNITS_PER_PACK_COLUMN] = per_pack
+        record["packs"] = packs_for(int(record[COLUMNS["comprar"]] or 0), per_pack)
     return records
 
 

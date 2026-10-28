@@ -44,6 +44,8 @@ class ItemPayload(BaseModel):
     cantidad: int = Field(..., ge=0)
     tenemos: int = Field(..., ge=0)
     buscador: str = ""
+    # Omitted on PUT leaves the stored value; null clears it.
+    units_per_pack: Optional[float] = Field(None, gt=0, le=10000)
 
 
 @router.get("/api/inventory")
@@ -81,6 +83,7 @@ def update_item(item_id: int, payload: ItemPayload, name: Optional[str] = None) 
         cantidad=payload.cantidad,
         tenemos=payload.tenemos,
         buscador=payload.buscador,
+        **({"units_per_pack": payload.units_per_pack} if "units_per_pack" in payload.model_fields_set else {}),
     )
     try:
         save_or_error(df)
@@ -111,6 +114,7 @@ def add_item(payload: ItemPayload) -> dict[str, Any]:
         cantidad=payload.cantidad,
         tenemos=payload.tenemos,
         buscador=payload.buscador,
+        units_per_pack=payload.units_per_pack,
     )
     df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
     save_or_error(df)
