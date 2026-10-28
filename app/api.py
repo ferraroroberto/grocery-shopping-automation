@@ -16,6 +16,7 @@ from app.api_common import STATIC_DIR
 from app.middleware import BearerTokenMiddleware
 from app.routers import audio, automation, email, inventory, product_search, stores, system, usage, voice
 from app.static_files import BUILD_INFO, CachingStaticFiles
+from src.compression import StreamSafeGZipMiddleware
 from src.data import CONFIG
 from src.webapp_config import EMAIL_POLLER_ENV, load_webapp_config
 
@@ -49,6 +50,8 @@ app.add_middleware(
     BearerTokenMiddleware,
     get_token=lambda: getattr(app.state.webapp_config, "auth_token", ""),
 )
+# Added last so it is the outermost layer: an auth refusal or a 304 passes through unchanged.
+app.add_middleware(StreamSafeGZipMiddleware, bypass_paths=())
 app.mount("/static", CachingStaticFiles(directory=STATIC_DIR, build_info=BUILD_INFO), name="static")
 
 for _router in (
