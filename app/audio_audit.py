@@ -1,10 +1,9 @@
 """Audio Audit mode — record a Spanish narration of the inventory walk,
-transcribe it via the local whisper-server, match phrases to candidates via
-the local LLM hub, review and apply.
+transcribe it through the local LLM hub, match phrases to candidates via the
+same hub, review and apply.
 
 Pre-requisites (see README.md and the local-llm-hub sibling project):
-  - LLM hub running on :8000
-  - whisper-server running on :8090
+  - LLM hub running on :8000 (it places whisper on whichever fleet machine is up)
 """
 
 from __future__ import annotations
@@ -33,7 +32,7 @@ from src.data import (
     bulk_apply_tenemos,
 )
 from src.inventory_extract import ExtractionResult, extract
-from src.net import is_port_open, whisper_host_hint
+from src.net import is_port_open, whisper_host_hint, whisper_route_ok
 from src.transcribe_client import TRANSCRIBE_TIMEOUT_S, transcribe
 
 logger = logging.getLogger(__name__)
@@ -104,7 +103,7 @@ def _audio_cfg() -> Dict:
 
 def _service_status_banner(cfg: Dict) -> bool:
     hub_ok = is_port_open(cfg["llm_base_url"])
-    whisper_ok = is_port_open(cfg["whisper_url"])
+    whisper_ok = whisper_route_ok(cfg["whisper_url"])
     if hub_ok and whisper_ok:
         return True
     msgs = []
@@ -116,9 +115,12 @@ def _service_status_banner(cfg: Dict) -> bool:
             host = whisper_host_hint(cfg["llm_base_url"], cfg["whisper_model"])
             if host:
                 hint = f" — local-llm-hub currently has it running on `{host}` instead"
-        msgs.append(f"❌ Whisper server unreachable at `{cfg['whisper_url']}`{hint}")
+        msgs.append(
+            f"❌ Speech-to-text unreachable at `{cfg['whisper_url']}`{hint} — "
+            "`audio_audit.whisper_url` should be the hub (`http://127.0.0.1:8000`)"
+        )
     msgs.append(
-        "Start the local LLM hub on :8000 and whisper-server on :8090. See the "
+        "Start the local LLM hub on :8000. See the "
         "[`local-llm-hub`](https://github.com/ferraroroberto/local-llm-hub) "
         "sibling project for setup."
     )

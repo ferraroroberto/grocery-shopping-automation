@@ -205,6 +205,7 @@ def install_stubs() -> None:
     audio_hub.transcode_and_transcribe = _transcribe
     audio.extract = _extract
     audio.is_port_open = lambda *a, **k: True
+    audio.whisper_route_ok = lambda *a, **k: True
     audio.whisper_host_hint = lambda *a, **k: None
     product_search.parse_voice_items = _no_llm
     voice.parse_voice_items = _no_llm

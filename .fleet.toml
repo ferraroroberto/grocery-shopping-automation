@@ -118,7 +118,7 @@ baseline = ".instruction-ratchet-baseline.json"
 enabled  = true
 baseline = ".doc-refs-ratchet-baseline.json"
 # The hub, whisper, the voice-transcriber and this repo's legacy Streamlit app, which the docs name on purpose.
-allow_refs = [":8000", ":8090", ":8443", ":8501"]
+allow_refs = [":8000", ":8443", ":8501"]
 
 # [dead_code_ratchet] -- the scaffold's baseline-and-ratchet dead-code stage. The gate
 # (scripts/verify-before-ship.ps1) runs scripts/dead_code_ratchet.py through

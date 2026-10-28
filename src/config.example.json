@@ -34,7 +34,7 @@
     }
   },
   "audio_audit": {
-    "whisper_url": "http://127.0.0.1:8090",
+    "whisper_url": "http://127.0.0.1:8000",
     "whisper_model": "whisper-large-v3-turbo",
     "transcribe_url": "http://127.0.0.1:8000",
     "language": "es",

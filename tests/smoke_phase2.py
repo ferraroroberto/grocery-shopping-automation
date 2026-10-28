@@ -1,8 +1,7 @@
-"""Phase 2 smoke test: hits the running local-llm-hub hub + whisper-server.
+"""Phase 2 smoke test: hits the running local-llm-hub hub and its speech-to-text route.
 
 Pre-conditions:
     - local-llm-hub hub running on :8000  (run_hub.bat)
-    - whisper-server running on :8090     (launchers/run_whisper.bat)
 """
 
 import json
@@ -17,15 +16,15 @@ if str(_REPO_ROOT) not in sys.path:
 
 import src.data as data  # noqa: E402
 from src.inventory_extract import extract  # noqa: E402
-from src.net import is_port_open as whisper_health  # noqa: E402
+from src.net import whisper_route_ok  # noqa: E402
 
 cfg = data.CONFIG["audio_audit"]
 
 print(f"[INFO] hub={cfg['llm_base_url']}, model={cfg['llm_model']}")
 print(f"[INFO] whisper={cfg['whisper_url']}, model={cfg['whisper_model']}")
 
-assert whisper_health(cfg["whisper_url"], timeout=3), "whisper :8090 not reachable"
-print("[OK] whisper-server :8090 reachable")
+assert whisper_route_ok(cfg["whisper_url"], timeout=3), "hub speech-to-text route not reachable"
+print("[OK] hub speech-to-text route reachable")
 
 # Use the fixture (read-only)
 fixture = _REPO_ROOT / cfg["test_fixture_path"]

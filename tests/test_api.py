@@ -38,11 +38,46 @@ def test_audio_health_shape(client, monkeypatch):
     # The host hint asks the live hub where whisper runs (only when the hub is up and whisper is not);
     # stub it so the result never depends on the machine's hub.
     monkeypatch.setattr(audio_router, "whisper_host_hint", lambda *args, **kwargs: None)
+    monkeypatch.setattr(audio_router, "whisper_route_ok", lambda *args, **kwargs: False)
     body = client.get("/api/audio/health").json()
     assert set(body) >= {
         "hub_ok", "whisper_ok", "voice_ok", "hub_url", "whisper_url", "voice_url", "whisper_host",
     }
     assert body["whisper_host"] is None
+
+
+def test_whisper_url_defaults_to_the_hub():
+    # The hub owns where whisper runs; a fresh install seeded from the example
+    # config must transcribe through it with no edit.
+    example = json.loads((Path(__file__).resolve().parent.parent / "src" / "config.example.json").read_text(encoding="utf-8"))
+    cfg = example["audio_audit"]
+    assert cfg["whisper_url"] == cfg["llm_base_url"] == cfg["transcribe_url"] == "http://127.0.0.1:8000"
+
+
+def test_audio_health_whisper_ok_when_hub_audio_route_answers(client, monkeypatch):
+    seen = []
+
+    def fake_get(url, timeout):
+        seen.append(url)
+        return httpx.Response(405, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr("src.net.httpx.get", fake_get)
+    monkeypatch.setattr(audio_router, "is_port_open", lambda *args, **kwargs: True)
+    body = client.get("/api/audio/health").json()
+    assert body["whisper_ok"] is True
+    assert body["whisper_host"] is None
+    assert seen == [body["whisper_url"].rstrip("/") + "/v1/audio/transcriptions"]
+
+
+def test_audio_health_whisper_not_ok_when_hub_audio_route_missing(client, monkeypatch):
+    monkeypatch.setattr(
+        "src.net.httpx.get", lambda url, timeout: httpx.Response(404, request=httpx.Request("GET", url))
+    )
+    monkeypatch.setattr(audio_router, "is_port_open", lambda *args, **kwargs: True)
+    monkeypatch.setattr(audio_router, "whisper_host_hint", lambda *args, **kwargs: "gaming")
+    body = client.get("/api/audio/health").json()
+    assert body["whisper_ok"] is False
+    assert body["whisper_host"] == "gaming"
 
 
 def test_audio_session_create_requests_incognito(client, monkeypatch):
