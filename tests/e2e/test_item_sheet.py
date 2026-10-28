@@ -47,6 +47,15 @@ def _open_sheet_from(page, mode: str, name: str):
     return sheet
 
 
+def _stage_units_per_pack(sheet):
+    """Units per pack: a comma decimal is fine, and the link row echoes it."""
+    assert sheet.locator("[data-link-value='pack']").inner_text() == "Not set"
+    sheet.locator("[data-page-to='pack']").click()
+    sheet.locator("[data-page='pack'] input[name='units_per_pack']").fill("2,5")
+    sheet.locator("[data-sheet-back]").click()
+    assert sheet.locator("[data-link-value='pack']").inner_text() == "2,5 per pack"
+
+
 def _check_buy_link_opens_from_the_sheet(page, name, row):
     # The buy link opens from the sheet (#264): a real http(s) URL gets a
     # trailing open button on its row and an Open link action on its page, both
@@ -145,12 +154,7 @@ def test_item_sheet_opens_everywhere_edits_and_deletes(page, server):
     sheet.locator("[data-page='zone'] [data-picker] select").select_option("congelador")
     sheet.locator("[data-sheet-back]").click()
     assert sheet.locator("[data-link-value='zone']").inner_text() == "congelador"
-    # Units per pack: a comma decimal is fine; the row says what the cart buys.
-    assert sheet.locator("[data-link-value='pack']").inner_text() == "Not set"
-    sheet.locator("[data-page-to='pack']").click()
-    sheet.locator("[data-page='pack'] input[name='units_per_pack']").fill("2,5")
-    sheet.locator("[data-sheet-back]").click()
-    assert sheet.locator("[data-link-value='pack']").inner_text() == "2,5 per pack"
+    _stage_units_per_pack(sheet)
     with page.expect_response(lambda r: r.request.method == "PUT") as resp:
         sheet.locator(".detail-save-btn").click()
     assert resp.value.request.post_data_json["buscador"] == ""
