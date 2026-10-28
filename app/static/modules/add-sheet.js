@@ -71,6 +71,7 @@ function formMarkup() {
           ${labelled("Target", `<input class="field" name="cantidad" type="number" min="0" value="0" placeholder="Target" />`)}
           ${labelled("In stock", `<input class="field" name="tenemos" type="number" min="0" value="0" placeholder="In stock" />`)}
         </div>
+        ${labelled("Units per pack", `<input class="field" name="units_per_pack" inputmode="decimal" placeholder="1" autocomplete="off" />`)}
         ${labelled("URL", `<input class="field" name="buscador" placeholder="URL" inputmode="url" autocomplete="off" spellcheck="false" />`)}
       </form>
     </section>`;
@@ -107,6 +108,12 @@ async function onSubmit(event) {
   const data = Object.fromEntries(new FormData(event.target).entries());
   data.cantidad = Number(data.cantidad);
   data.tenemos = Number(data.tenemos);
+  const perPack = Number(String(data.units_per_pack).trim().replace(",", "."));
+  if (String(data.units_per_pack).trim() && !(perPack > 0)) {
+    setDialogStatus(d, "Units per pack must be a number above 0, or empty.");
+    return;
+  }
+  data.units_per_pack = String(data.units_per_pack).trim() ? perPack : null;
   button.disabled = true;
   setDialogStatus(d, "");
   try {

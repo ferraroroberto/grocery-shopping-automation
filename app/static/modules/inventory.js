@@ -4,13 +4,12 @@
 import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
 import { activePaneBody, c, filteredItems, items, state } from "./core.js";
 import { html, text } from "./dom.js";
-import { itemList, itemRow, rowValue, stepper } from "./rows.js";
+import { buyText, itemList, itemRow, rowValue, stepper } from "./rows.js";
 
 // "Buy 2" closes a row's meta line while the item is short; a stocked item
 // says nothing (a normal state gets no mark, design.md status chip).
 function buyNote(item, cols) {
-  const buy = Number(item[cols.comprar]) || 0;
-  return buy > 0 ? ` · buy ${buy}` : "";
+  return Number(item[cols.comprar]) > 0 ? ` · buy ${buyText(item, cols)}` : "";
 }
 
 // Home's search and Items' list: the zone and store, the stock/target pair as

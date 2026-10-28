@@ -9,7 +9,7 @@ import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
 import { storeLabel } from "./automation.js";
 import { activePaneBody, c, items, state } from "./core.js";
 import { esc, html, icon, text } from "./dom.js";
-import { itemList, itemRow, rowLink } from "./rows.js";
+import { buyText, itemList, itemRow, rowLink } from "./rows.js";
 
 function shoppingItems() {
   const cols = c();
@@ -79,7 +79,7 @@ function shoppingRow(item, cols) {
   return itemRow({
     title: name,
     struck: bought,
-    meta: `${text(item[cols.lugar])} · buy ${item[cols.comprar]}`,
+    meta: `${text(item[cols.lugar])} · buy ${buyText(item, cols)}`,
     chip: url ? null : { label: "No link", tone: "attention" },
     lead: { pressed: bought, action: bought ? "undo-buy" : "mark-buy", label: `Complete ${name}` },
     trail: url ? rowLink(url, `Open buy link for ${name}`) : "",

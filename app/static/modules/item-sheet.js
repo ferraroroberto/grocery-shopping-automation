@@ -25,7 +25,7 @@ import { itemById, jsonInit, storeName } from "./stores/state.js";
 const SHEET_ID = "item-sheet";
 
 // The cells Save posts: PUT /api/items/{id} takes the whole row.
-const FIELDS = ["comida", "lugar", "super", "buscador", "cantidad", "tenemos"];
+const FIELDS = ["comida", "lugar", "super", "buscador", "cantidad", "tenemos", "units_per_pack"];
 const NUMBERS = new Set(["cantidad", "tenemos"]);
 const STEPPER_FIELD = { current: "tenemos", target: "cantidad" };
 
@@ -35,6 +35,7 @@ const PAGES = [
   { page: "zone", glyph: "map-pin", label: "Zone" },
   { page: "store", glyph: "store", label: "Store" },
   { page: "link", glyph: "link", label: "Buy link" },
+  { page: "pack", glyph: "package", label: "Units per pack" },
   { page: "fallback", glyph: "package", label: "Fallback if short" },
   { page: "prices", glyph: "tag", label: "Stores & prices" },
   { page: "quantity", glyph: "scale", label: "Quantity check" },
@@ -106,6 +107,7 @@ function pagesMarkup() {
     <div class="item-sheet-page" data-page="zone" hidden></div>
     <div class="item-sheet-page" data-page="store" hidden></div>
     <div class="item-sheet-page" data-page="link" hidden></div>
+    <div class="item-sheet-page" data-page="pack" hidden></div>
     <div class="item-sheet-page" data-page="fallback" hidden></div>
     <div class="item-sheet-page" data-page="name" hidden></div>
     <div class="item-sheet-page" data-page="quantity" hidden></div>
@@ -128,6 +130,11 @@ function paintFieldPages() {
              inputmode="url" autocomplete="off" spellcheck="false" data-sheet-field="buscador">
     </label>
     <span data-open-link-page></span>`;
+  d.querySelector('[data-page="pack"]').innerHTML = `<label class="field-label">Units per pack
+      <input class="field" name="units_per_pack" value="${esc(value("units_per_pack"))}" placeholder="1" inputmode="decimal"
+             autocomplete="off" data-sheet-field="units_per_pack">
+    </label>
+    <p class="hint">How many of the units you count one store pack holds (a 1 kg bag of apples is about 5). The cart buys whole packs, rounded up. Leave empty for 1.</p>`;
   d.querySelector('[data-page="name"]').innerHTML = `<label class="field-label">Name
       <input class="field" name="comida" value="${esc(value("comida"))}" autocomplete="off" data-sheet-field="comida" required>
     </label>`;
@@ -191,6 +198,7 @@ function paintValues() {
     zone: { text: value("lugar") },
     store: { text: storeName(value("super").trim().toLowerCase()) },
     link: buyLinkValue(),
+    pack: { text: value("units_per_pack").trim() ? `${value("units_per_pack").trim()} per pack` : "Not set" },
     fallback: fallbackSummary(item()),
     prices: review.prices,
     quantity: review.quantity,
@@ -302,6 +310,15 @@ function onSheetChange(event) {
   setDraft(input.name, input.value);
 }
 
+// The typed units per pack: a positive number (a comma decimal is fine), null
+// when empty, NaN when it is neither.
+function parseUnitsPerPack(raw) {
+  const typed = String(raw).trim().replace(",", ".");
+  if (!typed) return null;
+  const number = Number(typed);
+  return Number.isFinite(number) && number > 0 ? number : Number.NaN;
+}
+
 async function save() {
   const d = dialog();
   const button = d.querySelector(".detail-save-btn");
@@ -313,6 +330,13 @@ async function save() {
       return;
     }
   }
+  const perPack = parseUnitsPerPack(row.units_per_pack);
+  if (Number.isNaN(perPack)) {
+    setDialogStatus(d, "Units per pack must be a number above 0, or empty.");
+    openPage("pack");
+    return;
+  }
+  row.units_per_pack = perPack;
   button.disabled = true;
   setDialogStatus(d, "");
   try {
