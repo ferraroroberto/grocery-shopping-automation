@@ -1,12 +1,12 @@
-"""Per-store product links, store picks and the cost simulator (issue #148).
+"""Per-store product links, store picks and the cost simulator.
 
 Thin HTTP layer over :mod:`src.store_links`: its ``StoreLinkError`` becomes
 400, ``NoBenchmarkRunError`` 404, and the spreadsheet lock/file errors go
 through :func:`app.api_common.mutate_or_error` like every other mutator.
 Mutating routes that write the inventory echo the full inventory payload, as
-the inventory routes do; the per-item review routes (#165), which write only
+the inventory routes do; the per-item review routes, which write only
 ``_state/overrides.json``, echo the item's store detail (or its checked state);
-the baseline routes (#183), which write only ``_state/baseline.json``, echo
+the baseline routes, which write only ``_state/baseline.json``, echo
 ``{"baseline": ...}``.
 """
 

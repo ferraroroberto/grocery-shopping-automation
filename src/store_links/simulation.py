@@ -57,7 +57,7 @@ def _current_stores(df: pd.DataFrame, ctx: _RunContext, by_key: dict[str, int]) 
 
 
 def _offer_snapshot(ctx: _RunContext, key: str, store: str) -> dict[str, Any]:
-    """``{"store", "name", "pack_size", "unit", "pack_price"}`` for ``ctx.offer(key, store)`` right now (#183)."""
+    """``{"store", "name", "pack_size", "unit", "pack_price"}`` for ``ctx.offer(key, store)`` right now."""
     offer = ctx.offer(key, store)
     if offer is None:
         return {"store": store, "name": None, "pack_size": None, "unit": None, "pack_price": None}

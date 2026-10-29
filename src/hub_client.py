@@ -1,4 +1,4 @@
-"""Shared "call the hub LLM" helper (issue #95).
+"""Shared "call the hub LLM" helper.
 
 `inventory_extract.extract()` and `voice_command.parse_voice_items()` each
 build an `Anthropic` client pointed at the local hub (`local-llm-hub` on
