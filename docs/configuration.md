@@ -70,4 +70,7 @@ Excel file columns:
 | `cantidad` | Target quantity to maintain | Required |
 | `tenemos` | Current quantity on hand | Required |
 | `comprar` | Auto-calculated: `max(0, cantidad − tenemos)` | Auto |
+| `url_<store>` (one per store key in `benchmark/stores.json`) | Per-store product link, seeded from the benchmark or picked manually | Optional — see [Store links](benchmark-and-store-links.md) |
+| `fallback_super` / `fallback_url` | Store and product link the cart run sends short units to when the item's own product comes up short | Optional, added together — see [Fallback if short](items.md) |
+| `units_per_pack` | Units-per-pack conversion so the cart run buys whole packs | Optional — see [Units per pack](items.md) |
 
