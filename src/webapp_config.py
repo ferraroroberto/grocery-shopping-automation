@@ -1,11 +1,14 @@
 """Persisted FastAPI/PWA access configuration."""
 
 import json
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlencode, urlparse, urlunparse
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "webapp_config.json"
 DEFAULT_HOST = "0.0.0.0"
@@ -24,14 +27,22 @@ class WebappConfig:
 
 
 def load_webapp_config(path: Optional[Path] = None) -> WebappConfig:
+    """Return the persisted config, or defaults when none exists yet.
+
+    An existing-but-unreadable file is not "nothing configured": it is a
+    broken config that would otherwise lose the configured host/port the next
+    time something calls :func:`save_webapp_config` over the defaults, so this
+    logs the failure and raises rather than falling back silently.
+    """
     target = Path(path) if path is not None else DEFAULT_CONFIG_PATH
     if not target.exists():
         return WebappConfig()
 
     try:
         raw = json.loads(target.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return WebappConfig()
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning("⚠️ Could not read %s (%s)", target, exc)
+        raise
 
     cfg = WebappConfig(
         host=str(raw.get("host", DEFAULT_HOST)),

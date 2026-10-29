@@ -248,11 +248,11 @@ def product_search_select(payload: ProductSearchSelectPayload) -> dict[str, Any]
     resolved through `get_row(df, idx, inventory_name)` so a row another
     device deleted or repurposed in the meantime refuses with the same 409
     `X-Inventory-Stale` every other item route uses, rather than overwriting
-    whatever now sits at that position (or, past the end, silently creating a
-    new row — issue #339). The staged add-time parameters (`lugar` /
-    `tenemos` / `cantidad`, issue #92) apply when sent; when omitted the
-    pre-#92 defaults hold (keep the existing row's values with target raised
-    to at least 1, or zone-less present 0 / target 1 for a new row).
+    whatever now sits at that position or silently creating a new row past
+    the end. The staged add-time parameters (`lugar` / `tenemos` /
+    `cantidad`) apply when sent; when omitted, the existing row's values hold
+    with its target raised to at least 1, or a zone-less present 0 / target 1
+    for a new row.
     """
     store = payload.store.strip().lower()
     url = payload.product_url.strip()

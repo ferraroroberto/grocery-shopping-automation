@@ -1,4 +1,4 @@
-"""Subprocess plumbing for the read-only store-login check (issue #217).
+"""Subprocess plumbing for the read-only store-login check.
 
 Runs ``python -m automation.check_logins --json`` to completion and returns its
 per-store result. Out of process for the same reason as the product search:
@@ -35,9 +35,8 @@ def _timeout_s() -> int:
     """Profile wait-backoff schedule + one page-load allowance per store.
 
     Derived from ``automation.browser``'s actual backoff schedule, rather than
-    a literal copy of it, so the two cannot drift apart again (issue #339):
-    this timed out at 360s while the schedule it was meant to cover grew to
-    900s.
+    a literal copy of it, so a timeout here can never drift shorter than the
+    schedule it is meant to cover.
     """
     from automation import browser
     try:

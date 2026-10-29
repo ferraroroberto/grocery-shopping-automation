@@ -54,6 +54,7 @@ from playwright.sync_api import Page
 
 from automation.browser import (
     NotLoggedInError,
+    StoreApiError,
     goto_with_login_check,
     human_delay,
 )
@@ -164,16 +165,21 @@ def _basket_items(page: Page, auth: dict) -> list[dict]:
 
     Uses ``page.request`` with the SLAS bearer token so the call rides the live
     session. Returns a list of ``{"basketId", "itemId", "productId", "qty"}``
-    dicts, empty on any network/JSON error (a transient miss should not crash
-    the run; the caller's quantity check then finds 0 and triggers the add).
+    dicts; a basket GET that fails to answer never counts as an empty cart —
+    only a confirmed 200 response does.
 
     ``basketId`` / ``itemId`` are the handles the Shopper Baskets *delete*
     endpoint needs to remove a line (clean mode).
+
+    Raises:
+        StoreApiError: the basket GET returned a non-OK status, or its body
+            could not be parsed as JSON.
+        NotLoggedInError: `auth` carries no SLAS token/customer id.
     """
     token = auth.get("token") or ""
     customer_id = auth.get("customer_id") or ""
     if not token or not customer_id:
-        return []
+        raise NotLoggedInError("ametller", "basket GET has no SLAS token/customer id")
     url = (
         f"{_SCAPI_BASE}/customer/shopper-customers/v1/organizations/{_SCAPI_ORG}"
         f"/customers/{customer_id}/baskets?siteId={_SCAPI_SITE}"
@@ -182,13 +188,17 @@ def _basket_items(page: Page, auth: dict) -> list[dict]:
         resp = page.request.get(
             url, headers={"Authorization": f"Bearer {token}"}, timeout=15000
         )
-        if not resp.ok:
-            logger.debug("basket GET %d — treating cart as empty", resp.status)
-            return []
+    except Exception as err:  # noqa: BLE001 — surfaced as a distinct, logged error
+        logger.warning("⚠️ [ametller] basket GET raised %s", err)
+        raise StoreApiError("ametller", f"basket GET raised {err}") from err
+    if not resp.ok:
+        logger.warning("⚠️ [ametller] basket GET returned %d", resp.status)
+        raise StoreApiError("ametller", f"basket GET returned {resp.status}")
+    try:
         data = resp.json()
-    except Exception as err:  # noqa: BLE001 — best-effort, fall back to empty
-        logger.debug("basket fetch raised %s — treating cart as empty", err)
-        return []
+    except Exception as err:  # noqa: BLE001 — surfaced as a distinct, logged error
+        logger.warning("⚠️ [ametller] basket GET body was not JSON (%s)", err)
+        raise StoreApiError("ametller", f"basket GET body was not JSON ({err})") from err
     out: list[dict] = []
     for basket in data.get("baskets", []) or []:
         basket_id = str(basket.get("basketId") or "")
