@@ -41,11 +41,11 @@ def test_all_tabs_render_without_js_errors(page):
 
 @pytest.mark.e2e
 def test_standalone_page_head_meta(page):
-    """The installed iOS PWA needs the translucent status bar + viewport-fit=cover,
-    or the nav pill lands one status-bar height too low (_vendored/nav README
-    step 4). Desktop browsers can't reproduce that, so assert the pair here."""
+    """The installed iOS PWA needs the opaque `default` status bar + viewport-fit=cover,
+    or the nav bar rides the viewport growth after a cold launch (_vendored/nav
+    README). Desktop browsers can't reproduce that, so assert the pair here."""
     status_bar = page.locator('meta[name="apple-mobile-web-app-status-bar-style"]')
-    assert status_bar.get_attribute("content") == "black-translucent"
+    assert status_bar.get_attribute("content") == "default"
     assert "viewport-fit=cover" in page.locator('meta[name="viewport"]').get_attribute("content")
 
 
