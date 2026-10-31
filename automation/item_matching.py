@@ -22,14 +22,13 @@ from __future__ import annotations
 
 import json
 import logging
-import re
-import unicodedata
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Optional
 
 from automation.models import CartItem
+from src.product_match import normalize
 
 logger = logging.getLogger("item_matching")
 
@@ -59,21 +58,6 @@ class MatchResult:
     matched: list[MatchedItem] = field(default_factory=list)
     unmatched_website_names: list[str] = field(default_factory=list)
     dropped_comida: list[str] = field(default_factory=list)
-
-
-def normalize(name: str, *, keep: str = "%") -> str:
-    """Lowercase, strip accents/punctuation, collapse whitespace.
-
-    `keep` lists extra characters (besides a-z0-9) to retain before the
-    final whitespace collapse — item names keep the default `%` (pack-size
-    suffixes like "150g" vs "10%"); callers matching plain email subjects
-    (`email_check.subject_matches`) pass `keep=""`.
-    """
-    decomposed = unicodedata.normalize("NFKD", name)
-    without_accents = "".join(ch for ch in decomposed if not unicodedata.combining(ch))
-    lowered = without_accents.lower()
-    cleaned = re.sub(rf"[^a-z0-9{re.escape(keep)}]+", " ", lowered)
-    return re.sub(r"\s+", " ", cleaned).strip()
 
 
 def load_alias_table(store: str, path: Optional[Path] = None) -> dict[str, str]:

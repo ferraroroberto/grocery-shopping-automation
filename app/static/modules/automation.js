@@ -18,7 +18,7 @@
 import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
 import { setSwitch } from "../_vendored/switch/switch.js";
 import { showToast } from "../_vendored/toast/toast.js";
-import { fetchJson } from "./api.js";
+import { fetchJson, jsonInit } from "./api.js";
 import { c, items, state, storedToken, updateHeaders } from "./core.js";
 import { chip, esc, formatElapsed, html, icon, shortDate, switchMarkup } from "./dom.js";
 import { dialogShell } from "./stores/dialog.js";
@@ -384,11 +384,7 @@ export async function markFillDone() {
   const button = document.querySelector("#automation-mark-done");
   if (button) button.disabled = true;
   try {
-    await fetchJson("/api/automation/fills/clear", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ run: stamp }),
-    });
+    await fetchJson("/api/automation/fills/clear", jsonInit("POST", { run: stamp }));
     fills.cleared = true;
     showToast("Marked done. Still in History.");
   } catch (error) {
@@ -595,11 +591,7 @@ export async function startAutomation() {
   // tap) or a 500 from start_run must not leave `startedAt` set with nothing
   // actually running, so it is set only once the start succeeds.
   try {
-    const status = await fetchJson("/api/automation/start", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ store: picks.store, dry_run: picks.dryRun, cart_mode: picks.cartMode }),
-    });
+    const status = await fetchJson("/api/automation/start", jsonInit("POST", { store: picks.store, dry_run: picks.dryRun, cart_mode: picks.cartMode }));
     run.startedAt = Date.now();
     applyAutomationStatus(status);
     startAutomationTimer();

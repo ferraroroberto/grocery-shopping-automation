@@ -4,6 +4,7 @@ import json
 
 import pytest
 
+from src.atomic_json import write_json_atomic
 from src.webapp_config import WebappConfig, load_webapp_config, save_webapp_config
 
 
@@ -40,3 +41,19 @@ def test_unreadable_file_raises_instead_of_defaulting(tmp_path, monkeypatch, cap
         with pytest.raises(OSError):
             load_webapp_config(target)
     assert "Could not read" in caplog.text
+
+
+def test_write_json_atomic_round_trips_and_creates_parents(tmp_path):
+    target = tmp_path / "nested" / "state.json"
+    write_json_atomic(target, {"name": "plátano"})
+    assert json.loads(target.read_text(encoding="utf-8")) == {"name": "plátano"}
+    assert [p.name for p in target.parent.iterdir()] == ["state.json"]
+
+
+def test_write_json_atomic_failure_keeps_target_and_leaves_no_temp(tmp_path):
+    target = tmp_path / "state.json"
+    write_json_atomic(target, {"ok": 1})
+    with pytest.raises(TypeError):
+        write_json_atomic(target, {"bad": object()})
+    assert json.loads(target.read_text(encoding="utf-8")) == {"ok": 1}
+    assert [p.name for p in tmp_path.iterdir()] == ["state.json"]

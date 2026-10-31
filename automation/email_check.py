@@ -16,7 +16,6 @@ from __future__ import annotations
 import difflib
 import json
 import logging
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -31,6 +30,7 @@ from automation.item_matching import (
 )
 from automation.item_matching import normalize as _normalize_text
 from gmail_readonly import GmailReadError, NormalizedEmail
+from src.atomic_json import write_json_atomic
 from src.data import purchase_logs_dir as default_purchase_logs_dir
 from src.gmail_config import build_gmail_mailbox, load_gmail_senders
 from src.notify_config import build_notify_notifier
@@ -148,21 +148,17 @@ def _load_processed_state(path: Path) -> dict[str, ProcessedEntry]:
 
 
 def _write_processed_state(path: Path, state: dict[str, ProcessedEntry]) -> None:
-    """Persist the processed-message state, atomically (tmp file + os.replace).
+    """Persist the processed-message state, atomically.
 
-    Mirrors the sibling JSON-state writers in this subtree
-    (`src/gmail_config.py:save_gmail_monitor_config`,
-    `src/webapp_config.py:save_webapp_config`) so a crash mid-write can never
-    leave `gmail_processed_state.json` truncated or corrupt.
+    A crash mid-write must never leave `gmail_processed_state.json` truncated
+    or corrupt.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         store: {"message_id": entry.message_id, "timestamp": entry.timestamp}
         for store, entry in state.items()
     }
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    os.replace(tmp, path)
+    write_json_atomic(path, payload)
 
 
 def _backfill_watermark(

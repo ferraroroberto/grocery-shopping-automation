@@ -11,7 +11,7 @@
 // form did, and Esc or × discards. The two store pages (stores/review.js) keep
 // their per-store saves, which write at once as before.
 import { showToast } from "../_vendored/toast/toast.js";
-import { fetchJson, itemUrl } from "./api.js";
+import { fetchJson, itemUrl, jsonInit } from "./api.js";
 import { confirmSheet } from "./confirm.js";
 import { c, render, state } from "./core.js";
 import { esc, icon, pickerMarkup, syncPicker, text } from "./dom.js";
@@ -20,7 +20,7 @@ import { fallbackSummary, onFallbackClick, onFallbackSubmit, paintFallbackPage }
 import { dialogShell, setDialogStatus } from "./stores/dialog.js";
 import { paintList } from "./stores/list.js";
 import { afterReviewChange, closeReview, onReviewClick, onReviewSubmit, openReview, paintQuantity, reviewSummary } from "./stores/review.js";
-import { itemById, jsonInit, storeName } from "./stores/state.js";
+import { itemById, storeName } from "./stores/state.js";
 
 const SHEET_ID = "item-sheet";
 

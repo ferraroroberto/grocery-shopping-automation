@@ -24,16 +24,18 @@ STRONG_MATCH = 0.6
 PARTIAL_MATCH = 0.3
 
 
-def normalize(name: str) -> str:
+def normalize(name: str, *, keep: str = "%") -> str:
     """Lowercase, strip accents/punctuation, collapse whitespace.
 
-    Local copy of the same helper ``automation.item_matching`` uses — kept here
-    so this ``src/`` module never imports up into the ``automation/`` package
-    (the data layer must stay free of cart-automation dependencies).
+    `keep` lists extra characters (besides a-z0-9) to retain before the
+    final whitespace collapse — item names keep the default `%` (pack-size
+    suffixes like "150g" vs "10%"); callers matching plain email subjects
+    (`email_check.subject_matches`) pass `keep=""`. The one copy, shared with
+    ``automation.item_matching``, which already imports from ``src/``.
     """
     decomposed = unicodedata.normalize("NFKD", name)
     without_accents = "".join(ch for ch in decomposed if not unicodedata.combining(ch))
-    cleaned = re.sub(r"[^a-z0-9%]+", " ", without_accents.lower())
+    cleaned = re.sub(rf"[^a-z0-9{re.escape(keep)}]+", " ", without_accents.lower())
     return re.sub(r"\s+", " ", cleaned).strip()
 
 

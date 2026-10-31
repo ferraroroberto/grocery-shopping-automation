@@ -7,7 +7,7 @@
 // change saves as it happens (design.md "settings group"); Done closes. The
 // sheet lives at <body> level, outside .app, so it carries its own listeners.
 import { setSwitch } from "../_vendored/switch/switch.js";
-import { fetchJson } from "./api.js";
+import { fetchJson, jsonInit } from "./api.js";
 import { fmtBuildTime, html, icon, switchMarkup, switchOn, text } from "./dom.js";
 import { dialogShell } from "./stores/dialog.js";
 
@@ -148,11 +148,7 @@ async function pushEmailMonitorConfig() {
     senders,
   };
   try {
-    await fetchJson("/api/email-monitor/config", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    await fetchJson("/api/email-monitor/config", jsonInit("PUT", payload));
     await refreshEmailWatch();
   } catch (error) {
     const line = document.querySelector("#email-monitor-status");
@@ -175,11 +171,7 @@ async function runEmailCheck(force) {
       : "Checking mailbox…";
   }
   try {
-    await fetchJson("/api/email-monitor/check", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ force }),
-    });
+    await fetchJson("/api/email-monitor/check", jsonInit("POST", { force }));
     await refreshEmailWatch();
   } catch (error) {
     if (line) {

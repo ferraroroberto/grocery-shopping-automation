@@ -8,7 +8,7 @@
 // carries its own listeners for the search and the form instead of app.js's
 // delegation.
 import { showToast } from "../_vendored/toast/toast.js";
-import { fetchJson } from "./api.js";
+import { fetchJson, jsonInit } from "./api.js";
 import { defaultZone, render, state } from "./core.js";
 import { icon, pickerMarkup, syncPicker } from "./dom.js";
 import {
@@ -117,11 +117,7 @@ async function onSubmit(event) {
   button.disabled = true;
   setDialogStatus(d, "");
   try {
-    state.payload = await fetchJson("/api/items", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
+    state.payload = await fetchJson("/api/items", jsonInit("POST", data));
   } catch (error) {
     // e.g. 423 — the spreadsheet is open in Excel; the server's hint says so.
     setDialogStatus(d, error.message);

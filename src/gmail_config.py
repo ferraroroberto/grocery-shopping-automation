@@ -29,6 +29,7 @@ from gmail_readonly import (
     GmailSender,
     build_google_read_client,
 )
+from src.atomic_json import write_json_atomic
 
 logger = logging.getLogger("gmail_config")
 
@@ -134,9 +135,7 @@ def save_gmail_monitor_config(
         ],
         "poller": {"enabled": settings.enabled, "interval_minutes": settings.interval_minutes},
     }
-    tmp = target.with_suffix(target.suffix + ".tmp")
-    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    os.replace(tmp, target)
+    write_json_atomic(target, payload)
     return target
 
 

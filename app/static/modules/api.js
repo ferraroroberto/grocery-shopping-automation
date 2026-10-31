@@ -14,6 +14,11 @@ import {
 } from "./core.js";
 import { fmtBuildTime } from "./dom.js";
 
+// A JSON request init; `extra` carries fetch options such as an abort `signal`.
+export function jsonInit(method, body, extra = {}) {
+  return { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), ...extra };
+}
+
 export function authFetch(input, init = {}) {
   const token = storedToken();
   const options = { ...init };
@@ -97,11 +102,7 @@ export async function onLoginSubmit(event) {
   button.disabled = true;
   el.loginError.textContent = "";
   try {
-    const response = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
-    });
+    const response = await fetch("/api/login", jsonInit("POST", { password }));
     if (response.status === 401) {
       el.loginError.textContent = "Wrong password";
       el.loginPassword.select();
@@ -139,11 +140,7 @@ export async function loadInventory() {
 export async function mutate(url, payload, method = "POST") {
   setStatus("Saving...");
   try {
-    state.payload = await fetchJson(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    state.payload = await fetchJson(url, jsonInit(method, payload));
   } catch (error) {
     // The server's detail (a 423 "spreadsheet open in Excel" is the common one);
     // callers are bare click handlers, so a rethrow would only go unhandled.

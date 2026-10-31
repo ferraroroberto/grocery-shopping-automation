@@ -13,7 +13,7 @@
 // take survives a dying phone. Rolling partials flow back over SSE; Stop yields
 // the canonical transcript. grocery only proxies — VT owns the audio.
 import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
-import { authFetch, fetchJson } from "./api.js";
+import { authFetch, fetchJson, jsonInit } from "./api.js";
 import { confirmSheet } from "./confirm.js";
 import { activePaneBody, c, items, render, state, storedToken, updateHeaders } from "./core.js";
 import { esc, formatBytes, formatElapsed, html, icon, shortDate, switchMarkup, text } from "./dom.js";
@@ -728,12 +728,7 @@ async function finishRecording() {
     await audio.uploadChain;
     audio.bytes = audio.bytesSent;
     const body = await runWithTimer(audioTranscribeStage, (signal) =>
-      fetchJson(`/api/audio/session/${audio.sessionId}/finish?language=es&translate=false`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: "{}",
-        signal,
-      }),
+      fetchJson(`/api/audio/session/${audio.sessionId}/finish?language=es&translate=false`, jsonInit("POST", {}, { signal })),
     );
     closeAudioPartialStream();
     if (body.silent) {
@@ -803,12 +798,7 @@ export async function matchTranscript() {
   const model = audio.model;
   try {
     audio.matches = await runWithTimer(audioMatchStage, (signal) =>
-      fetchJson("/api/audio/match", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(model ? { transcript, model } : { transcript }),
-        signal,
-      }),
+      fetchJson("/api/audio/match", jsonInit("POST", model ? { transcript, model } : { transcript }, { signal })),
     );
     resetPicks();
     audio.names = Object.fromEntries(items().map((item) => [item.id, String(item[c().comida] ?? "")]));
@@ -831,18 +821,14 @@ export async function applyAudio() {
   if (button) button.disabled = true;
   setAudioStatus("Applying accepted counts…");
   try {
-    state.payload = await fetchJson("/api/audio/apply", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        updates,
-        names: Object.fromEntries(Object.keys(updates).filter((id) => id in audio.names).map((id) => [id, audio.names[id]])),
-        transcript: audio.transcript,
-        model: audio.model,
-        matches: audio.matches,
-        audio_bytes: audio.bytes || 0,
-      }),
-    });
+    state.payload = await fetchJson("/api/audio/apply", jsonInit("POST", {
+      updates,
+      names: Object.fromEntries(Object.keys(updates).filter((id) => id in audio.names).map((id) => [id, audio.names[id]])),
+      transcript: audio.transcript,
+      model: audio.model,
+      matches: audio.matches,
+      audio_bytes: audio.bytes || 0,
+    }));
     const logPath = state.payload.audio_log_path || "";
     audio.matches = null;
     resetPicks();

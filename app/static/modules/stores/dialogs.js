@@ -1,12 +1,12 @@
 // Prices: the "Review & apply" dialog and the baseline confirm/reset.
 import { emptyStateEl } from "../../_vendored/empty-state/empty-state.js";
 import { showToast } from "../../_vendored/toast/toast.js";
-import { fetchJson } from "../api.js";
+import { fetchJson, jsonInit } from "../api.js";
 import { render, state } from "../core.js";
 import { esc, icon } from "../dom.js";
 import { dialogShell } from "./dialog.js";
 import { loadChecks, scheduleSimulate } from "./simulator.js";
-import { PICKS_KEY, activePicks, jsonInit, local, num, plural, storeName, writeStored } from "./state.js";
+import { PICKS_KEY, activePicks, local, num, plural, storeName, writeStored } from "./state.js";
 
 const FLAG_TEXT = {
   unit_mismatch: "Pack units differ, so the target and in-stock count were kept. Check them.",

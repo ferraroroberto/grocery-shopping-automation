@@ -18,6 +18,7 @@ from src.data import (
     SpreadsheetLockedError,
     cell_text,
     fallback_pair,
+    restore_cells,
     save_inventory_data,
     store_url_column,
 )
@@ -61,9 +62,7 @@ class _Edits:
         df.at[row, col] = value
 
     def rollback(self) -> None:
-        for row, col, old in reversed(self.cells):
-            if col not in self.new_cols:
-                self.df.at[row, col] = old
+        restore_cells(self.df, [cell for cell in self.cells if cell[1] not in self.new_cols])
         if self.new_cols:
             self.df.drop(columns=self.new_cols, inplace=True)
 

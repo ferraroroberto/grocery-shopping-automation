@@ -6,13 +6,13 @@
 // figure lands in its draft, while the store edits here save as they always did.
 import { emptyStateEl } from "../../_vendored/empty-state/empty-state.js";
 import { setSwitch } from "../../_vendored/switch/switch.js";
-import { fetchJson, itemUrl } from "../api.js";
+import { fetchJson, itemUrl, jsonInit } from "../api.js";
 import { state } from "../core.js";
 import { chip, esc, icon, switchMarkup } from "../dom.js";
 import { setDialogStatus } from "./dialog.js";
 import { FLAG_LABELS, LINK_NOTE, flagLabel } from "./list.js";
 import { loadChecks, loadMeta, scheduleSimulate } from "./simulator.js";
-import { eur, jsonInit, local, num, plural, storeName } from "./state.js";
+import { eur, local, num, plural, storeName } from "./state.js";
 
 const STATUS_TEXT = {
   baseline: "Current product",
