@@ -94,7 +94,7 @@ def replay_live(log: Dict[str, Any], df, model: Optional[str]) -> Dict[str, Any]
         base_url=cfg["llm_base_url"],
         model=model or log.get("model") or cfg["llm_model"],
         max_tokens=cfg["llm_max_tokens"],
-        timeout=cfg.get("llm_timeout", 600),
+        timeout=cfg["llm_timeout"],
     )
     return {
         "items": result.items,

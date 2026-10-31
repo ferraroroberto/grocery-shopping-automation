@@ -121,7 +121,7 @@ def configure(root: Path, app: Path, port: int) -> None:
     cfg = json.loads((app / "src" / "config.example.json").read_text(encoding="utf-8"))
     cfg["data"]["xlsx_file"] = str(root / "data" / "list.xlsx")
     audio = cfg["audio_audit"]
-    audio.update({"whisper_url": CLOSED_URL, "transcribe_url": CLOSED_URL, "llm_base_url": CLOSED_URL,
+    audio.update({"whisper_url": CLOSED_URL, "llm_base_url": CLOSED_URL,
                   "voice_transcriber_url": CLOSED_URL, "logs_dir": str(root / "audio_audit_logs")})
     cfg["automation"]["purchase_logs_dir"] = str(root / "purchase_logs")
     cfg["benchmark"]["runs_dir"] = str(root / "benchmark_runs")

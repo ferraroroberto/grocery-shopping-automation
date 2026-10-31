@@ -104,6 +104,9 @@ _MAX_ADD_ATTEMPTS = 2
 _SCAPI_BASE = "https://www.ametllerorigen.com/mobify/proxy/api"
 _SCAPI_ORG = "f_ecom_blzv_prd"
 _SCAPI_SITE = "ametller"
+# Stated guess, not measured: how long the unattended run waits on one SCAPI basket
+# GET or DELETE before treating the store as unreachable.
+_SCAPI_TIMEOUT_MS = 15000
 
 # Storefront home — a stable page that hydrates the SLAS shopper session into
 # localStorage, used to read auth before a run-level cart snapshot / clear.
@@ -186,7 +189,7 @@ def _basket_items(page: Page, auth: dict) -> list[dict]:
     )
     try:
         resp = page.request.get(
-            url, headers={"Authorization": f"Bearer {token}"}, timeout=15000
+            url, headers={"Authorization": f"Bearer {token}"}, timeout=_SCAPI_TIMEOUT_MS
         )
     except Exception as err:  # noqa: BLE001 — surfaced as a distinct, logged error
         logger.warning("⚠️ [ametller] basket GET raised %s", err)
@@ -502,7 +505,7 @@ def _delete_basket_item(
     )
     try:
         resp = page.request.delete(
-            url, headers={"Authorization": f"Bearer {token}"}, timeout=15000
+            url, headers={"Authorization": f"Bearer {token}"}, timeout=_SCAPI_TIMEOUT_MS
         )
         if not resp.ok:
             logger.warning(

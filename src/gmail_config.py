@@ -39,6 +39,10 @@ DEFAULT_WHITELIST_PATH = _REPO_ROOT / "config" / "gmail_config.json"
 
 
 DEFAULT_POLLER_INTERVAL_MINUTES = 60
+# Floor keeps the poller from hammering the Gmail API; the ceiling is one day, so a
+# typo'd interval can't silently park the watch.
+MIN_POLL_INTERVAL_MINUTES = 5
+MAX_POLL_INTERVAL_MINUTES = 1440
 
 
 @dataclass
@@ -115,7 +119,7 @@ def load_poller_settings(path: Optional[Path] = None) -> PollerSettings:
         interval = DEFAULT_POLLER_INTERVAL_MINUTES
     return PollerSettings(
         enabled=bool(raw.get("enabled", False)),
-        interval_minutes=max(5, min(1440, interval)),
+        interval_minutes=max(MIN_POLL_INTERVAL_MINUTES, min(MAX_POLL_INTERVAL_MINUTES, interval)),
     )
 
 

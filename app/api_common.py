@@ -161,7 +161,7 @@ def inventory_payload(df: pd.DataFrame) -> dict[str, Any]:
         "audio": {
             "models": CONFIG["audio_audit"]["llm_models_available"],
             "default_model": CONFIG["audio_audit"]["llm_model"],
-            "clamp": int(CONFIG["audio_audit"].get("max_count_clamp_above_target", 5)),
+            "clamp": int(CONFIG["audio_audit"]["max_count_clamp_above_target"]),
         },
         "items": _records_from_frame(df),
     }

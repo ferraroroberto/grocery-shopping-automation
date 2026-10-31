@@ -96,7 +96,7 @@ async def transcode_and_transcribe(file: UploadFile, *, prompt: str | None = Non
     try:
         return transcribe(
             audio_bytes,
-            whisper_url=cfg.get("transcribe_url", "http://127.0.0.1:8000"),
+            whisper_url=cfg["whisper_url"],
             # No model → the hub applies roles.audio.transcribe (parakeet primary
             # + whisper failover) rather than pinning a single backend.
             # Force Spanish: with no language, whisper-large-v3-turbo sometimes

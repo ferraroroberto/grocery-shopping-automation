@@ -7,6 +7,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from app import email_poller
+from src.gmail_config import MAX_POLL_INTERVAL_MINUTES, MIN_POLL_INTERVAL_MINUTES
 
 router = APIRouter()
 
@@ -18,7 +19,7 @@ class MonitorSenderPayload(BaseModel):
 
 class EmailMonitorConfigPayload(BaseModel):
     enabled: bool
-    interval_minutes: int = Field(..., ge=5, le=1440)
+    interval_minutes: int = Field(..., ge=MIN_POLL_INTERVAL_MINUTES, le=MAX_POLL_INTERVAL_MINUTES)
     senders: list[MonitorSenderPayload] = []
 
 

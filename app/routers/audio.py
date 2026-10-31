@@ -190,7 +190,7 @@ def audio_match(payload: MatchPayload) -> dict[str, Any]:
             base_url=cfg["llm_base_url"],
             model=model,
             max_tokens=cfg["llm_max_tokens"],
-            timeout=cfg.get("llm_timeout", 600),
+            timeout=cfg["llm_timeout"],
         )
     except ExtractionError as exc:
         raise inventory_error(502, str(exc)) from exc

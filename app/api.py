@@ -18,9 +18,11 @@ from app.routers import audio, automation, email, inventory, product_search, sto
 from app.static_files import BUILD_INFO, CachingStaticFiles
 from src.compression import StreamSafeGZipMiddleware
 from src.data import CONFIG
+from src.log_setup import configure_logging
 from src.webapp_config import EMAIL_POLLER_ENV, load_webapp_config
 
 
+configure_logging()
 logger = logging.getLogger("email_poller")
 
 

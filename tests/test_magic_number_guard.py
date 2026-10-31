@@ -1,7 +1,8 @@
-"""Structural check for issue #341's finding class: a bare numeric literal
+"""Structural checks for two recurring audit classes. First, issue #341's finding class: a bare numeric literal
 feeding a timeout/window/limit-shaped keyword argument in unattended code
 (tray start, background pollers) with no name or reason attached to it.
 Guards `app/tray/` and `automation/` -- the two surfaces the audit named.
+Second, library code in `src/` configuring root logging at import time.
 
 `BASELINE` holds pre-existing bare literals outside that scope (cart-
 automation Playwright timeouts); it only stops *new* debt, same shrink-with-
@@ -23,10 +24,7 @@ RISK_KEYWORD_SUBSTRINGS = ("timeout", "lookback", "limit", "interval", "retries"
 # nobody's-watching entrypoints issue #341 flagged. Shrink this set in the
 # PR that names each one.
 BASELINE = frozenset({
-    "automation/ametller.py:189:timeout",
-    "automation/ametller.py:505:timeout",
     "automation/bootstrap_session.py:128:timeout",
-    "automation/product_search.py:157:timeout",
 })
 
 
@@ -92,3 +90,35 @@ def test_no_new_bare_literal_timeouts_in_unattended_surfaces():
     offenses = set(scan_unattended_dirs())
     new = offenses - BASELINE
     assert not new, f"new unexplained literal(s) in unattended code: {sorted(new)}"
+
+
+def find_root_logging_config(source: str, relpath: str) -> list[str]:
+    """Return `relpath:lineno` for every `logging.basicConfig(...)` call."""
+    tree = ast.parse(source, filename=relpath)
+    return [
+        f"{relpath}:{node.lineno}"
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "basicConfig"
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "logging"
+    ]
+
+
+def test_detector_flags_import_time_logging_config():
+    source = "import logging\nlogging.basicConfig(level=10)\n"
+    assert find_root_logging_config(source, "fixture.py") == ["fixture.py:2"]
+
+
+def test_library_modules_never_configure_root_logging():
+    """`src/` is imported by scripts and CLIs that set up their own logging; a
+    `basicConfig` there wins the race at import and turns theirs into a no-op.
+    Only entry points call `src.log_setup.configure_logging()`."""
+    offenses: list[str] = []
+    for path in sorted((REPO_ROOT / "src").rglob("*.py")):
+        relpath = path.relative_to(REPO_ROOT).as_posix()
+        if relpath == "src/log_setup.py":
+            continue  # the one place an entry point's setup call lands
+        offenses.extend(find_root_logging_config(path.read_text(encoding="utf-8"), relpath))
+    assert not offenses, f"root logging configured in library code: {offenses}"

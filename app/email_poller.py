@@ -22,6 +22,8 @@ from typing import Any, Optional
 
 from automation.email_check import ConfirmationCheckResult, check_latest_confirmation
 from src.gmail_config import (
+    MAX_POLL_INTERVAL_MINUTES,
+    MIN_POLL_INTERVAL_MINUTES,
     PollerSettings,
     load_monitored_senders,
     load_poller_settings,
@@ -156,7 +158,7 @@ def update_config(
         if sender.address in sender_flags:
             sender.enabled = bool(sender_flags[sender.address])
     settings = PollerSettings(
-        enabled=bool(enabled), interval_minutes=max(5, min(1440, int(interval_minutes)))
+        enabled=bool(enabled), interval_minutes=max(MIN_POLL_INTERVAL_MINUTES, min(MAX_POLL_INTERVAL_MINUTES, int(interval_minutes)))
     )
     save_gmail_monitor_config(senders, settings)
 
