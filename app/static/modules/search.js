@@ -11,7 +11,7 @@
 //   - a new term → "Use" pre-fills the sheet's Add by hand form below (name,
 //     store, link, target 1) and the sheet's "Add item" creates the row — the
 //     same POST /api/items shape /select would build.
-import { fetchJson } from "./api.js";
+import { fetchJson, jsonInit } from "./api.js";
 import { c, defaultZone, items, state } from "./core.js";
 import { chip, esc, formatElapsed, html, icon, setPickerValue, text } from "./dom.js";
 import { pickAudioMime } from "./media.js";
@@ -263,10 +263,7 @@ export async function startProductSearch() {
   renderSearch();
   startSearchPoll();
   try {
-    const status = await fetchJson("/api/product-search/start", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: term }),
-    });
+    const status = await fetchJson("/api/product-search/start", jsonInit("POST", { text: term }));
     s.pendingStart = false;
     applySearchStatus(status);
   } catch (err) {
@@ -418,9 +415,7 @@ export async function useCandidate(cardEl) {
   const btn = cardEl.querySelector(".candidate-confirm-add");
   if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
   try {
-    state.payload = await fetchJson("/api/product-search/select", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
-    });
+    state.payload = await fetchJson("/api/product-search/select", jsonInit("POST", payload));
     s.resolved[candidateKey(payload.term, payload.product_url)] = true;
     s.confirming = "";
     s.draft = null;

@@ -56,6 +56,20 @@ def _stage_units_per_pack(sheet):
     assert sheet.locator("[data-link-value='pack']").inner_text() == "2,5 per pack"
 
 
+def _check_units_per_pack_survives_an_unrelated_save(page, name, row):
+    # Reopening an item with a stored Units per pack shows it, and saving an
+    # unrelated change keeps it rather than clearing it.
+    sheet = _open_sheet_from(page, "list", name)
+    assert sheet.locator("[data-link-value='pack']").inner_text() == "2.5 per pack"
+    sheet.locator("[data-sheet-qty='cantidad'] [data-action='target-plus']").click()
+    with page.expect_response(lambda r: r.request.method == "PUT") as resp:
+        sheet.locator(".detail-save-btn").click()
+    assert resp.value.request.post_data_json["units_per_pack"] == 2.5
+    sheet.wait_for(state="hidden")
+    saved, cols = row()
+    assert (saved[cols["cantidad"]], saved["units_per_pack"]) == (3, 2.5)
+
+
 def _check_buy_link_opens_from_the_sheet(page, name, row):
     # The buy link opens from the sheet (#264): a real http(s) URL gets a
     # trailing open button on its row and an Open link action on its page, both
@@ -168,6 +182,8 @@ def test_item_sheet_opens_everywhere_edits_and_deletes(page, server):
     assert "buy 1 unit → 1 pack" in page.locator("#pane-items .item-row", has_text=name).inner_text()
     assert saved[cols["super"]] == "mercadona"
     assert saved[cols["buscador"]] in (None, ""), saved[cols["buscador"]]
+
+    _check_units_per_pack_survives_an_unrelated_save(page, name, row)
 
     # Delete: the x keeps the item, the confirm sheet's Delete removes it.
     native: list[str] = []

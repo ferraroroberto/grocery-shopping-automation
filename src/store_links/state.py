@@ -5,12 +5,12 @@ from __future__ import annotations
 import json
 import logging
 import os
-import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Optional
 
 from benchmark.paths import runs_dir
+from src.atomic_json import write_json_atomic
 
 logger = logging.getLogger(__name__)
 
@@ -59,14 +59,7 @@ def _update_overrides(base: Optional[Path], change: Callable[[dict[str, dict]], 
         os.replace(path, aside)
         logger.warning("⚠️ Moved unreadable overrides file aside to %s", aside.name)
     change(doc)
-    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".overrides.", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(doc, fh, ensure_ascii=False, indent=2)
-        os.replace(tmp, path)
-    except BaseException:
-        Path(tmp).unlink(missing_ok=True)
-        raise
+    write_json_atomic(path, doc)
     return doc
 
 
@@ -106,14 +99,7 @@ def _write_baseline(base: Optional[Path], doc: Optional[dict]) -> None:
     if doc is None:
         path.unlink(missing_ok=True)
         return
-    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".baseline.", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(doc, fh, ensure_ascii=False, indent=2)
-        os.replace(tmp, path)
-    except BaseException:
-        Path(tmp).unlink(missing_ok=True)
-        raise
+    write_json_atomic(path, doc)
 
 
 def _baseline_field(doc: Optional[dict], latest_run_date: Optional[str]) -> Optional[dict[str, Any]]:

@@ -1,7 +1,8 @@
-"""Structural check for issue #341's finding class: a bare numeric literal
+"""Structural checks for two recurring audit classes. First, issue #341's finding class: a bare numeric literal
 feeding a timeout/window/limit-shaped keyword argument in unattended code
 (tray start, background pollers) with no name or reason attached to it.
 Guards `app/tray/` and `automation/` -- the two surfaces the audit named.
+Second, library code in `src/` configuring root logging at import time.
 
 `BASELINE` holds pre-existing bare literals outside that scope (cart-
 automation Playwright timeouts); it only stops *new* debt, same shrink-with-
@@ -23,10 +24,7 @@ RISK_KEYWORD_SUBSTRINGS = ("timeout", "lookback", "limit", "interval", "retries"
 # nobody's-watching entrypoints issue #341 flagged. Shrink this set in the
 # PR that names each one.
 BASELINE = frozenset({
-    "automation/ametller.py:189:timeout",
-    "automation/ametller.py:505:timeout",
     "automation/bootstrap_session.py:128:timeout",
-    "automation/product_search.py:157:timeout",
 })
 
 
@@ -92,3 +90,89 @@ def test_no_new_bare_literal_timeouts_in_unattended_surfaces():
     offenses = set(scan_unattended_dirs())
     new = offenses - BASELINE
     assert not new, f"new unexplained literal(s) in unattended code: {sorted(new)}"
+
+
+def find_root_logging_config(source: str, relpath: str) -> list[str]:
+    """Return `relpath:lineno` for every `logging.basicConfig(...)` call."""
+    tree = ast.parse(source, filename=relpath)
+    return [
+        f"{relpath}:{node.lineno}"
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "basicConfig"
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "logging"
+    ]
+
+
+def test_detector_flags_import_time_logging_config():
+    source = "import logging\nlogging.basicConfig(level=10)\n"
+    assert find_root_logging_config(source, "fixture.py") == ["fixture.py:2"]
+
+
+def test_library_modules_never_configure_root_logging():
+    """`src/` is imported by scripts and CLIs that set up their own logging; a
+    `basicConfig` there wins the race at import and turns theirs into a no-op.
+    Only entry points call `src.log_setup.configure_logging()`."""
+    offenses: list[str] = []
+    for path in sorted((REPO_ROOT / "src").rglob("*.py")):
+        relpath = path.relative_to(REPO_ROOT).as_posix()
+        if relpath == "src/log_setup.py":
+            continue  # the one place an entry point's setup call lands
+        offenses.extend(find_root_logging_config(path.read_text(encoding="utf-8"), relpath))
+    assert not offenses, f"root logging configured in library code: {offenses}"
+
+
+BLOCKING_CALLS = frozenset(
+    {("subprocess", name) for name in ("run", "call", "check_call", "check_output", "Popen")}
+    | {("requests", name) for name in ("get", "post", "put", "patch", "delete", "request")}
+    | {("time", "sleep")}
+)
+
+
+def find_blocking_calls_in_async(source: str, relpath: str) -> list[str]:
+    """Return `relpath:lineno:call` for each blocking call made directly in an
+    `async def` body. Nested `def`s and lambdas are skipped: those are the
+    callables handed to `asyncio.to_thread`."""
+    offenses: list[str] = []
+
+    def visit(node: ast.AST) -> None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                continue
+            if (
+                isinstance(child, ast.Call)
+                and isinstance(child.func, ast.Attribute)
+                and isinstance(child.func.value, ast.Name)
+                and (child.func.value.id, child.func.attr) in BLOCKING_CALLS
+            ):
+                offenses.append(f"{relpath}:{child.lineno}:{child.func.value.id}.{child.func.attr}")
+            visit(child)
+
+    for node in ast.walk(ast.parse(source, filename=relpath)):
+        if isinstance(node, ast.AsyncFunctionDef):
+            visit(node)
+    return offenses
+
+
+def test_detector_flags_a_blocking_call_in_an_async_def():
+    source = "async def route():\n    subprocess.run(cmd)\n    await asyncio.to_thread(subprocess.run, cmd)\n"
+    assert find_blocking_calls_in_async(source, "fixture.py") == ["fixture.py:2:subprocess.run"]
+
+
+def test_detector_skips_a_nested_sync_def_handed_to_a_thread():
+    source = "async def route():\n    def work():\n        time.sleep(1)\n    await asyncio.to_thread(work)\n"
+    assert find_blocking_calls_in_async(source, "fixture.py") == []
+
+
+def test_no_blocking_calls_directly_in_async_handlers():
+    """A blocking call in an `async def` stalls every other request, SSE and
+    `/healthz` included. This catches the direct form only; a blocking helper
+    called from an async def (what the transcription route did) is covered by
+    `tests/test_api.py::test_transcription_does_not_block_the_event_loop`."""
+    offenses: list[str] = []
+    for path in sorted((REPO_ROOT / "app").rglob("*.py")):
+        relpath = path.relative_to(REPO_ROOT).as_posix()
+        offenses.extend(find_blocking_calls_in_async(path.read_text(encoding="utf-8"), relpath))
+    assert not offenses, f"blocking call(s) on the event loop: {offenses}"

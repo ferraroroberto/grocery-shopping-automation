@@ -15,6 +15,7 @@ Two things live here, both shared by more than one router:
   + whisper failover), used by the audio-transcribe and product-search routers.
 """
 
+import asyncio
 import logging
 from typing import Any
 
@@ -84,7 +85,7 @@ async def transcode_and_transcribe(file: UploadFile, *, prompt: str | None = Non
     # if ffmpeg is unavailable (still correct for a genuine WAV upload).
     filename, mime = "audio.wav", "audio/wav"
     try:
-        audio_bytes = transcode_to_wav(audio_bytes)
+        audio_bytes = await asyncio.to_thread(transcode_to_wav, audio_bytes)
     except FfmpegMissingError:
         logging.getLogger(__name__).warning(
             "ffmpeg missing — posting raw audio to whisper (works only for WAV uploads)"
@@ -94,9 +95,11 @@ async def transcode_and_transcribe(file: UploadFile, *, prompt: str | None = Non
     except TranscriptionError as exc:
         raise inventory_error(502, str(exc)) from exc
     try:
-        return transcribe(
+        # transcribe() blocks for up to TRANSCRIBE_TIMEOUT_S, so it runs in a worker thread.
+        return await asyncio.to_thread(
+            transcribe,
             audio_bytes,
-            whisper_url=cfg.get("transcribe_url", "http://127.0.0.1:8000"),
+            whisper_url=cfg["whisper_url"],
             # No model → the hub applies roles.audio.transcribe (parakeet primary
             # + whisper failover) rather than pinning a single backend.
             # Force Spanish: with no language, whisper-large-v3-turbo sometimes

@@ -14,6 +14,8 @@
   - `net.py` — LAN-IP / port-probe helpers shared by the FastAPI and Streamlit front ends.
   - `certs.py` — the one `cert.pem`/`key.pem` lookup (`webapp/certificates/`, then `certificates/`) the router, tray manager and tunnel launcher share.
   - `webapp_config.py` — remote-access (token/password) config loader.
+  - `atomic_json.py` — `write_json_atomic`, the one temp-file-then-`os.replace` JSON writer every state/config saver calls.
+  - `log_setup.py` — `configure_logging()`, called only by the entry points (`app/api.py`, `app/app.py`); importing a `src/` module never touches the root logger.
   - `config.example.json` — committed template; copied to `src/config.json` (gitignored) on first run.
 - **`automation/`** — Playwright + real-Chrome browser cart automation for Mercadona, Ametller and Carrefour (see [`automation/README.md`](../automation/README.md)).
 - **`benchmark/`** — quality-locked supermarket price benchmark: `build_basket.py` (monthly basket), `ametller_guest.py` (Ametller API via guest token), `results.py` (validated per-store research writer), `browser_fetch.py` (real Chrome for bot-protected stores), `score.py` (split scenarios, max-savings and recommended plan), `history.py` (run history), `report.py` (HTML report), `stores.json` (store registry). Driven by the `/supermarket-benchmark` project skill; see [Supermarket benchmark](benchmark-and-store-links.md).

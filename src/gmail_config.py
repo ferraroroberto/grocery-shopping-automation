@@ -29,6 +29,7 @@ from gmail_readonly import (
     GmailSender,
     build_google_read_client,
 )
+from src.atomic_json import write_json_atomic
 
 logger = logging.getLogger("gmail_config")
 
@@ -38,6 +39,10 @@ DEFAULT_WHITELIST_PATH = _REPO_ROOT / "config" / "gmail_config.json"
 
 
 DEFAULT_POLLER_INTERVAL_MINUTES = 60
+# Floor keeps the poller from hammering the Gmail API; the ceiling is one day, so a
+# typo'd interval can't silently park the watch.
+MIN_POLL_INTERVAL_MINUTES = 5
+MAX_POLL_INTERVAL_MINUTES = 1440
 
 
 @dataclass
@@ -114,7 +119,7 @@ def load_poller_settings(path: Optional[Path] = None) -> PollerSettings:
         interval = DEFAULT_POLLER_INTERVAL_MINUTES
     return PollerSettings(
         enabled=bool(raw.get("enabled", False)),
-        interval_minutes=max(5, min(1440, interval)),
+        interval_minutes=max(MIN_POLL_INTERVAL_MINUTES, min(MAX_POLL_INTERVAL_MINUTES, interval)),
     )
 
 
@@ -134,9 +139,7 @@ def save_gmail_monitor_config(
         ],
         "poller": {"enabled": settings.enabled, "interval_minutes": settings.interval_minutes},
     }
-    tmp = target.with_suffix(target.suffix + ".tmp")
-    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    os.replace(tmp, target)
+    write_json_atomic(target, payload)
     return target
 
 

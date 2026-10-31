@@ -14,7 +14,15 @@ import pandas as pd
 import pytest
 
 import src.data as data
-from src.data import COLUMNS, InventoryFileError, load_inventory_data
+from src.data import (
+    COLUMNS,
+    InventoryFileError,
+    SpreadsheetLockedError,
+    comprar_for,
+    load_inventory_data,
+    recompute_comprar,
+    rollback_on_save_failure,
+)
 
 
 def _overwrite_cell(xlsx_path: str, col: str, value) -> None:
@@ -39,3 +47,31 @@ def test_non_numeric_quantity_cell_raises_inventory_file_error(temp_env):
 
     with pytest.raises(InventoryFileError, match=COLUMNS["cantidad"]):
         load_inventory_data()
+
+
+def test_comprar_is_never_negative():
+    assert comprar_for(3, 1) == 2
+    assert comprar_for(1, 4) == 0
+
+
+def _one_row_frame() -> pd.DataFrame:
+    return pd.DataFrame([{COLUMNS["cantidad"]: 4, COLUMNS["tenemos"]: 1, COLUMNS["comprar"]: 3}])
+
+
+def test_rollback_on_save_failure_restores_cells_and_reraises():
+    df = _one_row_frame()
+    with pytest.raises(SpreadsheetLockedError):
+        with rollback_on_save_failure(df, [0], (COLUMNS["tenemos"], COLUMNS["comprar"])):
+            df.at[0, COLUMNS["tenemos"]] = 4
+            recompute_comprar(df, 0)
+            assert df.at[0, COLUMNS["comprar"]] == 0
+            raise SpreadsheetLockedError("open in Excel")
+    assert (df.at[0, COLUMNS["tenemos"]], df.at[0, COLUMNS["comprar"]]) == (1, 3)
+
+
+def test_rollback_on_save_failure_keeps_edits_on_success():
+    df = _one_row_frame()
+    with rollback_on_save_failure(df, [0], (COLUMNS["tenemos"], COLUMNS["comprar"])):
+        df.at[0, COLUMNS["tenemos"]] = 2
+        recompute_comprar(df, 0)
+    assert (df.at[0, COLUMNS["tenemos"]], df.at[0, COLUMNS["comprar"]]) == (2, 2)

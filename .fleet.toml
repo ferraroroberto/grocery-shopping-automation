@@ -153,8 +153,8 @@ record = "https://github.com/ferraroroberto/grocery-shopping-automation/issues/1
 
 [[design.accepted]]
 check  = "glyph-icons"
-detail = "3 arrow/shape character(s) drawn as icons in rendered text; use the matching Lucide glyph (design.md Icons): app/static/modules/audio.js:432, app/static/modules/audio.js:450, app/static/modules/audio.js:518"
-reason = "the arrow is a numeric from/to separator inside row meta text (`current → proposed`, `3 → 0`), not an icon standing for an action; audio.js:432 and :450 are those two meta strings, :518 is a code comment the lint's scan also reads"
+detail = "4 arrow/shape character(s) drawn as icons in rendered text; use the matching Lucide glyph (design.md Icons): app/static/modules/audio.js:428, app/static/modules/audio.js:448, app/static/modules/audio.js:533, app/static/modules/rows.js:63"
+reason = "the arrow is a numeric from/to separator inside row meta text (`current → proposed`, `3 → 0`, `14 units → 3 packs`), not an icon standing for an action; audio.js:428 and :448 and rows.js:63 are those meta strings, audio.js:533 is a code comment the lint's scan also reads"
 record = "https://github.com/ferraroroberto/grocery-shopping-automation/issues/299"
 
 # [design.review] -- the rendered design review's walk (fleet-config

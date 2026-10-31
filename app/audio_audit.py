@@ -244,7 +244,7 @@ def _run_extract(df: pd.DataFrame, cfg: Dict) -> None:
             base_url=cfg["llm_base_url"],
             model=model,
             max_tokens=cfg.get("llm_max_tokens", 4096),
-            timeout=cfg.get("llm_timeout", 600),
+            timeout=cfg["llm_timeout"],
         )
 
     result, error = _run_with_progress(progress, work, _extract_progress)
@@ -449,7 +449,7 @@ def _render_detected_items(df: pd.DataFrame, result: ExtractionResult, cfg: Dict
             lugar = str(df.at[idx, COLUMNS["lugar"]])
             cur = int(df.at[idx, COLUMNS["tenemos"]])
             target = int(df.at[idx, COLUMNS["cantidad"]])
-            clamp = target + cfg.get("max_count_clamp_above_target", 5)
+            clamp = target + cfg["max_count_clamp_above_target"]
             proposed = min(it["count"], clamp)
             delta = proposed - cur
 
@@ -598,7 +598,7 @@ def _collect_accepted(
     df: pd.DataFrame, result: ExtractionResult, unseen_idxs: List[int]
 ) -> Dict[int, int]:
     cfg = _audio_cfg()
-    clamp_extra = cfg.get("max_count_clamp_above_target", 5)
+    clamp_extra = cfg["max_count_clamp_above_target"]
     accepted: Dict[int, int] = {}
     for it in result.items:
         if not st.session_state.get(f"audio_audit_accept_{it['idx']}", True):

@@ -2,11 +2,12 @@
 
 import json
 import logging
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlencode, urlparse, urlunparse
+
+from src.atomic_json import write_json_atomic
 
 logger = logging.getLogger(__name__)
 
@@ -63,9 +64,7 @@ def save_webapp_config(cfg: WebappConfig, path: Optional[Path] = None) -> Path:
         "auth_token": cfg.auth_token,
         "auth_password": cfg.auth_password,
     }
-    tmp = target.with_suffix(target.suffix + ".tmp")
-    tmp.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    os.replace(tmp, target)
+    write_json_atomic(target, payload)
     return target
 
 

@@ -1,9 +1,13 @@
 """FastAPI endpoint tests (TestClient) against the fixture data."""
 
+import asyncio
+import io
 import json
+import time
 from pathlib import Path
 
 import httpx
+from fastapi import UploadFile
 
 import app.api as api
 import app.audio_hub as audio_hub
@@ -51,7 +55,8 @@ def test_whisper_url_defaults_to_the_hub():
     # config must transcribe through it with no edit.
     example = json.loads((Path(__file__).resolve().parent.parent / "src" / "config.example.json").read_text(encoding="utf-8"))
     cfg = example["audio_audit"]
-    assert cfg["whisper_url"] == cfg["llm_base_url"] == cfg["transcribe_url"] == "http://127.0.0.1:8000"
+    assert cfg["whisper_url"] == cfg["llm_base_url"] == "http://127.0.0.1:8000"
+    assert "transcribe_url" not in cfg
 
 
 def test_audio_health_whisper_ok_when_hub_audio_health_is_ok(client, monkeypatch):
@@ -699,3 +704,29 @@ def test_entry_document_etag_follows_the_build(client, monkeypatch):
     monkeypatch.undo()
     monkeypatch.setattr(api.BUILD_INFO, "fleet_hash", "0" * 16)
     assert client.get("/").headers["etag"] != base
+
+
+def test_transcription_does_not_block_the_event_loop(monkeypatch):
+    """ffmpeg and the hub POST are blocking calls; while one clip transcribes the
+    loop must keep serving every other request (SSE, /healthz)."""
+    monkeypatch.setattr(audio_hub, "transcode_to_wav", lambda raw: time.sleep(0.3) or raw)
+    monkeypatch.setattr(audio_hub, "transcribe", lambda raw, **kwargs: time.sleep(0.3) or "dos yogures")
+
+    async def run() -> tuple[str, int]:
+        ticks = 0
+
+        async def ticker() -> None:
+            nonlocal ticks
+            while True:
+                await asyncio.sleep(0.02)
+                ticks += 1
+
+        task = asyncio.create_task(ticker())
+        text = await audio_hub.transcode_and_transcribe(UploadFile(io.BytesIO(b"audio"), filename="a.webm"))
+        task.cancel()
+        return text, ticks
+
+    text, ticks = asyncio.run(run())
+    assert text == "dos yogures"
+    assert ticks >= 10, f"event loop stalled during transcription ({ticks} ticks)"
+

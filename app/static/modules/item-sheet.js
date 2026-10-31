@@ -11,7 +11,7 @@
 // form did, and Esc or × discards. The two store pages (stores/review.js) keep
 // their per-store saves, which write at once as before.
 import { showToast } from "../_vendored/toast/toast.js";
-import { fetchJson, itemUrl } from "./api.js";
+import { fetchJson, itemUrl, jsonInit } from "./api.js";
 import { confirmSheet } from "./confirm.js";
 import { c, render, state } from "./core.js";
 import { esc, icon, pickerMarkup, syncPicker, text } from "./dom.js";
@@ -20,7 +20,7 @@ import { fallbackSummary, onFallbackClick, onFallbackSubmit, paintFallbackPage }
 import { dialogShell, setDialogStatus } from "./stores/dialog.js";
 import { paintList } from "./stores/list.js";
 import { afterReviewChange, closeReview, onReviewClick, onReviewSubmit, openReview, paintQuantity, reviewSummary } from "./stores/review.js";
-import { itemById, jsonInit, storeName } from "./stores/state.js";
+import { itemById, storeName } from "./stores/state.js";
 
 const SHEET_ID = "item-sheet";
 
@@ -53,8 +53,10 @@ function item() {
 
 // A cell as the spreadsheet holds it now — read from the latest payload, so a
 // store page's own save (a new list-store link moves the buy link) is seen.
+// `units_per_pack` is not one of the configured spreadsheet columns, so its record
+// key is the field name itself.
 function saved(field) {
-  const raw = item()?.[c()[field]];
+  const raw = item()?.[c()[field] ?? field];
   return NUMBERS.has(field) ? Number(raw) || 0 : String(raw ?? "");
 }
 

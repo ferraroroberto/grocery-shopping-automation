@@ -4,12 +4,12 @@
 // action, and a footer row to the Benchmark sheet (benchmark.js), which holds
 // the breakdown behind the figure.
 import { emptyStateEl } from "../../_vendored/empty-state/empty-state.js";
-import { fetchJson } from "../api.js";
+import { fetchJson, jsonInit } from "../api.js";
 import { render, state, updateHeaders } from "../core.js";
 import { esc, icon } from "../dom.js";
 import { paintBenchmarkSheet, reviewValue } from "./benchmark.js";
 import { paintFilter, paintList } from "./list.js";
-import { activePicks, eur, frequency, jsonInit, local } from "./state.js";
+import { activePicks, eur, frequency, local } from "./state.js";
 
 const SIM_DEBOUNCE_MS = 350;
 

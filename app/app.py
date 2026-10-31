@@ -25,7 +25,10 @@ from src.data import (
     get_supermarket_stats,
     load_inventory_data,
 )
+from src.log_setup import configure_logging
 from src.net import local_ip
+
+configure_logging()
 
 
 def _render_sidebar() -> str:

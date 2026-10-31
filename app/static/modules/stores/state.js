@@ -129,6 +129,3 @@ export function setPick(id, store) {
   writeStored(PICKS_KEY, local.picks);
 }
 
-export function jsonInit(method, body) {
-  return { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
-}

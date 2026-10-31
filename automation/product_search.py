@@ -74,6 +74,9 @@ logger = logging.getLogger("automation.product_search")
 # Store search endpoints / URL templates.
 _MERCADONA_HOME = "https://tienda.mercadona.es/"
 _MERCADONA_SEARCH = "https://tornillos.mercadona.es/search"
+# Stated guess, not measured: how long one Mercadona search request may take before
+# the spoken-search poll reports a failure instead of waiting on a stuck session.
+_SEARCH_TIMEOUT_MS = 20000
 _MERCADONA_PRODUCT = "https://tienda.mercadona.es/product/{id}/{slug}"
 
 _CARREFOUR_SEARCH = "https://www.carrefour.es/?query={query}"
@@ -154,7 +157,7 @@ def search_mercadona(page: Page, query: str, limit: int) -> list[Candidate]:
     """Search Mercadona via its Algolia search endpoint. Session-ridden."""
     goto_with_login_check(page, "mercadona", _MERCADONA_HOME)
     resp = page.request.get(
-        _MERCADONA_SEARCH, params={"q": query, "lang": "es"}, timeout=20000
+        _MERCADONA_SEARCH, params={"q": query, "lang": "es"}, timeout=_SEARCH_TIMEOUT_MS
     )
     if not resp.ok:
         raise RuntimeError(f"Mercadona search returned {resp.status}")

@@ -10,7 +10,7 @@ from typing import Any, Mapping, Optional, Union
 import pandas as pd
 
 from benchmark.build_basket import item_key
-from src.data import COLUMNS, cell_text
+from src.data import COLUMNS, cell_text, comprar_for
 
 from .context import _RunContext, _candidate, _check_row, _norm_store, _num, _resolve_row, _row_store, rows_by_key
 from .edits import _Edits, store_url
@@ -166,7 +166,7 @@ def apply_changes(df: pd.DataFrame, changes: list[Mapping[str, Any]], *,
         edits.set(row, COLUMNS["cantidad"], qty)
         if stock is not None:
             edits.set(row, COLUMNS["tenemos"], stock)
-        edits.set(row, COLUMNS["comprar"], max(0, qty - int(df.at[row, COLUMNS["tenemos"]])))
+        edits.set(row, COLUMNS["comprar"], comprar_for(qty, df.at[row, COLUMNS["tenemos"]]))
     edits.commit(xlsx_path)
     with_stock = sum(1 for *_, stock in plan if stock is not None)
     logger.info("✅ Applied %d store change(s)", len(plan))

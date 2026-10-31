@@ -3,11 +3,11 @@
 // short. Two spreadsheet cells, saved together at once like the sheet's
 // store pages; the server owns the rules (a registered store, an http(s) link,
 // not the item's own buy link) and flags a link that isn't a product page.
-import { fetchJson, itemUrl } from "./api.js";
+import { fetchJson, itemUrl, jsonInit } from "./api.js";
 import { state } from "./core.js";
 import { esc, icon } from "./dom.js";
 import { setDialogStatus } from "./stores/dialog.js";
-import { jsonInit, local, storeName } from "./stores/state.js";
+import { local, storeName } from "./stores/state.js";
 
 function hostname(url) {
   try {

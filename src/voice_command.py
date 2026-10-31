@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 from anthropic import APIError
 
-from src.data import COLUMNS, build_new_item_row
+from src.data import COLUMNS, build_new_item_row, recompute_comprar
 from src.hub_client import call_hub_llm
 from src.inventory_extract import ExtractionError, _parse_strict_json
 
@@ -180,12 +180,6 @@ def _display_name(df: pd.DataFrame, idx: int) -> str:
     return str(df.at[idx, COLUMNS["comida"]]).strip().lower()
 
 
-def _recompute_comprar(df: pd.DataFrame, idx: int) -> None:
-    df.at[idx, COLUMNS["comprar"]] = max(
-        0, int(df.at[idx, COLUMNS["cantidad"]]) - int(df.at[idx, COLUMNS["tenemos"]])
-    )
-
-
 def apply_add(df: pd.DataFrame, items: List[VoiceItem]) -> Tuple[pd.DataFrame, AddOutcome]:
     """Raise matched items' target by the spoken qty (default 1) so they show
     up on the shopping list; unmatched names become new rows (target=qty,
@@ -197,7 +191,7 @@ def apply_add(df: pd.DataFrame, items: List[VoiceItem]) -> Tuple[pd.DataFrame, A
         qty = max(1, item.qty or 1)
         if item.idx is not None:
             df.at[item.idx, COLUMNS["cantidad"]] = int(df.at[item.idx, COLUMNS["cantidad"]]) + qty
-            _recompute_comprar(df, item.idx)
+            recompute_comprar(df, item.idx)
             outcome.bumped.append((_display_name(df, item.idx), qty))
         else:
             new_rows.append(
@@ -229,7 +223,7 @@ def apply_set(
             outcome.no_value.append(_display_name(df, item.idx))
             continue
         df.at[item.idx, COLUMNS[column_key]] = item.qty
-        _recompute_comprar(df, item.idx)
+        recompute_comprar(df, item.idx)
         outcome.set_items.append((_display_name(df, item.idx), item.qty))
     return df, outcome
 

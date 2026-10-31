@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from collections import defaultdict
 from datetime import date as date_cls
 from datetime import datetime
@@ -29,6 +28,7 @@ from typing import Optional
 
 from automation.models import CartItem
 from automation.report import ADDED_UNVERIFIED, ADDED_VERIFIED, WOULD_ADD, RunReport
+from src.atomic_json import write_json_atomic
 
 logger = logging.getLogger(__name__)
 
@@ -227,7 +227,5 @@ def write_fill_cleared(logs_dir: Path, run: str) -> None:
     state_dir = logs_dir / STATE_SUBDIR
     state_dir.mkdir(parents=True, exist_ok=True)
     path = state_dir / CLEARED_FILE
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps({"cleared": cleared}, indent=2), encoding="utf-8")
-    os.replace(tmp, path)
+    write_json_atomic(path, {"cleared": cleared})
     logger.info("✅ fill %s marked done (%d kept)", run, len(cleared))
