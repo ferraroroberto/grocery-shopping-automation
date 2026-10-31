@@ -53,8 +53,10 @@ function item() {
 
 // A cell as the spreadsheet holds it now — read from the latest payload, so a
 // store page's own save (a new list-store link moves the buy link) is seen.
+// `units_per_pack` is not one of the configured spreadsheet columns, so its record
+// key is the field name itself.
 function saved(field) {
-  const raw = item()?.[c()[field]];
+  const raw = item()?.[c()[field] ?? field];
   return NUMBERS.has(field) ? Number(raw) || 0 : String(raw ?? "");
 }
 
