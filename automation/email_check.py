@@ -29,7 +29,7 @@ from automation.item_matching import (
     match_items,
 )
 from automation.item_matching import normalize as _normalize_text
-from gmail_readonly import GmailReadError, NormalizedEmail
+from src.gmail_readonly import GmailReadError, NormalizedEmail
 from src.atomic_json import write_json_atomic
 from src.data import purchase_logs_dir as default_purchase_logs_dir
 from src.gmail_config import build_gmail_mailbox, load_gmail_senders
@@ -93,7 +93,7 @@ class ProcessedEntry:
     that can observe that message id.
 
     It is `NormalizedEmail.timestamp` verbatim — always a UTC-normalized ISO
-    string (`gmail_readonly.core._message_timestamp`), so it orders
+    string (`src.gmail_readonly.core._message_timestamp`), so it orders
     lexicographically, exactly as the `max()` over candidates already relies
     on. Comparing it against any other clock would need parsing first.
     """

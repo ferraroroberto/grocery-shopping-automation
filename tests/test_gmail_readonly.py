@@ -1,4 +1,4 @@
-"""Portable offline contract tests for the root-level Gmail component."""
+"""Portable offline contract tests for the portable Gmail component."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from gmail_readonly import (
+from src.gmail_readonly import (
     GMAIL_READONLY_SCOPE,
     GmailLabel,
     GmailMailbox,
@@ -19,7 +19,7 @@ from gmail_readonly import (
     build_google_read_client,
     masked_email_address,
 )
-from gmail_readonly.oauth import authorize
+from src.gmail_readonly.oauth import authorize
 
 
 def _encoded(value: str) -> str:
@@ -110,7 +110,7 @@ class _FakeClient:
 
 
 def test_component_imports_no_application_modules() -> None:
-    component_root = Path(__file__).parents[1] / "gmail_readonly"
+    component_root = Path(__file__).parents[1] / "src" / "gmail_readonly"
     imported_modules: set[str] = set()
     for path in component_root.glob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"))

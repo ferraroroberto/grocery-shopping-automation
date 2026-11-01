@@ -1,7 +1,7 @@
 """Read-only Gmail credentials and sender whitelist for this app.
 
 Wires the app's own config layer to the vendored, domain-free
-``gmail_readonly`` package (see ``gmail_readonly/README.md`` in
+``src.gmail_readonly`` package (see ``gmail_readonly/README.md`` in
 ``docs/gmail-reuse.md`` upstream). The token path defaults to
 ``auth/gmail/token.json`` (a gitignored directory whose OAuth client + refresh
 token are reused verbatim from the ``whatsapp-radar`` sister repo — same Google
@@ -23,7 +23,7 @@ from typing import Optional
 
 from dotenv import load_dotenv
 
-from gmail_readonly import (
+from src.gmail_readonly import (
     GmailMailbox,
     GmailReadClient,
     GmailSender,

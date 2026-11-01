@@ -38,7 +38,7 @@ Manual smoke check:
 
 The app can read order-confirmation emails (read-only `gmail.readonly` scope)
 to catch items a store dropped from an order, via the vendored
-`gmail_readonly/` component (see `automation/README.md`'s "Order-confirmation
+`src/gmail_readonly/` component (see `automation/README.md`'s "Order-confirmation
 email check" section for the full setup, matching, and notification details).
 Copy `auth/gmail/credentials.json` + `auth/gmail/token.json` from the
 `whatsapp-radar` sister repo (same account, same scope) and
