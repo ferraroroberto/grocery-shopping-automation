@@ -307,7 +307,7 @@ def test_api_store_detail(api):
 def test_api_store_detail_shows_the_product_options(api, monkeypatch, tmp_path):
     # #179: the cut the cart automation picks is visible per store, keyed by
     # the store's product id (the burger's Carrefour link is R-FIX-burger-600).
-    from automation import product_options
+    from src.automation import product_options
     opts = tmp_path / "product_options.json"
     opts.write_text(json.dumps({"carrefour": {"FIX-burger-600": {"cut": "Fileteado", "note": "fixture"}}}), encoding="utf-8")
     monkeypatch.setattr(product_options, "DEFAULT_OPTIONS_PATH", opts)

@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 
 import src.data as data
-from automation.grocery_reader import read_cart_items
+from src.automation.grocery_reader import read_cart_items
 from src.data import COLUMNS, UNITS_PER_PACK_COLUMN, packs_for, units_per_pack_of
 from tests.test_store_links import PAVO
 

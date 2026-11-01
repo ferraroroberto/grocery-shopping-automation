@@ -1,6 +1,6 @@
 """Background email-confirmation poller for the Settings pane (issue #73).
 
-Wraps the #72 seam (`automation.email_check.check_latest_confirmation`) in a
+Wraps the #72 seam (`src.automation.email_check.check_latest_confirmation`) in a
 scheduled loop: a daemon thread wakes periodically, and when polling is
 enabled and the configured interval has elapsed it checks every enabled
 monitored sender's store. Each check (scheduled or manual) appends one entry
@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Optional
 
-from automation.email_check import ConfirmationCheckResult, check_latest_confirmation
+from src.automation.email_check import ConfirmationCheckResult, check_latest_confirmation
 from src.gmail_config import (
     MAX_POLL_INTERVAL_MINUTES,
     MIN_POLL_INTERVAL_MINUTES,

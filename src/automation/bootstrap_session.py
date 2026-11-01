@@ -1,7 +1,7 @@
 """One-time interactive login that prepares the shared Chrome profile.
 
 Usage:
-    python -m automation.bootstrap_session [--chrome-path PATH]
+    python -m src.automation.bootstrap_session [--chrome-path PATH]
 
 Launches a **plain, un-instrumented Chrome** (a normal ``chrome.exe`` process,
 *not* Playwright) pointed at the dedicated profile directory
@@ -14,7 +14,7 @@ protected by Google reCAPTCHA, which detects Playwright's CDP instrumentation
 and refuses to issue a challenge ("Could not connect to the reCAPTCHA
 service"). A normal Chrome process started with only ``--user-data-dir`` looks
 exactly like a human's browser, so the login completes. Once logged in,
-:func:`automation.browser.launch_context` can drive the same profile with
+:func:`src.automation.browser.launch_context` can drive the same profile with
 Playwright for cart operations, which are not reCAPTCHA-gated.
 
 Re-run this whenever a store's session expires.
@@ -28,7 +28,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from automation.browser import USER_DATA_DIR
+from src.automation.browser import USER_DATA_DIR
 
 logger = logging.getLogger("automation.bootstrap_session")
 

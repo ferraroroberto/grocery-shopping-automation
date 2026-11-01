@@ -8,8 +8,8 @@ URL construction and per-store error isolation are all covered offline.
 import pytest
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
-from automation import product_search
-from automation.browser import SessionExpiredError
+from src.automation import product_search
+from src.automation.browser import SessionExpiredError
 
 
 class FakeResp:
@@ -115,7 +115,7 @@ def test_search_one_isolates_a_failing_store(monkeypatch):
 
 # --- Carrefour (issue #157) --------------------------------------------------
 # Raw card dicts below are trimmed from a live 2026-09-29 search for "avena"
-# (see automation/product_search.py's _CARREFOUR_CARD_JS extraction shape) —
+# (see src/automation/product_search.py's _CARREFOUR_CARD_JS extraction shape) —
 # no account/session data, just the product-facing card fields.
 
 _CARD_PLAIN = {

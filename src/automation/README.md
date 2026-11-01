@@ -1,4 +1,4 @@
-# `automation/` — browser cart automation
+# `src/automation/` — browser cart automation
 
 Playwright-driven automation that fills the online carts of the grocery stores
 in the inventory spreadsheet — one handler per store, plus a CLI runner.
@@ -35,7 +35,7 @@ Run the interactive bootstrap whenever the profile is empty or a store's
 session has expired:
 
 ```powershell
-& .\.venv\Scripts\python.exe -m automation.bootstrap_session
+& .\.venv\Scripts\python.exe -m src.automation.bootstrap_session
 ```
 
 A plain Chrome window opens with one tab per store. Log into **each** store,
@@ -48,8 +48,8 @@ non-standard.)
 **Check the logins without touching a cart** (issue #217):
 
 ```powershell
-& .\.venv\Scripts\python.exe -m automation.check_logins            # every store
-& .\.venv\Scripts\python.exe -m automation.check_logins --store carrefour
+& .\.venv\Scripts\python.exe -m src.automation.check_logins            # every store
+& .\.venv\Scripts\python.exe -m src.automation.check_logins --store carrefour
 ```
 
 Each store prints `logged_in`, `logged_out` or `unknown` (the signal could not
@@ -73,18 +73,18 @@ A store failure names its cause — every one is a `StoreAccessError`
 
 ```powershell
 # See what would be added, no browser:
-& .\.venv\Scripts\python.exe -m automation.run_automation --store mercadona --dry-run
+& .\.venv\Scripts\python.exe -m src.automation.run_automation --store mercadona --dry-run
 
 # Live run — opens Chrome and fills the cart:
-& .\.venv\Scripts\python.exe -m automation.run_automation --store mercadona
-& .\.venv\Scripts\python.exe -m automation.run_automation --store ametller
-& .\.venv\Scripts\python.exe -m automation.run_automation --store carrefour
+& .\.venv\Scripts\python.exe -m src.automation.run_automation --store mercadona
+& .\.venv\Scripts\python.exe -m src.automation.run_automation --store ametller
+& .\.venv\Scripts\python.exe -m src.automation.run_automation --store carrefour
 
 # Both stores, capped at N items, headless:
-& .\.venv\Scripts\python.exe -m automation.run_automation --limit 10 --headless
+& .\.venv\Scripts\python.exe -m src.automation.run_automation --limit 10 --headless
 
 # Fill the cart, then leave the browser open so you can review and pay:
-& .\.venv\Scripts\python.exe -m automation.run_automation --keep-open
+& .\.venv\Scripts\python.exe -m src.automation.run_automation --keep-open
 ```
 
 Each handler is **idempotent** — it reads the current cart quantity and only
@@ -295,7 +295,7 @@ plumbing in `app/automation_runner.py`.
 ### Order-confirmation email check (issue #72)
 
 Supermarkets sometimes drop an item from an order (out of stock) and send a
-confirmation email listing what actually shipped. `automation.email_check`
+confirmation email listing what actually shipped. `src.automation.email_check`
 reads that email read-only, parses its item list deterministically (no LLM),
 and matches it against the latest purchase log so a dropped item is visible.
 
@@ -321,12 +321,12 @@ and matches it against the latest purchase log so a dropped item is visible.
   wires this whitelist to the vendored component, mirroring
   `src/notify_config.py`'s shape.
 - **Subject filtering**: the sender whitelist alone would also catch
-  promotional mail from the same address, so `automation.email_check`
+  promotional mail from the same address, so `src.automation.email_check`
   additionally requires the subject to be *similar* (not identical — a
   difflib ratio ≥ 0.8 after stripping accents/emoji/punctuation) to the
   store's known "order prepared" subject, configured per store in
   `STORE_SUBJECTS`.
-- **Per-store parser**: `automation/email_parsers/<store>.py` extracts the
+- **Per-store parser**: `src/automation/email_parsers/<store>.py` extracts the
   ordered item-name list from that store's specific email HTML/text
   structure — deterministic regex/parsing, never an LLM call, mirroring the
   per-store handler split (`ametller.py` / `mercadona.py`) above. Ametller
@@ -336,7 +336,7 @@ and matches it against the latest purchase log so a dropped item is visible.
   Entregado m`), so a line with `Entregado 0` counts as dropped; the email has
   no per-line prices. The Carrefour confirmation that *"Hemos recibido tu
   pedido"* carries no item list, and its subject does not match.
-- **Matching**: `automation.item_matching` resolves each parsed website item
+- **Matching**: `src.automation.item_matching` resolves each parsed website item
   name to a purchase-log `comida` value. The website's full catalogue name
   (e.g. *"American Burger Ametller Origen 150g - 2uds."*) rarely shares
   enough characters with the short internal name (*"burguer ternera"*) for

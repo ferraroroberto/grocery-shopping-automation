@@ -26,7 +26,7 @@ logged-in account that has no cart yet (e.g. right after an order) with
 ``404 {"type": "no_cart"}`` — the storefront's own page load gets the same 404
 (verified live 2026-10-06, issue #217) — so that 404 reads as an empty cart,
 never as a lapsed session. Every other non-OK answer raises the
-:class:`~automation.browser.StoreAccessError` subclass that names its cause.
+:class:`~src.automation.browser.StoreAccessError` subclass that names its cause.
 
 Cut picker (issue #176, verified live 2026-09-28): fresh-fish pages such as
 "Dorada de ración" show "Selecciona el tipo de corte" — one
@@ -35,7 +35,7 @@ limpio · Rodajas · …), the chosen one carrying ``selected``; the page opens 
 "Entero". Picking a cut changes neither the URL nor the product id and fires
 no request: the "Añadir" POST carries it (``…/items/<sku>?…&cut_id=Entero+limpio``)
 and the cart line returns it as ``cut_type``. The cut to pick comes from
-``config/product_options.json`` (:mod:`automation.product_options`); it is
+``config/product_options.json`` (:mod:`src.automation.product_options`); it is
 selected before the first "Añadir" and verified on the cart line after every
 click.
 
@@ -54,8 +54,8 @@ from typing import Optional
 from playwright.sync_api import Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
-from automation import product_options
-from automation.browser import (
+from src.automation import product_options
+from src.automation.browser import (
     BotChallengeError,
     NotLoggedInError,
     StoreAccessError,
@@ -63,13 +63,13 @@ from automation.browser import (
     goto_with_login_check,
     human_delay,
 )
-from automation.errors import (
+from src.automation.errors import (
     AddToCartFailed,
     OutOfStockError,
     PartialStockError,
     ProductUnavailableError,
 )
-from automation.models import CartItem
+from src.automation.models import CartItem
 
 logger = logging.getLogger(__name__)
 
@@ -340,7 +340,7 @@ def add_to_cart(page: Page, item: CartItem) -> None:
         PartialStockError: units are in the cart but the line will not grow
             (no + control, or stuck after every attempt) — likely a stock cap.
         AddToCartFailed: the cart never reached the wanted quantity; or, for a
-            product with a preferred cut (:mod:`automation.product_options`),
+            product with a preferred cut (:mod:`src.automation.product_options`),
             the cut could not be selected, the cart already holds the product
             in another cut, or the add came back in another cut.
     """

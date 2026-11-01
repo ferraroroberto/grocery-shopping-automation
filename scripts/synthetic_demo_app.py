@@ -112,7 +112,7 @@ def _search_lines(cmd: List[str]) -> List[str]:
 
 def _spawn_and_drain(cmd: List[str], *, cwd: str, stderr: int, on_line: Callable[[str], None], bufsize: int = -1):
     process = _FakeProcess()
-    lines = _search_lines(cmd) if "automation.product_search" in cmd else _automation_lines(cmd)
+    lines = _search_lines(cmd) if "src.automation.product_search" in cmd else _automation_lines(cmd)
 
     def dismiss() -> None:
         if automation._AUTOMATION_RUN.get("process") is process:
@@ -124,7 +124,7 @@ def _spawn_and_drain(cmd: List[str], *, cwd: str, stderr: int, on_line: Callable
                 return
             on_line(line + "\n")
         process.finish(0)
-        if "automation.run_automation" in cmd:
+        if "src.automation.run_automation" in cmd:
             threading.Timer(AUTO_DISMISS_S, dismiss).start()
 
     thread = threading.Thread(target=emit, daemon=True)

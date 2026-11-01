@@ -1,11 +1,11 @@
 """CLI entry point: add every pending grocery-list item to its store's cart.
 
 Usage:
-    python -m automation.run_automation [--store STORE] [--dry-run]
+    python -m src.automation.run_automation [--store STORE] [--dry-run]
                                         [--cart-mode {keep,clean}]
                                         [--limit N] [--headless] [--keep-open]
 
-Reads the inventory via :func:`automation.grocery_reader.read_cart_items`,
+Reads the inventory via :func:`src.automation.grocery_reader.read_cart_items`,
 groups the items by store, and dispatches each one to its store handler over a
 single shared Chrome context per store. ``--cart-mode keep`` (default) adds the
 list on top of the existing cart; ``clean`` empties the cart first. Snapshots
@@ -38,8 +38,8 @@ from pathlib import Path
 from types import ModuleType
 from typing import Callable, Optional
 
-from automation import ametller, carrefour, mercadona, product_search
-from automation.browser import (
+from src.automation import ametller, carrefour, mercadona, product_search
+from src.automation.browser import (
     NavigationTimeoutError,
     NotLoggedInError,
     ProfileBusyError,
@@ -49,16 +49,16 @@ from automation.browser import (
     human_delay,
     launch_context,
 )
-from automation.errors import (
+from src.automation.errors import (
     AddToCartFailed,
     OutOfStockError,
     PartialStockError,
     ProductUnavailableError,
 )
-from automation.grocery_reader import read_cart_items
-from automation.models import CartItem
-from automation.purchase_log import write_purchase_logs, write_run_records
-from automation.report import (
+from src.automation.grocery_reader import read_cart_items
+from src.automation.models import CartItem
+from src.automation.purchase_log import write_purchase_logs, write_run_records
+from src.automation.report import (
     ADDED_NOT_IN_CART,
     ADDED_UNVERIFIED,
     ADDED_VERIFIED,
@@ -76,7 +76,7 @@ from automation.report import (
     miss_line,
 )
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 

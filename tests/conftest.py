@@ -44,7 +44,7 @@ def pytest_runtest_makereport(item, call):
 @pytest.fixture(autouse=True)
 def no_cart_run_notifications(monkeypatch):
     """The cart run never messages anyone from a test — its notifier is always off."""
-    monkeypatch.setattr("automation.run_automation.build_notify_notifier", lambda: None, raising=False)
+    monkeypatch.setattr("src.automation.run_automation.build_notify_notifier", lambda: None, raising=False)
 
 
 @pytest.fixture()

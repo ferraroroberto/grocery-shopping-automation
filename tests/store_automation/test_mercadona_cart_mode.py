@@ -1,7 +1,7 @@
 """Mercadona `add_to_cart` keep-mode semantics (issue #339).
 
 `--cart-mode keep` ("add the list on top of whatever is already in the
-cart", `automation/README.md`) must never shrink a line that already holds
+cart", `src/automation/README.md`) must never shrink a line that already holds
 more than the list wants — Ametller and Carrefour already refuse to do this
 (`add_to_cart`'s own "already … in cart, leaving as is" early return in each).
 Mercadona's `_set_quantity` used to decrement a line down to `item.comprar`
@@ -9,8 +9,8 @@ instead, which is the bug this guards: a cart someone filled by hand to 4
 units, with the list wanting only 1, lost 3 units on the next run.
 """
 
-from automation import mercadona
-from automation.models import CartItem
+from src.automation import mercadona
+from src.automation.models import CartItem
 
 URL = "https://tienda.mercadona.es/product/12345/fixture"
 

@@ -10,8 +10,8 @@ import pandas as pd
 import pytest
 
 import src.data as data
-from automation import grocery_reader
-from automation.models import Fallback
+from src.automation import grocery_reader
+from src.automation.models import Fallback
 from src.data import COLUMNS, FALLBACK_SUPER_COLUMN, FALLBACK_URL_COLUMN, fallback_pair
 from tests.test_store_links import BURGUER, PAVO
 

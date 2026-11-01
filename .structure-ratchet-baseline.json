@@ -1,7 +1,7 @@
 {
   "version": 1,
   "band": {"files": 1, "functions": 5},
-  "root_extras": ["automation"],
+  "root_extras": [],
   "entries": [
     {"key": "place:app/routers", "files": 10},
     {"key": "place:app/static", "files": 9},

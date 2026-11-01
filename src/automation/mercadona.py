@@ -25,9 +25,9 @@ import time
 
 from playwright.sync_api import Page
 
-from automation.browser import goto_with_login_check, human_delay
-from automation.errors import AddToCartFailed, OutOfStockError, PartialStockError
-from automation.models import CartItem
+from src.automation.browser import goto_with_login_check, human_delay
+from src.automation.errors import AddToCartFailed, OutOfStockError, PartialStockError
+from src.automation.models import CartItem
 
 logger = logging.getLogger(__name__)
 

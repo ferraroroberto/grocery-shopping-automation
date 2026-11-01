@@ -25,7 +25,7 @@ from app.api_common import (
     load_inventory_or_error,
     mutate_or_error,
 )
-from automation.product_options import options_for_url
+from src.automation.product_options import options_for_url
 from src import store_links
 from src.store_links import NoBenchmarkRunError, StoreLinkError
 
@@ -103,7 +103,7 @@ def _call(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
 def _handler_stores() -> frozenset[str]:
     """Stores with a cart-automation handler (others are manual orders)."""
     try:
-        from automation.run_automation import HANDLERS
+        from src.automation.run_automation import HANDLERS
     except ImportError as exc:
         logger.warning("⚠️ Cart handlers not importable (%s) — assuming %s", exc, sorted(_FALLBACK_HANDLERS))
         return _FALLBACK_HANDLERS

@@ -1,7 +1,7 @@
 """Structural checks for two recurring audit classes. First, issue #341's finding class: a bare numeric literal
 feeding a timeout/window/limit-shaped keyword argument in unattended code
 (tray start, background pollers) with no name or reason attached to it.
-Guards `app/tray/` and `automation/` -- the two surfaces the audit named.
+Guards `app/tray/` and `src/automation/` -- the two surfaces the audit named.
 Second, library code in `src/` configuring root logging at import time.
 
 `BASELINE` holds pre-existing bare literals outside that scope (cart-
@@ -16,7 +16,7 @@ import ast
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-UNATTENDED_DIRS = ("app/tray", "automation")
+UNATTENDED_DIRS = ("app/tray", "src/automation")
 RISK_KEYWORD_SUBSTRINGS = ("timeout", "lookback", "limit", "interval", "retries", "backoff", "ttl")
 
 # Pre-existing bare literals in cart-automation Playwright calls -- a
@@ -24,7 +24,7 @@ RISK_KEYWORD_SUBSTRINGS = ("timeout", "lookback", "limit", "interval", "retries"
 # nobody's-watching entrypoints issue #341 flagged. Shrink this set in the
 # PR that names each one.
 BASELINE = frozenset({
-    "automation/bootstrap_session.py:128:timeout",
+    "src/automation/bootstrap_session.py:128:timeout",
 })
 
 
@@ -57,6 +57,8 @@ def find_bare_literal_offenses(source: str, relpath: str) -> list[str]:
 def scan_unattended_dirs() -> list[str]:
     offenses: list[str] = []
     for rel_dir in UNATTENDED_DIRS:
+        # A moved or renamed folder must fail here, not scan nothing and pass.
+        assert (REPO_ROOT / rel_dir).is_dir(), f"unattended dir {rel_dir}/ is missing"
         for path in sorted((REPO_ROOT / rel_dir).rglob("*.py")):
             relpath = path.relative_to(REPO_ROOT).as_posix()
             offenses.extend(find_bare_literal_offenses(path.read_text(encoding="utf-8"), relpath))
@@ -84,7 +86,7 @@ def test_detector_accepts_a_named_constant_reference():
 
 
 def test_no_new_bare_literal_timeouts_in_unattended_surfaces():
-    """`app/tray/` (tray start) and `automation/`'s background-poller modules
+    """`app/tray/` (tray start) and `src/automation/`'s background-poller modules
     run with nobody watching; a new bare timeout/window/limit/retry literal
     there needs a named constant plus a one-clause reason instead."""
     offenses = set(scan_unattended_dirs())

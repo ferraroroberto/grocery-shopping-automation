@@ -13,8 +13,8 @@ from pathlib import Path
 from typing import Optional
 
 # ``src/`` is a sibling package at the repo root; make it importable whether
-# this module is run as ``python -m automation.grocery_reader`` or imported.
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+# this module is run as ``python -m src.automation.grocery_reader`` or imported.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
@@ -31,7 +31,7 @@ from src.data import (  # noqa: E402
     units_per_pack_of,
 )
 
-from automation.models import CartItem, Fallback  # noqa: E402
+from src.automation.models import CartItem, Fallback  # noqa: E402
 
 logger = logging.getLogger(__name__)
 

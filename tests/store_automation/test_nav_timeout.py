@@ -12,10 +12,10 @@ import logging
 import pytest
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
-from automation import browser, product_search, run_automation
-from automation.browser import goto_with_login_check
-from automation.models import CartItem
-from automation.report import ADDED_VERIFIED, ERROR, miss_line
+from src.automation import browser, product_search, run_automation
+from src.automation.browser import goto_with_login_check
+from src.automation.models import CartItem
+from src.automation.report import ADDED_VERIFIED, ERROR, miss_line
 
 HOME = "https://shop.test/home"
 URL = "https://shop.test/p/{}"

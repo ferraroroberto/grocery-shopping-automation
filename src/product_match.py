@@ -10,7 +10,7 @@ Mercadona's ``display_name`` is Spanish, and Ametller's SCAPI is queried with
 ``locale=es`` (issue #111 — before that it returned Catalan, which made the
 score meaningless there). The caller still presents Ametller hits in the
 store's own relevance order rather than re-sorting by this score; see
-``automation/product_search.py`` for how each store is queried and why.
+``src/automation/product_search.py`` for how each store is queried and why.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ def normalize(name: str, *, keep: str = "%") -> str:
     final whitespace collapse — item names keep the default `%` (pack-size
     suffixes like "150g" vs "10%"); callers matching plain email subjects
     (`email_check.subject_matches`) pass `keep=""`. The one copy, shared with
-    ``automation.item_matching``, which already imports from ``src/``.
+    ``src.automation.item_matching``, which already imports from ``src/``.
     """
     decomposed = unicodedata.normalize("NFKD", name)
     without_accents = "".join(ch for ch in decomposed if not unicodedata.combining(ch))

@@ -1,4 +1,4 @@
-"""Unit tests for the pure helpers in automation.email_check.
+"""Unit tests for the pure helpers in src.automation.email_check.
 
 The live Gmail fetch + Telegram send path is covered by the manual
 `tests/smoke_email_check.py` script, not here — these tests cover the
@@ -12,8 +12,8 @@ import json
 from types import SimpleNamespace
 
 import src.data as data
-from automation import email_check
-from automation.email_check import (
+from src.automation import email_check
+from src.automation.email_check import (
     STORE_SUBJECTS,
     ProcessedEntry,
     _load_processed_state,
@@ -23,7 +23,7 @@ from automation.email_check import (
     has_problem,
     subject_matches,
 )
-from automation.item_matching import MatchedItem, MatchResult
+from src.automation.item_matching import MatchedItem, MatchResult
 
 
 def test_subject_matches_exact():

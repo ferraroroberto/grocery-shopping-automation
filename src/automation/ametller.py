@@ -25,7 +25,7 @@ The SCAPI call rides the SLAS shopper token the storefront stashes in
 ``localStorage`` (``access_token_ametller`` / ``customer_id_ametller``). The
 same store also tells us whether the session is still a *registered* shopper —
 if it has dropped to a guest the saved Chrome profile login has expired and a
-:class:`~automation.browser.NotLoggedInError` is raised.
+:class:`~src.automation.browser.NotLoggedInError` is raised.
 
 Lines are matched by the numeric **productId** — read from the redirected
 product URL and compared against ``productItems[].productId`` in the basket
@@ -52,19 +52,19 @@ import time
 
 from playwright.sync_api import Page
 
-from automation.browser import (
+from src.automation.browser import (
     NotLoggedInError,
     StoreApiError,
     goto_with_login_check,
     human_delay,
 )
-from automation.errors import (
+from src.automation.errors import (
     AddToCartFailed,
     OutOfStockError,
     PartialStockError,
     ProductUnavailableError,
 )
-from automation.models import CartItem
+from src.automation.models import CartItem
 
 logger = logging.getLogger(__name__)
 

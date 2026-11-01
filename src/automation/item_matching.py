@@ -27,12 +27,12 @@ from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Optional
 
-from automation.models import CartItem
+from src.automation.models import CartItem
 from src.product_match import normalize
 
 logger = logging.getLogger("item_matching")
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_ALIASES_PATH = _REPO_ROOT / "config" / "item_name_aliases.json"
 
 FUZZY_THRESHOLD = 0.9
@@ -82,7 +82,7 @@ def load_latest_purchase_log(store: str, logs_dir: Path) -> list[CartItem]:
     """Return the items from the newest ``purchase_logs/*_{store}.json``.
 
     Files are named ``YYYY-MM-DD_{store}.json`` (see
-    :func:`automation.purchase_log.write_purchase_logs`), so a plain
+    :func:`src.automation.purchase_log.write_purchase_logs`), so a plain
     lexicographic sort by filename orders them chronologically. Returns an
     empty list when no log exists for `store`.
     """

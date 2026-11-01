@@ -14,7 +14,7 @@ The app can push short Telegram messages through the universal `src/notify/`
 component, vendored verbatim from `project-scaffolding` (see
 `src/notify/README.md`). Two senders are wired to it: every cart run's
 summary, including every item **not** in the cart with its reason
-(`automation/run_automation.py`'s `_notify`, see
+(`src/automation/run_automation.py`'s `_notify`, see
 [Browser Automation](browser-automation.md)), and the Gmail
 order-confirmation check — a scheduled or manual check that finds
 a dropped or unrecognized item in the confirmation email, and the Settings
@@ -38,7 +38,7 @@ Manual smoke check:
 
 The app can read order-confirmation emails (read-only `gmail.readonly` scope)
 to catch items a store dropped from an order, via the vendored
-`src/gmail_readonly/` component (see `automation/README.md`'s "Order-confirmation
+`src/gmail_readonly/` component (see `src/automation/README.md`'s "Order-confirmation
 email check" section for the full setup, matching, and notification details).
 Copy `auth/gmail/credentials.json` + `auth/gmail/token.json` from the
 `whatsapp-radar` sister repo (same account, same scope) and

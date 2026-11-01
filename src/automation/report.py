@@ -6,7 +6,7 @@ import math
 from dataclasses import asdict, dataclass, field, replace
 from typing import Optional
 
-from automation.models import CartItem
+from src.automation.models import CartItem
 
 # Per-item outcome statuses. Only the store's own final cart
 # decides "in cart": the handler's "added" is provisional until verified.

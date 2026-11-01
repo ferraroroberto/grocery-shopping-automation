@@ -17,9 +17,9 @@ flowchart TB
     AUDIOHUB["app/audio_hub.py\nvoice-transcriber session proxy + whisper transcode/transcribe"]
     STATICFILES["app/static_files.py\nCachingStaticFiles (per-suffix cache policy, JS import stamping) + BUILD_INFO"]
     MW["app/middleware.py\nBearerTokenMiddleware"]
-    RUNNER["app/automation_runner.py\nstreams automation.run_automation subprocess into the app"]
-    PSRUNNER["app/product_search_runner.py\nspawns automation.product_search, captures its JSON stdout"]
-    LCRUNNER["app/login_check_runner.py\nruns automation.check_logins, returns per-store login states (#217)"]
+    RUNNER["app/automation_runner.py\nstreams src.automation.run_automation subprocess into the app"]
+    PSRUNNER["app/product_search_runner.py\nspawns src.automation.product_search, captures its JSON stdout"]
+    LCRUNNER["app/login_check_runner.py\nruns src.automation.check_logins, returns per-store login states (#217)"]
     SUBPROC["app/subprocess_plumbing.py\nshared spawn/drain/stop plumbing (#95)"]
     POLLER["app/email_poller.py\nbackground confirmation-email poll loop + check log"]
     VERSIONING["src/static_versioning.py\nBuildInfo: fleet asset hash, JS/HTML import stamping, git SHA"]
@@ -119,7 +119,7 @@ monthly-cost baseline: set/reset (#183)| ROUTERS
   USAGELOG --> USAGEDB
   STATIC -.->|usage-log.js batches view + tap events to the app's own origin| ROUTERS
 
-  subgraph cartauto["automation/ — Playwright cart automation"]
+  subgraph cartauto["src/automation/ — Playwright cart automation"]
     RUNAUTO["run_automation.py\nCLI entrypoint + cart guard (#247):\nretry once, verify final cart, suggest, notify\n+ partial-stock fallbacks (#283): same-store in session,\ncross-store in a reopen pass"]
     STOREMODS["mercadona.py · ametller.py · carrefour.py\nper-store cart handlers"]
     BROWSER["browser.py\nreal-Chrome launch, dedicated chrome_user_data/ profile"]

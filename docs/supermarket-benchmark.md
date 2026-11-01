@@ -89,11 +89,11 @@ The baseline store's own items are never researched: the scorer uses `basket.jso
 ## Store access
 
 - Plain HTTP first. Some stores expose clean JSON: Mercadona products and categories, and Consum search.
-- Stores behind a bot manager (Carrefour on Cloudflare, Dia on Akamai) go through `python -m src.benchmark.browser_fetch`. It runs real Chrome with the repo's stealth launch config (`automation/browser.py::_open_context`), on a **per-store throwaway profile** under `benchmark_runs/_state/chrome/<store>/`.
+- Stores behind a bot manager (Carrefour on Cloudflare, Dia on Akamai) go through `python -m src.benchmark.browser_fetch`. It runs real Chrome with the repo's stealth launch config (`src/automation/browser.py::_open_context`), on a **per-store throwaway profile** under `benchmark_runs/_state/chrome/<store>/`.
   - That lets parallel research agents never collide with each other.
   - It also keeps them off the shared store-login profile used by the cart automation.
 - What each store needed on the last run lives in `src/benchmark/stores.json` `hints`. Update it after every run.
 
 ## Practical costs the numbers don't include
 
-Mercadona, Ametller and Carrefour have a cart-automation handler (`automation/`); Ametller and Carrefour also have a confirmation-email parser (`automation/email_parsers/`). Any other store has neither, so switching means either building both or going back to filling the cart by hand — see `automation/README.md` for the current per-store coverage. The recommendation has to weigh that against the monthly saving.
+Mercadona, Ametller and Carrefour have a cart-automation handler (`src/automation/`); Ametller and Carrefour also have a confirmation-email parser (`src/automation/email_parsers/`). Any other store has neither, so switching means either building both or going back to filling the cart by hand — see `src/automation/README.md` for the current per-store coverage. The recommendation has to weigh that against the monthly saving.

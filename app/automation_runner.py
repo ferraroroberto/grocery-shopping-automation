@@ -1,7 +1,7 @@
 """Subprocess plumbing for running the cart automation from the app.
 
 UI-agnostic on purpose: this module knows how to spawn
-``python -m automation.run_automation``, drain its merged stdout/stderr into a
+``python -m src.automation.run_automation``, drain its merged stdout/stderr into a
 bounded buffer on a background thread, and stop it cleanly. It imports no UI
 framework and is driven by both front ends — the FastAPI app (``app/api.py``)
 and the legacy Streamlit mode (``app/shopping.py``).
@@ -47,7 +47,7 @@ def build_command(store: str, dry_run: bool, cart_mode: str = "keep") -> list[st
     The child Python runs with ``-u`` so its stdout is unbuffered and the
     reader thread sees each line as it is printed.
     """
-    cmd = [sys.executable, "-u", "-m", "automation.run_automation"]
+    cmd = [sys.executable, "-u", "-m", "src.automation.run_automation"]
     if store and store != "all":
         cmd += ["--store", store]
     if dry_run:
