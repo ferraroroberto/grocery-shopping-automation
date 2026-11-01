@@ -235,7 +235,7 @@ class RunReport:
     def print_summary(self) -> str:
         """Write :meth:`summary_text` to stdout and return it."""
         text = self.summary_text()
-        print(text)
+        print(text)  # logging-not-print-exempt: the CLI's run summary is its stdout contract, which the app streams
         return text
 
     def _cart_delta_lines(self) -> list[str]:
