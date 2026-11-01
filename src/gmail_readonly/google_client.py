@@ -6,7 +6,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from gmail_readonly.core import GMAIL_READONLY_SCOPE, GmailReadClient
+from .core import GMAIL_READONLY_SCOPE, GmailReadClient
 
 CredentialLoader = Callable[[str, list[str]], Any]
 RequestFactory = Callable[[], Any]

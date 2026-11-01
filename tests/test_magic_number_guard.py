@@ -92,23 +92,47 @@ def test_no_new_bare_literal_timeouts_in_unattended_surfaces():
     assert not new, f"new unexplained literal(s) in unattended code: {sorted(new)}"
 
 
-def find_root_logging_config(source: str, relpath: str) -> list[str]:
-    """Return `relpath:lineno` for every `logging.basicConfig(...)` call."""
-    tree = ast.parse(source, filename=relpath)
-    return [
-        f"{relpath}:{node.lineno}"
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Call)
+def _is_basic_config(node: ast.AST) -> bool:
+    return (
+        isinstance(node, ast.Call)
         and isinstance(node.func, ast.Attribute)
         and node.func.attr == "basicConfig"
         and isinstance(node.func.value, ast.Name)
         and node.func.value.id == "logging"
+    )
+
+
+def find_root_logging_config(source: str, relpath: str) -> list[str]:
+    """Return `relpath:lineno` for every `logging.basicConfig(...)` call
+    outside a CLI `main()`: a module's own `main()` runs only when that module
+    is the entry point, so it cannot race an importer's logging setup."""
+    tree = ast.parse(source, filename=relpath)
+    in_main = {
+        id(inner)
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "main"
+        for inner in ast.walk(node)
+    }
+    return [
+        f"{relpath}:{node.lineno}"
+        for node in ast.walk(tree)
+        if _is_basic_config(node) and id(node) not in in_main
     ]
 
 
 def test_detector_flags_import_time_logging_config():
     source = "import logging\nlogging.basicConfig(level=10)\n"
     assert find_root_logging_config(source, "fixture.py") == ["fixture.py:2"]
+
+
+def test_detector_accepts_logging_config_inside_cli_main():
+    source = "import logging\ndef main():\n    logging.basicConfig(level=10)\n"
+    assert find_root_logging_config(source, "fixture.py") == []
+
+
+def test_detector_flags_logging_config_in_a_library_helper():
+    source = "import logging\ndef setup():\n    logging.basicConfig(level=10)\n"
+    assert find_root_logging_config(source, "fixture.py") == ["fixture.py:3"]
 
 
 def test_library_modules_never_configure_root_logging():

@@ -2,10 +2,10 @@
 order-confirmation email.
 
 Built against a real message (issue #72) pulled read-only via the vendored
-``gmail_readonly`` component. Ametller's plain-text MIME part is not actually
+``src.gmail_readonly`` component. Ametller's plain-text MIME part is not actually
 plain for the item table — the ESP template embeds the same raw HTML table
 markup used in the ``text/html`` alternative, so
-:class:`gmail_readonly.NormalizedEmail`'s ``body_text`` (which prefers
+:class:`src.gmail_readonly.NormalizedEmail`'s ``body_text`` (which prefers
 ``text/plain``) already carries that markup verbatim; this parser regexes
 that HTML fragment rather than requiring the raw MIME payload.
 

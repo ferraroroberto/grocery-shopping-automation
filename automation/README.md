@@ -299,9 +299,10 @@ confirmation email listing what actually shipped. `automation.email_check`
 reads that email read-only, parses its item list deterministically (no LLM),
 and matches it against the latest purchase log so a dropped item is visible.
 
-- **Gmail access** is the `gmail_readonly/` package at the repo root —
-  vendored byte-for-byte from `whatsapp-radar` at commit
-  `404e2685b97f4009f1ba5f9e53c12582276698ff`, per that repo's
+- **Gmail access** is the `src/gmail_readonly/` package — vendored from
+  `whatsapp-radar` at commit `404e2685b97f4009f1ba5f9e53c12582276698ff`, with
+  only its intra-package imports made relative so it imports as
+  `src.gmail_readonly`, per that repo's
   `docs/gmail-reuse.md` adoption path (OAuth `gmail.readonly` scope only, no
   send/modify capability). Diff against that commit's `gmail_readonly/`
   before adopting a newer one (`git diff --no-index`, per `gmail-reuse.md`).

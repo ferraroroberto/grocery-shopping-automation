@@ -9,8 +9,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from gmail_readonly.core import GMAIL_READONLY_SCOPE
-from gmail_readonly.google_client import write_token_atomically
+from .core import GMAIL_READONLY_SCOPE
+from .google_client import write_token_atomically
 
 logger = logging.getLogger(__name__)
 FlowLoader = Callable[[str, list[str]], Any]
