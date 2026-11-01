@@ -18,7 +18,7 @@ No `playwright install` step is required — it uses your installed Chrome.
 ```
 A plain Chrome window opens with a tab per store — log into each, close the
 window, then press Enter in the terminal. See
-[`src/automation/README.md`](../automation/README.md) for details.
+[`src/automation/README.md`](../src/automation/README.md) for details.
 
 **Run it from the app:** ⚙️ **Settings** (the header gear) → **Store logins** has a **Log in to stores**
 button — it opens the same Chrome window without needing a terminal; log into
@@ -29,7 +29,7 @@ each store, then close the window.
 as logged in, logged out or unknown without touching a cart (log of the last
 app-run check: `logs/check_logins.log`). A failed cart run names its cause —
 login redirect, not logged in, bot challenge, or an unexpected API answer —
-see [`src/automation/README.md`](../automation/README.md).
+see [`src/automation/README.md`](../src/automation/README.md).
 
 **Start a cart run from the app:** the **Carts** glance card at the top of the
 PWA's **🛒 Shop** tab runs it with **Fill carts** (nothing runs until you tap
@@ -63,7 +63,7 @@ get a suggested alternative, and the run ends with a summary of verified items
 and every item **not** in the cart with its reason — in the Shop carts glance and
 through the Telegram notifier. A run with misses exits non-zero and never reads
 as a clean success. Each run also leaves a record under `purchase_logs/runs/`.
-Details: [`src/automation/README.md`](../automation/README.md) → "Cart guard".
+Details: [`src/automation/README.md`](../src/automation/README.md) → "Cart guard".
 
 A walk-through of how this automation was built, store quirk by store quirk,
 is in [`browser-automation-build.md`](browser-automation-build.md).

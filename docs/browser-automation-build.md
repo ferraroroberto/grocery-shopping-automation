@@ -3,7 +3,7 @@
 How the `src/automation/` package is structured and why. Written so the *next*
 store handler is faster to add — most of the cost was discovering quirks, not
 writing code. For the canonical module-by-module reference see
-[`src/automation/README.md`](../automation/README.md).
+[`src/automation/README.md`](../src/automation/README.md).
 
 ---
 
@@ -30,7 +30,7 @@ app/
   shopping.py           legacy Streamlit "Run Automation" UI section
 ```
 
-See [`src/automation/README.md`](../automation/README.md) for the full
+See [`src/automation/README.md`](../src/automation/README.md) for the full
 module-by-module reference, including the modules added since this was
 written (purchase log, email-confirmation check, product search, benchmark).
 
@@ -85,7 +85,7 @@ handler with a "verified live on <date>" note, so a DOM change is a one-line
 fix and the staleness is visible. Carrefour (`carrefour.py`) joined later as a
 third handler, with its own quirks (the fresh-fish cut picker, `product_options.json`,
 SCAPI auth reused by the product-search module) — see
-[`src/automation/README.md`](../automation/README.md) rather than this historical
+[`src/automation/README.md`](../src/automation/README.md) rather than this historical
 walk-through.
 
 ### Mercadona (`mercadona.py`) — a React app, counts *units*
