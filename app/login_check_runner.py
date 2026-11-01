@@ -1,6 +1,6 @@
 """Subprocess plumbing for the read-only store-login check.
 
-Runs ``python -m automation.check_logins --json`` to completion and returns its
+Runs ``python -m src.automation.check_logins --json`` to completion and returns its
 per-store result. Out of process for the same reason as the product search:
 sync Playwright cannot run inside the async uvicorn worker, and the child
 serialises against the cart automation via
@@ -26,7 +26,7 @@ LOG_PATH = _REPO_ROOT / "logs" / "check_logins.log"
 # Generous per-store page-load allowance once the shared profile is free
 # (bot-challenge retries included).
 _PAGE_LOAD_ALLOWANCE_S = 60
-# Only used if automation.run_automation.HANDLERS can't be imported:
+# Only used if src.automation.run_automation.HANDLERS can't be imported:
 # mercadona, ametller, carrefour.
 _FALLBACK_STORE_COUNT = 3
 
@@ -34,13 +34,13 @@ _FALLBACK_STORE_COUNT = 3
 def _timeout_s() -> int:
     """Profile wait-backoff schedule + one page-load allowance per store.
 
-    Derived from ``automation.browser``'s actual backoff schedule, rather than
+    Derived from ``src.automation.browser``'s actual backoff schedule, rather than
     a literal copy of it, so a timeout here can never drift shorter than the
     schedule it is meant to cover.
     """
-    from automation import browser
+    from src.automation import browser
     try:
-        from automation.run_automation import HANDLERS
+        from src.automation.run_automation import HANDLERS
         store_count = len(HANDLERS)
     except ImportError:
         store_count = _FALLBACK_STORE_COUNT
@@ -52,7 +52,7 @@ class LoginCheckError(RuntimeError):
 
 
 def build_command() -> list[str]:
-    return [sys.executable, "-u", "-m", "automation.check_logins", "--json"]
+    return [sys.executable, "-u", "-m", "src.automation.check_logins", "--json"]
 
 
 def run() -> dict[str, dict[str, str]]:

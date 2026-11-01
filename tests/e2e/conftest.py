@@ -21,7 +21,7 @@ import pytest
 from playwright.sync_api import sync_playwright
 
 import app.routers.audio as audio_router
-import automation.product_options as product_options
+import src.automation.product_options as product_options
 import src.data as data
 from app.api import app
 from tests.e2e._helpers import LIVE, LOADED_JS, stub_extract

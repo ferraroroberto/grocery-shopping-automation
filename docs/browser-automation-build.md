@@ -1,9 +1,9 @@
 # Browser cart automation — implementation notes and adding a new store
 
-How the `automation/` package is structured and why. Written so the *next*
+How the `src/automation/` package is structured and why. Written so the *next*
 store handler is faster to add — most of the cost was discovering quirks, not
 writing code. For the canonical module-by-module reference see
-[`automation/README.md`](../automation/README.md).
+[`src/automation/README.md`](../src/automation/README.md).
 
 ---
 
@@ -11,7 +11,7 @@ writing code. For the canonical module-by-module reference see
 
 ```
 src/                inventory Excel I/O + config (pre-existing, UI-agnostic)
-automation/         UI-agnostic browser automation
+src/automation/         UI-agnostic browser automation
   browser.py          Playwright factory: persistent Chrome profile, login check
   bootstrap_session.py  one-time interactive login (plain chrome.exe)
   check_logins.py     read-only per-store login check
@@ -30,11 +30,11 @@ app/
   shopping.py           legacy Streamlit "Run Automation" UI section
 ```
 
-See [`automation/README.md`](../automation/README.md) for the full
+See [`src/automation/README.md`](../src/automation/README.md) for the full
 module-by-module reference, including the modules added since this was
 written (purchase log, email-confirmation check, product search, benchmark).
 
-The hard rule that paid off: **`automation/` never imports `streamlit`, and
+The hard rule that paid off: **`src/automation/` never imports `streamlit`, and
 `app/` never drives Playwright.** The CLI runner is the seam — both the PWA
 (`app/routers/automation.py`) and the legacy Streamlit integration are
 "just" a subprocess wrapper around the exact command you would type in a
@@ -85,7 +85,7 @@ handler with a "verified live on <date>" note, so a DOM change is a one-line
 fix and the staleness is visible. Carrefour (`carrefour.py`) joined later as a
 third handler, with its own quirks (the fresh-fish cut picker, `product_options.json`,
 SCAPI auth reused by the product-search module) — see
-[`automation/README.md`](../automation/README.md) rather than this historical
+[`src/automation/README.md`](../src/automation/README.md) rather than this historical
 walk-through.
 
 ### Mercadona (`mercadona.py`) — a React app, counts *units*
@@ -155,7 +155,7 @@ The CLI already printed a clean ✅/⚠️/❌ summary, so this integration is a
 subprocess wrapper, not new automation logic.
 
 - `app/automation_runner.py` — `build_command()`, `start_run()` (spawns
-  `python -u -m automation.run_automation`, attaches a daemon thread draining
+  `python -u -m src.automation.run_automation`, attaches a daemon thread draining
   merged stdout/stderr into a bounded `deque`), `stop_run()` (terminate, then
   kill after a grace period). No `streamlit` import.
 - `app/shopping.py` — a bordered **🤖 Run Automation** section: store
@@ -194,7 +194,7 @@ stdin).
    `bootstrap_session.py`'s URL list; the plain-Chrome bootstrap already
    handles it. Add login-redirect markers to `_LOGIN_URL_MARKERS` in
    `browser.py`.
-2. Write `automation/<store>.py` with one function: `add_to_cart(page, item)`.
+2. Write `src/automation/<store>.py` with one function: `add_to_cart(page, item)`.
    Start by opening the product page by hand and finding selectors; pin them in
    a `SELECTORS` dict with a "verified live" date.
 3. Decide the store's counting model first (units vs. distinct products) — it

@@ -2,7 +2,7 @@
 
 Some supermarket sites (Carrefour, Dia, …) answer ``curl``/``requests`` with a
 bot-manager 403. This CLI loads the URL in real Chrome with the repo's stealth
-launch config (:func:`automation.browser._open_context`) and prints the result,
+launch config (:func:`src.automation.browser._open_context`) and prints the result,
 so a store-research agent can keep working over "HTTP" semantics.
 
 For stores that need **clicks** (a postcode picker, a consent banner) rather
@@ -49,7 +49,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from automation.browser import _open_context  # noqa: E402
+from src.automation.browser import _open_context  # noqa: E402
 from src.benchmark.paths import state_dir  # noqa: E402
 
 logger = logging.getLogger("benchmark.browser_fetch")
@@ -67,7 +67,7 @@ def open_actions_context(store: str, headless: bool = False) -> Iterator[tuple[B
     """Open ``store``'s own stealth-launched Chrome context for click-driven research.
 
     The actions-mode counterpart to :func:`fetch`'s navigate-and-read flow —
-    same shared stealth launcher (:func:`automation.browser._open_context`)
+    same shared stealth launcher (:func:`src.automation.browser._open_context`)
     and the same per-store profile, so a store that needs a postcode-picker
     click or a consent-banner dismiss doesn't need its own hand-rolled
     ``sync_playwright()`` launch. Yields ``(context, page)``; closes the

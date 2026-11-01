@@ -30,8 +30,10 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 logger = logging.getLogger(__name__)
 
-# Single shared profile for every store.
-USER_DATA_DIR = Path(__file__).resolve().parent / "chrome_user_data"
+# Single shared profile for every store. It stays at the repo root's
+# gitignored automation/chrome_user_data/, where the logged-in store sessions
+# live, rather than following this package's folder.
+USER_DATA_DIR = Path(__file__).resolve().parents[2] / "automation" / "chrome_user_data"
 
 # Chrome launch config — disable the flag that automation-aware sites sniff.
 _LAUNCH_ARGS = [
@@ -70,7 +72,7 @@ class ProfileBusyError(RuntimeError):
 
 _RELOGIN_HINT = (
     "Log in again via Settings → 'Log in to stores' "
-    "(or `python -m automation.bootstrap_session`)."
+    "(or `python -m src.automation.bootstrap_session`)."
 )
 
 
@@ -237,7 +239,7 @@ def launch_context(
     if not _profile_initialized(USER_DATA_DIR):
         raise ProfileNotInitializedError(
             f"Chrome profile at {USER_DATA_DIR} is empty or missing. "
-            f"Run `python -m automation.bootstrap_session` first."
+            f"Run `python -m src.automation.bootstrap_session` first."
         )
 
     schedule = _PROFILE_WAIT_BACKOFF_S if wait_for_profile else ()

@@ -4,8 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from automation import check_logins
-from automation.browser import (
+from src.automation import check_logins
+from src.automation.browser import (
     BotChallengeError,
     NotLoggedInError,
     SessionExpiredError,

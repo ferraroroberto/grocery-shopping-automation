@@ -4,10 +4,10 @@ import json
 from datetime import date
 from pathlib import Path
 
-from automation.models import CartItem
-from automation.purchase_log import write_purchase_logs
-from automation.report import ADDED_VERIFIED, OUT_OF_STOCK
-from automation.run_automation import RunReport, _write_purchase_log_if_live
+from src.automation.models import CartItem
+from src.automation.purchase_log import write_purchase_logs
+from src.automation.report import ADDED_VERIFIED, OUT_OF_STOCK
+from src.automation.run_automation import RunReport, _write_purchase_log_if_live
 
 
 def test_write_purchase_logs_groups_by_store(tmp_path: Path):
@@ -89,7 +89,7 @@ def test_persist_purchase_log_writes_on_live_run(tmp_path, monkeypatch):
 def test_two_runs_on_one_day_merge_the_purchase_log_and_keep_two_records(tmp_path: Path):
     from datetime import datetime
 
-    from automation.purchase_log import write_run_records
+    from src.automation.purchase_log import write_run_records
 
     logs_dir = tmp_path / "logs"
     first, second = RunReport(), RunReport()
@@ -107,7 +107,7 @@ def test_two_runs_on_one_day_merge_the_purchase_log_and_keep_two_records(tmp_pat
         "2026-10-06T180000_carrefour.json", "2026-10-06T191701_carrefour.json",
     ]
     # The existing reader still picks the day's log, not a run record.
-    from automation.item_matching import load_latest_purchase_log
+    from src.automation.item_matching import load_latest_purchase_log
     assert {i.comida for i in load_latest_purchase_log("carrefour", logs_dir)} == {"kiwi", "quinoa"}
 
 
@@ -116,8 +116,8 @@ def test_read_last_fill_counts_the_newest_day_per_store(tmp_path: Path):
     filled twice that day counts its later run, an older day is left out."""
     from datetime import datetime
 
-    from automation.purchase_log import read_last_fill, write_run_records
-    from automation.report import ADDED_UNVERIFIED, ERROR
+    from src.automation.purchase_log import read_last_fill, write_run_records
+    from src.automation.report import ADDED_UNVERIFIED, ERROR
 
     logs_dir = tmp_path / "logs"
     assert read_last_fill(logs_dir) is None
@@ -145,7 +145,7 @@ def test_read_last_fill_counts_the_newest_day_per_store(tmp_path: Path):
 
 def _record_fill(logs_dir: Path, store: str, at, items: list[tuple[str, str]], mode: str = "keep") -> None:
     """One invented run record: ``items`` are (name, status) pairs."""
-    from automation.purchase_log import write_run_records
+    from src.automation.purchase_log import write_run_records
 
     report = RunReport(mode=mode)
     for name, status in items:
@@ -158,8 +158,8 @@ def test_read_fill_history_groups_by_day_newest_first(tmp_path: Path):
     only the misses are listed, a broken record is skipped, the limit applies."""
     from datetime import datetime
 
-    from automation.purchase_log import read_fill_history, read_last_fill
-    from automation.report import ADDED_UNVERIFIED
+    from src.automation.purchase_log import read_fill_history, read_last_fill
+    from src.automation.report import ADDED_UNVERIFIED
 
     logs_dir = tmp_path / "logs"
     assert read_fill_history(logs_dir) == []
@@ -192,7 +192,7 @@ def test_read_fill_history_groups_by_day_newest_first(tmp_path: Path):
 def test_read_fill_history_keeps_ten_days(tmp_path: Path):
     from datetime import datetime
 
-    from automation.purchase_log import read_fill_history
+    from src.automation.purchase_log import read_fill_history
 
     logs_dir = tmp_path / "logs"
     for day in range(1, 13):
@@ -202,7 +202,7 @@ def test_read_fill_history_keeps_ten_days(tmp_path: Path):
 
 
 def test_fill_cleared_marker_round_trip_and_corruption(tmp_path: Path):
-    from automation.purchase_log import CLEARED_KEEP, read_fill_cleared, write_fill_cleared
+    from src.automation.purchase_log import CLEARED_KEEP, read_fill_cleared, write_fill_cleared
 
     logs_dir = tmp_path / "logs"
     assert read_fill_cleared(logs_dir) == set()

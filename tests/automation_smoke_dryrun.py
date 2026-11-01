@@ -22,8 +22,8 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from app import automation_runner  # noqa: E402
-from automation.grocery_reader import read_cart_items  # noqa: E402
-from automation.run_automation import main  # noqa: E402
+from src.automation.grocery_reader import read_cart_items  # noqa: E402
+from src.automation.run_automation import main  # noqa: E402
 
 
 def _run_capturing(argv: list[str]) -> tuple[int, str]:

@@ -16,8 +16,8 @@ import pytest
 
 import app.email_poller as email_poller
 import src.gmail_config as gmail_config
-from automation.email_check import ConfirmationCheckResult
-from automation.item_matching import MatchedItem, MatchResult
+from src.automation.email_check import ConfirmationCheckResult
+from src.automation.item_matching import MatchedItem, MatchResult
 from src.gmail_config import (
     PollerSettings,
     load_monitored_senders,

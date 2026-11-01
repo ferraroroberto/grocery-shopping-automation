@@ -1,6 +1,6 @@
 """Subprocess plumbing for the on-demand product search (issue #87).
 
-Runs ``python -m automation.product_search`` in the background and captures its
+Runs ``python -m src.automation.product_search`` in the background and captures its
 JSON stdout. Kept UI-agnostic and separate from ``automation_runner`` (which
 streams the cart automation's *line* output) because this one wants the whole
 stdout parsed as a single JSON document at the end.
@@ -42,7 +42,7 @@ stop = subprocess_plumbing.stop
 
 def build_command(queries: list[str], limit: int) -> list[str]:
     """Return the argv for a search over ``queries`` (one ``--query`` each)."""
-    cmd = [sys.executable, "-u", "-m", "automation.product_search", "--json", "--limit", str(limit)]
+    cmd = [sys.executable, "-u", "-m", "src.automation.product_search", "--json", "--limit", str(limit)]
     for q in queries:
         cmd += ["--query", q]
     return cmd

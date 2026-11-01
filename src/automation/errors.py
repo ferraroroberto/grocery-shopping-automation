@@ -1,14 +1,14 @@
 """Shared exception types raised by the store handlers.
 
 `SessionExpiredError` and `ProfileNotInitializedError` live in
-:mod:`automation.browser` (they are about the browser session, not a cart
+:mod:`src.automation.browser` (they are about the browser session, not a cart
 item). The exceptions here are about a specific :class:`CartItem` failing to
 make it into the cart.
 """
 
 from __future__ import annotations
 
-from automation.models import CartItem
+from src.automation.models import CartItem
 
 
 class OutOfStockError(RuntimeError):

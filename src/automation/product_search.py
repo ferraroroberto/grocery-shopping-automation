@@ -7,7 +7,7 @@ only *finds and ranks for display*; a human picks which candidate fills
 ``buscador``.
 
 Both stores' search mechanisms ride the logged-in shared Chrome profile
-(``automation/browser.py``). Ametller was dropped from product search in issue
+(``src/automation/browser.py``). Ametller was dropped from product search in issue
 #211 (its cart handler and stored items stay):
 
 * **Mercadona** — a clean Algolia-backed JSON endpoint the storefront itself
@@ -19,12 +19,12 @@ Both stores' search mechanisms ride the logged-in shared Chrome profile
   relevance-ranked.
 
 * **Carrefour** (issue #157) — behind Cloudflare like the cart handler
-  (:mod:`automation.carrefour`), so this is a real-Chrome DOM read rather than
+  (:mod:`src.automation.carrefour`), so this is a real-Chrome DOM read rather than
   a direct API call: load ``https://www.carrefour.es/?query={term}`` (``query=``,
   not ``q=`` — verified live 2026-09-29) and read the results grid, whose cards
   are ``[data-test="search-grid-result"]``. Each card's ``<a data-test=
   "result-link">`` carries the ``/R-<id>/p`` product path
-  (:func:`automation.carrefour.product_id_from_url` extracts the id), the name
+  (:func:`src.automation.carrefour.product_id_from_url` extracts the id), the name
   sits in ``[data-test="result-title"] p``, the price in ``[data-test=
   "result-current-price"]``, and the image in ``img[data-test=
   "result-picture-image"]``. The DOM → dict extraction runs in-page
@@ -54,12 +54,12 @@ from urllib.parse import quote
 from playwright.sync_api import Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from automation import carrefour  # noqa: E402  (BASE_URL + product_id_from_url)
-from automation.browser import (  # noqa: E402
+from src.automation import carrefour  # noqa: E402  (BASE_URL + product_id_from_url)
+from src.automation.browser import (  # noqa: E402
     ProfileBusyError,
     ProfileNotInitializedError,
     SessionExpiredError,
@@ -227,7 +227,7 @@ def search_carrefour(page: Page, query: str, limit: int) -> list[Candidate]:
     """Search Carrefour by loading its results grid in real Chrome.
 
     Carrefour sits behind Cloudflare (like the cart handler,
-    :mod:`automation.carrefour`), so this drives the page itself rather than
+    :mod:`src.automation.carrefour`), so this drives the page itself rather than
     calling an API directly. ``query=`` (not ``q=``) is the storefront's own
     search param. An empty results grid (genuinely no matches) returns ``[]``
     rather than raising.

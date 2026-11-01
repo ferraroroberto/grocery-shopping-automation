@@ -33,11 +33,11 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OPTIONS_PATH = _REPO_ROOT / "config" / "product_options.json"
 # Store → the handler module whose ``product_id_from_url`` names its products.
 # Imported lazily: the handlers import this module.
-_PRODUCT_ID_MODULES = {"carrefour": "automation.carrefour"}
+_PRODUCT_ID_MODULES = {"carrefour": "src.automation.carrefour"}
 
 
 def load_product_options(path: Optional[Path] = None) -> dict[str, dict[str, dict]]:

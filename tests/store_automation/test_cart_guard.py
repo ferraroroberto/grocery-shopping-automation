@@ -6,11 +6,11 @@ the notifier is a recorder (the autouse conftest fixture keeps the real one off)
 
 import pytest
 
-from automation import mercadona, product_search, run_automation
-from automation.errors import AddToCartFailed, OutOfStockError, ProductUnavailableError
-from automation.models import CartItem
-from automation.product_search import Candidate
-from automation.report import (
+from src.automation import mercadona, product_search, run_automation
+from src.automation.errors import AddToCartFailed, OutOfStockError, ProductUnavailableError
+from src.automation.models import CartItem
+from src.automation.product_search import Candidate
+from src.automation.report import (
     ADDED_NOT_IN_CART,
     ADDED_UNVERIFIED,
     ADDED_VERIFIED,

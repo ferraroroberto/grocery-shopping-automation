@@ -1,4 +1,4 @@
-"""Unit tests for automation.item_matching.
+"""Unit tests for src.automation.item_matching.
 
 Uses the real (redacted) order-confirmation fixture and a real purchase-log
 snapshot (issue #72) so the alias/exact/fuzzy paths are exercised against
@@ -9,14 +9,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from automation.email_parsers.ametller import parse_confirmed_items
-from automation.item_matching import (
+from src.automation.email_parsers.ametller import parse_confirmed_items
+from src.automation.item_matching import (
     load_alias_table,
     load_latest_purchase_log,
     match_items,
     normalize,
 )
-from automation.models import CartItem
+from src.automation.models import CartItem
 
 FIXTURES = Path(__file__).parent / "fixtures"
 EMAIL_FIXTURE = FIXTURES / "ametller_order_prepared.txt"

@@ -30,7 +30,7 @@ CLIENT_ID = "fd3c9db8-2a0d-4f4b-9e74-294e068f9ae4"  # public storefront client
 SITE_ID = "ametller"
 REDIRECT_URI = "https://www.ametllerorigen.com/callback"
 BASE = f"https://{SHORT_CODE}.api.commercecloud.salesforce.com"
-LOCALE = "es"  # plain "es" — region-qualified locales 400 (see automation/product_search.py)
+LOCALE = "es"  # plain "es" — region-qualified locales 400 (see src/automation/product_search.py)
 _TIMEOUT = 30
 
 

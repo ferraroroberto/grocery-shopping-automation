@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from automation.email_parsers.ametller import parse_confirmed_items
+from src.automation.email_parsers.ametller import parse_confirmed_items
 
 FIXTURE = Path(__file__).parent / "fixtures" / "ametller_order_prepared.txt"
 

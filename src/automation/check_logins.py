@@ -1,7 +1,7 @@
 """CLI entry point: report each store's saved login on the shared Chrome profile.
 
 Usage:
-    python -m automation.check_logins [--store STORE] [--json] [--headless]
+    python -m src.automation.check_logins [--store STORE] [--json] [--headless]
 
 Read-only (issue #217): opens the shared profile once (waiting with the
 profile backoff if a sibling job holds it) and, for every store handler that
@@ -26,8 +26,8 @@ from typing import Optional
 
 from playwright.sync_api import Page
 
-from automation.browser import NotLoggedInError, SessionExpiredError, launch_context
-from automation.run_automation import HANDLERS
+from src.automation.browser import NotLoggedInError, SessionExpiredError, launch_context
+from src.automation.run_automation import HANDLERS
 
 logger = logging.getLogger("automation.check_logins")
 

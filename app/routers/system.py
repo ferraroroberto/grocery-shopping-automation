@@ -13,7 +13,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from app import login_check_runner
 from app.api_common import REPO_ROOT, STATIC_DIR, inventory_error
 from app.static_files import BUILD_INFO
-from automation.bootstrap_session import launch_bootstrap_chrome
+from src.automation.bootstrap_session import launch_bootstrap_chrome
 from src.certs import cert_paths
 from src.data import CONFIG
 from src.data import open_spreadsheet as open_spreadsheet_file

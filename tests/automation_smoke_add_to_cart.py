@@ -3,7 +3,7 @@ r"""Smoke test: add a single real product to a store's cart (issue #95).
 Drives ``<store>.add_to_cart`` against one real product URL and asserts it
 returns without raising. This is a LIVE test:
 
-* Requires a bootstrapped Chrome profile (`python -m automation.bootstrap_session`).
+* Requires a bootstrapped Chrome profile (`python -m src.automation.bootstrap_session`).
 * Opens a real headed Chrome window and really adds the item to the cart.
 * Not a CI test — run it manually and watch the window.
 
@@ -25,9 +25,9 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from automation import ametller, mercadona  # noqa: E402
-from automation.browser import launch_context  # noqa: E402
-from automation.models import CartItem  # noqa: E402
+from src.automation import ametller, mercadona  # noqa: E402
+from src.automation.browser import launch_context  # noqa: E402
+from src.automation.models import CartItem  # noqa: E402
 
 # One real, stable product per store, taken from the grocery list.
 ITEMS = {

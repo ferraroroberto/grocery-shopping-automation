@@ -16,7 +16,7 @@ import pytest
 
 import src.data as data
 import src.store_links as store_links
-from automation.grocery_reader import read_cart_items
+from src.automation.grocery_reader import read_cart_items
 from src.data import COLUMNS, SpreadsheetLockedError, load_inventory_data, store_url_columns
 
 RUNS = Path(__file__).resolve().parent / "fixtures" / "store_links"

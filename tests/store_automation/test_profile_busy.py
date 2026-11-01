@@ -5,9 +5,9 @@ Everything is faked: no Chrome is launched, no store is touched, no cart changes
 
 import pytest
 
-from automation import browser, run_automation
-from automation.browser import ProfileBusyError
-from automation.models import CartItem
+from src.automation import browser, run_automation
+from src.automation.browser import ProfileBusyError
+from src.automation.models import CartItem
 
 
 class _FakePlaywright:

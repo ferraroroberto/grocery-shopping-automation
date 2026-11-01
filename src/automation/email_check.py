@@ -20,15 +20,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from automation.email_parsers import ametller as ametller_parser
-from automation.email_parsers import carrefour as carrefour_parser
-from automation.item_matching import (
+from src.automation.email_parsers import ametller as ametller_parser
+from src.automation.email_parsers import carrefour as carrefour_parser
+from src.automation.item_matching import (
     MatchResult,
     load_alias_table,
     load_latest_purchase_log,
     match_items,
 )
-from automation.item_matching import normalize as _normalize_text
+from src.automation.item_matching import normalize as _normalize_text
 from src.gmail_readonly import GmailReadError, NormalizedEmail
 from src.atomic_json import write_json_atomic
 from src.data import purchase_logs_dir as default_purchase_logs_dir
@@ -37,7 +37,7 @@ from src.notify_config import build_notify_notifier
 
 logger = logging.getLogger("email_check")
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_PROCESSED_STATE_PATH = _REPO_ROOT / "config" / "gmail_processed_state.json"
 
 # Gmail search window: wide enough that a confirmation email arriving a few
@@ -58,7 +58,7 @@ STORE_SUBJECTS: dict[str, str] = {
     "carrefour": "aviso de pedido preparado carrefour",
 }
 # Store key -> that store's parser module, mirroring
-# automation.run_automation.HANDLERS.
+# src.automation.run_automation.HANDLERS.
 STORE_PARSERS = {
     "ametller": ametller_parser,
     "carrefour": carrefour_parser,

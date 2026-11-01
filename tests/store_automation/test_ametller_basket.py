@@ -6,8 +6,8 @@ confirmed 200 response counts.
 
 import pytest
 
-from automation import ametller
-from automation.browser import NotLoggedInError, StoreApiError
+from src.automation import ametller
+from src.automation.browser import NotLoggedInError, StoreApiError
 
 _AUTH = {"token": "tok", "customer_id": "cust-1", "customer_type": "registered"}
 

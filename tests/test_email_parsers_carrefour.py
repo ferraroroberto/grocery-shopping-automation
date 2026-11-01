@@ -13,14 +13,14 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
-from automation import email_check
-from automation.email_check import (
+from src.automation import email_check
+from src.automation.email_check import (
     STORE_PARSERS,
     STORE_SUBJECTS,
     check_latest_confirmation,
     subject_matches,
 )
-from automation.email_parsers.carrefour import (
+from src.automation.email_parsers.carrefour import (
     ConfirmedLine,
     parse_confirmed_items,
     parse_confirmed_lines,

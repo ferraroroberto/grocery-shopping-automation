@@ -1,6 +1,6 @@
 """Unit tests for the Ametller Didomi consent-notice dismissal (issue #143)."""
 
-from automation import ametller
+from src.automation import ametller
 
 
 class FakeLocator:

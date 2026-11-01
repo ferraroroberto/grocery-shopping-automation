@@ -5,9 +5,9 @@ import json
 
 import pytest
 
-from automation import carrefour, product_options
-from automation.errors import AddToCartFailed
-from automation.models import CartItem
+from src.automation import carrefour, product_options
+from src.automation.errors import AddToCartFailed
+from src.automation.models import CartItem
 
 DORADA_URL = "https://www.carrefour.es/supermercado/dorada-de-racion-carrefour-600-g-aprox/R-628108203/p"
 DORADA_ID = "628108203"

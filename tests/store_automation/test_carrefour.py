@@ -2,15 +2,15 @@
 
 import pytest
 
-from automation import carrefour
-from automation.browser import (
+from src.automation import carrefour
+from src.automation.browser import (
     BotChallengeError,
     NotLoggedInError,
     SessionExpiredError,
     StoreAccessError,
     StoreApiError,
 )
-from automation.run_automation import HANDLERS
+from src.automation.run_automation import HANDLERS
 
 
 @pytest.mark.parametrize(
@@ -156,7 +156,7 @@ def test_carrefour_is_a_registered_handler():
 
 
 def test_login_redirect_error_names_the_url():
-    from automation import browser
+    from src.automation import browser
 
     class _Page:
         url = "https://www.carrefour.es/access?back=/supermercado"
