@@ -5,7 +5,7 @@ Everything is faked: no Chrome is launched, no store is touched.
 
 import pytest
 
-from benchmark import browser_fetch
+from src.benchmark import browser_fetch
 
 
 class _FakeResponse:

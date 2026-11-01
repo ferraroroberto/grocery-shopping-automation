@@ -10,7 +10,7 @@ tag          = ["uses", "hub + whisper"]
 port         = 8502
 shape        = "webapp-tray"
 # Root folders the webapp-tray preset does not list; each reason is in docs/layout.md.
-extra_roots  = ["automation", "benchmark"]
+extra_roots  = ["automation"]
 
 [vendored]
 single_instance = { src = "app/tray/single_instance.py", sha = "5d460bd1d9d44eed955c5357d1c9f622f2550ad8", dest = "app/tray/single_instance.py" }

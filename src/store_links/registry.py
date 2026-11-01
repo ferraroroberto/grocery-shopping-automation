@@ -9,13 +9,13 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-from benchmark.paths import mappings_dir, runs_dir
+from src.benchmark.paths import mappings_dir, runs_dir
 from src.data import REPO_ROOT
 
 logger = logging.getLogger(__name__)
 
 
-STORES_REGISTRY_PATH = REPO_ROOT / "benchmark" / "stores.json"
+STORES_REGISTRY_PATH = REPO_ROOT / "src" / "benchmark" / "stores.json"
 _RUN_DIR_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # A store-search results page rather than a product: bot-protected stores
 # (Bonpreu, Alcampo) left the benchmark only their search URL.
@@ -41,7 +41,7 @@ def _same_url(a: str, b: str) -> bool:
 def link_kind(store: str, url: str) -> str:
     """``"search"`` (a search-results page), ``"suspect"`` (an http(s) URL
     that doesn't match the store's ``product_url_pattern`` in
-    ``benchmark/stores.json`` — e.g. a Carrefour slug without its
+    ``src/benchmark/stores.json`` — e.g. a Carrefour slug without its
     `/R-<id>/p` product id, which redirects to the home page; a store with
     no declared pattern is never "suspect") or ``"product"``.
 
@@ -72,7 +72,7 @@ def _product_url_pattern(store: str) -> Optional[re.Pattern[str]]:
 
 
 def load_registry() -> dict[str, dict]:
-    """Store key → registry entry from ``benchmark/stores.json``."""
+    """Store key → registry entry from ``src/benchmark/stores.json``."""
     return json.loads(STORES_REGISTRY_PATH.read_text(encoding="utf-8"))["stores"]
 
 

@@ -6,7 +6,7 @@ from datetime import date
 
 import pytest
 
-from benchmark import build_basket as bb
+from src.benchmark import build_basket as bb
 
 
 def test_months_spanned_adds_one_median_gap():

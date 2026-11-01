@@ -144,7 +144,7 @@ def _open_context(
     """Launch the persistent Chrome context and return its context + first page.
 
     Shared by :func:`launch_context`, the bootstrap script and
-    :mod:`benchmark.browser_fetch` (which passes its own per-store
+    :mod:`src.benchmark.browser_fetch` (which passes its own per-store
     ``user_data_dir`` so it never touches the shared store-login profile). Does
     **not** check whether the profile is initialized — the bootstrap
     deliberately runs against an empty profile directory.

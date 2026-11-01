@@ -16,7 +16,7 @@ from typing import Any, Optional
 import pandas as pd
 from fastapi import HTTPException
 
-from benchmark.build_basket import item_key
+from src.benchmark.build_basket import item_key
 from src.data import (
     COLUMNS,
     CONFIG,

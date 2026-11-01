@@ -1,5 +1,5 @@
 {
-  "_doc": "Store registry for the supermarket benchmark (issue #145). Public info only. 'hints' are starting points verified on the date noted — research agents must re-verify and append what they learn to 'notes' via the orchestrator. 'product_url_pattern' (issue #156), where declared, is a regex a real product-page URL must contain; src.store_links.link_kind() and benchmark.results.validate_item() both check a URL against it (a store with no pattern is left unchecked).",
+  "_doc": "Store registry for the supermarket benchmark (issue #145). Public info only. 'hints' are starting points verified on the date noted — research agents must re-verify and append what they learn to 'notes' via the orchestrator. 'product_url_pattern' (issue #156), where declared, is a regex a real product-page URL must contain; src.store_links.link_kind() and src.benchmark.results.validate_item() both check a URL against it (a store with no pattern is left unchecked).",
   "stores": {
     "mercadona": {
       "name": "Mercadona",
@@ -20,7 +20,7 @@
       "baseline": true,
       "shop_url": "https://www.ametllerorigen.com/es/",
       "hints": [
-        "BEST: plain-HTTP SCAPI with a guest token — `python -m benchmark.ametller_guest search <term>` / `products <id> ...` (public storefront client, PKCE guest flow). Returns c_ao_ingredientes, unitQuantity/unitMeasure, pricePerUnit, EAN. (verified 2026-09-27)",
+        "BEST: plain-HTTP SCAPI with a guest token — `python -m src.benchmark.ametller_guest search <term>` / `products <id> ...` (public storefront client, PKCE guest flow). Returns c_ao_ingredientes, unitQuantity/unitMeasure, pricePerUnit, EAN. (verified 2026-09-27)",
         "No frozen section at all and only ~29 household SKUs (eco brands; no Fairy/Finish, toilet paper, bin bags, cling film). Expect those as not_found.",
         "Delivery: 5.95 EUR, free from 60 EUR (mobify-data appProps.shippingCosts). (2026-09-27)"
       ],
@@ -31,7 +31,7 @@
       "shop_url": "https://www.carrefour.es/supermercado",
       "product_url_pattern": "/R-[A-Za-z0-9-]+/p",
       "hints": [
-        "Cloudflare blocks curl and in-page API fetch. Real Chrome works but the postcode must be set EVERY session (session-only 'salepoint' cookie): click [aria-label=\"Envío a domicilio\"] → Modificar → fill input[name=\"postal-code\"] → Empezar a comprar. benchmark.browser_fetch's fetch() can't click — use `benchmark.browser_fetch.open_actions_context(\"carrefour\")` for the click-driven flow instead of a hand-rolled Playwright launch; it shares the same stealth config and profile. (2026-09-27)",
+        "Cloudflare blocks curl and in-page API fetch. Real Chrome works but the postcode must be set EVERY session (session-only 'salepoint' cookie): click [aria-label=\"Envío a domicilio\"] → Modificar → fill input[name=\"postal-code\"] → Empezar a comprar. src.benchmark.browser_fetch's fetch() can't click — use `src.benchmark.browser_fetch.open_actions_context(\"carrefour\")` for the click-driven flow instead of a hand-rolled Playwright launch; it shares the same stealth config and profile. (2026-09-27)",
         "Search: https://www.carrefour.es/?query=<term> (not q=); cards [data-test=\"search-grid-result\"]; product pages list 'Ingredientes' in body text.",
         "Delivery to the home postcode (2026-09-27): 3.99 EUR, free from 140 EUR, minimum order 50 EUR."
       ],
@@ -87,8 +87,8 @@
       "name": "Dia",
       "shop_url": "https://www.dia.es/",
       "hints": [
-        "Plain HTTP to the search API → Akamai 403. Real Chrome works: `python -m benchmark.browser_fetch --store dia --url \"https://www.dia.es/search?q=...\"` returns rendered results with price and €/kg. (verified 2026-09-27)",
-        "Set postcode once in the modal (persists in the profile). Cards: data-test-id=search-product-card-*; detail /<category>/p/<id> has an 'Ingredientes' section; no EAN exposed. benchmark.browser_fetch's fetch() can't click — use `benchmark.browser_fetch.open_actions_context(\"dia\")` for high-volume or click-driven work instead of a hand-rolled Playwright launch; it shares the same stealth config and profile. (2026-09-27)",
+        "Plain HTTP to the search API → Akamai 403. Real Chrome works: `python -m src.benchmark.browser_fetch --store dia --url \"https://www.dia.es/search?q=...\"` returns rendered results with price and €/kg. (verified 2026-09-27)",
+        "Set postcode once in the modal (persists in the profile). Cards: data-test-id=search-product-card-*; detail /<category>/p/<id> has an 'Ingredientes' section; no EAN exposed. src.benchmark.browser_fetch's fetch() can't click — use `src.benchmark.browser_fetch.open_actions_context(\"dia\")` for high-volume or click-driven work instead of a hand-rolled Playwright launch; it shares the same stealth config and profile. (2026-09-27)",
         "Delivery to the home postcode (2026-09-27): 4.99 EUR, free from 100 EUR, no minimum."
       ],
       "delivery_hints": "Check delivery fee and minimum order for the basket postal code."

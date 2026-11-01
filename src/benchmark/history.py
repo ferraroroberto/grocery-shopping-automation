@@ -14,8 +14,8 @@ household data):
 
 Recording is idempotent per run date: re-recording a run replaces its rows.
 
-    python -m benchmark.history record benchmark_runs/2026-09-27
-    python -m benchmark.history show
+    python -m src.benchmark.history record benchmark_runs/2026-09-27
+    python -m src.benchmark.history show
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from benchmark.paths import state_dir
+from src.benchmark.paths import state_dir
 
 PRICE_FIELDS = ["run_date", "store", "key", "comida", "tier", "baseline", "status", "confidence",
                 "name", "url", "pack_size", "unit", "pack_price", "unit_price"]

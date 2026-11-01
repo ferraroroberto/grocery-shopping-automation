@@ -6,11 +6,11 @@ the baseline, price/size present for a match) and upserts it into
 ``<run>/stores/<store>.json``. Writing one item at a time means an agent that
 runs out of context loses nothing — the next one resumes from ``status``.
 
-    python -m benchmark.results status   --run benchmark_runs/2026-09-27 --store dia
-    python -m benchmark.results item     --run … --store dia --key pavo-90 --json '{…}'
-    python -m benchmark.results delivery --run … --store dia --json '{…}'
-    python -m benchmark.results access   --run … --store dia --json '{"method": "chrome", "notes": "…"}'
-    python -m benchmark.results alt      --run … --store dia --key pavo-90 --json '{…}'   # add another qualifying product
+    python -m src.benchmark.results status   --run benchmark_runs/2026-09-27 --store dia
+    python -m src.benchmark.results item     --run … --store dia --key pavo-90 --json '{…}'
+    python -m src.benchmark.results delivery --run … --store dia --json '{…}'
+    python -m src.benchmark.results access   --run … --store dia --json '{"method": "chrome", "notes": "…"}'
+    python -m src.benchmark.results alt      --run … --store dia --key pavo-90 --json '{…}'   # add another qualifying product
 
 Item record (``--json``)::
 
@@ -19,7 +19,7 @@ Item record (``--json``)::
                   — for a match, `url` must be the product card's own link
                   (with its product id), not a slug-only or search URL: the
                   writer checks it against the store's `product_url_pattern`
-                  in benchmark/stores.json, when one is declared (issue #156)
+                  in src/benchmark/stores.json, when one is declared (issue #156)
     pack_size     float, in the BASKET item's unit (convert g→kg, ml→l, eggs→ud)
     unit          must equal the basket item's current unit
     pack_price    float EUR (the price you'd pay today)
@@ -63,13 +63,13 @@ DELIVERS = {"yes", "no", "unknown"}
 # The store registry (its ``product_url_pattern``) is the single
 # source of truth for what a store's real product-page URL looks like —
 # src.store_links.link_kind() checks the same field. Read directly (like
-# benchmark/report.py already does) rather than importing src, which would
+# src/benchmark/report.py already does) rather than importing src, which would
 # pull the whole UI-free app layer (pandas, openpyxl, …) into this CLI.
 STORES_REGISTRY = Path(__file__).resolve().parent / "stores.json"
 
 
 def _product_url_pattern(store: str) -> Optional[str]:
-    """``store``'s ``product_url_pattern`` regex from ``benchmark/stores.json``, if it declares one."""
+    """``store``'s ``product_url_pattern`` regex from ``src/benchmark/stores.json``, if it declares one."""
     registry = json.loads(STORES_REGISTRY.read_text(encoding="utf-8"))["stores"]
     return (registry.get(store) or {}).get("product_url_pattern") or None
 

@@ -10,8 +10,8 @@ from typing import Any, Mapping, Optional, Union
 
 import pandas as pd
 
-from benchmark import score as bscore
-from benchmark.build_basket import item_key
+from src.benchmark import score as bscore
+from src.benchmark.build_basket import item_key
 from src.data import COLUMNS, cell_text
 
 from .context import _RunContext, _norm_store, _num, _resolve_row, _row_store, rows_by_key
@@ -96,7 +96,7 @@ def clear_baseline(base: Optional[Path] = None) -> None:
 
 
 def _price(ctx: _RunContext, stores: dict[str, str], orders_per_month: float) -> dict[str, Any]:
-    """Total a key → store assignment with benchmark.score; list what can't be priced."""
+    """Total a key → store assignment with src.benchmark.score; list what can't be priced."""
     assignment: dict[str, bscore.Offer] = {}
     unpriced = []
     for key, store in sorted(stores.items()):
@@ -145,7 +145,7 @@ def simulate(df: pd.DataFrame, picks: Mapping[Union[int, str], str], orders_per_
     benchmark's status quo. The universe is the latest run's basket. Returns
     ``{"picks", "today"}`` — each ``goods``,
     ``delivery``, ``total``, ``delivery_optimised``, ``total_optimised``,
-    ``per_store`` and ``items`` from :func:`benchmark.score.price_assignment`
+    ``per_store`` and ``items`` from :func:`src.benchmark.score.price_assignment`
     plus ``unpriced`` (``{key, store, reason, id, comida}`` for items with no
     price at their store; excluded from the totals, never counted as 0) — and
     ``delta`` (picks − today). ``comparable`` is False when the two sides

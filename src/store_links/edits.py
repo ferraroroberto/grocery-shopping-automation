@@ -9,7 +9,7 @@ from typing import Any, Optional
 import pandas as pd
 from pandas.api.types import is_object_dtype, is_string_dtype
 
-from benchmark.paths import runs_dir
+from src.benchmark.paths import runs_dir
 from src.data import (
     COLUMNS,
     FALLBACK_SUPER_COLUMN,
@@ -113,7 +113,7 @@ def import_latest(df: pd.DataFrame, *, save: bool = True, xlsx_path: Optional[st
     "stores", "suspect_urls", "run_date"}``: cells written, URLs not written
     because the cell already had a value, mapping keys no inventory row
     matches, and per store the mapping URLs that don't look like a product
-    page (each store's ``product_url_pattern`` in ``benchmark/stores.json``;
+    page (each store's ``product_url_pattern`` in ``src/benchmark/stores.json``;
     imported anyway, logged ⚠️).
     """
     base = base or runs_dir()
@@ -196,7 +196,7 @@ def set_store_url(df: pd.DataFrame, row: int, store: str, url: str, *, save: boo
     _check_row(df, row)
     store = _norm_store(store)
     if store not in load_registry():
-        raise StoreLinkError(f"unknown store {store!r} (not in benchmark/stores.json)")
+        raise StoreLinkError(f"unknown store {store!r} (not in src/benchmark/stores.json)")
     url = (url or "").strip()
     if url and not _is_url(url):
         raise StoreLinkError("url must start with http:// or https://")
@@ -231,7 +231,7 @@ def set_fallback(df: pd.DataFrame, row: int, store: str, url: str, *, save: bool
     if not store or not url:
         raise StoreLinkError("a fallback needs both a store and a product link")
     if store not in load_registry():
-        raise StoreLinkError(f"unknown store {store!r} (not in benchmark/stores.json)")
+        raise StoreLinkError(f"unknown store {store!r} (not in src/benchmark/stores.json)")
     if not _is_url(url):
         raise StoreLinkError("url must start with http:// or https://")
     if fallback_pair(store, url, _row_store(df, row), df.at[row, COLUMNS["buscador"]]) is None:

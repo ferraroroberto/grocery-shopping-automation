@@ -36,7 +36,7 @@ COLUMNS = CONFIG["data"]["columns"]
 MODES = CONFIG["ui"]["modes"]
 
 # Optional per-store product-URL columns: `url_<store>`, one per
-# store key in `benchmark/stores.json`. Never required — a sheet without any
+# store key in `src/benchmark/stores.json`. Never required — a sheet without any
 # loads unchanged; `super` + `buscador` stay the chosen store and its URL.
 STORE_URL_PREFIX = "url_"
 

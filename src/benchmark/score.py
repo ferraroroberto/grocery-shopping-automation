@@ -1,10 +1,10 @@
 """Score a benchmark run into split scenarios (issue #145). Deterministic, no LLM.
 
-    python -m benchmark.score benchmark_runs/2026-09-27 [--promote]
+    python -m src.benchmark.score benchmark_runs/2026-09-27 [--promote]
 
 Inputs: ``<run>/basket.json`` (the monthly basket at today's stores) and
 ``<run>/stores/<store>.json`` (validated research records, see
-:mod:`benchmark.results`). Outputs ``<run>/scenarios.json`` and
+:mod:`src.benchmark.results`). Outputs ``<run>/scenarios.json`` and
 ``<run>/report.md``.
 
 **Cost model.** An item's monthly cost at a store is *pro-rata*: the monthly
@@ -42,13 +42,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from benchmark import history  # noqa: E402
-from benchmark.paths import mappings_dir  # noqa: E402
-from benchmark.results import MATCHED  # noqa: E402
+from src.benchmark import history  # noqa: E402
+from src.benchmark.paths import mappings_dir  # noqa: E402
+from src.benchmark.results import MATCHED  # noqa: E402
 
 logger = logging.getLogger("benchmark.score")
 
@@ -575,7 +575,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("run_dir", type=Path)
     parser.add_argument("--promote", action="store_true",
                         help="Finalise the run: write verified matches to <runs_dir>/_state/mappings/ "
-                             "and record it in the run history (benchmark.history).")
+                             "and record it in the run history (src.benchmark.history).")
     args = parser.parse_args(argv)
     for stream in (sys.stdout, sys.stderr):
         stream.reconfigure(encoding="utf-8")

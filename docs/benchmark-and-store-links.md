@@ -1,9 +1,9 @@
 # Supermarket benchmark and per-store links
 
-The `benchmark/` package answers *"is our Mercadona + Ametller split still the
+The `src/benchmark/` package answers *"is our Mercadona + Ametller split still the
 cheapest way to buy this basket without dropping quality?"* It prices the
 household's **average monthly basket** (from `purchase_logs/`) at every online
-supermarket in `benchmark/stores.json`, with quality locked per item (brand,
+supermarket in `src/benchmark/stores.json`, with quality locked per item (brand,
 meat %, ingredients) and every product compared per kg, litre or piece, and scores status
 quo vs single-store vs the best 1–5-store splits including delivery fees. Each
 run is recorded in a history (`benchmark_runs/_state/`), so the report shows
@@ -14,12 +14,12 @@ it rebuilds the basket, fans out one research agent per store, scores and
 publishes a recommendation. The building blocks run standalone too:
 
 ```powershell
-& .\.venv\Scripts\python.exe -m benchmark.build_basket                 # benchmark_runs/<today>/basket.json
-& .\.venv\Scripts\python.exe -m benchmark.results status --run benchmark_runs/<date> --store dia
-& .\.venv\Scripts\python.exe -m benchmark.score benchmark_runs/<date>   # scenarios.json + report.md
-& .\.venv\Scripts\python.exe -m benchmark.score benchmark_runs/<date> --promote   # finalise: mappings + history
-& .\.venv\Scripts\python.exe -m benchmark.report benchmark_runs/<date>  # report.html (history included)
-& .\.venv\Scripts\python.exe -m benchmark.history show                 # one line per past run
+& .\.venv\Scripts\python.exe -m src.benchmark.build_basket                 # benchmark_runs/<today>/basket.json
+& .\.venv\Scripts\python.exe -m src.benchmark.results status --run benchmark_runs/<date> --store dia
+& .\.venv\Scripts\python.exe -m src.benchmark.score benchmark_runs/<date>   # scenarios.json + report.md
+& .\.venv\Scripts\python.exe -m src.benchmark.score benchmark_runs/<date> --promote   # finalise: mappings + history
+& .\.venv\Scripts\python.exe -m src.benchmark.report benchmark_runs/<date>  # report.html (history included)
+& .\.venv\Scripts\python.exe -m src.benchmark.history show                 # one line per past run
 ```
 
 `benchmark_runs/` is gitignored (prices, basket and product mappings stay
@@ -29,7 +29,7 @@ local). Methodology, quality tiers and schemas:
 ## Per-store links, store picks and the cost simulator
 
 Each inventory row can hold one product URL per supermarket in optional
-`url_<store>` columns of `list.xlsx` (store keys from `benchmark/stores.json`;
+`url_<store>` columns of `list.xlsx` (store keys from `src/benchmark/stores.json`;
 a sheet without them loads unchanged). `super` + `buscador` stay the chosen
 store and its URL, so the cart automation keeps working. `src/store_links/`
 does the work; the API (`app/routers/stores.py`) exposes it:
@@ -66,7 +66,7 @@ nothing is written (no inventory change, no audit log). Ids or changes sent
 without a name are not checked.
 
 Prices come from the newest *scored* run (one with `scenarios.json`); the fee
-maths is `benchmark.score`'s own. The PWA's **Items → Prices** view
+maths is `src.benchmark.score`'s own. The PWA's **Items → Prices** view
 ([Prices](prices.md)) is the front end for all of it.
 
 **Your corrections (overrides).** When your own research disagrees with the
