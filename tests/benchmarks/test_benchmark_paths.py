@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from benchmark import paths
+from src.benchmark import paths
 from src import data, store_links
 
 
@@ -25,7 +25,7 @@ def test_absolute_and_relative_overrides(tmp_path: Path, monkeypatch: pytest.Mon
 
 
 def test_store_links_and_the_cli_modules_agree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from benchmark import history
+    from src.benchmark import history
 
     monkeypatch.setitem(data.CONFIG, "benchmark", {"runs_dir": str(tmp_path)})
     assert store_links.runs_dir() == paths.runs_dir() == tmp_path

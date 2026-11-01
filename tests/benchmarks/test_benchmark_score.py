@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from benchmark import results, score
+from src.benchmark import results, score
 from src import data, store_links
 
 

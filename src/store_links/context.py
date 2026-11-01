@@ -8,8 +8,8 @@ from typing import Any, Optional, Union
 
 import pandas as pd
 
-from benchmark import score as bscore
-from benchmark.build_basket import item_key
+from src.benchmark import score as bscore
+from src.benchmark.build_basket import item_key
 from src.data import COLUMNS, cell_text
 
 from .registry import StoreLinkError, _same_url

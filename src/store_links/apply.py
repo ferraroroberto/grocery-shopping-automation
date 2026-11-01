@@ -9,7 +9,7 @@ from typing import Any, Mapping, Optional, Union
 
 import pandas as pd
 
-from benchmark.build_basket import item_key
+from src.benchmark.build_basket import item_key
 from src.data import COLUMNS, cell_text, comprar_for
 
 from .context import _RunContext, _candidate, _check_row, _norm_store, _num, _resolve_row, _row_store, rows_by_key

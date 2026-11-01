@@ -7,8 +7,8 @@ fields the logged-in session sees (``c_ao_ingredientes``, ``unitQuantity``,
 ``pricePerUnit``, EAN). Discovered by the 2026-09-27 benchmark research run;
 preferred over the shared-profile token, which goes stale (HTTP 401).
 
-    python -m benchmark.ametller_guest search "pechuga pavo"
-    python -m benchmark.ametller_guest products 45832 45833
+    python -m src.benchmark.ametller_guest search "pechuga pavo"
+    python -m src.benchmark.ametller_guest products 45832 45833
 """
 
 from __future__ import annotations

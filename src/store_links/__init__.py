@@ -1,15 +1,15 @@
 """Per-store product links, store picks and the cost simulator (issue #148).
 
 UI-free. Each inventory row may carry one product URL per supermarket in an
-optional ``url_<store>`` column (store keys from ``benchmark/stores.json``);
+optional ``url_<store>`` column (store keys from ``src/benchmark/stores.json``);
 ``super`` + ``buscador`` stay the *chosen* store and its URL, so the cart
 automation and the email/audit flows keep working unchanged.
 
 Prices and quantities come from the latest scored supermarket-benchmark run
-(``benchmark_runs/<YYYY-MM-DD>/``); the cost maths is :mod:`benchmark.score`'s
+(``benchmark_runs/<YYYY-MM-DD>/``); the cost maths is :mod:`src.benchmark.score`'s
 own (``build_offers`` / ``price_assignment``), never re-implemented here.
 Inventory rows are joined to benchmark items by
-:func:`benchmark.build_basket.item_key` of ``comida``.
+:func:`src.benchmark.build_basket.item_key` of ``comida``.
 
 Every mutator persists through :func:`src.data.save_inventory_data` and rolls
 the in-memory frame back when the save fails (e.g. the sheet is locked).
@@ -63,7 +63,7 @@ keep using ``src.store_links`` unchanged:
 
 from __future__ import annotations
 
-from benchmark.paths import runs_dir
+from src.benchmark.paths import runs_dir
 from .apply import apply_changes, apply_preview
 from .edits import import_latest, pick_store, set_fallback, set_store_url, store_url
 from .registry import (

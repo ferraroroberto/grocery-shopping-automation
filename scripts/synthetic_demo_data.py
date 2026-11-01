@@ -7,7 +7,7 @@ from the household's real list, purchases or accounts.
 Run from the demo instance's *code copy* (``python -m scripts.synthetic_demo_data
 <root>``), where ``src/config.json`` already points at ``<root>``: it writes the
 workbook and two benchmark runs, scores them with the app's own
-``benchmark.score``, freezes a Stores baseline, and records a last Fill carts,
+``src.benchmark.score``, freezes a Stores baseline, and records a last Fill carts,
 so every tab, mode and dialog has content and a few corners are empty.
 """
 from __future__ import annotations
@@ -99,7 +99,7 @@ def slug(text: str) -> str:
 
 
 def product_url(store: str, idx: int, comida: str) -> str:
-    """A link that passes ``benchmark/stores.json``'s product-URL patterns for the store."""
+    """A link that passes ``src/benchmark/stores.json``'s product-URL patterns for the store."""
     if store == "mercadona":
         return f"{BASE_URL}/mercadona/product/{90000 + idx}/{slug(comida)}"
     if store == "carrefour":
@@ -199,7 +199,7 @@ def write_last_audit(logs: Path) -> None:
 
 def seed(root: Path) -> None:
     """Write the workbook and benchmark state under ``root`` (the config already points there)."""
-    from benchmark import score
+    from src.benchmark import score
     from src import data, store_links
 
     workbook_frame().to_excel(data.resolve_xlsx_path(), index=False, engine="openpyxl")

@@ -157,7 +157,7 @@ monthly-cost baseline: set/reset (#183)| ROUTERS
   ITEMMATCH -.->|latest purchase_logs/ JSON| PURCHASELOG
   READER --> XLSX
 
-  subgraph benchmark["benchmark/ — supermarket price benchmark (#145)"]
+  subgraph benchmark["src/benchmark/ — supermarket price benchmark (#145)"]
     BBASKET["build_basket.py
 monthly basket from xlsx + purchase_logs,
 current product via Mercadona API / Ametller guest SCAPI"]

@@ -1,9 +1,9 @@
 """Render a scored benchmark run as a self-contained HTML report (issue #145).
 
-    python -m benchmark.report benchmark_runs/2026-09-27     # → <run>/report.html
+    python -m src.benchmark.report benchmark_runs/2026-09-27     # → <run>/report.html
 
 Everything numeric comes from ``scenarios.json`` / ``basket.json`` /
-``stores/*.json`` and the run history (:mod:`benchmark.history`); judgment the
+``stores/*.json`` and the run history (:mod:`src.benchmark.history`); judgment the
 code can't derive (e.g. "your deli meat isn't what you thought", "produce
 taste isn't measured") comes from an optional ``<run>/report_notes.json``
 written by the orchestrator::
@@ -26,12 +26,12 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from benchmark import history  # noqa: E402
-from benchmark import score as S  # noqa: E402
+from src.benchmark import history  # noqa: E402
+from src.benchmark import score as S  # noqa: E402
 
 STORES_REGISTRY = Path(__file__).resolve().parent / "stores.json"
 MOVE_MIN_SAVING = 1.5  # €/month — smaller moves are listed, not tabled

@@ -10,8 +10,8 @@ from typing import Any, Optional
 
 import pandas as pd
 
-from benchmark import score as bscore
-from benchmark.build_basket import item_key
+from src.benchmark import score as bscore
+from src.benchmark.build_basket import item_key
 from src.data import COLUMNS, cell_text, store_url_columns
 
 from .apply import _pack, _round_half_up
@@ -343,7 +343,7 @@ def set_override(df: pd.DataFrame, item_id: int, store: str, *, name: Optional[s
     _check_row(df, item_id)
     store = _norm_store(store)
     if store not in load_registry():
-        raise StoreLinkError(f"unknown store {store!r} (not in benchmark/stores.json)")
+        raise StoreLinkError(f"unknown store {store!r} (not in src/benchmark/stores.json)")
     name, note = (name or "").strip() or None, (note or "").strip() or None
     unit = (unit or "").strip().lower() or None
     if pack_size is not None and not (math.isfinite(pack_size) and pack_size > 0):

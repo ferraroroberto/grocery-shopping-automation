@@ -11,7 +11,7 @@ stealth-launched, same-profile context for a research agent to drive
 interactively — so "this store needs clicks" doesn't mean hand-rolling a
 second, un-stealthed ``sync_playwright()`` launch (issue #296):
 
-    from benchmark.browser_fetch import open_actions_context
+    from src.benchmark.browser_fetch import open_actions_context
     with open_actions_context("carrefour") as (context, page):
         page.goto("https://www.carrefour.es/supermercado")
         page.click('[aria-label="Envío a domicilio"]')
@@ -22,9 +22,9 @@ Each store gets its **own** throwaway profile under
 profile — so parallel agents (one per store) don't collide and cookies a store
 sets on first visit (postal code, consent) persist across calls.
 
-    python -m benchmark.browser_fetch --store carrefour --url "https://…"            # page text
-    python -m benchmark.browser_fetch --store carrefour --url "https://…/api?q=x" --mode api   # JSON body
-    python -m benchmark.browser_fetch --store dia --url "https://…" --mode html --out page.html
+    python -m src.benchmark.browser_fetch --store carrefour --url "https://…"            # page text
+    python -m src.benchmark.browser_fetch --store carrefour --url "https://…/api?q=x" --mode api   # JSON body
+    python -m src.benchmark.browser_fetch --store dia --url "https://…" --mode html --out page.html
 
 ``--mode api`` first opens ``--home`` (default: the URL's origin) so the
 bot-manager cookies exist, then issues the request from inside the page
@@ -45,12 +45,12 @@ from urllib.parse import urlsplit
 
 from playwright.sync_api import BrowserContext, Page, sync_playwright
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from automation.browser import _open_context  # noqa: E402
-from benchmark.paths import state_dir  # noqa: E402
+from src.benchmark.paths import state_dir  # noqa: E402
 
 logger = logging.getLogger("benchmark.browser_fetch")
 

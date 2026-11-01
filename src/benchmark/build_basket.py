@@ -5,7 +5,7 @@ the household's **average monthly quantity** per item, fetches today's product
 (name, brand, EAN, pack size, price, ingredients) at the store we currently buy
 it from, suggests a quality tier, and writes
 ``benchmark_runs/<date>/basket.json`` — the input every store-research agent and
-:mod:`benchmark.score` works from.
+:mod:`src.benchmark.score` works from.
 
 Monthly quantity: Σ ``comprar`` across all purchase logs ÷ months spanned. The
 span is first-to-last order date **plus one median order gap** (the last order
@@ -21,7 +21,7 @@ Current-product sources, both verified live 2026-09-27:
   resolved (``x-customer-wh`` header of ``change-pc``) and recorded.
 * **Ametller** — SCAPI Shopper Products (``c_ao_ingredientes``,
   ``unitQuantity``/``unitMeasure``, ``pricePerUnit``) with a guest token
-  (:mod:`benchmark.ametller_guest`) — plain HTTP, no Chrome profile.
+  (:mod:`src.benchmark.ametller_guest`) — plain HTTP, no Chrome profile.
 
 Per-item overrides reviewed by a human persist in
 ``benchmark_runs/_state/quality_specs.json`` and win on every later run:
@@ -46,12 +46,12 @@ from typing import Optional
 
 import requests
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from benchmark.ametller_guest import GuestSession  # noqa: E402
-from benchmark.paths import runs_dir, state_dir  # noqa: E402
+from src.benchmark.ametller_guest import GuestSession  # noqa: E402
+from src.benchmark.paths import runs_dir, state_dir  # noqa: E402
 from src import data  # noqa: E402
 
 logger = logging.getLogger("benchmark.build_basket")
