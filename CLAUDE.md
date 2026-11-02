@@ -12,12 +12,12 @@
 - **App layout:** main file (e.g. `app.py`) handles only page config, shared state, sidebar, and tab/radio routing. Each tab/mode lives in its own file exposing a `main(...)` (or `render_*`) function. Default to `st.tabs()`; use a sidebar radio only when asked.
 
 ## UX surface
-*The design-conformance gate the `/issue-{start,finish,yolo}` skills read (convention: `project-scaffolding#83`). Live, parseable block — the product is the FastAPI + static PWA under `app/static/`.*
+*The design-conformance gate the `/issue-{start,finish,yolo}` skills read (convention: `project-scaffolding#83`). Live, parseable block — the product is the FastAPI + static PWA under `app/webapp/static/`.*
 
 - design spec applies: yes        # this repo serves a real PWA on :8502; the legacy Streamlit app on :8501 is exempt
 - paths:
-  - app/static/**/*.css
-  - app/static/**/*.{js,html}
+  - app/webapp/static/**/*.css
+  - app/webapp/static/**/*.{js,html}
 - key views:                      # single tabbed SPA served at `/`
   - /          (Home · Shop · Audit · Items tabs, bottom-pill nav, Settings behind the header gear; Home is its This week card (audit, list, carts and prices rows) above a search over every item; Items is Items · Prices, Prices leading with its Monthly cost glance card and the Benchmark sheet, product search in the Add item sheet, Shop leading with its Carts glance card (Fill carts, Mark purchase done, the Options and Fill history sheets) above folded store groups and their store sheet, Audit opening on Voice (its glance with Record, the Match results glance with Apply and Needs you, the transcript menu sheet) beside Manual, Settings as inset groups (Display: text size; Stores: the Store logins and Email watch sheets; Data))
 
@@ -42,5 +42,5 @@ Household grocery inventory + shopping list web app, backed by an Excel file. Pr
   - **conventions** — three fleet conventions as `ast` rules; fails when a file's hit count for a rule rises above its baseline: `no-window` (a `subprocess` spawn with no `creationflags=`), `logging-not-print` (a `print` in `app/` or `src/` library code) and `no-drive-path` (a string literal starting with a drive letter); `secret-compare` and `git-wrapper` stay off because the repo has no helper to route through. Fix a new hit, or mark a deliberate one with a reasoned `# <rule>-exempt: why` comment.
 - Typical green: **~4 min**. Investigate at **>8 min**; treat as wedged at **>16 min** (`timeout-minutes: 16`).
 - Flaky leg: the e2e step's WebKit iPhone 13 check (`test_four_tab_nav_and_relocated_sections`) can wedge on the hosted runner. A wedge is a flake, not the diff.
-- CI's only signal beyond the local gate is a clean machine (fresh `.venv` from `requirements.txt`, only the committed `config/*.sample.*` seeded) plus the e2e suite on the hosted runner. Its e2e surface = `app/static/`, `app/api.py`, `app/routers/`, `app/middleware.py`, `src/`, `tests/e2e/`, `tests/conftest.py`. A diff touching **none** of these gains nothing from CI.
+- CI's only signal beyond the local gate is a clean machine (fresh `.venv` from `requirements.txt`, only the committed `config/*.sample.*` seeded) plus the e2e suite on the hosted runner. Its e2e surface = `app/webapp/static/`, `app/api.py`, `app/webapp/routers/`, `app/middleware.py`, `src/`, `tests/e2e/`, `tests/conftest.py`. A diff touching **none** of these gains nothing from CI.
 - Tests never read live state (Gmail config, processed state, the real spreadsheet); the `smoke_*.py` / `automation_smoke_*.py` scripts drive real stores and stay out of CI.

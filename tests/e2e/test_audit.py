@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-import app.routers.audio as audio_router
+import app.webapp.routers.audio as audio_router
 from src.inventory_extract import ExtractionResult
 from tests.e2e._helpers import (
     LIVE,

@@ -2,7 +2,7 @@
 
 Composition root only: build the app, wire the middleware and the static
 mount, and include one router per concern. Every route lives in
-``app/routers/`` — add endpoints there, not here.
+``app/webapp/routers/`` — add endpoints there, not here.
 """
 
 import logging
@@ -14,8 +14,8 @@ from fastapi import FastAPI
 from app import email_poller
 from app.api_common import STATIC_DIR
 from app.middleware import BearerTokenMiddleware
-from app.routers import audio, automation, email, inventory, product_search, stores, system, usage, voice
 from app.static_files import BUILD_INFO, CachingStaticFiles
+from app.webapp.routers import audio, automation, email, inventory, product_search, stores, system, usage, voice
 from src.compression import StreamSafeGZipMiddleware
 from src.data import CONFIG
 from src.log_setup import configure_logging

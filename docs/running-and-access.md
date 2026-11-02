@@ -29,7 +29,7 @@ All external icon surfaces derive from the canonical Lucide `shopping-basket` ma
 & .\.venv\Scripts\python.exe scripts\gen_icons.py
 ```
 
-The command writes the PWA files under `app/static/`, `assets/tray/grocery-shopping-automation.ico`, and `assets/stream-deck/grocery-shopping-automation-144.png`. Set `PROJECT_SCAFFOLDING_ROOT` if the sibling repository is not checked out next to this one.
+The command writes the PWA files under `app/webapp/static/`, `assets/tray/grocery-shopping-automation.ico`, and `assets/stream-deck/grocery-shopping-automation-144.png`. Set `PROJECT_SCAFFOLDING_ROOT` if the sibling repository is not checked out next to this one.
 
 ## Design-review demo instance
 

@@ -32,7 +32,7 @@ Each inventory row can hold one product URL per supermarket in optional
 `url_<store>` columns of `list.xlsx` (store keys from `src/benchmark/stores.json`;
 a sheet without them loads unchanged). `super` + `buscador` stay the chosen
 store and its URL, so the cart automation keeps working. `src/store_links/`
-does the work; the API (`app/routers/stores.py`) exposes it:
+does the work; the API (`app/webapp/routers/stores.py`) exposes it:
 
 | Route | Does |
 |---|---|

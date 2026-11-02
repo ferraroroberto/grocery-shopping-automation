@@ -23,7 +23,7 @@ sys.path.insert(0, str(SCAFFOLDING_ROOT / "scripts"))
 
 from brand_gen import render_set  # noqa: E402
 
-STATIC_DIR = PROJECT_ROOT / "app" / "static"
+STATIC_DIR = PROJECT_ROOT / "app" / "webapp" / "static"
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 log = logging.getLogger("gen_icons")

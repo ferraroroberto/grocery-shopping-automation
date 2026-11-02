@@ -36,7 +36,7 @@ written (purchase log, email-confirmation check, product search, benchmark).
 
 The hard rule that paid off: **`src/automation/` never imports `streamlit`, and
 `app/` never drives Playwright.** The CLI runner is the seam — both the PWA
-(`app/routers/automation.py`) and the legacy Streamlit integration are
+(`app/webapp/routers/automation.py`) and the legacy Streamlit integration are
 "just" a subprocess wrapper around the exact command you would type in a
 terminal, which means the terminal stays a first-class debugging path
 forever.

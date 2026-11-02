@@ -7,7 +7,7 @@ import asyncio
 import httpx
 
 import app.audio_hub as audio_hub
-import app.routers.automation as automation_router
+import app.webapp.routers.automation as automation_router
 from app.api import app
 
 FIRST_CHUNK_WAIT_S = 3.0

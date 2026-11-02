@@ -2,27 +2,5 @@
   "version": 1,
   "band": {"files": 1, "functions": 5},
   "root_extras": [],
-  "entries": [
-    {"key": "place:app/routers", "files": 10},
-    {"key": "place:app/static", "files": 9},
-    {"key": "place:app/static/_vendored", "files": 1},
-    {"key": "place:app/static/_vendored/action-row", "files": 3},
-    {"key": "place:app/static/_vendored/button", "files": 3},
-    {"key": "place:app/static/_vendored/card", "files": 3},
-    {"key": "place:app/static/_vendored/disclosure", "files": 3},
-    {"key": "place:app/static/_vendored/empty-state", "files": 3},
-    {"key": "place:app/static/_vendored/home-head", "files": 4},
-    {"key": "place:app/static/_vendored/icon-button", "files": 3},
-    {"key": "place:app/static/_vendored/icons", "files": 3},
-    {"key": "place:app/static/_vendored/modal", "files": 3},
-    {"key": "place:app/static/_vendored/nav", "files": 4},
-    {"key": "place:app/static/_vendored/segmented", "files": 3},
-    {"key": "place:app/static/_vendored/select-native", "files": 3},
-    {"key": "place:app/static/_vendored/switch", "files": 4},
-    {"key": "place:app/static/_vendored/text-size", "files": 5},
-    {"key": "place:app/static/_vendored/toast", "files": 4},
-    {"key": "place:app/static/_vendored/usage-log", "files": 2},
-    {"key": "place:app/static/modules", "files": 19},
-    {"key": "place:app/static/modules/stores", "files": 9}
-  ]
+  "entries": []
 }

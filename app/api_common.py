@@ -37,7 +37,7 @@ from src.data import (
 from src.store_links import link_kind
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-STATIC_DIR = Path(__file__).resolve().parent / "static"
+STATIC_DIR = Path(__file__).resolve().parent / "webapp" / "static"
 
 # Item ids are row positions, re-numbered on every load, so a client holding
 # the list from before another device's delete would write to the wrong row.

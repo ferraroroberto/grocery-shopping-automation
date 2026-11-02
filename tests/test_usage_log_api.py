@@ -11,7 +11,7 @@ from pathlib import Path
 
 from src.usage_log import ID_PATTERN
 
-STATIC = Path(__file__).resolve().parent.parent / "app" / "static"
+STATIC = Path(__file__).resolve().parent.parent / "app" / "webapp" / "static"
 # Everything this app serves outside the vendored copies (those render nothing of ours).
 OWN_SOURCES = [STATIC / "index.html", *sorted((STATIC / "modules").rglob("*.js")), STATIC / "app.js"]
 # The only interpolations a data-track value may carry: fixed action names, view

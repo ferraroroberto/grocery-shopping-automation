@@ -11,7 +11,7 @@ from fastapi import UploadFile
 
 import app.api as api
 import app.audio_hub as audio_hub
-import app.routers.audio as audio_router
+import app.webapp.routers.audio as audio_router
 from tests.conftest import stub_extract_result
 
 

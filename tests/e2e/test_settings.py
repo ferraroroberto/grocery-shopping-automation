@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-import app.routers.system as system_router
+import app.webapp.routers.system as system_router
 from app.api import app
 from tests.e2e._helpers import (
     LOADED_JS,
