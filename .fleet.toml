@@ -29,6 +29,7 @@ geometry = { src = "tests/e2e/_geometry.py", sha = "4c699636afecd5cae5e966bc2bcb
 notify = { src = "src/notify", sha = "4c699636afecd5cae5e966bc2bcb17fa49744390", dest = "src/notify" }
 text-size = { src = "app/webapp/static/_vendored/text-size", sha = "5d460bd1d9d44eed955c5357d1c9f622f2550ad8", dest = "app/webapp/static/_vendored/text-size" }
 toast = { src = "app/webapp/static/_vendored/toast", sha = "3b708fd3c54ab7b93b08d489406c405762c83c41", dest = "app/webapp/static/_vendored/toast" }
+page-foot = { src = "app/webapp/static/_vendored/page-foot", sha = "35c1f11348e100fa6b5da487411424c6d6ced43c", dest = "app/webapp/static/_vendored/page-foot" }
 icons = { src = "app/webapp/static/_vendored/icons", sha = "5d460bd1d9d44eed955c5357d1c9f622f2550ad8", dest = "app/webapp/static/_vendored/icons" }
 usage-log = { src = "app/webapp/static/_vendored/usage-log", sha = "98cdb1b7727d12a5c233580478e6fae40d98e6f3", dest = "app/webapp/static/_vendored/usage-log" }
 usage_log = { src = "src/usage_log.py", sha = "98cdb1b7727d12a5c233580478e6fae40d98e6f3", dest = "src/usage_log.py" }

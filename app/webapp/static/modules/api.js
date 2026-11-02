@@ -12,7 +12,7 @@ import {
   storedToken,
   TOKEN_KEY,
 } from "./core.js";
-import { fmtBuildTime } from "./dom.js";
+import { buildReadoutText } from "../_vendored/page-foot/page-foot.js";
 
 // A JSON request init; `extra` carries fetch options such as an abort `signal`.
 export function jsonInit(method, body, extra = {}) {
@@ -154,7 +154,7 @@ export async function mutate(url, payload, method = "POST") {
 
 // --------------------------------------------------- build identity
 // Ported from home-automation main.js — visible proof of which build the PWA
-// is running (footer "Build: <sha> · <time>" line), plus a one-shot reload
+// is running (the page-foot line), plus a one-shot reload
 // when the served asset hash changed since the last visit (iOS standalone
 // PWAs can cling to an old shell even with stamped asset URLs).
 const ASSET_HASH_KEY = "grocery.assetHash";
@@ -176,8 +176,7 @@ export async function fetchVersion() {
       return;
     }
     if (assetHash) localStorage.setItem(ASSET_HASH_KEY, assetHash);
-    const ts = fmtBuildTime(body.built_at || "");
-    el.buildReadout.textContent = ts ? `Build: ${sha} · ${ts}` : `Build: ${sha}`;
+    el.buildReadout.textContent = buildReadoutText(sha, body.built_at || "");
   } catch (_) {
     el.buildReadout.textContent = "";
   }

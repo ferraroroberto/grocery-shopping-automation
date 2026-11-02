@@ -142,11 +142,6 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 }
 .toolbar #items-add[hidden] { display: none; }
 
-/* Build identity footer (home-automation contract) — filled by fetchVersion.
-   Regular weight: home-automation renders it muted+small, never bold. */
-.page-foot { padding: var(--space-lg) 0 var(--space-sm); text-align: center; }
-.page-foot .meta { font-weight: 400; }
-
 /* --------------------------------------------------------- sub-mode pills */
 .pills { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
 /* Zone pills: ONE compact swipeable line — six zones wrapped to two rows and
