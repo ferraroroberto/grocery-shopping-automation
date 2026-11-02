@@ -4,7 +4,7 @@ launcher (#294)."""
 
 from pathlib import Path
 
-import app.routers.system as system
+import app.webapp.routers.system as system
 import app.tray.manager as manager
 import scripts.run_named_tunnel as tunnel
 import src.uvicorn_launch as uvicorn_launch

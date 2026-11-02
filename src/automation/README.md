@@ -150,7 +150,7 @@ product URL). Neither is required — a sheet without them loads unchanged — a
 a blank store, a value that isn't an `http(s)` URL, or a fallback that is the
 row's own primary all mean "no fallback". One fallback per row; a fallback
 never has its own. The item sheet's **Fallback if short** page edits these
-columns (#284, `app/static/modules/fallback.js`, `PUT /api/items/{id}/fallback`);
+columns (#284, `app/webapp/static/modules/fallback.js`, `PUT /api/items/{id}/fallback`);
 see `docs/items.md` for how it reads.
 
 When the final cart shows the primary short — partly (a stock cap) or
@@ -226,9 +226,9 @@ filled cart itself persists in your store account regardless.
 The FastAPI/PWA app drives automation from the **Carts** glance card at the
 top of its **🛒 Shop** tab (#258): tap **Fill carts**, and its **Options**
 sheet picks a
-store (or "All stores"), a cart mode, and *Dry run*. The automation endpoints in `app/routers/automation.py` spawn
+store (or "All stores"), a cart mode, and *Dry run*. The automation endpoints in `app/webapp/routers/automation.py` spawn
 this same CLI as a subprocess and stream its output live to the page
-(`app/static/modules/automation.js`); a **🛑 Stop** control terminates an
+(`app/webapp/static/modules/automation.js`); a **🛑 Stop** control terminates an
 in-progress run. The legacy Streamlit app offers the same controls in its
 Shopping List mode (`app/shopping.py`). Both surfaces share the subprocess
 plumbing in `app/automation_runner.py`.

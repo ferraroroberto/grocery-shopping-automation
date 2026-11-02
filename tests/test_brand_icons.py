@@ -4,7 +4,7 @@ from PIL import Image
 
 from app.tray.tray import PROJECT_ROOT, _build_icon
 
-STATIC_DIR = PROJECT_ROOT / "app" / "static"
+STATIC_DIR = PROJECT_ROOT / "app" / "webapp" / "static"
 
 
 def test_generated_pngs_are_opaque_rgb_at_expected_sizes() -> None:

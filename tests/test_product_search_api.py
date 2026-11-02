@@ -8,7 +8,7 @@ import json
 
 import pytest
 
-import app.routers.product_search as search_api
+import app.webapp.routers.product_search as search_api
 from src.voice_command import VoiceItem, VoiceParseResult
 
 

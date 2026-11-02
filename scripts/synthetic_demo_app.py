@@ -35,7 +35,7 @@ static_versioning._git_short_sha = lambda _repo_root: "demo"
 
 from app import audio_hub, email_poller, login_check_runner, subprocess_plumbing  # noqa: E402
 from app.api import app  # noqa: E402, F401  (re-exported: uvicorn serves this)
-from app.routers import audio, automation, product_search, system, voice  # noqa: E402
+from app.webapp.routers import audio, automation, product_search, system, voice  # noqa: E402
 from src.inventory_extract import ExtractionError, ExtractionResult  # noqa: E402
 
 DEMO_TRANSCRIPT = "in the fridge there are two butter blocks and one apple juice, in the freezer three salmon portions"

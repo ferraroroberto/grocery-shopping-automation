@@ -39,7 +39,7 @@ def _build_icon():
 
     candidates = (
         PROJECT_ROOT / "assets" / "tray" / "grocery-shopping-automation.ico",
-        PROJECT_ROOT / "app" / "static" / "icon-512.png",
+        PROJECT_ROOT / "app" / "webapp" / "static" / "icon-512.png",
     )
     for path in candidates:
         if not path.exists():
