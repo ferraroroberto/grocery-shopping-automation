@@ -48,5 +48,5 @@ def test_home_this_week_and_search(page, server):
         if segment:
             assert page.locator(f"#pane-{pane} [data-mode='{segment}']").get_attribute("aria-pressed") == "true", key
     # Build identity footer (home-automation contract) is filled at boot.
-    page.wait_for_function("document.querySelector('#build-readout')?.textContent?.startsWith('Build:')")
+    page.wait_for_function("document.querySelector('#buildReadout')?.textContent?.startsWith('Build:')")
     assert page._js_errors == [], f"JS errors: {page._js_errors}"

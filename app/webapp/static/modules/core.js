@@ -122,7 +122,7 @@ export const el = {
   search: document.querySelector("#search"),
   toolbar: document.querySelector("#toolbar"),
   itemsAdd: document.querySelector("#items-add"),
-  buildReadout: document.querySelector("#build-readout"),
+  buildReadout: document.querySelector("#buildReadout"),
   app: document.querySelector("main.app"),
   loginDialog: document.querySelector("#login-dialog"),
   loginForm: document.querySelector("#login-form"),
