@@ -65,6 +65,12 @@
                          resolving under a code folder beyond
                          .runtime-write-ratchet-baseline.json; a new target it cannot
                          resolve is exit 3, NOT CONFIRMED. Not path-routed.
+     11. usage track ratchet - scripts/usage_track_ratchet.py, called directly (any
+                         non-zero exit fails the stage): fails when a file's count of
+                         untracked controls, untracked sheets or built ids rises above
+                         .usage-track-ratchet-baseline.json, or the usage log is not
+                         wired; exit 3 (a file that cannot be read or closed) is NOT
+                         CONFIRMED. Not path-routed.
 
     Anchors to the repo root, so run it from anywhere:  & .\scripts\verify-before-ship.ps1
 #>
@@ -110,6 +116,7 @@ Invoke-Stage "doc-refs ratchet" { & $py -m scripts.doc_refs_ratchet_gate }
 Invoke-Stage "dead-code ratchet" { & $py -m scripts.dead_code_ratchet_gate }
 Invoke-Stage "conventions ratchet" { & $py -m scripts.conventions_ratchet_gate }
 Invoke-Stage "runtime write ratchet" { & $py "scripts/runtime_write_ratchet.py" }
+Invoke-Stage "usage track ratchet" { & $py "scripts/usage_track_ratchet.py" }
 
 Write-Host ""
 Write-Host "[PASS] verify-before-ship" -ForegroundColor Green

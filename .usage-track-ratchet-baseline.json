@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "entries": [
+    {"key": "app/webapp/static/app.js", "counts": {"dynamic-id": 2}},
+    {"key": "app/webapp/static/index.html", "counts": {"untracked-control": 6, "untracked-sheet": 1}},
+    {"key": "app/webapp/static/modules/audio.js", "counts": {"untracked-control": 5}},
+    {"key": "app/webapp/static/modules/automation.js", "counts": {"untracked-control": 5}},
+    {"key": "app/webapp/static/modules/confirm.js", "counts": {"untracked-control": 2, "untracked-sheet": 1}},
+    {"key": "app/webapp/static/modules/dom.js", "counts": {"untracked-control": 1}},
+    {"key": "app/webapp/static/modules/email.js", "counts": {"untracked-control": 3}},
+    {"key": "app/webapp/static/modules/fallback.js", "counts": {"untracked-control": 3}},
+    {"key": "app/webapp/static/modules/home.js", "counts": {"dynamic-id": 1}},
+    {"key": "app/webapp/static/modules/inventory.js", "counts": {"untracked-control": 1}},
+    {"key": "app/webapp/static/modules/item-sheet.js", "counts": {"untracked-control": 2}},
+    {"key": "app/webapp/static/modules/rows.js", "counts": {"dynamic-id": 4}},
+    {"key": "app/webapp/static/modules/search.js", "counts": {"untracked-control": 5}},
+    {"key": "app/webapp/static/modules/settings.js", "counts": {"untracked-control": 2}},
+    {"key": "app/webapp/static/modules/shopping.js", "counts": {"untracked-control": 2}},
+    {"key": "app/webapp/static/modules/store-sheet.js", "counts": {"untracked-control": 3}},
+    {"key": "app/webapp/static/modules/stores/benchmark.js", "counts": {"untracked-control": 7}},
+    {"key": "app/webapp/static/modules/stores/dialog.js", "counts": {"untracked-control": 1, "untracked-sheet": 1, "dynamic-id": 1}},
+    {"key": "app/webapp/static/modules/stores/list.js", "counts": {"untracked-control": 3}},
+    {"key": "app/webapp/static/modules/stores/review.js", "counts": {"untracked-control": 9}},
+    {"key": "app/webapp/static/modules/stores/simulator.js", "counts": {"untracked-control": 1}}
+  ]
+}
