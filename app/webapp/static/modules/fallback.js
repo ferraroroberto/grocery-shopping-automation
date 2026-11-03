@@ -46,7 +46,7 @@ export function paintFallbackPage(dialog, record) {
   dialog.querySelector('[data-page="fallback"]').innerHTML = `<form class="fallback-form" data-fallback-form novalidate>
       <p class="hint">When this item is short at its store, the cart run sends the missing units here.</p>
       <label class="field-label">Fallback store
-        <select class="select-native" name="fallback-store" data-fallback-store>
+        <select class="select-native" data-track="fallback.store" name="fallback-store" data-fallback-store>
           <option value="">None</option>
           ${stores.map((s) => `<option value="${esc(s.key)}"${fallback?.store === s.key ? " selected" : ""}>${esc(s.name)}</option>`).join("")}
         </select>
@@ -57,8 +57,8 @@ export function paintFallbackPage(dialog, record) {
       </label>
       ${flagMarkup(fallback)}
       <div class="review-edit-actions">
-        <button type="submit" class="button-tint">Save fallback</button>
-        ${fallback ? `<button type="button" class="button-surface" data-fallback-clear>Clear fallback</button>` : ""}
+        <button type="submit" class="button-tint" data-track="fallback.save">Save fallback</button>
+        ${fallback ? `<button type="button" class="button-surface" data-track="fallback.clear" data-fallback-clear>Clear fallback</button>` : ""}
       </div>
     </form>`;
 }

@@ -188,7 +188,7 @@ function quantityMarkup(d) {
 function qtyRowMarkup(field, suggested, packCtx) {
   const value = sheet.value(field);
   const suggest = suggested !== undefined && suggested !== null && suggested !== value
-    ? `<button type="button" class="button-surface review-suggest" data-review-suggest="${field}" data-value="${suggested}">Use suggested (${suggested})</button>`
+    ? `<button type="button" class="button-surface review-suggest" data-track="review.suggest" data-review-suggest="${field}" data-value="${suggested}">Use suggested (${suggested})</button>`
     : "";
   return `<div class="review-qty-field">
       <span class="review-qty-label">${QTY_LABEL[field]} <span class="meta">${esc(packCtx)}</span></span>
@@ -261,7 +261,7 @@ function storeRowMarkup(d, s) {
     <td class="review-cell-num" data-label="Per unit">${s.price_per_unit === null ? "–" : `${eur(s.price_per_unit)}/${esc(unit)}`}</td>
     <td class="review-cell-num" data-label="Per month">${eur(s.monthly_cost)}</td>
     <td class="review-cell-status" data-label="Status">${esc(statusText(s))}</td>
-    <td class="review-cell-edit"><button type="button" class="icon-button" data-review-edit="${esc(s.store)}"
+    <td class="review-cell-edit"><button type="button" class="icon-button" data-track="review.edit" data-review-edit="${esc(s.store)}"
         aria-expanded="${editing}" aria-label="Edit ${esc(s.store_name)}">${icon(editing ? "x" : "pencil")}</button></td>
   </tr>`;
   return editing ? row + `<tr class="review-edit-row"><td colspan="8">${editFormMarkup(d, s)}</td></tr>` : row;
@@ -298,7 +298,7 @@ function editFormMarkup(d, s) {
           <input id="${id("pack_size")}" class="field" name="pack_size" type="number" min="0" step="any" inputmode="decimal"
                  value="${val(ov.pack_size)}" placeholder="${val(bench.pack_size)}"></label>
         <label class="field-label" for="${id("unit")}">Unit
-          <select id="${id("unit")}" class="select-native" name="unit">
+          <select id="${id("unit")}" class="select-native" data-track="review.unit" name="unit">
             <option value="">${bench.unit ? `Benchmark (${esc(bench.unit)})` : "Benchmark"}</option>
             ${OVERRIDE_UNITS.map((u) => `<option value="${u}"${ov.unit === u ? " selected" : ""}>${u}</option>`).join("")}
           </select></label>
@@ -316,9 +316,9 @@ function editFormMarkup(d, s) {
       ${overrideFields}
       <p class="panel-status error review-edit-status" role="status"></p>
       <div class="review-edit-actions">
-        <button type="submit" class="button-tint">Save</button>
-        ${s.override ? `<button type="button" class="button-surface" data-review-reset="${esc(s.store)}">Reset to benchmark</button>` : ""}
-        <button type="button" class="button-surface" data-review-cancel>Cancel</button>
+        <button type="submit" class="button-tint" data-track="review.save">Save</button>
+        ${s.override ? `<button type="button" class="button-surface" data-track="review.reset" data-review-reset="${esc(s.store)}">Reset to benchmark</button>` : ""}
+        <button type="button" class="button-surface" data-track="review.cancel" data-review-cancel>Cancel</button>
       </div>
     </form>`;
 }
@@ -332,11 +332,11 @@ function addLinkMarkup(d) {
   return `<div class="review-add">
       <label class="field-label" for="review-add-url">Link another store</label>
       <div class="review-add-row">
-        <select class="select-native" data-review-add-store aria-label="Store">${missing.map((s) =>
+        <select class="select-native" data-track="review.add-store" data-review-add-store aria-label="Store">${missing.map((s) =>
           `<option value="${esc(s.key)}">${esc(s.name)}</option>`).join("")}</select>
         <input id="review-add-url" class="field" type="url" inputmode="url" autocomplete="off" spellcheck="false"
                placeholder="https://…" data-review-add-url>
-        <button type="button" class="button-surface" data-review-add>Add link</button>
+        <button type="button" class="button-surface" data-track="review.add-link" data-review-add>Add link</button>
       </div>
     </div>`;
 }
@@ -345,7 +345,7 @@ function evidenceMarkup(d, open) {
   const stores = d.stores.filter((s) => s.quality_vs_current || s.evidence || s.notes);
   if (!d.spec && !d.tier && !stores.length) return "";
   return `<details class="review-evidence"${open ? " open" : ""}>
-      <summary class="review-evidence-summary"><span>Evidence &amp; quality spec</span><span class="inline-chevron" aria-hidden="true">›</span></summary>
+      <summary class="review-evidence-summary" data-track="review.evidence"><span>Evidence &amp; quality spec</span><span class="inline-chevron" aria-hidden="true">›</span></summary>
       <div class="review-evidence-body">
         ${d.tier || d.spec ? `<p>${d.tier ? `<strong>Tier ${esc(d.tier)}</strong>${d.spec ? " · " : ""}` : ""}${esc(d.spec || "")}</p>` : ""}
         ${stores.length ? `<ul class="review-evidence-list">${stores.map((s) => `<li>

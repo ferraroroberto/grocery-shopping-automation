@@ -15,8 +15,9 @@ STATIC = Path(__file__).resolve().parent.parent / "app" / "webapp" / "static"
 # Everything this app serves outside the vendored copies (those render nothing of ours).
 OWN_SOURCES = [STATIC / "index.html", *sorted((STATIC / "modules").rglob("*.js")), STATIC / "app.js"]
 # The only interpolations a data-track value may carry: fixed action names, view
-# modes, dialog ids and stepper kinds -- all developer constants.
-CONSTANT_INTERPOLATIONS = {"${action}", "${lead.action}", "${kind}", "${mode}", "${id}"}
+# modes, dialog ids, stepper kinds and directions, and the literal ids of the
+# Home rows table -- all developer constants.
+CONSTANT_INTERPOLATIONS = {"${action}", "${lead.action}", "${kind}", "${dir}", "${mode}", "${id}", "${track}"}
 EVENT = {"kind": "tap", "id": "shop.fill-carts", "view": "shopping"}
 
 

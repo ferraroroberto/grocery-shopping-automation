@@ -65,7 +65,7 @@ export function renderSearch() {
       </button>
     </div>
     <div id="search-status" class="panel-status" role="status" aria-live="polite"></div>
-    <button id="search-cancel" class="button-surface btn-block" type="button"${s.running ? "" : " hidden"}>Cancel</button>
+    <button id="search-cancel" data-track="add.search-cancel" class="button-surface btn-block" type="button"${s.running ? "" : " hidden"}>Cancel</button>
     <div id="search-results"></div>`;
   renderSearchStatus();
   renderSearchResults();
@@ -158,7 +158,7 @@ function candidateConfirmPanel() {
   const d = search.draft || { lugar: "", tenemos: 0, cantidad: 1 };
   const zones = state.payload?.summary?.zones || [];
   const zoneField = zones.length
-    ? `<select class="field" data-confirm="lugar" aria-label="Zone">${zones.map((z) =>
+    ? `<select class="field" data-track="add.zone" data-confirm="lugar" aria-label="Zone">${zones.map((z) =>
         `<option value="${html(z)}"${z === d.lugar ? " selected" : ""}>${html(z)}</option>`).join("")}</select>`
     : `<input class="field" data-confirm="lugar" value="${esc(d.lugar)}" placeholder="Zone" aria-label="Zone" />`;
   return `<div class="candidate-confirm">
@@ -169,8 +169,8 @@ function candidateConfirmPanel() {
     <label class="field-label">Target
       <input class="field" data-confirm="cantidad" type="number" min="0" inputmode="numeric" value="${html(d.cantidad)}" />
     </label>
-    <button class="button-tint candidate-confirm-add" type="button" data-action="search-confirm">Update item</button>
-    <button class="button-surface candidate-confirm-new" type="button" data-action="search-add-new">Add as new item</button>
+    <button class="button-tint candidate-confirm-add" type="button" data-track="add.confirm" data-action="search-confirm">Update item</button>
+    <button class="button-surface candidate-confirm-new" type="button" data-track="add.add-new" data-action="search-add-new">Add as new item</button>
   </div>`;
 }
 
@@ -198,7 +198,7 @@ function candidateRow(cand, item) {
       <a class="icon-button" href="${html(cand.product_url)}" target="_blank" rel="noopener" aria-label="Open product" title="Open">
         ${icon("external-link")}
       </a>
-      <button class="button-surface candidate-use" type="button" data-action="search-use"${expanded}${done ? " disabled" : ""}>${useLabel}</button>
+      <button class="button-surface candidate-use" type="button" data-track="add.use" data-action="search-use"${expanded}${done ? " disabled" : ""}>${useLabel}</button>
     </div>
     ${open ? candidateConfirmPanel() : ""}
   </article>`;

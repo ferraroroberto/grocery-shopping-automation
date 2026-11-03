@@ -88,7 +88,7 @@ function rowMarkup(item, inUse = storesInUse()) {
     ? `${today ? `${storeName(today)} · ` : ""}No store links yet`
     : pick !== today ? `What-if · in list ${storeName(today)}` : `Bought at ${storeName(today)}`;
   const select = options.length > 1
-    ? `<select class="field store-pick action-row-trail" data-stores-pick aria-label="Buy ${esc(name)} at">${options.map((key) =>
+    ? `<select class="field store-pick action-row-trail" data-track="prices.pick-store" data-stores-pick aria-label="Buy ${esc(name)} at">${options.map((key) =>
         `<option value="${esc(key)}"${key === pick ? " selected" : ""}>${esc(storeName(key))}${key === today ? " (in list)" : ""}</option>`).join("")}</select>`
     : "";
   // The picked store leads, then the cheapest (LAYOUT-03, accepted in
@@ -127,7 +127,7 @@ function filterMarkup() {
   return `<div class="pills stores-filter" role="radiogroup" aria-label="Show items">${FILTERS.map(([key, label]) => {
     const on = key === local.filter;
     const n = count[key];
-    return `<button type="button" class="pill${on ? " active" : ""}" role="radio" aria-checked="${on}" data-stores-filter="${key}">${label}${n !== undefined ? ` <span class="pill-count">${n}</span>` : ""}</button>`;
+    return `<button type="button" class="pill${on ? " active" : ""}" role="radio" aria-checked="${on}" data-track="prices.filter" data-stores-filter="${key}">${label}${n !== undefined ? ` <span class="pill-count">${n}</span>` : ""}</button>`;
   }).join("")}</div>`;
 }
 
@@ -146,7 +146,7 @@ function storeFilterMarkup(inUse = storesInUse()) {
   if (!keys.length) return "";
   return `<div class="pills stores-filter" role="group" aria-labelledby="stores-store-label"><span class="stores-filter-label" id="stores-store-label">Store</span>${keys.map((key) => {
     const on = selected.includes(key);
-    return `<button type="button" class="pill${on ? " active" : ""}" aria-pressed="${on}" data-stores-store="${esc(key)}">${esc(storeName(key))} <span class="pill-count">${counts[key] || 0}</span></button>`;
+    return `<button type="button" class="pill${on ? " active" : ""}" aria-pressed="${on}" data-track="prices.store-pill" data-stores-store="${esc(key)}">${esc(storeName(key))} <span class="pill-count">${counts[key] || 0}</span></button>`;
   }).join("")}</div>`;
 }
 

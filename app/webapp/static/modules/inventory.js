@@ -29,7 +29,7 @@ function zoneTabs() {
   // .pills, not .tabs — the vendored nav owns the .tabs class app-wide.
   // zone-pills keeps all zones on one swipeable line.
   return `<div class="pills zone-pills">${state.payload.summary.zones.map((zone) =>
-    `<button type="button" class="pill ${zone === state.zone ? "active" : ""}" data-zone="${html(zone)}">${html(zone)}</button>`,
+    `<button type="button" class="pill ${zone === state.zone ? "active" : ""}" data-track="inventory.zone" data-zone="${html(zone)}">${html(zone)}</button>`,
   ).join("")}</div>`;
 }
 

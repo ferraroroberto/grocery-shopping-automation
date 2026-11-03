@@ -136,8 +136,8 @@ function paintLogins() {
         : `<p class="meta">Not checked on this device yet.</p>`}
     </section>
     <div class="logins-actions">
-      <button id="check-logins" class="button-tint btn-block" type="button"${checking ? " disabled" : ""}>${icon("circle-check")}Check logins</button>
-      <button id="bootstrap-session" class="button-surface btn-block" type="button">${icon("external-link")}Log in to stores</button>
+      <button id="check-logins" data-track="settings.check-logins" class="button-tint btn-block" type="button"${checking ? " disabled" : ""}>${icon("circle-check")}Check logins</button>
+      <button id="bootstrap-session" data-track="settings.login-stores" class="button-surface btn-block" type="button">${icon("external-link")}Log in to stores</button>
     </div>`;
 }
 

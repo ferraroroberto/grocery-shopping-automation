@@ -77,7 +77,7 @@ function freqMarkup() {
   const current = frequency();
   return `<div class="segmented" role="group" aria-label="Ordering frequency">${
     Object.keys(local.meta.frequencies).map((key) =>
-      `<button type="button" class="segmented-item" aria-pressed="${key === current}" data-stores-freq="${esc(key)}">${esc(FREQ_LABELS[key] || key)}</button>`,
+      `<button type="button" class="segmented-item" aria-pressed="${key === current}" data-track="prices.frequency" data-stores-freq="${esc(key)}">${esc(FREQ_LABELS[key] || key)}</button>`,
     ).join("")}</div>`;
 }
 

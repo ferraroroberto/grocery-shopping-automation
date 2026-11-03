@@ -57,7 +57,7 @@ export function renderShopping() {
       + extras.map((item) => extraRow(item, store, extraBought)).join("")
       + addRow(label) + optionsRow(offset);
     return `<details class="card card--collapsible" data-store="${html(store)}"${openStores.has(store) ? " open" : ""}>
-      <summary class="collapse-summary">
+      <summary class="collapse-summary" data-track="shop.store-group">
         <span class="collapse-main">
           ${icon("shopping-basket")}
           <h3 class="collapse-title" data-store-label="${esc(store)}">${html(label)}</h3>
@@ -108,7 +108,7 @@ function addRow(label) {
         ${icon("plus", "store-add-icon")}
         <input class="field" name="name" placeholder="Add to ${esc(label)}" aria-label="Item to add to ${esc(label)}" required>
         <input class="field quick-add-qty" name="qty" type="number" min="1" value="1" aria-label="Quantity">
-        <button class="icon-button" type="submit" aria-label="Add to ${esc(label)}" title="Add">${icon("arrow-right")}</button>
+        <button class="icon-button" type="submit" data-track="shop.quick-add" aria-label="Add to ${esc(label)}" title="Add">${icon("arrow-right")}</button>
       </form>
     </li>`;
 }

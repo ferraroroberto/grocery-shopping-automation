@@ -12,15 +12,16 @@ function sheet() {
   if (dialog) return dialog;
   dialog = document.createElement("dialog");
   dialog.id = ID;
+  dialog.dataset.trackView = "confirm";
   dialog.className = "detail-dialog confirm-dialog";
   dialog.setAttribute("aria-labelledby", `${ID}-title`);
   dialog.innerHTML = `<div class="detail-card">
       <div class="detail-header">
         <h2 id="${ID}-title" tabindex="-1" autofocus></h2>
-        <button type="button" class="icon-button detail-close" aria-label="Close" data-confirm="no">${icon("x")}</button>
+        <button type="button" class="icon-button detail-close" aria-label="Close" data-track="confirm.no" data-confirm="no">${icon("x")}</button>
       </div>
       <p class="confirm-message"></p>
-      <div class="detail-actions"><button type="button" class="detail-save-btn" data-confirm="yes"></button></div>
+      <div class="detail-actions"><button type="button" class="detail-save-btn" data-track="confirm.yes" data-confirm="yes"></button></div>
     </div>`;
   dialog.addEventListener("click", (event) => {
     const button = event.target.closest("[data-confirm]");

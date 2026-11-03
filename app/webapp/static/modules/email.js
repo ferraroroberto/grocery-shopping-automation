@@ -105,13 +105,13 @@ function paintSheet() {
         <div class="zone-item"><span>Poll automatically</span>${switchMarkup(s.poller.enabled, "Poll automatically", { id: "email-poller-enabled" })}</div>
       </div>
       <label class="field-label">Frequency
-        <select id="email-poller-interval">${intervalOptions}</select>
+        <select id="email-poller-interval" data-track="email.frequency">${intervalOptions}</select>
       </label>
       <div id="email-monitor-status" class="panel-status">${emailNextCheckText(s)}</div>
     </section>
     <div class="email-actions">
-      <button id="email-check-now" class="button-surface btn-block" type="button">${icon("refresh-cw")}Check now</button>
-      <button id="email-check-test" class="button-surface btn-block" type="button">${icon("play")}Test last email</button>
+      <button id="email-check-now" data-track="email.check-now" class="button-surface btn-block" type="button">${icon("refresh-cw")}Check now</button>
+      <button id="email-check-test" data-track="email.check-test" class="button-surface btn-block" type="button">${icon("play")}Test last email</button>
     </div>
     ${checkRows ? `<section class="sheet-section" aria-labelledby="email-checks">
       <h3 class="overline" id="email-checks">Last checks</h3>

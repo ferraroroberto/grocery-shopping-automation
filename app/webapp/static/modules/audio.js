@@ -196,7 +196,7 @@ export function renderAudio() {
       <div class="voice-actions">
         <button id="record-toggle" data-track="voice.record" class="${audio.matches ? "button-tint" : "button-primary"} btn-block" type="button">${recordLabel(recording)}</button>
         <button id="audio-redo" data-track="voice.redo" class="button-surface btn-block" type="button"${audio.sessionId && !recording ? "" : " hidden"}>${icon("refresh-cw")}Redo transcription</button>
-        <button id="audio-cancel" class="button-surface btn-block" type="button" hidden>${icon("x")}Cancel</button>
+        <button id="audio-cancel" data-track="voice.cancel" class="button-surface btn-block" type="button" hidden>${icon("x")}Cancel</button>
       </div>
       <div id="audio-status" class="panel-status" role="status"></div>
     </section>
@@ -234,7 +234,7 @@ function checklistCard() {
     if (!zoneItems.length) return "";
     total += zoneItems.length;
     return `<details class="inline-disclosure checklist-zone">
-      <summary class="inline-disclosure-summary">
+      <summary class="inline-disclosure-summary" data-track="voice.checklist-zone">
         <span class="checklist-zone-name">${html(zone)}</span>
         <span class="checklist-count">${zoneItems.length}</span>
         <span class="inline-chevron" aria-hidden="true">›</span>
@@ -319,9 +319,9 @@ export function openTranscriptMenu() {
     .join("");
   d.querySelector(".stores-dialog-body").innerHTML = `
     <label class="field-label">Match model
-      <select id="audio-model"${options && !audioAbort ? "" : " disabled"}>${options || `<option>${html(humanizeModelId(audio.model) || "Default model")}</option>`}</select>
+      <select id="audio-model" data-track="voice.model"${options && !audioAbort ? "" : " disabled"}>${options || `<option>${html(humanizeModelId(audio.model) || "Default model")}</option>`}</select>
     </label>
-    <button id="audio-clear" class="button-tint danger btn-block" type="button">${icon("trash-2")}Clear transcript</button>`;
+    <button id="audio-clear" data-track="voice.clear" class="button-tint danger btn-block" type="button">${icon("trash-2")}Clear transcript</button>`;
   if (!d.open) d.showModal();
 }
 
@@ -409,7 +409,7 @@ function needRowsMarkup({ cols, picks, byId, name, needCount, stillUnmatched }) 
   }).concat(stillUnmatched.map((m) => itemRow({
     title: `“${m.phrase || "…"}”`,
     meta: m.note || "No item matched",
-    trail: `<button type="button" class="icon-button action-row-verb action-row-trail voice-find" data-action="audio-find" aria-label="Find “${esc(m.phrase)}” in Manual" title="Find “${esc(m.phrase)}” in Manual">${icon("search")}</button>`,
+    trail: `<button type="button" class="icon-button action-row-verb action-row-trail voice-find" data-track="voice.find" data-action="audio-find" aria-label="Find “${esc(m.phrase)}” in Manual" title="Find “${esc(m.phrase)}” in Manual">${icon("search")}</button>`,
     attrs: `data-phrase="${esc(m.phrase)}"`,
     action: "audio-find",
   }))).join("");

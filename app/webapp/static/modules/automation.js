@@ -170,7 +170,7 @@ export function renderFillCarts({ force = false } = {}) {
       <div class="carts-actions">
         <button id="automation-start" data-track="shop.fill-carts" class="button-primary btn-block" type="button"></button>
         <button id="automation-stop" data-track="shop.stop" class="button-tint danger btn-block" type="button" hidden>${icon("square")}Stop</button>
-        <button id="automation-dismiss" class="button-surface btn-block" type="button" hidden>Dismiss</button>
+        <button id="automation-dismiss" data-track="shop.dismiss" class="button-surface btn-block" type="button" hidden>Dismiss</button>
         <button id="automation-mark-done" data-track="shop.mark-done" class="button-surface btn-block" type="button" hidden>${icon("circle-check")}Mark purchase done</button>
       </div>
       <p id="automation-blocked" class="panel-status warn" hidden>Clean cart needs your OK in Options.</p>
@@ -190,7 +190,7 @@ export function renderFillCarts({ force = false } = {}) {
         </button>
       </li></ul>
       <details class="inline-disclosure carts-log">
-        <summary class="inline-disclosure-summary"><span>Run log</span><span class="inline-chevron" aria-hidden="true">›</span></summary>
+        <summary class="inline-disclosure-summary" data-track="shop.run-log"><span>Run log</span><span class="inline-chevron" aria-hidden="true">›</span></summary>
         <pre id="automation-log" class="log">${IDLE_LOG}</pre>
       </details>
     </section>`;
@@ -313,10 +313,10 @@ function paintOptions() {
   const option = (value, label) => `<option value="${esc(value)}"${value === picks.store ? " selected" : ""}>${html(label)}</option>`;
   d.querySelector(".stores-dialog-body").innerHTML = `
     <label class="field-label">Store
-      <select id="automation-store">${option("all", "All stores")}${supermarkets.map((s) => option(s, storeLabel(s))).join("")}</select>
+      <select id="automation-store" data-track="shop.store">${option("all", "All stores")}${supermarkets.map((s) => option(s, storeLabel(s))).join("")}</select>
     </label>
     <label class="field-label">Cart mode
-      <select id="automation-cart-mode">
+      <select id="automation-cart-mode" data-track="shop.cart-mode">
         <option value="keep"${picks.cartMode === "keep" ? " selected" : ""}>Keep cart</option>
         <option value="clean"${picks.cartMode === "clean" ? " selected" : ""}>Clean cart</option>
       </select>
@@ -445,7 +445,7 @@ function storeLine(store, outcome) {
   const note = outcome.cart_mode === "clean" ? ` <span class="fill-store-note">Clean cart</span>` : "";
   const problems = outcome.problems?.length
     ? `<details class="inline-disclosure fill-problems">
-        <summary class="inline-disclosure-summary"><span>${esc(plural(outcome.problems.length, "item"))} not in cart</span><span class="inline-chevron" aria-hidden="true">›</span></summary>
+        <summary class="inline-disclosure-summary" data-track="shop.not-in-cart"><span>${esc(plural(outcome.problems.length, "item"))} not in cart</span><span class="inline-chevron" aria-hidden="true">›</span></summary>
         <ul class="fill-problem-list">${outcome.problems.map((p) => `<li><span class="fill-problem-item">${html(p.item)}</span><span class="fill-problem-status">${esc(problemLabel(p.status))}</span></li>`).join("")}</ul>
       </details>`
     : "";
