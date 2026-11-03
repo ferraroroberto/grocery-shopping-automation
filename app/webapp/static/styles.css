@@ -873,7 +873,7 @@ a.button-tint[data-open-link-page] {
 /* While recording: the level waveform, then the timer under it. */
 .voice-live { display: grid; gap: var(--space-xs); }
 .voice-live[hidden] { display: none; }
-.voice-wave { display: block; width: 100%; height: var(--control-h); color: var(--accent); }
+.voice-wave { display: block; color: var(--accent); }
 .voice-timer { color: var(--muted); font-size: var(--font-body-sm); font-variant-numeric: tabular-nums; }
 /* The results area holds nothing until a match: no gap slot in the pane. */
 .voice-results { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }

@@ -13,6 +13,7 @@
 // take survives a dying phone. Rolling partials flow back over SSE; Stop yields
 // the canonical transcript. grocery only proxies — VT owns the audio.
 import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
+import { attachRecWave, createLevelSource } from "../_vendored/rec-wave/rec-wave.js";
 import { authFetch, fetchJson, jsonInit } from "./api.js";
 import { confirmSheet } from "./confirm.js";
 import { activePaneBody, c, items, render, state, storedToken, updateHeaders } from "./core.js";
@@ -47,7 +48,9 @@ const audio = {
   // re-ticks a match you unticked or drops a count you typed.
   picks: { accept: {}, zero: {}, counts: {} },
   last: undefined, // the last applied audit: undefined while loading, null when there is none
-  wave: { ctx: null, frame: 0 },
+  // The take's one level source (null when the browser has no Web Audio) and the
+  // current strip's stop(); the source outlives a re-render, the strip does not.
+  wave: { source: null, stop: null },
 };
 
 let audioAbort = null;
@@ -187,7 +190,7 @@ export function renderAudio() {
       </ul>
       <div id="audio-health-banner" class="panel-status" role="status"></div>
       <div id="voice-live" class="voice-live"${recording ? "" : " hidden"}>
-        <canvas id="voice-wave" class="voice-wave" aria-hidden="true"></canvas>
+        <span id="voice-wave" class="voice-wave"></span>
         <span id="voice-timer" class="voice-timer"></span>
       </div>
       <div class="voice-actions">
@@ -216,6 +219,8 @@ export function renderAudio() {
   renderAudioHealth();
   refreshAudioHealth();
   loadLastAudit();
+  // A take still running (a hop to Manual and back) gets its strip in the new DOM.
+  if (recording) mountWave();
 }
 
 // The one checklist card: a zone per folded row, its kept items with a check
@@ -529,52 +534,24 @@ function clearAudio() {
 }
 
 // ------------------------------------------------------------- recording
-// The glance's live strip: a level waveform drawn from the mic stream. No
-// AudioContext (or it refuses) → no waveform; the timer still runs.
-function startWave(stream) {
-  const Ctx = window.AudioContext || window.webkitAudioContext;
-  let analyser;
-  try {
-    audio.wave.ctx = new Ctx();
-    analyser = audio.wave.ctx.createAnalyser();
-    analyser.fftSize = 512;
-    audio.wave.ctx.createMediaStreamSource(stream).connect(analyser);
-  } catch (_) {
-    return;
-  }
-  const samples = new Uint8Array(analyser.fftSize);
-  const BARS = 40;
-  const draw = () => {
-    audio.wave.frame = window.requestAnimationFrame(draw);
-    const canvas = document.querySelector("#voice-wave");
-    if (!canvas || !canvas.clientWidth) return;
-    const ratio = window.devicePixelRatio || 1;
-    const w = Math.round(canvas.clientWidth * ratio);
-    const h = Math.round(canvas.clientHeight * ratio);
-    if (canvas.width !== w || canvas.height !== h) {
-      canvas.width = w;
-      canvas.height = h;
-    }
-    analyser.getByteTimeDomainData(samples);
-    const g = canvas.getContext("2d");
-    g.clearRect(0, 0, w, h);
-    g.fillStyle = getComputedStyle(canvas).color;
-    const slice = Math.floor(samples.length / BARS);
-    const step = w / BARS;
-    for (let i = 0; i < BARS; i += 1) {
-      let peak = 0;
-      for (let j = i * slice; j < (i + 1) * slice; j += 1) peak = Math.max(peak, Math.abs(samples[j] - 128) / 128);
-      const bar = Math.max(2 * ratio, Math.min(1, peak * 2.5) * h);
-      g.fillRect(i * step + step * 0.2, (h - bar) / 2, step * 0.6, bar);
-    }
-  };
-  draw();
+// The glance's live strip: the shared level waveform on the take's mic stream.
+// The elapsed time stays in #voice-timer (it also carries the bytes saved), so
+// the strip runs without its own timer. No Web Audio (or it refuses) → no
+// source, no strip; the timer still runs.
+function mountWave() {
+  audio.wave.stop?.();
+  audio.wave.stop = null;
+  const host = document.querySelector("#voice-wave");
+  if (!host || !audio.wave.source || !audio.stream) return;
+  audio.wave.stop = attachRecWave(host, audio.stream, { source: audio.wave.source, bars: 40, timer: false });
 }
 
+// Release the strip and the take's AudioContext (safe when neither exists).
 function stopWave() {
-  window.cancelAnimationFrame(audio.wave.frame);
-  audio.wave.ctx?.close().catch(() => {});
-  audio.wave.ctx = null;
+  audio.wave.stop?.();
+  audio.wave.stop = null;
+  audio.wave.source?.close();
+  audio.wave.source = null;
 }
 
 function showLive(on) {
@@ -594,10 +571,13 @@ export async function toggleRecording(button) {
     return;
   }
 
+  // Built inside the tap: iOS resumes an AudioContext only within a user gesture.
+  audio.wave.source = createLevelSource();
   let stream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch (_) {
+    stopWave();
     setAudioStatus("Mic permission denied", "error");
     return;
   }
@@ -607,6 +587,7 @@ export async function toggleRecording(button) {
     session = await fetchJson("/api/audio/session", { method: "POST" });
   } catch (error) {
     stream.getTracks().forEach((track) => track.stop());
+    stopWave();
     setAudioStatus(`Could not start recording session: ${error.message}`, "error");
     return;
   }
@@ -632,7 +613,7 @@ export async function toggleRecording(button) {
   audio.mediaRecorder.start(1000); // 1 s cadence — survives a connection drop
 
   showLive(true);
-  startWave(stream);
+  mountWave();
   startRecordTimer();
   openAudioPartialStream(audio.sessionId);
   button.innerHTML = recordLabel(true);
