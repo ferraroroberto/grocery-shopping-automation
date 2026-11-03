@@ -28,6 +28,24 @@ gitignored `config/notify_config.json` and filling in `bot_token` + `chat_id`
 precedence). With no credentials configured, `build_notify_notifier()` returns
 `None` and every send is a silent no-op.
 
+A third key, `alert_chat_id` (or `TELEGRAM_ALERT_CHAT_ID`), names the chat for
+the sign-in guessing alert: the fleet's `coding alerts` chat. Unset, the alert
+falls back to `chat_id`.
+
+### Sign-in lock-out and guessing alert
+
+`POST /api/login` counts wrong passwords per client address in memory (the
+vendored `src/login_lockout.py`; a restart clears it). Five wrong passwords are
+free; each further one makes that client wait 2 s, doubling to 300 s, answered
+as `429` with `Retry-After` before the password is read. A correct password
+clears the count. The PC itself (`is_pc_itself` in `app/middleware.py`, the same
+check that lets it skip the bearer token) is never counted. A request through
+the public tunnel is counted by Cloudflare's `cf-connecting-ip`, believed only
+from a loopback socket. Three wrong passwords in a row from one client send one
+Telegram message (app name, client address, count; never a password or token)
+from a thread, at most one per five minutes across all clients
+(`src/login_alert.py`).
+
 Manual smoke check:
 
 ```powershell

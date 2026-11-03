@@ -19,6 +19,9 @@ from app.webapp.routers import audio, automation, email, inventory, product_sear
 from src.compression import StreamSafeGZipMiddleware
 from src.data import CONFIG
 from src.log_setup import configure_logging
+from src.login_alert import build_login_alert
+from src.login_lockout import LoginLockout
+from src.notify_config import build_alert_notifier
 from src.webapp_config import EMAIL_POLLER_ENV, load_webapp_config
 
 
@@ -48,6 +51,7 @@ app = FastAPI(
     lifespan=_lifespan,
 )
 app.state.webapp_config = load_webapp_config()
+app.state.login_lockout = LoginLockout(on_alert=build_login_alert(build_alert_notifier, "grocery"))
 app.add_middleware(
     BearerTokenMiddleware,
     get_token=lambda: getattr(app.state.webapp_config, "auth_token", ""),

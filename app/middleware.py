@@ -20,10 +20,38 @@ _AUTH_EXEMPT_EXACT = frozenset(
 # scripts/run_named_tunnel.py, which binds uvicorn to 127.0.0.1 for the
 # named-tunnel launch path). Same signal app-launcher's middleware uses.
 _CLOUDFLARE_HEADERS = ("cf-ray", "cf-connecting-ip")
+# An IPv6 literal is at most 45 characters; the cap keeps a forged header out of the lock table and the alert.
+_MAX_ADDRESS_LEN = 64
 
 
 def _via_cloudflare(headers) -> bool:
     return any(h in headers for h in _CLOUDFLARE_HEADERS)
+
+
+def is_pc_itself(request: Request) -> bool:
+    """Whether the request came from this machine, not through the public tunnel.
+
+    The one trust check: it lets the PC skip the bearer token and the login
+    lock-out. A tunnel request also arrives over loopback, so the Cloudflare
+    stamp rules it out.
+    """
+    client_host = request.client.host if request.client else ""
+    return client_host in _LOOPBACK_HOSTS and not _via_cloudflare(request.headers)
+
+
+def client_address(request: Request) -> str:
+    """The address a login attempt is counted against.
+
+    Behind the tunnel every public caller reaches uvicorn over loopback, so the
+    socket address names nobody; the edge's ``cf-connecting-ip`` does. It is
+    believed only from a loopback socket (the tunnel's own hop), so a LAN
+    caller cannot mint addresses by forging the header.
+    """
+    host = request.client.host if request.client else "?"
+    forwarded = request.headers.get("cf-connecting-ip", "").strip()
+    if forwarded and host in _LOOPBACK_HOSTS:
+        return forwarded[:_MAX_ADDRESS_LEN]
+    return host
 
 
 class BearerTokenMiddleware(BaseHTTPMiddleware):
@@ -54,8 +82,7 @@ class BearerTokenMiddleware(BaseHTTPMiddleware):
                 )
             return await call_next(request)
 
-        client_host = request.client.host if request.client else ""
-        if client_host in _LOOPBACK_HOSTS and not via_cloudflare:
+        if is_pc_itself(request):
             return await call_next(request)
 
         if exempt:

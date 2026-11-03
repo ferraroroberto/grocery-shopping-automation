@@ -16,7 +16,7 @@ flowchart TB
     APICOMMON["app/api_common.py\ndata-layer → HTTP translation (lock/file errors → status codes),\ninventory payload builder shared by every router"]
     AUDIOHUB["app/audio_hub.py\nvoice-transcriber session proxy + whisper transcode/transcribe"]
     STATICFILES["app/webapp/static_files.py\nCachingStaticFiles (per-suffix cache policy, JS import stamping) + BUILD_INFO"]
-    MW["app/middleware.py\nBearerTokenMiddleware"]
+    MW["app/middleware.py\nBearerTokenMiddleware + is_pc_itself trust check"]
     RUNNER["app/automation_runner.py\nstreams src.automation.run_automation subprocess into the app"]
     PSRUNNER["app/product_search_runner.py\nspawns src.automation.product_search, captures its JSON stdout"]
     LCRUNNER["app/login_check_runner.py\nruns src.automation.check_logins, returns per-store login states (#217)"]
@@ -82,6 +82,7 @@ monthly-cost baseline: set/reset (#183)| ROUTERS
     NET["src/net.py\nLAN-IP / port-probe helpers"]
     WEBCFG["src/webapp_config.py\ntoken/password remote-access config"]
     GMAILCFG["src/gmail_config.py\nsender whitelist + store mapping + poller settings"]
+    LOCKOUT["src/login_lockout.py (vendored) + src/login_alert.py\nper-client 429 lock-out, in memory"]
     NOTIFYCFG["src/notify_config.py + src/notify/\nvendored Telegram notifier (from whatsapp-radar)"]
     SSL["src/gen_ssl_cert.py\nlocal CA + server cert"]
     CERTS["src/certs.py\ncert_paths(): resolve the served cert/key,\nread the Tailscale SAN host off it"]
@@ -152,6 +153,8 @@ monthly-cost baseline: set/reset (#183)| ROUTERS
   POLLER --> EMAILCHECK
   EMAILCHECK --> GMAILCFG
   EMAILCHECK --> NOTIFYCFG
+  ROUTERS -->|login: lock-out + guessing alert| LOCKOUT
+  LOCKOUT -->|3 wrong passwords, from a thread| NOTIFYCFG
   RUNAUTO -->|run summary| NOTIFYCFG
   RUNAUTO -->|suggestions for unavailable items| PRODSEARCH
   ITEMMATCH -.->|latest purchase_logs/ JSON| PURCHASELOG
