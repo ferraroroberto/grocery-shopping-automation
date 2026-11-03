@@ -124,10 +124,6 @@ export const el = {
   itemsAdd: document.querySelector("#items-add"),
   buildReadout: document.querySelector("#buildReadout"),
   app: document.querySelector("main.app"),
-  loginDialog: document.querySelector("#login-dialog"),
-  loginForm: document.querySelector("#login-form"),
-  loginPassword: document.querySelector("#login-password"),
-  loginError: document.querySelector("#login-error"),
 };
 
 // The orchestrating app.js owns the real render(); feature modules call it

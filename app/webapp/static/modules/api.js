@@ -1,6 +1,7 @@
 // The HTTP seam: bearer-token fetch, the mandatory login handshake, and the
 // two calls that refresh app-wide state (inventory payload, build identity).
 import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
+import { requestSignIn } from "../_vendored/sign-in/sign-in.js";
 import { showToast } from "../_vendored/toast/toast.js";
 import {
   activePaneBody,
@@ -75,53 +76,14 @@ export async function fetchBlob(url, init = {}) {
   return response.blob();
 }
 
-// Concurrent 401s (e.g. the parallel inventory + access fetches) must share
-// one login prompt: every caller gets the same pending promise, resolved once
-// on a successful unlock. The dialog is mandatory — Esc/cancel is blocked and
-// there is no × close; the fleet nav hides itself while it is open.
-let loginPending = null;
-let loginResolve = null;
-
+// Concurrent 401s (e.g. the parallel inventory + access fetches) share the
+// vendored sign-in sheet's one pending promise; the token key is the app's own.
 function promptForPassword() {
-  if (loginPending) return loginPending;
-  loginPending = new Promise((resolve) => {
-    loginResolve = resolve;
+  return requestSignIn({
+    endpoint: "/api/login",
+    hint: "Enter the password to use Grocery.",
+    onToken: (token) => localStorage.setItem(TOKEN_KEY, token),
   });
-  el.loginPassword.value = "";
-  el.loginError.textContent = "";
-  el.loginDialog.showModal();
-  window.setTimeout(() => el.loginPassword.focus(), 60);
-  return loginPending;
-}
-
-export async function onLoginSubmit(event) {
-  event.preventDefault();
-  const password = el.loginPassword.value;
-  if (!password) return;
-  const button = el.loginForm.querySelector("button[type='submit']");
-  button.disabled = true;
-  el.loginError.textContent = "";
-  try {
-    const response = await fetch("/api/login", jsonInit("POST", { password }));
-    if (response.status === 401) {
-      el.loginError.textContent = "Wrong password";
-      el.loginPassword.select();
-      return;
-    }
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      el.loginError.textContent = body.detail || `Login failed: ${response.status}`;
-      return;
-    }
-    localStorage.setItem(TOKEN_KEY, body.token);
-    el.loginDialog.close();
-    const resolve = loginResolve;
-    loginPending = null;
-    loginResolve = null;
-    resolve?.(true);
-  } finally {
-    button.disabled = false;
-  }
 }
 
 export async function loadInventory() {

@@ -418,7 +418,8 @@ _DIALOG_CONTROLS_PROBE = r"""(id) => {
   }
   // the x close is an .icon-button (project-scaffolding#339): unpainted at rest
   const close = card.querySelector('.detail-close');
-  if (!close) bad.push('no close button');
+  // The sign-in sheet has no x by contract: the app cannot be used signed out.
+  if (!close) { if (!dialog.classList.contains('sign-in')) bad.push('no close button'); }
   else {
     const s = getComputedStyle(close);
     if (s.backgroundColor !== 'rgba(0, 0, 0, 0)' || s.borderTopWidth !== '0px') bad.push(`close is painted: ${s.backgroundColor} ${s.borderTopWidth}`);
@@ -470,11 +471,21 @@ def test_dialog_controls_are_styled(page, theme):
         page.set_viewport_size({"width": 1100, "height": 950})
         return found
 
-    # Login is static markup; the fixture server has auth off, so open it directly.
-    page.evaluate("document.getElementById('login-dialog').showModal()")
-    assert check("login-dialog")["buttons"] == ["Unlock"]
-    surface(page, "app.login-dialog")
-    page.evaluate("document.getElementById('login-dialog').close()")
+    # The vendored sign-in sheet is built on demand; the fixture server has auth
+    # off, so ask for it directly and answer its login route with a stub.
+    page.route("**/api/login", lambda route: route.fulfill(
+        status=200, content_type="application/json", body='{"token": "e2e-token"}'))
+    page.evaluate("""import('/static/_vendored/sign-in/sign-in.js').then((m) => {
+      m.requestSignIn({ endpoint: '/api/login', hint: 'Enter the password.', onToken: () => {} });
+      document.querySelector('dialog.sign-in').id = 'sign-in-sheet';
+    })""")
+    page.wait_for_selector("dialog.sign-in[open]")
+    assert check("sign-in-sheet")["buttons"] == ["Sign in"]
+    surface(page, "app.sign-in")
+    page.fill("dialog.sign-in input[type=password]", "stub")
+    page.press("dialog.sign-in input[type=password]", "Enter")
+    page.wait_for_selector("dialog.sign-in", state="hidden")
+    page.unroute("**/api/login")
 
     # The Add item sheet (#256): the search's tint button, the two pickers,
     # and the footer primary that submits the form.

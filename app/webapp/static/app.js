@@ -5,7 +5,7 @@ import { initNavTabs } from "./_vendored/nav/nav-tabs.js";
 import { setSwitch } from "./_vendored/switch/switch.js";
 import { bindTextSize } from "./_vendored/text-size/text-size.js";
 import { initUsageLog } from "./_vendored/usage-log/usage-log.js";
-import { fetchVersion, itemUrl, loadInventory, mutate, onLoginSubmit } from "./modules/api.js";
+import { fetchVersion, itemUrl, loadInventory, mutate } from "./modules/api.js";
 import {
   applyAudio,
   audioUnmatchedCount,
@@ -371,9 +371,6 @@ el.search.addEventListener("input", () => {
   if (state.mode === "stores") repaintStoresList();
   else render();
 });
-el.loginForm.addEventListener("submit", onLoginSubmit);
-// Auth is mandatory — Esc must not dismiss the login dialog.
-el.loginDialog.addEventListener("cancel", (event) => event.preventDefault());
 
 // ------------------------------------------------------------------ boot
 captureTokenFromURL();
