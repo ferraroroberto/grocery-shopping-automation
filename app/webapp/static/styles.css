@@ -838,9 +838,6 @@ a.button-tint[data-open-link-page] {
 .confirm-dialog .confirm-message { margin: 0; }
 .confirm-dialog .detail-save-btn { min-height: var(--primary-h); padding: 0 var(--space-md); font-size: var(--font-body); }
 
-/* ------------------------------------------------------------ login dialog */
-.login-error { min-height: 20px; color: var(--deficit); font-size: var(--font-label); }
-
 /* ------------------------------------------------------------ Home */
 /* The This week card: four link rows under its title, their text on the
    card's text edge like the glance footers, each value in its tone. */
