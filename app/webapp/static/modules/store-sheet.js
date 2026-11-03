@@ -58,7 +58,7 @@ function paint() {
   const got = boughtHere().length + (state.shopping.extraBought[current] || []).length;
   const extraRows = extras.map((x) => `<li class="action-row" data-extra-id="${x.id}">
       <div class="action-row-main"><span class="action-row-title">${esc(x.name)}</span><span class="action-row-meta">Buy ${esc(x.qty)}</span></div>
-      ${editing ? `<button type="button" class="icon-button action-row-trail" data-action="remove-extra" aria-label="Remove ${esc(x.name)}" title="Remove ${esc(x.name)}">${icon("x")}</button>` : ""}
+      ${editing ? `<button type="button" class="icon-button action-row-trail" data-track="store.remove-extra" data-action="remove-extra" aria-label="Remove ${esc(x.name)}" title="Remove ${esc(x.name)}">${icon("x")}</button>` : ""}
     </li>`).join("");
   d.querySelector(".stores-dialog-body").innerHTML = `
     <section class="store-sheet-section" aria-labelledby="store-sheet-cart">
@@ -71,11 +71,11 @@ function paint() {
     ${extras.length ? `<section class="store-sheet-section" aria-labelledby="store-sheet-added">
       <div class="store-sheet-head">
         <h3 class="overline" id="store-sheet-added">Added here</h3>
-        <button type="button" class="icon-button" data-action="edit-extras" aria-pressed="${editing}" aria-label="Edit added items" title="Edit added items">${icon(editing ? "check" : "pencil")}</button>
+        <button type="button" class="icon-button" data-track="store.edit-extras" data-action="edit-extras" aria-pressed="${editing}" aria-label="Edit added items" title="Edit added items">${icon(editing ? "check" : "pencil")}</button>
       </div>
       <ul class="action-rows">${extraRows}</ul>
     </section>` : ""}
-    <button type="button" class="button-surface btn-block" data-store-unmark${got ? "" : " disabled"}>Unmark all${got ? ` (${got})` : ""}</button>`;
+    <button type="button" class="button-surface btn-block" data-track="store.unmark-all" data-store-unmark${got ? "" : " disabled"}>Unmark all${got ? ` (${got})` : ""}</button>`;
 }
 
 function onChange(event) {

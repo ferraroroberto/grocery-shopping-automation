@@ -202,6 +202,7 @@ function findInManual(phrase) {
 }
 
 function onTabChange(tab) {
+  // dynamic-id-exempt: `tab` is one of the nav's fixed tab ids (inventory, shopping, audit, items)
   usage.trackView(tab);
   // Leaving Settings: its pane is not a nav pane, so the nav never hides it.
   settingsPane.hidden = true;
@@ -252,6 +253,7 @@ el.app.addEventListener("click", (event) => {
   if (!button) return;
   state.mode = button.dataset.mode;
   saveSubMode(state.mode);
+  // dynamic-id-exempt: SEGMENT_VIEW is the fixed table of literal view ids above
   usage.trackView(SEGMENT_VIEW[state.mode]);
   render();
 });

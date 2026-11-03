@@ -104,13 +104,13 @@ function runMarkup() {
 
 function howtoMarkup(open) {
   return `<details class="stores-howto"${open ? " open" : ""}>
-      <summary class="stores-howto-summary">${icon("refresh-cw")}<span>How to refresh the prices</span><span class="inline-chevron" aria-hidden="true">›</span></summary>
+      <summary class="stores-howto-summary" data-track="prices.howto">${icon("refresh-cw")}<span>How to refresh the prices</span><span class="inline-chevron" aria-hidden="true">›</span></summary>
       <ol class="stores-howto-steps">
         <li>In Claude Code, in this repo, run <code>/supermarket-benchmark</code>. It takes about an hour and asks you to confirm the quality specs.</li>
         <li>Come back here and tap <strong>Import latest run</strong>.</li>
         <li>Review the <strong>Needs checking</strong> items in Prices.</li>
       </ol>
-      <button type="button" class="button-surface btn-block" data-stores-action="copy-steps">${icon("copy")}Copy steps</button>
+      <button type="button" class="button-surface btn-block" data-track="prices.copy-steps" data-stores-action="copy-steps">${icon("copy")}Copy steps</button>
       <p id="stores-copy-status" class="panel-status" role="status"></p>
     </details>`;
 }
@@ -118,8 +118,8 @@ function howtoMarkup(open) {
 function planMarkup() {
   const count = Object.keys(activePicks()).length;
   return `<div class="benchmark-actions">
-      <button type="button" class="button-tint btn-block" data-stores-action="recommended"${local.meta.run_date ? "" : " disabled"}>Load recommended plan</button>
-      <button type="button" class="button-surface btn-block" data-stores-action="reset"${count ? "" : " disabled"}>Reset to my list${count ? ` (${count})` : ""}</button>
+      <button type="button" class="button-tint btn-block" data-track="prices.recommended" data-stores-action="recommended"${local.meta.run_date ? "" : " disabled"}>Load recommended plan</button>
+      <button type="button" class="button-surface btn-block" data-track="prices.reset" data-stores-action="reset"${count ? "" : " disabled"}>Reset to my list${count ? ` (${count})` : ""}</button>
     </div>`;
 }
 
@@ -148,15 +148,15 @@ function excludedNote() {
 
 function baselineButtonMarkup() {
   return activeBaseline()
-    ? `<button type="button" class="button-surface btn-block" data-stores-action="reset-baseline">${icon("refresh-cw")}Reset to benchmark</button>`
-    : `<button type="button" class="button-surface btn-block" data-stores-action="set-baseline">${icon("check")}Set as baseline</button>`;
+    ? `<button type="button" class="button-surface btn-block" data-track="prices.reset-baseline" data-stores-action="reset-baseline">${icon("refresh-cw")}Reset to benchmark</button>`
+    : `<button type="button" class="button-surface btn-block" data-track="prices.set-baseline" data-stores-action="set-baseline">${icon("check")}Set as baseline</button>`;
 }
 
 function unpricedMarkup(open) {
   const unpriced = local.sim?.picks.unpriced || [];
   if (!unpriced.length) return "";
   return `<details class="stores-unpriced"${open ? " open" : ""}>
-      <summary class="stores-howto-summary">${icon("circle-alert")}<span>No price: ${plural(unpriced.length, "item")} left out of the totals</span><span class="inline-chevron" aria-hidden="true">›</span></summary>
+      <summary class="stores-howto-summary" data-track="prices.unpriced">${icon("circle-alert")}<span>No price: ${plural(unpriced.length, "item")} left out of the totals</span><span class="inline-chevron" aria-hidden="true">›</span></summary>
       <ul class="stores-unpriced-list">${unpriced.map((u) =>
         `<li><span>${esc(u.comida)}</span><span class="meta">${esc(storeName(u.store))}</span></li>`).join("")}</ul>
     </details>`;

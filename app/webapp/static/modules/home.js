@@ -16,21 +16,23 @@ import { valueRow } from "./inventory.js";
 import { itemList } from "./rows.js";
 import { loadPricesReview, pricesReviewValue } from "./stores/index.js";
 
-// Each row: its value's id, the mode its tap opens, its glyph and its label.
+// Each row: its value's id, the mode its tap opens, its constant usage id, its glyph and its label.
 const WEEK_ROWS = [
-  { key: "audit", mode: "audio", glyph: "list-checks", label: "Audit" },
-  { key: "list", mode: "shopping", glyph: "shopping-basket", label: "Shopping list" },
-  { key: "carts", mode: "shopping", glyph: "shopping-cart", label: "Carts" },
-  { key: "prices", mode: "stores", glyph: "tag", label: "Prices" },
+  { key: "audit", mode: "audio", track: "home.goto-audio", glyph: "list-checks", label: "Audit" },
+  { key: "list", mode: "shopping", track: "home.goto-shopping", glyph: "shopping-basket", label: "Shopping list" },
+  { key: "carts", mode: "shopping", track: "home.goto-shopping", glyph: "shopping-cart", label: "Carts" },
+  { key: "prices", mode: "stores", track: "home.goto-stores", glyph: "tag", label: "Prices" },
 ];
 
 function host() {
   return document.querySelector("#this-week-host");
 }
 
-function weekRow({ key, mode, glyph, label }) {
+function weekRow({ key, mode, track, glyph, label }) {
+  // dynamic-id-exempt: `track` comes from the fixed WEEK_ROWS table of literal ids above
+  const tap = `<button type="button" class="action-row-main sheet-link" data-track="${track}" data-goto="${mode}">`;
   return `<li class="action-row">
-      <button type="button" class="action-row-main sheet-link" data-track="home.goto-${mode}" data-goto="${mode}">
+      ${tap}
         ${icon(glyph, "sheet-link-icon")}
         <span class="action-row-title">${label}</span>
         <span class="sheet-link-value" id="week-${key}">–</span>

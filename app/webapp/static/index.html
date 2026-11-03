@@ -336,8 +336,8 @@
              segment is the state, kept in step by app.js render(). Voice, the
              weekly path, leads and opens first (#259, #252 decision 7). -->
         <div class="segmented subnav" role="group" aria-label="Audit mode">
-          <button type="button" class="segmented-item" aria-pressed="true" data-mode="audio">Voice</button>
-          <button type="button" class="segmented-item" aria-pressed="false" data-mode="audit">Manual</button>
+          <button type="button" class="segmented-item" aria-pressed="true" data-mode="audio" data-track="audit.voice">Voice</button>
+          <button type="button" class="segmented-item" aria-pressed="false" data-mode="audit" data-track="audit.manual">Manual</button>
         </div>
         <div class="pane-body"></div>
       </section>
@@ -345,8 +345,8 @@
         <h2 class="pane-title">Manage items</h2>
         <!-- Two peer segments (#256): the item list and the store prices. -->
         <div class="segmented subnav" role="group" aria-label="Items view">
-          <button type="button" class="segmented-item" aria-pressed="true" data-mode="list">Items</button>
-          <button type="button" class="segmented-item" aria-pressed="false" data-mode="stores">Prices</button>
+          <button type="button" class="segmented-item" aria-pressed="true" data-mode="list" data-track="items.list">Items</button>
+          <button type="button" class="segmented-item" aria-pressed="false" data-mode="stores" data-track="items.prices">Prices</button>
         </div>
         <div class="pane-body"></div>
       </section>
@@ -441,11 +441,11 @@
          disabled — auth is mandatory, the dialog closes only on a successful
          unlock — but the button is still present so the header keeps the
          modal contract's shape (design-drift #81). -->
-    <dialog id="login-dialog" class="detail-dialog">
+    <dialog id="login-dialog" class="detail-dialog" data-track-view="login">
       <div class="detail-card">
         <div class="detail-header">
           <h2 tabindex="-1" autofocus>Unlock Grocery</h2>
-          <button type="button" class="icon-button detail-close" aria-label="Close" disabled title="Sign-in is required">
+          <button type="button" class="icon-button detail-close" aria-label="Close" disabled title="Sign-in is required" data-track="login.close">
             <svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg>
           </button>
         </div>
@@ -454,7 +454,7 @@
             <input id="login-password" class="field" type="password" autocomplete="current-password" placeholder="Password" />
           </div>
           <div class="detail-actions">
-            <button class="button-primary detail-save-btn" type="submit">Unlock</button>
+            <button class="button-primary detail-save-btn" type="submit" data-track="login.unlock">Unlock</button>
           </div>
           <div id="login-error" class="login-error"></div>
         </form>

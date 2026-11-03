@@ -47,7 +47,7 @@ export function pickerMarkup(name, caption, values, selected, newLabel) {
     + `<option value="${PICKER_NEW}"${known === PICKER_NEW ? " selected" : ""}>${html(newLabel)}</option>`;
   const isNew = known === PICKER_NEW;
   return `<div class="picker" data-picker>
-    <label class="field-label">${caption}<select class="field" aria-label="${esc(caption)}">${options}</select></label>
+    <label class="field-label">${caption}<select class="field" data-track="form.picker" aria-label="${esc(caption)}">${options}</select></label>
     <input class="field" name="${name}" value="${isNew ? "" : esc(known)}" placeholder="${esc(newLabel)}" aria-label="${esc(newLabel)}"${isNew ? " required" : " hidden"} />
   </div>`;
 }

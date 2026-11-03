@@ -77,7 +77,7 @@ function dialog() {
   return dialogShell(SHEET_ID, "", "Save", (shell) => {
     shell.classList.add("item-sheet");
     shell.querySelector(".detail-header").insertAdjacentHTML("afterbegin",
-      `<button type="button" class="icon-button detail-close item-sheet-back" aria-label="Back" data-sheet-back hidden>${icon("chevron-left")}</button>`);
+      `<button type="button" class="icon-button detail-close item-sheet-back" aria-label="Back" data-track="item.back" data-sheet-back hidden>${icon("chevron-left")}</button>`);
     shell.querySelector(".stores-dialog-body").innerHTML = pagesMarkup();
     shell.querySelector(".detail-save-btn").addEventListener("click", save);
     shell.addEventListener("click", onSheetClick);
@@ -93,7 +93,7 @@ function dialog() {
 
 function pagesMarkup() {
   const links = PAGES.map(({ page, glyph, label }) => `<li class="action-row">
-      <button type="button" class="action-row-main sheet-link" data-page-to="${page}">
+      <button type="button" class="action-row-main sheet-link" data-track="item.page" data-page-to="${page}">
         ${icon(glyph, "sheet-link-icon")}
         <span class="action-row-title">${label}</span>
         <span class="sheet-link-value" data-link-value="${page}"></span>
