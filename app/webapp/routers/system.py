@@ -12,11 +12,13 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 from app import login_check_runner
 from app.api_common import REPO_ROOT, STATIC_DIR, inventory_error
+from app.middleware import client_address, is_pc_itself
 from app.static_files import BUILD_INFO
 from src.automation.bootstrap_session import launch_bootstrap_chrome
 from src.certs import cert_paths
 from src.data import CONFIG
 from src.data import open_spreadsheet as open_spreadsheet_file
+from src.login_lockout import LoginLockout, retry_after_header
 from src.net import local_ip
 from src.webapp_config import WebappConfig, append_auth_token
 
@@ -115,6 +117,12 @@ def manifest() -> JSONResponse:
 async def login(request: Request) -> dict[str, str]:
     """Swap the configured password for the bearer token."""
     cfg: WebappConfig = request.app.state.webapp_config
+    lockout: LoginLockout = request.app.state.login_lockout
+    client = client_address(request)
+    exempt = is_pc_itself(request)
+    wait = 0.0 if exempt else lockout.retry_after(client)
+    if wait > 0:
+        raise HTTPException(status_code=429, detail="too many attempts", headers=retry_after_header(wait))
     if not cfg.auth_password:
         raise HTTPException(status_code=503, detail="password auth not configured")
     if not cfg.auth_token:
@@ -127,7 +135,10 @@ async def login(request: Request) -> dict[str, str]:
     presented = str(body.get("password") or "")
     # Compare bytes: compare_digest raises TypeError on non-ASCII str operands.
     if not hmac.compare_digest(presented.encode("utf-8"), cfg.auth_password.encode("utf-8")):
+        if not exempt:
+            lockout.record_failure(client)
         raise HTTPException(status_code=401, detail="bad password")
+    lockout.reset(client)
     return {"token": cfg.auth_token}
 
 
