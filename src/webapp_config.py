@@ -23,6 +23,8 @@ EMAIL_POLLER_ENV = "GROCERY_EMAIL_POLLER"
 class WebappConfig:
     host: str = DEFAULT_HOST
     port: int = DEFAULT_PORT
+    # hypercorn serves HTTP/2 over the certificate; uvicorn is the HTTP/1.1 fallback.
+    server: str = "hypercorn"
     auth_token: str = ""
     auth_password: str = ""
 
@@ -48,6 +50,7 @@ def load_webapp_config(path: Optional[Path] = None) -> WebappConfig:
     cfg = WebappConfig(
         host=str(raw.get("host", DEFAULT_HOST)),
         port=int(raw.get("port", DEFAULT_PORT)),
+        server=str(raw.get("server", "hypercorn")),
         auth_token=str(raw.get("auth_token", "")),
         auth_password=str(raw.get("auth_password", "")),
     )
@@ -61,6 +64,7 @@ def save_webapp_config(cfg: WebappConfig, path: Optional[Path] = None) -> Path:
     payload = {
         "host": cfg.host,
         "port": cfg.port,
+        "server": cfg.server,
         "auth_token": cfg.auth_token,
         "auth_password": cfg.auth_password,
     }
@@ -80,6 +84,8 @@ def append_auth_token(url: str, token: Optional[str]) -> str:
 def _validate(cfg: WebappConfig) -> None:
     if not (1 <= cfg.port <= 65535):
         raise ValueError(f"port out of range: {cfg.port}")
+    if cfg.server not in ("hypercorn", "uvicorn"):
+        raise ValueError(f"invalid server: {cfg.server!r}")
 
 
 if __name__ == "__main__":

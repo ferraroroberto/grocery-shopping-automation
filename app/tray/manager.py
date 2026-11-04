@@ -1,8 +1,8 @@
-"""Webapp process manager — adopt-or-spawn for uvicorn.
+"""Webapp process manager — adopt-or-spawn for the HTTP/2 webapp.
 
 - ``status()`` checks ``GET /healthz`` and a low-level TCP probe.
 - ``start()`` adopts an already-listening uvicorn (no second spawn) or
-  spawns ``python -m uvicorn app.api:app`` from this venv.
+  spawns ``python -m app.webapp.serve --app app.api:app`` from this venv.
 - ``stop()`` only terminates a process this manager spawned. An
   externally started uvicorn is left alone.
 
@@ -27,7 +27,7 @@ import requests
 from app.tray.single_instance import cross_process_lock
 from src.certs import cert_paths
 from src.no_window import NEW_PROCESS_GROUP_NO_WINDOW, NO_WINDOW
-from src.uvicorn_launch import build_uvicorn_command, stop_process
+from src.uvicorn_launch import build_webapp_command, stop_process
 from src.webapp_config import DEFAULT_HOST, DEFAULT_PORT, EMAIL_POLLER_ENV, load_webapp_config
 
 logger = logging.getLogger(__name__)
@@ -55,6 +55,8 @@ class WebappManagerConfig:
     startup_timeout_seconds: float = 15.0
     request_timeout_seconds: float = 1.0
     poll_interval_seconds: float = 0.4
+    # hypercorn serves HTTP/2 over the certificate; uvicorn is the HTTP/1.1 fallback.
+    server: str = "hypercorn"
 
 
 @dataclass
@@ -71,7 +73,7 @@ def load_config() -> WebappManagerConfig:
     """The tray's bind address: ``host``/``port`` from ``webapp_config`` — the same
     values ``/api/access``, the named tunnel and ``webapp.bat`` read."""
     cfg = load_webapp_config()
-    return WebappManagerConfig(host=cfg.host, port=cfg.port)
+    return WebappManagerConfig(host=cfg.host, port=cfg.port, server=cfg.server)
 
 
 def cert_hostname(project_root: Optional[Path] = None) -> Optional[str]:
@@ -127,7 +129,7 @@ def _probe_url(scheme: str, host: str, port: int) -> str:
 
 
 class WebappManager:
-    """Start / stop / health-check the webapp uvicorn process."""
+    """Start / stop / health-check the webapp process."""
 
     def __init__(self, config: Optional[WebappManagerConfig] = None) -> None:
         self.config = config or WebappManagerConfig()
@@ -283,7 +285,9 @@ class WebappManager:
         )
 
     def _build_command(self) -> List[str]:
-        return build_uvicorn_command(self.config.host, self.config.port, project_root=PROJECT_ROOT)
+        return build_webapp_command(
+            self.config.host, self.config.port, project_root=PROJECT_ROOT, server=self.config.server
+        )
 
     def _wait_until_ready(self) -> None:
         deadline = time.time() + self.config.startup_timeout_seconds

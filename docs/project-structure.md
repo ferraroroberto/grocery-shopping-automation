@@ -27,6 +27,6 @@
 - **`docs/`** — durable reference by topic (indexed in the README): running and access, the PWA, each tab, cart automation, the benchmark, configuration, tests.
 - **`tests/`** — `pytest` suite (`test_*.py`: unit + FastAPI `TestClient` + a Playwright e2e that drives the real buttons) plus standalone smoke scripts (`smoke_*.py`, `automation_smoke_*.py`). Run `& .\.venv\Scripts\python.exe -m pytest`; for the full pre-ship gate and what each ratchet checks, see [Tests and the gate](testing.md).
 - **Launchers** — `tray.bat` (FastAPI/PWA on `:8502`, tray-managed, recommended), `webapp.bat` (same app, manual/no-tray), `launch_app.bat` (legacy Streamlit on `:8501`), `webapp_tunnel_named.bat` (FastAPI + Cloudflare tunnel).
-- **`app/tray/`** — Windows tray (`tray.py` pystray icon, `manager.py` uvicorn adopt-or-spawn, `single_instance.py` vendored named-mutex primitive) + root `launcher.py` entrypoint.
+- **`app/tray/`** — Windows tray (`tray.py` pystray icon, `manager.py` webapp adopt-or-spawn, `single_instance.py` vendored named-mutex primitive) + root `launcher.py` entrypoint.
 - **`.streamlit/config.toml`** — Streamlit theme customization (legacy app).
 

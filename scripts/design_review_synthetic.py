@@ -225,8 +225,8 @@ def run(protect_extra: str = "") -> int:
 
         with (root / "server.log").open("w", encoding="utf-8", errors="replace") as log:
             server = subprocess.Popen(
-                [sys.executable, "-m", "uvicorn", "scripts.synthetic_demo_app:app", "--host", "127.0.0.1",
-                 "--port", str(port), "--log-level", "warning"],
+                [sys.executable, "-m", "app.webapp.serve", "--app", "scripts.synthetic_demo_app:app",
+                 "--host", "127.0.0.1", "--port", str(port), "--log-level", "warning"],
                 cwd=app, env=env, stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
                 creationflags=NO_WINDOW)
         base = f"http://127.0.0.1:{port}"

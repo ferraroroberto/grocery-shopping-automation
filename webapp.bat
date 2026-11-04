@@ -36,11 +36,11 @@ REM Auto-renew Tailscale cert if expiring within 30 days.
 
 if exist "%CERT%" (
     echo [INFO] Starting HTTPS FastAPI webapp on %BIND_HOST%:%BIND_PORT%.
-    "%VENV_PY%" -m uvicorn app.api:app --host %BIND_HOST% --port %BIND_PORT% --ssl-keyfile "%KEY%" --ssl-certfile "%CERT%"
+    "%VENV_PY%" -m app.webapp.serve --app app.api:app --host %BIND_HOST% --port %BIND_PORT% --ssl-keyfile "%KEY%" --ssl-certfile "%CERT%"
 ) else (
     echo [INFO] No HTTPS cert found; starting HTTP FastAPI webapp on %BIND_HOST%:%BIND_PORT%.
     echo        Run ^& .\.venv\Scripts\python.exe src\gen_ssl_cert.py to enable HTTPS.
-    "%VENV_PY%" -m uvicorn app.api:app --host %BIND_HOST% --port %BIND_PORT%
+    "%VENV_PY%" -m app.webapp.serve --app app.api:app --host %BIND_HOST% --port %BIND_PORT%
 )
 
 exit /b %ERRORLEVEL%

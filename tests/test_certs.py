@@ -48,11 +48,11 @@ def test_every_caller_shares_the_one_lookup():
     assert manager.cert_paths is cert_paths
     assert system.cert_paths is cert_paths
     # The tunnel launcher no longer looks up certs itself — it builds its
-    # uvicorn command through the same shared helper the tray manager uses,
+    # serve command through the same shared helper the tray manager uses,
     # which is the one that calls cert_paths (#294).
     assert uvicorn_launch.cert_paths is cert_paths
-    assert manager.build_uvicorn_command is uvicorn_launch.build_uvicorn_command
-    assert tunnel.build_uvicorn_command is uvicorn_launch.build_uvicorn_command
+    assert manager.build_webapp_command is uvicorn_launch.build_webapp_command
+    assert tunnel.build_webapp_command is uvicorn_launch.build_webapp_command
     assert manager.stop_process is uvicorn_launch.stop_process
     assert tunnel.stop_process is uvicorn_launch.stop_process
 
