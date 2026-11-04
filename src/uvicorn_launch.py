@@ -1,4 +1,4 @@
-"""Shared uvicorn process lifecycle: the ``app.api:app`` command line and the
+"""Shared webapp process lifecycle: the ``app.webapp.serve`` command line and the
 stop sequence every launcher that spawns it — the tray (``app/tray/manager.py``)
 and the named-tunnel launcher (``scripts/run_named_tunnel.py``) — needs the
 same way (#294). Each caller keeps its own Popen call (different cwd/env/
@@ -19,20 +19,22 @@ from src.certs import cert_paths
 logger = logging.getLogger(__name__)
 
 
-def build_uvicorn_command(
+def build_webapp_command(
     host: str,
     port: int,
     *,
     project_root: Optional[Path] = None,
     python: Optional[Path] = None,
+    server: str = "hypercorn",
 ) -> List[str]:
-    """``<python> -m uvicorn app.api:app --host <host> --port <port>
-    --log-level warning``, plus ``--ssl-keyfile``/``--ssl-certfile`` when a
+    """``<python> -m app.webapp.serve --app app.api:app --host <host> --port <port>
+    --log-level warning --server <server>``, plus ``--ssl-keyfile``/``--ssl-certfile`` when a
     cert pair exists for ``project_root`` (``src.certs.cert_paths``)."""
     cmd: List[str] = [
         str(python or sys.executable),
         "-m",
-        "uvicorn",
+        "app.webapp.serve",
+        "--app",
         "app.api:app",
         "--host",
         host,
@@ -40,6 +42,8 @@ def build_uvicorn_command(
         str(port),
         "--log-level",
         "warning",
+        "--server",
+        server,
     ]
     certs = cert_paths(project_root)
     if certs is not None:
