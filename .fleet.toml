@@ -425,3 +425,9 @@ tab       = "inventory"
 id        = "settings-check-logins"
 clicks    = ['#pane-inventory .home-settings', "#open-store-logins", "#check-logins"]
 synthetic = true
+
+# [perf.review] -- /perf-review's definition of "ready": Home's This week card, which
+# paints data-state="ready" only once the inventory payload has landed, so ready is data
+# on screen rather than a painted shell.
+[perf.review]
+ready_selector = '#this-week[data-state="ready"]'
