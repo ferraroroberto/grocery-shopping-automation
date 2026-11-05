@@ -54,6 +54,11 @@ def _build_icon():
     return Image.new("RGB", (32, 32), (15, 118, 110))
 
 
+# `clip` copies a short string and exits at once; a hang means a wedged clipboard owner,
+# and the caller is a tray menu handler that must not stall.
+CLIPBOARD_TIMEOUT_S = 10
+
+
 def _clipboard_copy(text: str) -> bool:
     """Best-effort Windows clipboard. Returns True on success."""
     if sys.platform == "win32":
@@ -65,8 +70,11 @@ def _clipboard_copy(text: str) -> bool:
                 check=False,
                 encoding="utf-8",
                 creationflags=NO_WINDOW,
+                timeout=CLIPBOARD_TIMEOUT_S,
             )
             return p.returncode == 0
+        except subprocess.TimeoutExpired:
+            logger.warning("⚠️ clip did not finish within %ss; clipboard copy abandoned", CLIPBOARD_TIMEOUT_S)
         except OSError as exc:
             logger.debug(f"clip failed: {exc}")
     return False

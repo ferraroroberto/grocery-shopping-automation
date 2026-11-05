@@ -58,6 +58,7 @@ CLOSED_URL = "http://127.0.0.1:9"        # sibling services: a port nothing list
 STARTUP_TIMEOUT_S = 90.0
 SEED_TIMEOUT_S = 300.0
 STOP_GRACE_S = 10.0
+TASKKILL_TIMEOUT_S = 30.0       # a tree kill returns in well under a second; this bounds a wedged taskkill
 SKIP_DIRS = ("tests/", "docs/", ".claude/", ".git/")
 SECRET_MARKERS = ("KEY", "TOKEN", "SECRET", "PASSWORD", "CREDENTIAL")
 # Real household state under a checkout root; none of it may be opened by the instance.
@@ -188,7 +189,15 @@ def stop_process(proc: subprocess.Popen) -> None:
     except subprocess.TimeoutExpired:
         logger.warning("⚠️ server (pid %s) did not stop; killing its process tree", proc.pid)
     if sys.platform == "win32":
-        subprocess.run(["taskkill", "/PID", str(proc.pid), "/T", "/F"], capture_output=True, creationflags=NO_WINDOW)
+        try:
+            subprocess.run(
+                ["taskkill", "/PID", str(proc.pid), "/T", "/F"],
+                capture_output=True,
+                creationflags=NO_WINDOW,
+                timeout=TASKKILL_TIMEOUT_S,
+            )
+        except subprocess.TimeoutExpired:
+            logger.error("❌ taskkill of server (pid %s) did not finish within %ss", proc.pid, TASKKILL_TIMEOUT_S)
     else:
         proc.kill()
     try:

@@ -34,6 +34,10 @@ from src.no_window import NO_WINDOW  # noqa: E402
 
 _NOW = lambda: datetime.datetime.now(datetime.timezone.utc)  # noqa: E731
 
+# Import-Certificate into the user store returns in a second or two; a hang is a
+# wedged PowerShell, and the manual fallback below is the way out.
+TRUST_TIMEOUT_S = 60
+
 
 def _local_ips() -> list[str]:
     """Return all non-loopback IPv4 addresses assigned to this machine."""
@@ -127,15 +131,22 @@ def generate(out_dir: Path) -> tuple[Path, Path, Path]:
 def trust_on_windows(ca_path: Path) -> None:
     """Install CA cert into CurrentUser\\Root so Chrome/Edge trust it (no admin needed)."""
     print("Installing CA certificate into Windows trusted root store (CurrentUser)...")
-    result = subprocess.run(
-        [
-            "powershell", "-NoProfile", "-Command",
-            f'Import-Certificate -FilePath "{ca_path}" -CertStoreLocation Cert:\\CurrentUser\\Root',
-        ],
-        capture_output=True,
-        text=True,
-        creationflags=NO_WINDOW,
-    )
+    try:
+        result = subprocess.run(
+            [
+                "powershell", "-NoProfile", "-Command",
+                f'Import-Certificate -FilePath "{ca_path}" -CertStoreLocation Cert:\\CurrentUser\\Root',
+            ],
+            capture_output=True,
+            text=True,
+            creationflags=NO_WINDOW,
+            timeout=TRUST_TIMEOUT_S,
+        )
+    except subprocess.TimeoutExpired:
+        print(f"[WARN] Auto-install timed out after {TRUST_TIMEOUT_S}s.")
+        print("       Manual fallback: double-click ca.pem -> Install Certificate")
+        print("       -> Current User -> Place in: Trusted Root Certification Authorities")
+        return
     if result.returncode == 0:
         print("[OK] CA trusted -- Chrome/Edge will show no security warning.")
     else:
