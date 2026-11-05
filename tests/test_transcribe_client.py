@@ -26,12 +26,12 @@ class TestTranscribeModelField:
         # No model → the hub applies roles.audio.transcribe (parakeet + failover).
         captured = {}
 
-        def fake_post(url, files, data, timeout):
+        def fake_post(method, url, files, data, timeout):
             captured["url"] = url
             captured["data"] = data
             return _Resp()
 
-        monkeypatch.setattr("src.transcribe_client.requests.post", fake_post)
+        monkeypatch.setattr("src.transcribe_client.pooled_request", fake_post)
         out = transcribe(b"x", whisper_url="http://hub:8000")
         assert out == "hola"
         assert "model" not in captured["data"]
@@ -41,11 +41,11 @@ class TestTranscribeModelField:
         # An explicit id targets one backend directly (the audio-audit path).
         captured = {}
 
-        def fake_post(url, files, data, timeout):
+        def fake_post(method, url, files, data, timeout):
             captured["data"] = data
             return _Resp()
 
-        monkeypatch.setattr("src.transcribe_client.requests.post", fake_post)
+        monkeypatch.setattr("src.transcribe_client.pooled_request", fake_post)
         transcribe(b"x", whisper_url="http://w:8090", model="whisper-large-v3-turbo")
         assert captured["data"]["model"] == "whisper-large-v3-turbo"
 
