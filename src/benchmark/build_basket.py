@@ -207,6 +207,7 @@ def _float(value: object) -> Optional[float]:
 def mercadona_warehouse(postal_code: str) -> Optional[str]:
     """Warehouse id Mercadona serves ``postal_code`` from, or None on failure."""
     try:
+        # must-use-exempt: on-demand benchmark CLI (python -m src.benchmark.build_basket), a short-lived process with no poll loop, so there is no pool to share
         resp = requests.put(
             _MERCADONA_CHANGE_PC, json={"new_postal_code": postal_code},
             headers=_HTTP_HEADERS, timeout=15,
@@ -262,6 +263,7 @@ def fetch_mercadona(product_id: str, warehouse: Optional[str]) -> Optional[dict]
     if warehouse:
         params["wh"] = warehouse
     try:
+        # must-use-exempt: on-demand benchmark CLI (python -m src.benchmark.build_basket), a short-lived process with no poll loop, so there is no pool to share
         resp = requests.get(
             _MERCADONA_PRODUCT_API.format(id=product_id), params=params,
             headers=_HTTP_HEADERS, timeout=15,
@@ -301,6 +303,7 @@ def resolve_ametller_id(url: str) -> str:
     if match:
         return match.group(1)
     try:
+        # must-use-exempt: on-demand benchmark CLI (python -m src.benchmark.build_basket), a short-lived process with no poll loop, so there is no pool to share
         resp = requests.get(url, headers=_HTTP_HEADERS, timeout=15, allow_redirects=True)
         match = re.search(r"/(\d+)\.html", resp.url)
         if match:

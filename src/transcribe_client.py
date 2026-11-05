@@ -18,6 +18,7 @@ from typing import Optional
 import requests
 
 from src.no_window import NO_WINDOW
+from src.pooled_http import pooled_request
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +110,7 @@ def transcribe(
         f"lang={language}, temp={temperature}, prompt={'yes' if prompt else 'no'})"
     )
     try:
-        resp = requests.post(endpoint, files=files, data=data, timeout=timeout)
+        resp = pooled_request("POST", endpoint, files=files, data=data, timeout=timeout)
     except requests.RequestException as exc:
         raise TranscriptionError(
             f"Could not reach whisper-server at {endpoint}: {exc}"
