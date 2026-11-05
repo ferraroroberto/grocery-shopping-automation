@@ -32,6 +32,10 @@ with open(CONFIG_PATH, "r", encoding="utf-8") as f:
 
 logger = logging.getLogger(__name__)
 
+# `open` / `xdg-open` hand the file to the desktop and return; a hang is a stuck
+# session bus or launch service, and the caller is an HTTP handler.
+OPENER_TIMEOUT_S = 30
+
 COLUMNS = CONFIG["data"]["columns"]
 MODES = CONFIG["ui"]["modes"]
 
@@ -100,10 +104,12 @@ def open_spreadsheet(xlsx_path: Optional[str] = None) -> Path:
         raise FileNotFoundError(f"file not found: {path}")
     if platform.system() == "Windows":
         os.startfile(str(path))  # noqa: S606
-    elif platform.system() == "Darwin":
-        subprocess.run(["open", str(path)], check=False)
     else:
-        subprocess.run(["xdg-open", str(path)], check=False)
+        opener = "open" if platform.system() == "Darwin" else "xdg-open"
+        try:
+            subprocess.run([opener, str(path)], check=False, timeout=OPENER_TIMEOUT_S)
+        except subprocess.TimeoutExpired:
+            logger.warning("⚠️ %s did not return within %ss opening %s", opener, OPENER_TIMEOUT_S, path)
     return path
 
 
