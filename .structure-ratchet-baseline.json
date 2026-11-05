@@ -2,5 +2,14 @@
   "version": 1,
   "band": {"files": 1, "functions": 5},
   "root_extras": [],
+  "shape_contract": {
+    "root_files": [],
+    "redundant": [],
+    "folder_types": {
+      "src": 1,
+      "src/benchmark": 1,
+      "tests": 1
+    }
+  },
   "entries": []
 }
