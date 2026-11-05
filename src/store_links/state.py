@@ -56,6 +56,7 @@ def _update_overrides(base: Optional[Path], change: Callable[[dict[str, dict]], 
     path.parent.mkdir(parents=True, exist_ok=True)
     if not readable:
         aside = path.with_name(f"overrides.corrupt-{datetime.now():%Y%m%d-%H%M%S}.json")
+        # must-use-exempt: renames an unreadable file aside; nothing is written, so there is no atomic write to share
         os.replace(path, aside)
         logger.warning("⚠️ Moved unreadable overrides file aside to %s", aside.name)
     change(doc)
