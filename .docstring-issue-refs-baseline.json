@@ -39,6 +39,7 @@
   "src/gmail_config.py": 2,
   "src/inventory_extract.py": 1,
   "src/net.py": 2,
+  "src/pooled_http.py": 3,
   "src/product_match.py": 2,
   "src/runtime_data.py": 1,
   "src/static_versioning.py": 1,
