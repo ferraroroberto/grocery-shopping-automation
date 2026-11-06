@@ -183,7 +183,7 @@ why    = "src/atomic_json.py is the one atomic-write helper (temp file + replace
 [runtime_write_ratchet]
 enabled  = true
 baseline = ".runtime-write-ratchet-baseline.json"
-# src/data.py seeds the gitignored src/config.json from config.example.json on first
+# src/data.py seeds the gitignored src/config.json from config/config.example.json on first
 # import, so every fresh checkout writes it; the static half keeps that copy in the
 # baseline as a code-folder hit until the config moves out of src/.
 exclude  = ["src/config.json"]

@@ -17,7 +17,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 import src.data as data  # noqa: E402
 
-fixture = _REPO_ROOT / "tests" / "list_test_fixture.xlsx"
+fixture = _REPO_ROOT / "tests" / "fixtures" / "list_test_fixture.xlsx"
 df = pd.read_excel(fixture, engine="openpyxl")
 df["cantidad"] = df["cantidad"].astype(int)
 df["tenemos"] = df["tenemos"].astype(int)

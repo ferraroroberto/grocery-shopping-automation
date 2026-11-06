@@ -17,7 +17,7 @@ import src.data as data  # noqa: E402
 print(f"[OK] data module loaded")
 print(f"[OK] audio_audit config keys: {list(data.CONFIG['audio_audit'].keys())}")
 
-fixture = _REPO_ROOT / "tests" / "list_test_fixture.xlsx"
+fixture = _REPO_ROOT / "tests" / "fixtures" / "list_test_fixture.xlsx"
 assert fixture.exists(), f"fixture missing: {fixture}"
 fixture_hash_before = hashlib.sha256(fixture.read_bytes()).hexdigest()
 

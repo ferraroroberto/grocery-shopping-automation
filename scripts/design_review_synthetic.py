@@ -103,7 +103,7 @@ def protected_paths(extra: str = "") -> List[str]:
     paths: List[str] = []
     for root in checkout_roots():
         paths += [str(root / rel) for rel in PROTECTED_RELATIVE]
-        for cfg in (root / "src" / "config.json", root / "src" / "config.example.json"):
+        for cfg in (root / "src" / "config.json", root / "config" / "config.example.json"):
             try:
                 xlsx = json.loads(cfg.read_text(encoding="utf-8"))["data"]["xlsx_file"]
             except (OSError, ValueError, KeyError):
@@ -119,7 +119,7 @@ def _write_json(path: Path, value: object) -> None:
 
 def configure(root: Path, app: Path, port: int) -> None:
     """The copy's config files: everything points into ``root`` or at a closed port."""
-    cfg = json.loads((app / "src" / "config.example.json").read_text(encoding="utf-8"))
+    cfg = json.loads((app / "config" / "config.example.json").read_text(encoding="utf-8"))
     cfg["data"]["xlsx_file"] = str(root / "data" / "list.xlsx")
     audio = cfg["audio_audit"]
     audio.update({"whisper_url": CLOSED_URL, "llm_base_url": CLOSED_URL,

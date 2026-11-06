@@ -19,7 +19,7 @@ Item record (``--json``)::
                   — for a match, `url` must be the product card's own link
                   (with its product id), not a slug-only or search URL: the
                   writer checks it against the store's `product_url_pattern`
-                  in src/benchmark/stores.json, when one is declared (issue #156)
+                  in config/benchmark_stores.json, when one is declared (issue #156)
     pack_size     float, in the BASKET item's unit (convert g→kg, ml→l, eggs→ud)
     unit          must equal the basket item's current unit
     pack_price    float EUR (the price you'd pay today)
@@ -65,11 +65,11 @@ DELIVERS = {"yes", "no", "unknown"}
 # src.store_links.link_kind() checks the same field. Read directly (like
 # src/benchmark/report.py already does) rather than importing src, which would
 # pull the whole UI-free app layer (pandas, openpyxl, …) into this CLI.
-STORES_REGISTRY = Path(__file__).resolve().parent / "stores.json"
+STORES_REGISTRY = Path(__file__).resolve().parents[2] / "config" / "benchmark_stores.json"
 
 
 def _product_url_pattern(store: str) -> Optional[str]:
-    """``store``'s ``product_url_pattern`` regex from ``src/benchmark/stores.json``, if it declares one."""
+    """``store``'s ``product_url_pattern`` regex from ``config/benchmark_stores.json``, if it declares one."""
     registry = json.loads(STORES_REGISTRY.read_text(encoding="utf-8"))["stores"]
     return (registry.get(store) or {}).get("product_url_pattern") or None
 

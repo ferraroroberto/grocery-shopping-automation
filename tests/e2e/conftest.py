@@ -27,7 +27,7 @@ from app.api import app
 from tests.e2e._helpers import LIVE, LOADED_JS, stub_extract
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-FIXTURE = REPO_ROOT / "tests" / "list_test_fixture.xlsx"
+FIXTURE = REPO_ROOT / "tests" / "fixtures" / "list_test_fixture.xlsx"
 # Invented benchmark run the Items → Stores view prices from (#148).
 BENCHMARK_RUNS = REPO_ROOT / "tests" / "fixtures" / "store_links"
 

@@ -20,7 +20,7 @@ import pandas as pd
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CONFIG_PATH = Path(__file__).resolve().parent / "config.json"
-CONFIG_EXAMPLE_PATH = Path(__file__).resolve().parent / "config.example.json"
+CONFIG_EXAMPLE_PATH = Path(__file__).resolve().parents[1] / "config" / "config.example.json"
 
 # `config.json` is gitignored — seed it from `config.example.json` (committed)
 # the first time the app runs in a fresh checkout.
@@ -40,7 +40,7 @@ COLUMNS = CONFIG["data"]["columns"]
 MODES = CONFIG["ui"]["modes"]
 
 # Optional per-store product-URL columns: `url_<store>`, one per
-# store key in `src/benchmark/stores.json`. Never required — a sheet without any
+# store key in `config/benchmark_stores.json`. Never required — a sheet without any
 # loads unchanged; `super` + `buscador` stay the chosen store and its URL.
 STORE_URL_PREFIX = "url_"
 

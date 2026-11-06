@@ -31,7 +31,7 @@ from src.inventory_extract import ExtractionResult
 from tests.e2e._surface import pytest_collection_modifyitems  # noqa: E402,F401
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-FIXTURE = REPO_ROOT / "tests" / "list_test_fixture.xlsx"
+FIXTURE = REPO_ROOT / "tests" / "fixtures" / "list_test_fixture.xlsx"
 
 
 @pytest.hookimpl(hookwrapper=True)

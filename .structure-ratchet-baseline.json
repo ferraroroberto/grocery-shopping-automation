@@ -5,11 +5,7 @@
   "shape_contract": {
     "root_files": [],
     "redundant": [],
-    "folder_types": {
-      "src": 1,
-      "src/benchmark": 1,
-      "tests": 1
-    }
+    "folder_types": {}
   },
   "entries": []
 }
