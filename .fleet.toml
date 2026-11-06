@@ -13,12 +13,12 @@ depends_on   = ["local-llm-hub", "voice-transcriber"]
 
 [vendored]
 single_instance = { src = "app/tray/single_instance.py", sha = "5d460bd1d9d44eed955c5357d1c9f622f2550ad8", dest = "app/tray/single_instance.py" }
-home-head = { src = "app/webapp/static/_vendored/home-head", sha = "5d460bd1d9d44eed955c5357d1c9f622f2550ad8", dest = "app/webapp/static/_vendored/home-head" }
+home-head = { src = "app/webapp/static/_vendored/home-head", sha = "6c8ae06472edc4c7448a767656060cd2b79cefe9", dest = "app/webapp/static/_vendored/home-head" }
 icon-button = { src = "app/webapp/static/_vendored/icon-button", sha = "5d460bd1d9d44eed955c5357d1c9f622f2550ad8", dest = "app/webapp/static/_vendored/icon-button" }
 modal = { src = "app/webapp/static/_vendored/modal", sha = "713b1d1e36989440679ec4e415ff149b14d96c81", dest = "app/webapp/static/_vendored/modal" }
-sign-in = { src = "app/webapp/static/_vendored/sign-in", sha = "f05859a2bada56296d7f134e471953867c253571", dest = "app/webapp/static/_vendored/sign-in" }
-select-native = { src = "app/webapp/static/_vendored/select-native", sha = "5d460bd1d9d44eed955c5357d1c9f622f2550ad8", dest = "app/webapp/static/_vendored/select-native" }
-button = { src = "app/webapp/static/_vendored/button", sha = "5d460bd1d9d44eed955c5357d1c9f622f2550ad8", dest = "app/webapp/static/_vendored/button" }
+sign-in = { src = "app/webapp/static/_vendored/sign-in", sha = "6c8ae06472edc4c7448a767656060cd2b79cefe9", dest = "app/webapp/static/_vendored/sign-in" }
+select-native = { src = "app/webapp/static/_vendored/select-native", sha = "6c8ae06472edc4c7448a767656060cd2b79cefe9", dest = "app/webapp/static/_vendored/select-native" }
+button = { src = "app/webapp/static/_vendored/button", sha = "6c8ae06472edc4c7448a767656060cd2b79cefe9", dest = "app/webapp/static/_vendored/button" }
 nav = { src = "app/webapp/static/_vendored/nav", sha = "3b708fd3c54ab7b93b08d489406c405762c83c41", dest = "app/webapp/static/_vendored/nav" }
 switch = { src = "app/webapp/static/_vendored/switch", sha = "5d460bd1d9d44eed955c5357d1c9f622f2550ad8", dest = "app/webapp/static/_vendored/switch" }
 disclosure = { src = "app/webapp/static/_vendored/disclosure", sha = "5d460bd1d9d44eed955c5357d1c9f622f2550ad8", dest = "app/webapp/static/_vendored/disclosure" }
@@ -34,7 +34,7 @@ toast = { src = "app/webapp/static/_vendored/toast", sha = "3b708fd3c54ab7b93b08
 page-foot = { src = "app/webapp/static/_vendored/page-foot", sha = "35c1f11348e100fa6b5da487411424c6d6ced43c", dest = "app/webapp/static/_vendored/page-foot" }
 icons = { src = "app/webapp/static/_vendored/icons", sha = "5d460bd1d9d44eed955c5357d1c9f622f2550ad8", dest = "app/webapp/static/_vendored/icons" }
 rec-wave = { src = "app/webapp/static/_vendored/rec-wave", sha = "6c8ae06472edc4c7448a767656060cd2b79cefe9", dest = "app/webapp/static/_vendored/rec-wave" }
-usage-log = { src = "app/webapp/static/_vendored/usage-log", sha = "ea11037a42f9f99ea8e728f574c6bb89480f3aa2", dest = "app/webapp/static/_vendored/usage-log" }
+usage-log = { src = "app/webapp/static/_vendored/usage-log", sha = "6c8ae06472edc4c7448a767656060cd2b79cefe9", dest = "app/webapp/static/_vendored/usage-log" }
 usage_log = { src = "src/usage_log.py", sha = "98cdb1b7727d12a5c233580478e6fae40d98e6f3", dest = "src/usage_log.py" }
 usage_track_ratchet = { src = "scripts/usage_track_ratchet.py", sha = "ea11037a42f9f99ea8e728f574c6bb89480f3aa2", dest = "scripts/usage_track_ratchet.py" }
 usage_track_scan = { src = "scripts/usage_track_scan.py", sha = "ea11037a42f9f99ea8e728f574c6bb89480f3aa2", dest = "scripts/usage_track_scan.py" }
@@ -206,8 +206,8 @@ record = "https://github.com/ferraroroberto/grocery-shopping-automation/issues/1
 
 [[design.accepted]]
 check  = "glyph-icons"
-detail = "4 arrow/shape character(s) drawn as icons in rendered text; use the matching Lucide glyph (design.md Icons): app/webapp/static/modules/audio.js:428, app/webapp/static/modules/audio.js:448, app/webapp/static/modules/audio.js:533, app/webapp/static/modules/rows.js:63"
-reason = "the arrow is a numeric from/to separator inside row meta text (`current → proposed`, `3 → 0`, `14 units → 3 packs`), not an icon standing for an action; audio.js:428 and :448 and rows.js:63 are those meta strings, audio.js:533 is a code comment the lint's scan also reads"
+detail = "4 arrow/shape character(s) drawn as icons in rendered text; use the matching Lucide glyph (design.md Icons): app/webapp/static/modules/audio.js:433, app/webapp/static/modules/audio.js:453, app/webapp/static/modules/audio.js:539, app/webapp/static/modules/rows.js:67"
+reason = "the arrow is a numeric from/to separator inside row meta text (`current → proposed`, `3 → 0`, `14 units → 3 packs`), not an icon standing for an action; two in audio.js and one in rows.js are those meta strings, the fourth in audio.js is a code comment the lint's scan also reads"
 record = "https://github.com/ferraroroberto/grocery-shopping-automation/issues/299"
 
 # [design.review] -- the rendered design review's walk (fleet-config

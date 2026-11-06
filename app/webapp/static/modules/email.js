@@ -8,7 +8,8 @@
 // sheet lives at <body> level, outside .app, so it carries its own listeners.
 import { setSwitch } from "../_vendored/switch/switch.js";
 import { fetchJson, jsonInit } from "./api.js";
-import { fmtBuildTime, html, icon, switchMarkup, switchOn, text } from "./dom.js";
+import { fmtBuildTime } from "../_vendored/page-foot/page-foot.js";
+import { html, icon, switchMarkup, switchOn, text } from "./dom.js";
 import { dialogShell } from "./stores/dialog.js";
 
 const SHEET_ID = "email-watch-sheet";
