@@ -1,7 +1,7 @@
 """Per-store product links, store picks and the cost simulator (issue #148).
 
 UI-free. Each inventory row may carry one product URL per supermarket in an
-optional ``url_<store>`` column (store keys from ``src/benchmark/stores.json``);
+optional ``url_<store>`` column (store keys from ``config/benchmark_stores.json``);
 ``super`` + ``buscador`` stay the *chosen* store and its URL, so the cart
 automation and the email/audit flows keep working unchanged.
 

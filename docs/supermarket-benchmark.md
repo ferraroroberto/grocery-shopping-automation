@@ -92,7 +92,7 @@ The baseline store's own items are never researched: the scorer uses `basket.jso
 - Stores behind a bot manager (Carrefour on Cloudflare, Dia on Akamai) go through `python -m src.benchmark.browser_fetch`. It runs real Chrome with the repo's stealth launch config (`src/automation/browser.py::_open_context`), on a **per-store throwaway profile** under `benchmark_runs/_state/chrome/<store>/`.
   - That lets parallel research agents never collide with each other.
   - It also keeps them off the shared store-login profile used by the cart automation.
-- What each store needed on the last run lives in `src/benchmark/stores.json` `hints`. Update it after every run.
+- What each store needed on the last run lives in `config/benchmark_stores.json` `hints`. Update it after every run.
 
 ## Practical costs the numbers don't include
 

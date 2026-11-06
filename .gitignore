@@ -4,7 +4,7 @@
 # environment / secrets
 .env
 
-# local runtime config (seeded from src/config.example.json on first run)
+# local runtime config (seeded from config/config.example.json on first run)
 src/config.json
 
 # failing-e2e screenshots, uploaded by CI

@@ -53,7 +53,7 @@ def test_audio_health_shape(client, monkeypatch):
 def test_whisper_url_defaults_to_the_hub():
     # The hub owns where whisper runs; a fresh install seeded from the example
     # config must transcribe through it with no edit.
-    example = json.loads((Path(__file__).resolve().parent.parent / "src" / "config.example.json").read_text(encoding="utf-8"))
+    example = json.loads((Path(__file__).resolve().parent.parent / "config" / "config.example.json").read_text(encoding="utf-8"))
     cfg = example["audio_audit"]
     assert cfg["whisper_url"] == cfg["llm_base_url"] == "http://127.0.0.1:8000"
     assert "transcribe_url" not in cfg

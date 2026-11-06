@@ -11,7 +11,7 @@ Answers: *is our Mercadona + Ametller split still the cheapest way to buy this h
 
 ## Arguments
 
-Optional store keys (from `src/benchmark/stores.json`) to limit the fan-out; default = every store in the registry.
+Optional store keys (from `config/benchmark_stores.json`) to limit the fan-out; default = every store in the registry.
 
 ## Steps
 
@@ -69,7 +69,7 @@ You are pricing a household's monthly grocery basket at ONE online supermarket: 
 
 ## Inputs
 - `{run_dir}/basket.json` — items[]: key, comida (Spanish item name), store (where bought today), tier, spec, current {name, brand, ean, pack_size, unit, pack_price, unit_price, ingredients, url}, monthly_packs.
-- `src/benchmark/stores.json` → stores.{store}: hints verified earlier (start there).
+- `config/benchmark_stores.json` → stores.{store}: hints verified earlier (start there).
 - `benchmark_runs/_state/mappings/{store}.json` — if it exists, last run's verified matches, each with any `alternatives` (other qualifying sizes): RE-VERIFY those (price, availability, still meets spec) before searching fresh, and write each surviving alternative back with `alt`.
 
 ## Your job
@@ -90,7 +90,7 @@ The household buys in volume, so every product is compared on €/kg, €/l or �
 Write `pack_size` in the basket item's `current.unit` (kg, l, ud, m): 200 g → 0.2 (kg); 330 ml → 0.33 (l); a 12-egg box → 12 (ud); fruit sold per kg → pack_size 1, pack_price = €/kg. `pack_price` = what one pack costs today. If on promo, set promo true and `regular_price`. The writer rejects a unit mismatch — convert, don't fight it.
 
 ## How to access the site
-1. Plain HTTP first (curl / python requests with a desktop Chrome User-Agent, JSON APIs the storefront itself calls, WebFetch). Look at stores.json hints.
+1. Plain HTTP first (curl / python requests with a desktop Chrome User-Agent, JSON APIs the storefront itself calls, WebFetch). Look at the `hints` in `config/benchmark_stores.json`.
 2. If blocked (403/challenge), use real Chrome on this store's own profile: `./.venv/Scripts/python.exe -m src.benchmark.browser_fetch --store {store} --url "<url>" [--mode text|html|api] [--settle 6]`. It opens a visible Chrome window each call — batch work (e.g. crawl a category page listing many products) rather than one call per tiny lookup.
 3. Do NOT use the Claude-in-Chrome browser tools or the shared profile `automation/chrome_user_data` (other agents and the user's cart automation use them).
 4. If the store is genuinely unreachable, record `access` with `"blocked": true` and the verbatim error, mark the remaining items `unknown`, and stop. Don't guess prices.
@@ -107,5 +107,5 @@ Record schema: see the docstring of src/benchmark/results.py (read it first). Co
 Record for {postal_code}: delivers yes/no/unknown, fee tiers by order value (e.g. [{min_order: 0, fee: 7.9}, {min_order: 120, fee: 0}]), minimum order, source URL. If the store does not deliver to {postal_code}, record that FIRST, then still price the basket (it may deliver soon / click&collect) but say so in `notes`.
 
 ## Finish
-When `status` shows 0 missing, reply with: access method that worked, delivery conditions, counts by status, the 5 items with the biggest price differences vs the baseline €/unit, anything suspicious you could not resolve, and endpoint/URL tips worth adding to stores.json for next time. Keep the reply under 400 words.
+When `status` shows 0 missing, reply with: access method that worked, delivery conditions, counts by status, the 5 items with the biggest price differences vs the baseline €/unit, anything suspicious you could not resolve, and endpoint/URL tips worth adding to `config/benchmark_stores.json` for next time. Keep the reply under 400 words.
 ````

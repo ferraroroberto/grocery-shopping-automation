@@ -3,7 +3,7 @@
 The `src/benchmark/` package answers *"is our Mercadona + Ametller split still the
 cheapest way to buy this basket without dropping quality?"* It prices the
 household's **average monthly basket** (from `purchase_logs/`) at every online
-supermarket in `src/benchmark/stores.json`, with quality locked per item (brand,
+supermarket in `config/benchmark_stores.json`, with quality locked per item (brand,
 meat %, ingredients) and every product compared per kg, litre or piece, and scores status
 quo vs single-store vs the best 1–5-store splits including delivery fees. Each
 run is recorded in a history (`benchmark_runs/_state/`), so the report shows
@@ -29,7 +29,7 @@ local). Methodology, quality tiers and schemas:
 ## Per-store links, store picks and the cost simulator
 
 Each inventory row can hold one product URL per supermarket in optional
-`url_<store>` columns of `list.xlsx` (store keys from `src/benchmark/stores.json`;
+`url_<store>` columns of `list.xlsx` (store keys from `config/benchmark_stores.json`;
 a sheet without them loads unchanged). `super` + `buscador` stay the chosen
 store and its URL, so the cart automation keeps working. `src/store_links/`
 does the work; the API (`app/webapp/routers/stores.py`) exposes it:

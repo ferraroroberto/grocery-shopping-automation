@@ -33,7 +33,7 @@ if str(_REPO_ROOT) not in sys.path:
 from src.benchmark import history  # noqa: E402
 from src.benchmark import score as S  # noqa: E402
 
-STORES_REGISTRY = Path(__file__).resolve().parent / "stores.json"
+STORES_REGISTRY = Path(__file__).resolve().parents[2] / "config" / "benchmark_stores.json"
 MOVE_MIN_SAVING = 1.5  # €/month — smaller moves are listed, not tabled
 EVIDENCE_CHARS = 220
 

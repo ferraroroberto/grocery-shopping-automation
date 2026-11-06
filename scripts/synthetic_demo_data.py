@@ -99,7 +99,7 @@ def slug(text: str) -> str:
 
 
 def product_url(store: str, idx: int, comida: str) -> str:
-    """A link that passes ``src/benchmark/stores.json``'s product-URL patterns for the store."""
+    """A link that passes ``config/benchmark_stores.json``'s product-URL patterns for the store."""
     if store == "mercadona":
         return f"{BASE_URL}/mercadona/product/{90000 + idx}/{slug(comida)}"
     if store == "carrefour":
