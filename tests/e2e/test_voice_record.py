@@ -64,7 +64,7 @@ def test_take_shows_the_shared_waveform_on_one_audio_context(page):
     host.locator(".rec-wave").wait_for()
     page.wait_for_function("document.querySelector('#voice-wave').dataset.recWaveState === 'live'")
     assert host.locator(".rec-wave-bars > i").count() == 40
-    assert page.locator("#voice-timer").inner_text().startswith("0s")
+    assert page.locator("#voice-timer").inner_text().startswith("0:00")
     # The strip reads the take's stream: the tone lifts at least one bar off its sliver.
     page.wait_for_function(
         "[...document.querySelectorAll('#voice-wave .rec-wave-bars > i')]"

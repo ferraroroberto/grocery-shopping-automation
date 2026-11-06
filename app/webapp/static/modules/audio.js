@@ -13,11 +13,11 @@
 // take survives a dying phone. Rolling partials flow back over SSE; Stop yields
 // the canonical transcript. grocery only proxies — VT owns the audio.
 import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
-import { attachRecWave, createLevelSource } from "../_vendored/rec-wave/rec-wave.js";
+import { attachRecWave, createLevelSource, formatElapsed } from "../_vendored/rec-wave/rec-wave.js";
 import { authFetch, fetchJson, jsonInit } from "./api.js";
 import { confirmSheet } from "./confirm.js";
 import { activePaneBody, c, items, render, state, storedToken, updateHeaders } from "./core.js";
-import { esc, formatBytes, formatElapsed, html, icon, shortDate, switchMarkup, text } from "./dom.js";
+import { esc, formatBytes, html, icon, shortDate, switchMarkup, text } from "./dom.js";
 import { pickAudioMime } from "./media.js";
 import { itemList, itemRow } from "./rows.js";
 import { dialogShell } from "./stores/dialog.js";
@@ -70,7 +70,7 @@ function isRecording() {
 // Staged progress text, mirroring app/audio_audit.py _extract_progress — budget
 // up to ~10 minutes; never imply a call is fast.
 function audioMatchStage(elapsed) {
-  const t = formatElapsed(elapsed);
+  const t = formatElapsed(elapsed * 1000);
   if (elapsed < 5) return `Sending the transcript… (${t})`;
   if (elapsed < 20) return `Reading the transcript… (${t})`;
   if (elapsed < 60) return `Matching what you said to your list… (${t}) — typical 30s–2min`;
@@ -79,7 +79,7 @@ function audioMatchStage(elapsed) {
 }
 
 function audioTranscribeStage(elapsed) {
-  const t = formatElapsed(elapsed);
+  const t = formatElapsed(elapsed * 1000);
   if (elapsed < 5) return `Uploading the audio… (${t})`;
   if (elapsed < 30) return `Transcribing… (${t})`;
   if (elapsed < 120) return `Still transcribing… (${t}) — long clips can take 1–3 min`;
@@ -649,8 +649,7 @@ function startRecordTimer() {
   const tick = () => {
     const timer = document.querySelector("#voice-timer");
     if (!timer) return;
-    const elapsed = Math.floor((Date.now() - audio.recordStartedAt) / 1000);
-    timer.textContent = `${formatElapsed(elapsed)} · ${formatBytes(audio.bytesSent)} saved on the PC`;
+    timer.textContent = `${formatElapsed(Date.now() - audio.recordStartedAt)} · ${formatBytes(audio.bytesSent)} saved on the PC`;
   };
   tick();
   audio.recordTimer = window.setInterval(tick, 1000);
