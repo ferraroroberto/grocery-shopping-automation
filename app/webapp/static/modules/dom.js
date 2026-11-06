@@ -89,10 +89,6 @@ export function switchOn(selector) {
   return document.querySelector(selector)?.getAttribute("aria-checked") === "true";
 }
 
-export function formatElapsed(seconds) {
-  return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, "0")}s`;
-}
-
 // A day as the glance cards show it: "Tue 6 Oct".
 export function shortDate(iso) {
   return new Date(iso).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });

@@ -16,11 +16,12 @@
 // state everywhere at once. The mark lives server-side next to the run records
 // (GET /api/automation/fills says `cleared`), so every device sees it.
 import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
+import { formatElapsed } from "../_vendored/rec-wave/rec-wave.js";
 import { setSwitch } from "../_vendored/switch/switch.js";
 import { showToast } from "../_vendored/toast/toast.js";
 import { fetchJson, jsonInit } from "./api.js";
 import { c, items, state, storedToken, updateHeaders } from "./core.js";
-import { chip, esc, formatElapsed, html, icon, shortDate, switchMarkup } from "./dom.js";
+import { chip, esc, html, icon, shortDate, switchMarkup } from "./dom.js";
 import { dialogShell } from "./stores/dialog.js";
 import { local, storeName } from "./stores/state.js";
 
@@ -552,7 +553,7 @@ function startAutomationTimer() {
     const elapsed = document.querySelector("#automation-elapsed");
     if (!elapsed || !run.startedAt) return;
     elapsed.className = "panel-status";
-    elapsed.textContent = `Filling carts… ${formatElapsed(Math.floor((Date.now() - run.startedAt) / 1000))}`;
+    elapsed.textContent = `Filling carts… ${formatElapsed(Date.now() - run.startedAt)}`;
   };
   tick();
   run.timer = window.setInterval(tick, 1000);

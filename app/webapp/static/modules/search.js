@@ -11,9 +11,10 @@
 //   - a new term → "Use" pre-fills the sheet's Add by hand form below (name,
 //     store, link, target 1) and the sheet's "Add item" creates the row — the
 //     same POST /api/items shape /select would build.
+import { formatElapsed } from "../_vendored/rec-wave/rec-wave.js";
 import { fetchJson, jsonInit } from "./api.js";
 import { c, defaultZone, items, state } from "./core.js";
-import { chip, esc, formatElapsed, html, icon, setPickerValue, text } from "./dom.js";
+import { chip, esc, html, icon, setPickerValue, text } from "./dom.js";
 import { pickAudioMime } from "./media.js";
 import { storeName } from "./stores/state.js";
 
@@ -40,7 +41,7 @@ const FAILURE_COPY = {
 // Before /start returns, the server is still reading the text (an LLM call) —
 // say so rather than claim the stores are being searched.
 function searchStage(elapsed) {
-  const t = formatElapsed(elapsed);
+  const t = formatElapsed(elapsed * 1000);
   return search.pendingStart ? `Reading “${search.term}”… (${t})` : `Starting the search… (${t})`;
 }
 
@@ -79,7 +80,7 @@ function renderSearchStatus() {
   if (s.recording) { node.textContent = "Recording… tap the mic to stop"; return; }
   if (s.error) { node.className = "panel-status error"; node.textContent = s.error; return; }
   if (s.running) {
-    const t = formatElapsed(Math.floor((Date.now() - s.startedAt) / 1000));
+    const t = formatElapsed(Date.now() - s.startedAt);
     // Prefer the real backend phase (Searching Mercadona…, N results,
     // Preparing…) over the generic time-based stage text.
     node.textContent = s.progress ? `${s.progress} · ${t}` : searchStage(Math.floor((Date.now() - s.startedAt) / 1000));
