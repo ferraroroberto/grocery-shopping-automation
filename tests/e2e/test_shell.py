@@ -49,6 +49,30 @@ def test_standalone_page_head_meta(page):
     assert "viewport-fit=cover" in page.locator('meta[name="viewport"]').get_attribute("content")
 
 
+@pytest.mark.e2e
+@pytest.mark.parametrize("chosen,os_theme", [("dark", "light"), ("light", "dark")])
+def test_color_scheme_follows_chosen_theme_not_os(browser, server, chosen, os_theme):
+    """Native controls (option lists, date pickers, scrollbars) draw in the app's chosen
+    theme: `color-scheme` on :root must follow `data-theme` even when the OS says otherwise,
+    and native inputs inherit it."""
+    ctx = browser.new_context(color_scheme=os_theme)
+    ctx.add_init_script(f"localStorage.setItem('grocery.theme', '{chosen}')")
+    pg = ctx.new_page()
+    pg.goto(server.url)
+    pg.wait_for_selector("[data-tab='audit']")
+    scheme = pg.evaluate(
+        """() => {
+          const probe = (tag, type) => { const el = document.createElement(tag); if (type) el.type = type;
+            document.body.appendChild(el); const v = getComputedStyle(el).colorScheme; el.remove(); return v; };
+          return { root: getComputedStyle(document.documentElement).colorScheme,
+                   theme: document.documentElement.dataset.theme,
+                   select: probe('select'), date: probe('input', 'date') };
+        }"""
+    )
+    ctx.close()
+    assert scheme == {"root": chosen, "theme": chosen, "select": chosen, "date": chosen}
+
+
 def _check_tabs_and_page_headers(page):
     tabs = page.locator("nav.tabs .tab")
     assert tabs.count() == 4
