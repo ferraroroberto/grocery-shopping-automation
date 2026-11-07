@@ -24,7 +24,7 @@ RISK_KEYWORD_SUBSTRINGS = ("timeout", "lookback", "limit", "interval", "retries"
 # nobody's-watching entrypoints issue #341 flagged. Shrink this set in the
 # PR that names each one.
 BASELINE = frozenset({
-    "src/automation/bootstrap_session.py:128:timeout",
+    "src/automation/bootstrap_session.py:129:timeout",
 })
 
 
