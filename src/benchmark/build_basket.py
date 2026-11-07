@@ -443,8 +443,10 @@ def build(run_date: str) -> Path:
         "items": items,
     }
     out_dir = runs_dir() / run_date
+    # runtime-write-exempt: the run directory comes from benchmark.runs_dir config, not a code folder
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / "basket.json"
+    # runtime-write-exempt: the run directory comes from benchmark.runs_dir config, not a code folder
     out.write_text(json.dumps(basket, ensure_ascii=False, indent=2), encoding="utf-8")
     logger.info("✅ Wrote %s", out)
     return out

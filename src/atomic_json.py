@@ -21,6 +21,7 @@ def write_json_atomic(path: Path, doc: Any) -> None:
     partial target nor a stray ``.tmp`` beside it.
     """
     path = Path(path)
+    # runtime-write-exempt: the shared atomic-write helper; the target is whatever the caller passes
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.stem}.", suffix=".tmp")
     try:

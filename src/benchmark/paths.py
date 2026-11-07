@@ -16,9 +16,8 @@ DEFAULT_RUNS_DIR = REPO_ROOT / "benchmark_runs"
 
 def runs_dir() -> Path:
     """``benchmark.runs_dir`` from config (relative to the repo), else ``<repo>/benchmark_runs``."""
-    from src.data import (
-        CONFIG,  # lazy: read at call time, so a patched CONFIG is honoured
-    )
+    # Lazy: read at call time, so a patched CONFIG is honoured.
+    from src.data import CONFIG
 
     raw = (CONFIG.get("benchmark") or {}).get("runs_dir")
     if not raw:

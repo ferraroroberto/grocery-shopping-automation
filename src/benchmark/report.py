@@ -396,6 +396,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     args = parser.parse_args(argv)
     sys.stdout.reconfigure(encoding="utf-8")
     out = args.run_dir / "report.html"
+    # runtime-write-exempt: the CLI writes into the run directory the operator names
     out.write_text(render(args.run_dir), encoding="utf-8")
     print(f"✅ wrote {out}")
     return 0

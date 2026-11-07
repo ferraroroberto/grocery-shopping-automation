@@ -55,6 +55,7 @@ def transcode_to_wav(audio_bytes: bytes, *, sample_rate: int = 16000, timeout: i
     with tempfile.TemporaryDirectory() as tmp:
         src = Path(tmp) / "input"
         out = Path(tmp) / "audio.wav"
+        # runtime-write-exempt: writes into a TemporaryDirectory, removed on exit
         src.write_bytes(audio_bytes)
         try:
             proc = subprocess.run(

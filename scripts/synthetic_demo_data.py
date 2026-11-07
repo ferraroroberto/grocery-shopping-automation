@@ -143,6 +143,7 @@ def basket_items() -> List[Tuple[int, Tuple]]:
 
 def write_run(runs: Path, date: str, price_factor: float) -> Path:
     run = runs / date
+    # runtime-write-exempt: invented demo data, written only under the caller's demo directories
     (run / "stores").mkdir(parents=True, exist_ok=True)
     items, store_docs = [], {s: {} for s in STORES}
     for idx, (comida, _lugar, cat, store, cantidad, _have, unidades, _linked) in basket_items():
@@ -172,9 +173,11 @@ def write_run(runs: Path, date: str, price_factor: float) -> Path:
                                             "pack_price": round(price * 1.7, 2)}]
                 store_docs[other][key] = rec
     orders = {s: 4.0 for s in STORES}
+    # runtime-write-exempt: invented demo data, written only under the caller's demo directories
     (run / "basket.json").write_text(json.dumps(
         {"run_date": date, "frequency": {"orders_per_month": orders}, "items": items}, indent=2), encoding="utf-8")
     for store, recs in store_docs.items():
+        # runtime-write-exempt: invented demo data, written only under the caller's demo directories
         (run / "stores" / f"{store}.json").write_text(json.dumps(
             {"store": store, "delivery": DELIVERY[store], "items": recs, "updated_at": f"{date}T10:00:00"},
             indent=2), encoding="utf-8")
@@ -184,16 +187,20 @@ def write_run(runs: Path, date: str, price_factor: float) -> Path:
 def write_last_fill(logs: Path) -> None:
     """Invented Fill carts run records under ``<purchase logs>/runs/`` (#258)."""
     runs = logs / "runs"
+    # runtime-write-exempt: invented demo data, written only under the caller's demo directories
     runs.mkdir(parents=True, exist_ok=True)
     for store, statuses in LAST_FILL.items():
         record = {"run": LAST_FILL_RUN, "store": store, "cart_mode": "keep",
                   "items": [{"comida": f"demo item {i + 1}", "status": s} for i, s in enumerate(statuses)]}
+        # runtime-write-exempt: invented demo data, written only under the caller's demo directories
         (runs / f"{LAST_FILL_RUN}_{store}.json").write_text(json.dumps(record, indent=2), encoding="utf-8")
 
 
 def write_last_audit(logs: Path) -> None:
     """One invented voice-audit log under the audit logs dir (#259)."""
+    # runtime-write-exempt: invented demo data, written only under the caller's demo directories
     logs.mkdir(parents=True, exist_ok=True)
+    # runtime-write-exempt: invented demo data, written only under the caller's demo directories
     (logs / LAST_AUDIT_FILE).write_text(json.dumps(LAST_AUDIT, indent=2), encoding="utf-8")
 
 

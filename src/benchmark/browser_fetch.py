@@ -74,6 +74,7 @@ def open_actions_context(store: str, headless: bool = False) -> Iterator[tuple[B
     context on exit.
     """
     profile = state_dir() / "chrome" / store
+    # runtime-write-exempt: the Chrome profile lives under the runtime state dir
     profile.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as pw:
         context, page = _open_context(pw, headless=headless, user_data_dir=profile)
@@ -120,6 +121,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     status, body = fetch(args.store, args.url, args.mode, args.home, args.headless, args.settle)
     logger.info("ℹ️ %s → HTTP %d, %d chars", args.url, status, len(body))
     if args.out:
+        # runtime-write-exempt: the CLI's --out path is chosen by the operator
         Path(args.out).write_text(body, encoding="utf-8")
     else:
         print(json.dumps({"status": status, "body": body}, ensure_ascii=False) if args.mode == "api" else body)

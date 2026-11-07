@@ -71,6 +71,7 @@ def write_audit_log(
     idx → the value before the apply so the log records old→new. `result` is the
     raw match result ({items, zones_mentioned, unmatched_mentions}) or None.
     """
+    # runtime-write-exempt: the audit logs directory is configured by the caller (audio_audit_logs), not a code folder
     logs_dir.mkdir(parents=True, exist_ok=True)
     result = result or {}
 
@@ -99,6 +100,7 @@ def write_audit_log(
         ],
     }
     path = logs_dir / f"{datetime.now().strftime('%Y-%m-%d_%H%M%S')}.json"
+    # runtime-write-exempt: the audit logs directory is configured by the caller (audio_audit_logs), not a code folder
     path.write_text(json.dumps(log, ensure_ascii=False, indent=2), encoding="utf-8")
     logger.info(f"📝 audit log written to {path}")
     return path

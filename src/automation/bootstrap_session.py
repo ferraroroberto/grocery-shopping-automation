@@ -84,6 +84,7 @@ def launch_bootstrap_chrome(chrome_path: str | Path | None = None) -> subprocess
     if not resolved.is_file():
         raise FileNotFoundError(f"Chrome not found at {resolved}")
 
+    # runtime-write-exempt: the shared Chrome profile, gitignored under automation/ at the repo root
     USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
     logger.info("🚀 Grocery-store session bootstrap")
     logger.info("🌐 Chrome: %s", resolved)

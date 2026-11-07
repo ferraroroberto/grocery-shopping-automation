@@ -131,6 +131,7 @@ def save_gmail_monitor_config(
     """Persist the full monitoring config (senders + poller), atomically."""
 
     target = Path(path) if path is not None else DEFAULT_WHITELIST_PATH
+    # runtime-write-exempt: the config path is caller-supplied; the default is config/gmail_config.json
     target.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "senders": [
