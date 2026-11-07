@@ -54,6 +54,7 @@ def _local_ips() -> list[str]:
 
 def generate(out_dir: Path) -> tuple[Path, Path, Path]:
     """Generate CA cert and server cert/key. Returns (ca_cert, server_cert, server_key)."""
+    # runtime-write-exempt: the output directory is chosen by the operator (certificates/ by default), not a code folder
     out_dir.mkdir(parents=True, exist_ok=True)
 
     local_ips = _local_ips()
@@ -116,8 +117,11 @@ def generate(out_dir: Path) -> tuple[Path, Path, Path]:
     cert_path = out_dir / "cert.pem"
     key_path = out_dir / "key.pem"
 
+    # runtime-write-exempt: the output directory is chosen by the operator (certificates/ by default), not a code folder
     ca_path.write_bytes(ca_cert.public_bytes(serialization.Encoding.PEM))
+    # runtime-write-exempt: the output directory is chosen by the operator (certificates/ by default), not a code folder
     cert_path.write_bytes(server_cert.public_bytes(serialization.Encoding.PEM))
+    # runtime-write-exempt: the output directory is chosen by the operator (certificates/ by default), not a code folder
     key_path.write_bytes(
         server_key.private_bytes(
             serialization.Encoding.PEM,

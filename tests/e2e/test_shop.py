@@ -5,7 +5,11 @@ from __future__ import annotations
 import pytest
 
 import src.data as data
-from tests.e2e._geometry import assert_min_target, assert_no_horizontal_overflow, assert_no_overlap
+from tests.e2e._geometry import (
+    assert_min_target,
+    assert_no_horizontal_overflow,
+    assert_no_overlap,
+)
 from tests.e2e._helpers import (
     LOADED_JS,
     goto_mode,

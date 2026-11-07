@@ -23,13 +23,13 @@ from typing import Optional
 
 from dotenv import load_dotenv
 
+from src.atomic_json import write_json_atomic
 from src.gmail_readonly import (
     GmailMailbox,
     GmailReadClient,
     GmailSender,
     build_google_read_client,
 )
-from src.atomic_json import write_json_atomic
 
 logger = logging.getLogger("gmail_config")
 
@@ -131,6 +131,7 @@ def save_gmail_monitor_config(
     """Persist the full monitoring config (senders + poller), atomically."""
 
     target = Path(path) if path is not None else DEFAULT_WHITELIST_PATH
+    # runtime-write-exempt: the config path is caller-supplied; the default is config/gmail_config.json
     target.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "senders": [

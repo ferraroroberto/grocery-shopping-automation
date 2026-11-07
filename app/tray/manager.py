@@ -28,7 +28,12 @@ from app.tray.single_instance import cross_process_lock
 from src.certs import cert_paths
 from src.no_window import NEW_PROCESS_GROUP_NO_WINDOW, NO_WINDOW
 from src.uvicorn_launch import build_webapp_command, stop_process
-from src.webapp_config import DEFAULT_HOST, DEFAULT_PORT, EMAIL_POLLER_ENV, load_webapp_config
+from src.webapp_config import (
+    DEFAULT_HOST,
+    DEFAULT_PORT,
+    EMAIL_POLLER_ENV,
+    load_webapp_config,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -139,8 +144,8 @@ class WebappManager:
         # legacy self-signed one) — hostname never matches 127.0.0.1.
         self._session.verify = False
         try:
-            from urllib3.exceptions import InsecureRequestWarning
             import urllib3
+            from urllib3.exceptions import InsecureRequestWarning
             urllib3.disable_warnings(InsecureRequestWarning)
         except Exception:
             pass

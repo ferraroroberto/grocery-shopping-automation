@@ -64,7 +64,9 @@ keep using ``src.store_links`` unchanged:
 from __future__ import annotations
 
 from src.benchmark.paths import runs_dir
+
 from .apply import apply_changes, apply_preview
+from .context import rows_by_key
 from .edits import import_latest, pick_store, set_fallback, set_store_url, store_url
 from .registry import (
     STORES_REGISTRY_PATH,
@@ -75,7 +77,6 @@ from .registry import (
     load_mappings,
     load_registry,
 )
-from .context import rows_by_key
 from .review import (
     CHECK_FLAGS,
     OVERRIDE_UNITS,

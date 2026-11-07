@@ -76,13 +76,16 @@ def _git_lines(args: List[str]) -> List[str]:
 
 def copy_checkout(dest: Path) -> Path:
     """Tracked + untracked-unignored files of this checkout into ``dest`` (no tests, docs or history)."""
+    # runtime-write-exempt: writes only into the throwaway demo instance root the caller passes in
     dest.mkdir(parents=True, exist_ok=True)
     for rel in _git_lines(["ls-files", "--cached", "--others", "--exclude-standard"]):
         src = REPO_ROOT / rel
         if rel.startswith(SKIP_DIRS) or not src.is_file():
             continue
         target = dest / rel
+        # runtime-write-exempt: writes only into the throwaway demo instance root the caller passes in
         target.parent.mkdir(parents=True, exist_ok=True)
+        # runtime-write-exempt: writes only into the throwaway demo instance root the caller passes in
         shutil.copyfile(src, target)
     return dest
 
@@ -113,7 +116,9 @@ def protected_paths(extra: str = "") -> List[str]:
 
 
 def _write_json(path: Path, value: object) -> None:
+    # runtime-write-exempt: writes only into the throwaway demo instance root the caller passes in
     path.parent.mkdir(parents=True, exist_ok=True)
+    # runtime-write-exempt: writes only into the throwaway demo instance root the caller passes in
     path.write_text(json.dumps(value, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
@@ -126,6 +131,7 @@ def configure(root: Path, app: Path, port: int) -> None:
                   "voice_transcriber_url": CLOSED_URL, "logs_dir": str(root / "audio_audit_logs")})
     cfg["automation"]["purchase_logs_dir"] = str(root / "purchase_logs")
     cfg["benchmark"]["runs_dir"] = str(root / "benchmark_runs")
+    # runtime-write-exempt: writes only into the throwaway demo instance root the caller passes in
     (root / "data").mkdir(parents=True, exist_ok=True)
     _write_json(app / "src" / "config.json", cfg)
 
@@ -151,7 +157,9 @@ def instance_env(root: Path, protected: List[str]) -> Dict[str, str]:
     env = {k: v for k, v in os.environ.items() if not any(m in k.upper() for m in SECRET_MARKERS)}
     home = root / "home"
     scratch = root / "tmp"                    # upload spooling and tempfile probes stay inside the tree
+    # runtime-write-exempt: writes only into the throwaway demo instance root the caller passes in
     home.mkdir(parents=True, exist_ok=True)
+    # runtime-write-exempt: writes only into the throwaway demo instance root the caller passes in
     scratch.mkdir(parents=True, exist_ok=True)
     env.update({
         "USERPROFILE": str(home), "HOME": str(home), "TEMP": str(scratch), "TMP": str(scratch),

@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from src.benchmark import results, score
 from src import data, store_links
+from src.benchmark import results, score
 
 
 def _item(key: str, store: str, packs: float, size: float, price: float, unit: str = "kg") -> dict:

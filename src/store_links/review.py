@@ -15,7 +15,15 @@ from src.benchmark.build_basket import item_key
 from src.data import COLUMNS, cell_text, store_url_columns
 
 from .apply import _pack, _round_half_up
-from .context import _RunContext, _best_candidate, _candidate, _check_row, _norm_store, _num, _row_store
+from .context import (
+    _best_candidate,
+    _candidate,
+    _check_row,
+    _norm_store,
+    _num,
+    _row_store,
+    _RunContext,
+)
 from .registry import (
     StoreLinkError,
     _is_url,

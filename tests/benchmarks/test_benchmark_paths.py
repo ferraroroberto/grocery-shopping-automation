@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from src.benchmark import paths
 from src import data, store_links
+from src.benchmark import paths
 
 
 def test_default_is_benchmark_runs_in_the_repo(monkeypatch: pytest.MonkeyPatch) -> None:

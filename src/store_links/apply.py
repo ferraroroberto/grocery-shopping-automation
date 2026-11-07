@@ -12,7 +12,16 @@ import pandas as pd
 from src.benchmark.build_basket import item_key
 from src.data import COLUMNS, cell_text, comprar_for
 
-from .context import _RunContext, _candidate, _check_row, _norm_store, _num, _resolve_row, _row_store, rows_by_key
+from .context import (
+    _candidate,
+    _check_row,
+    _norm_store,
+    _num,
+    _resolve_row,
+    _row_store,
+    _RunContext,
+    rows_by_key,
+)
 from .edits import _Edits, store_url
 from .registry import StoreLinkError, latest_run_dir, load_mappings
 

@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 
 from app.tray.manager import WebappManager, WebappManagerConfig
-from src.webapp_config import WebappConfig, load_webapp_config, save_webapp_config
 from src.uvicorn_launch import build_webapp_command
+from src.webapp_config import WebappConfig, load_webapp_config, save_webapp_config
 
 
 def test_command_runs_the_serve_module_against_the_api_app(tmp_path: Path) -> None:

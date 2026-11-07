@@ -14,7 +14,12 @@ from pydantic import BaseModel
 from app import automation_runner
 from app.api_common import inventory_error
 from app.webapp.routers.stores import store_directory
-from src.automation.purchase_log import read_fill_cleared, read_fill_history, read_last_fill, write_fill_cleared
+from src.automation.purchase_log import (
+    read_fill_cleared,
+    read_fill_history,
+    read_last_fill,
+    write_fill_cleared,
+)
 from src.data import purchase_logs_dir
 
 router = APIRouter()

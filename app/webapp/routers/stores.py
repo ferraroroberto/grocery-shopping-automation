@@ -25,8 +25,8 @@ from app.api_common import (
     load_inventory_or_error,
     mutate_or_error,
 )
-from src.automation.product_options import options_for_url
 from src import store_links
+from src.automation.product_options import options_for_url
 from src.store_links import NoBenchmarkRunError, StoreLinkError
 
 logger = logging.getLogger(__name__)

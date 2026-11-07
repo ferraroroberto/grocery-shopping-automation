@@ -202,7 +202,11 @@ def test_read_fill_history_keeps_ten_days(tmp_path: Path):
 
 
 def test_fill_cleared_marker_round_trip_and_corruption(tmp_path: Path):
-    from src.automation.purchase_log import CLEARED_KEEP, read_fill_cleared, write_fill_cleared
+    from src.automation.purchase_log import (
+        CLEARED_KEEP,
+        read_fill_cleared,
+        write_fill_cleared,
+    )
 
     logs_dir = tmp_path / "logs"
     assert read_fill_cleared(logs_dir) == set()

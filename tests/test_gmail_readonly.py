@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+
 from src.gmail_readonly import (
     GMAIL_READONLY_SCOPE,
     GmailLabel,

@@ -122,6 +122,7 @@ def install(policy: Policy, log_path: Optional[Path] = None) -> None:
             if reason is None:
                 return
             if log_path is not None:
+                # runtime-write-exempt: the demo guard's log path is caller-supplied, inside the throwaway demo instance
                 with open(log_path, "a", encoding="utf-8") as fh:
                     where = [f"{f.filename}:{f.lineno} {f.name}" for f in traceback.extract_stack()[-8:-2]]
                     fh.write(json.dumps({"event": event, "reason": reason, "where": where}) + "\n")

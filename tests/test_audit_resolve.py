@@ -7,7 +7,12 @@ are the exact pairs whisper produced on a walk, not invented near-misses.
 import pandas as pd
 import pytest
 
-from src.audit_resolve import AMBIGUITY_MARGIN, RESOLVE_THRESHOLD, phrase_score, resolve_phrase
+from src.audit_resolve import (
+    AMBIGUITY_MARGIN,
+    RESOLVE_THRESHOLD,
+    phrase_score,
+    resolve_phrase,
+)
 
 
 @pytest.fixture()

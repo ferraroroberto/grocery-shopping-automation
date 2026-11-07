@@ -8,7 +8,6 @@ from tests.e2e._helpers import (
     goto_mode,
 )
 
-
 _ALL_MODES = ["dashboard", "shopping", "audit", "audio", "list", "stores", "settings"]
 
 

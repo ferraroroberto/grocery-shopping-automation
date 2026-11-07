@@ -186,6 +186,7 @@ def store_lock(run_dir: Path, store: str, timeout_s: float = 60.0):
     pack-size follow-up); without this, interleaved load/save loses a write.
     """
     lock = _store_path(run_dir, store).with_suffix(".lock")
+    # runtime-write-exempt: the run directory is caller-supplied, under benchmark.runs_dir
     lock.parent.mkdir(parents=True, exist_ok=True)
     deadline = time.monotonic() + timeout_s
     while True:
@@ -206,9 +207,11 @@ def store_lock(run_dir: Path, store: str, timeout_s: float = 60.0):
 
 def save_store(run_dir: Path, store: str, doc: dict) -> Path:
     path = _store_path(run_dir, store)
+    # runtime-write-exempt: the run directory is caller-supplied, under benchmark.runs_dir
     path.parent.mkdir(parents=True, exist_ok=True)
     doc["updated_at"] = datetime.now().isoformat(timespec="seconds")
     tmp = path.with_suffix(".tmp")
+    # runtime-write-exempt: the run directory is caller-supplied, under benchmark.runs_dir
     tmp.write_text(json.dumps(doc, ensure_ascii=False, indent=2), encoding="utf-8")
     tmp.replace(path)
     return path

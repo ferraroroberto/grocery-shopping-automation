@@ -60,6 +60,7 @@ def load_webapp_config(path: Optional[Path] = None) -> WebappConfig:
 
 def save_webapp_config(cfg: WebappConfig, path: Optional[Path] = None) -> Path:
     target = Path(path) if path is not None else DEFAULT_CONFIG_PATH
+    # runtime-write-exempt: the config path is caller-supplied; the default is config/webapp_config.json
     target.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "host": cfg.host,

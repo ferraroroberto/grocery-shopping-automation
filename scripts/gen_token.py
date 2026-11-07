@@ -8,7 +8,11 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.webapp_config import DEFAULT_CONFIG_PATH, load_webapp_config, save_webapp_config  # noqa: E402
+from src.webapp_config import (  # noqa: E402
+    DEFAULT_CONFIG_PATH,
+    load_webapp_config,
+    save_webapp_config,
+)
 
 
 def main() -> int:

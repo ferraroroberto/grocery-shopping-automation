@@ -119,8 +119,10 @@ def record(run_dir: Path, history_file: Optional[Path] = None, prices_file: Opti
     summary = summarise(scenarios, basket)
     run_date = summary["run_date"]
 
+    # runtime-write-exempt: the history and prices files are caller-supplied paths under the benchmark runs dir
     history_file.parent.mkdir(parents=True, exist_ok=True)
     runs = [r for r in load_history(history_file) if r["run_date"] != run_date] + [summary]
+    # runtime-write-exempt: the history and prices files are caller-supplied paths under the benchmark runs dir
     history_file.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n"
                                     for r in sorted(runs, key=lambda r: r["run_date"])), encoding="utf-8")
 
@@ -128,6 +130,7 @@ def record(run_dir: Path, history_file: Optional[Path] = None, prices_file: Opti
     if prices_file.exists():
         with prices_file.open(encoding="utf-8", newline="") as fh:
             kept = [row for row in csv.DictReader(fh) if row["run_date"] != run_date]
+    # runtime-write-exempt: the history and prices files are caller-supplied paths under the benchmark runs dir
     with prices_file.open("w", encoding="utf-8", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=PRICE_FIELDS)
         writer.writeheader()

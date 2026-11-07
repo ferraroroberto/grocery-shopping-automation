@@ -9,8 +9,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from src.benchmark.paths import runs_dir
 from src.atomic_json import write_json_atomic
+from src.benchmark.paths import runs_dir
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +53,7 @@ def _update_overrides(base: Optional[Path], change: Callable[[dict[str, dict]], 
     """
     path = overrides_path(base)
     doc, readable = _read_overrides(path)
+    # runtime-write-exempt: state lives under the benchmark runs dir (_state/), resolved from config
     path.parent.mkdir(parents=True, exist_ok=True)
     if not readable:
         aside = path.with_name(f"overrides.corrupt-{datetime.now():%Y%m%d-%H%M%S}.json")
@@ -96,6 +97,7 @@ def load_baseline(base: Optional[Path] = None) -> Optional[dict]:
 def _write_baseline(base: Optional[Path], doc: Optional[dict]) -> None:
     """Write the baseline file atomically, or remove it when ``doc`` is None."""
     path = baseline_path(base)
+    # runtime-write-exempt: state lives under the benchmark runs dir (_state/), resolved from config
     path.parent.mkdir(parents=True, exist_ok=True)
     if doc is None:
         path.unlink(missing_ok=True)

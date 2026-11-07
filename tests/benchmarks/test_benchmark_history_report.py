@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from src.benchmark import history, report, score
 from src import data
+from src.benchmark import history, report, score
 from tests.benchmarks.test_benchmark_score import run_dir  # noqa: F401  (fixture)
 
 

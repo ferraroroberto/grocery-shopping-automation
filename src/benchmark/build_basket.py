@@ -50,9 +50,9 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from src import data  # noqa: E402
 from src.benchmark.ametller_guest import GuestSession  # noqa: E402
 from src.benchmark.paths import runs_dir, state_dir  # noqa: E402
-from src import data  # noqa: E402
 
 logger = logging.getLogger("benchmark.build_basket")
 
@@ -443,8 +443,10 @@ def build(run_date: str) -> Path:
         "items": items,
     }
     out_dir = runs_dir() / run_date
+    # runtime-write-exempt: the run directory comes from benchmark.runs_dir config, not a code folder
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / "basket.json"
+    # runtime-write-exempt: the run directory comes from benchmark.runs_dir config, not a code folder
     out.write_text(json.dumps(basket, ensure_ascii=False, indent=2), encoding="utf-8")
     logger.info("✅ Wrote %s", out)
     return out

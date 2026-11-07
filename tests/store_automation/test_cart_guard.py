@@ -7,7 +7,11 @@ the notifier is a recorder (the autouse conftest fixture keeps the real one off)
 import pytest
 
 from src.automation import mercadona, product_search, run_automation
-from src.automation.errors import AddToCartFailed, OutOfStockError, ProductUnavailableError
+from src.automation.errors import (
+    AddToCartFailed,
+    OutOfStockError,
+    ProductUnavailableError,
+)
 from src.automation.models import CartItem
 from src.automation.product_search import Candidate
 from src.automation.report import (
