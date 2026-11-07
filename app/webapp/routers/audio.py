@@ -19,7 +19,12 @@ from app.api_common import (
     load_inventory_or_error,
     mutate_or_error,
 )
-from src.audio_audit_core import WHISPER_PROMPT_ES, clean_transcript, read_last_audit, write_audit_log
+from src.audio_audit_core import (
+    WHISPER_PROMPT_ES,
+    clean_transcript,
+    read_last_audit,
+    write_audit_log,
+)
 from src.data import COLUMNS, CONFIG, bulk_apply_tenemos
 from src.inventory_extract import ExtractionError, extract
 from src.net import is_port_open, whisper_host_hint, whisper_route_ok

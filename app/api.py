@@ -15,7 +15,17 @@ from app import email_poller
 from app.api_common import STATIC_DIR
 from app.middleware import BearerTokenMiddleware
 from app.static_files import BUILD_INFO, CachingStaticFiles
-from app.webapp.routers import audio, automation, email, inventory, product_search, stores, system, usage, voice
+from app.webapp.routers import (
+    audio,
+    automation,
+    email,
+    inventory,
+    product_search,
+    stores,
+    system,
+    usage,
+    voice,
+)
 from src.compression import StreamSafeGZipMiddleware
 from src.data import CONFIG
 from src.log_setup import configure_logging
@@ -23,7 +33,6 @@ from src.login_alert import build_login_alert
 from src.login_lockout import LoginLockout
 from src.notify_config import build_alert_notifier
 from src.webapp_config import EMAIL_POLLER_ENV, load_webapp_config
-
 
 configure_logging()
 logger = logging.getLogger("email_poller")

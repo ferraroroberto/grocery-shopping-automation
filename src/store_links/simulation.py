@@ -14,7 +14,14 @@ from src.benchmark import score as bscore
 from src.benchmark.build_basket import item_key
 from src.data import COLUMNS, cell_text
 
-from .context import _RunContext, _norm_store, _num, _resolve_row, _row_store, rows_by_key
+from .context import (
+    _norm_store,
+    _num,
+    _resolve_row,
+    _row_store,
+    _RunContext,
+    rows_by_key,
+)
 from .registry import NoBenchmarkRunError, StoreLinkError, _require_run
 from .state import _baseline_field, _write_baseline, load_baseline
 

@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from tests.e2e._geometry import assert_min_target, assert_no_horizontal_overflow, assert_no_overlap
+from tests.e2e._geometry import (
+    assert_min_target,
+    assert_no_horizontal_overflow,
+    assert_no_overlap,
+)
 from tests.e2e._helpers import (
     LOADED_JS,
     goto_mode,
@@ -16,7 +20,6 @@ from tests.e2e._helpers import (
     open_transcript_menu,
 )
 from tests.e2e._surface import surface
-
 
 _HOME_FITS_JS = """() => {
   const search = document.querySelector('#search').getBoundingClientRect();

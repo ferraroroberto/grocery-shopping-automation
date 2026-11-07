@@ -12,7 +12,6 @@ from tests.e2e._helpers import (
 )
 from tests.e2e._surface import surface
 
-
 _PILL_COUNT_JS = "(key) => document.querySelector(`[data-stores-filter='${key}'] .pill-count`)?.textContent"
 _STORE_PILL = "[data-stores-store='{}']"
 

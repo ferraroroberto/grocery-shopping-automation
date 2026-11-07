@@ -14,7 +14,6 @@ from tests.e2e._helpers import (
 )
 from tests.e2e._surface import surface
 
-
 TRANSCRIPT = "en la nevera, tengo dos yogures y un litro de leche. en el congelador, tres salmones."
 
 

@@ -9,8 +9,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from src.benchmark.paths import runs_dir
 from src.atomic_json import write_json_atomic
+from src.benchmark.paths import runs_dir
 
 logger = logging.getLogger(__name__)
 

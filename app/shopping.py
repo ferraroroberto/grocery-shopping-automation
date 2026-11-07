@@ -9,7 +9,6 @@ import streamlit as st
 from app import automation_runner
 from src.data import COLUMNS, get_supermarket_stats, get_unique_supermarkets
 
-
 # Session-state keys for the 🤖 Run Automation section. Documented
 # here so the contract is in one place:
 #   automation_store_select   — store selectbox value ("all" or a store key)

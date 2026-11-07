@@ -5,7 +5,12 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.audio_audit_core import audio_sha256, clean_transcript, read_last_audit, write_audit_log
+from src.audio_audit_core import (
+    audio_sha256,
+    clean_transcript,
+    read_last_audit,
+    write_audit_log,
+)
 
 
 def test_clean_transcript_collapses_whitespace_and_dedupes():

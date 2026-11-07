@@ -13,7 +13,13 @@ import pytest
 from src.automation import grocery_reader, product_search, run_automation
 from src.automation.errors import OutOfStockError, PartialStockError
 from src.automation.models import CartItem, Fallback
-from src.automation.report import ADDED_UNVERIFIED, ADDED_VERIFIED, NOT_TRIED, OUT_OF_STOCK, PARTIAL_IN_CART
+from src.automation.report import (
+    ADDED_UNVERIFIED,
+    ADDED_VERIFIED,
+    NOT_TRIED,
+    OUT_OF_STOCK,
+    PARTIAL_IN_CART,
+)
 from src.data import COLUMNS, FALLBACK_SUPER_COLUMN, FALLBACK_URL_COLUMN
 
 

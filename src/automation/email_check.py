@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+from src.atomic_json import write_json_atomic
 from src.automation.email_parsers import ametller as ametller_parser
 from src.automation.email_parsers import carrefour as carrefour_parser
 from src.automation.item_matching import (
@@ -29,10 +30,9 @@ from src.automation.item_matching import (
     match_items,
 )
 from src.automation.item_matching import normalize as _normalize_text
-from src.gmail_readonly import GmailReadError, NormalizedEmail
-from src.atomic_json import write_json_atomic
 from src.data import purchase_logs_dir as default_purchase_logs_dir
 from src.gmail_config import build_gmail_mailbox, load_gmail_senders
+from src.gmail_readonly import GmailReadError, NormalizedEmail
 from src.notify_config import build_notify_notifier
 
 logger = logging.getLogger("email_check")

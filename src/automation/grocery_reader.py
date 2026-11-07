@@ -18,6 +18,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from src.automation.models import CartItem, Fallback  # noqa: E402
 from src.data import (  # noqa: E402
     COLUMNS,
     FALLBACK_SUPER_COLUMN,
@@ -30,8 +31,6 @@ from src.data import (  # noqa: E402
     store_url_columns,
     units_per_pack_of,
 )
-
-from src.automation.models import CartItem, Fallback  # noqa: E402
 
 logger = logging.getLogger(__name__)
 

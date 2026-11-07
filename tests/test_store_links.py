@@ -17,7 +17,12 @@ import pytest
 import src.data as data
 import src.store_links as store_links
 from src.automation.grocery_reader import read_cart_items
-from src.data import COLUMNS, SpreadsheetLockedError, load_inventory_data, store_url_columns
+from src.data import (
+    COLUMNS,
+    SpreadsheetLockedError,
+    load_inventory_data,
+    store_url_columns,
+)
 
 RUNS = Path(__file__).resolve().parent / "fixtures" / "store_links"
 CF_BURGER_600 = "https://www.carrefour.es/supermercado/fixture-burger-600/R-FIX-burger-600/p"

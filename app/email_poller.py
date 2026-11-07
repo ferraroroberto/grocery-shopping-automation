@@ -20,7 +20,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Optional
 
-from src.automation.email_check import ConfirmationCheckResult, check_latest_confirmation
+from src.automation.email_check import (
+    ConfirmationCheckResult,
+    check_latest_confirmation,
+)
 from src.gmail_config import (
     MAX_POLL_INTERVAL_MINUTES,
     MIN_POLL_INTERVAL_MINUTES,

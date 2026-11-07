@@ -23,13 +23,13 @@ from typing import Optional
 
 from dotenv import load_dotenv
 
+from src.atomic_json import write_json_atomic
 from src.gmail_readonly import (
     GmailMailbox,
     GmailReadClient,
     GmailSender,
     build_google_read_client,
 )
-from src.atomic_json import write_json_atomic
 
 logger = logging.getLogger("gmail_config")
 

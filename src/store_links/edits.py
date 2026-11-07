@@ -23,7 +23,7 @@ from src.data import (
     store_url_column,
 )
 
-from .context import _RunContext, _check_row, _norm_store, _row_store, rows_by_key
+from .context import _check_row, _norm_store, _row_store, _RunContext, rows_by_key
 from .registry import (
     StoreLinkError,
     _is_url,

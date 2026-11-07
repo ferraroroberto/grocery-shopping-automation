@@ -6,7 +6,12 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.api_common import inventory_error, load_inventory_or_error
-from src.data import CONFIG, InventoryFileError, SpreadsheetLockedError, save_inventory_data
+from src.data import (
+    CONFIG,
+    InventoryFileError,
+    SpreadsheetLockedError,
+    save_inventory_data,
+)
 from src.inventory_extract import ExtractionError
 from src.voice_command import (
     SPEECH_BUSY,

@@ -199,8 +199,8 @@ def write_last_audit(logs: Path) -> None:
 
 def seed(root: Path) -> None:
     """Write the workbook and benchmark state under ``root`` (the config already points there)."""
-    from src.benchmark import score
     from src import data, store_links
+    from src.benchmark import score
 
     workbook_frame().to_excel(data.resolve_xlsx_path(), index=False, engine="openpyxl")
     runs = root / "benchmark_runs"
