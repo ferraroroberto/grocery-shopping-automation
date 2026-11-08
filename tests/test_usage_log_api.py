@@ -47,7 +47,11 @@ def test_only_the_fixed_columns_are_stored(client):
     with sqlite3.connect(_db()) as conn:
         columns = [row[1] for row in conn.execute("PRAGMA table_info(events)")]
         stored = " ".join(str(v) for row in conn.execute("SELECT * FROM events") for v in row)
-    assert columns == ["id", "ts", "session_id", "kind", "view_id", "control_id", "device_class", "os_class"]
+        public_site = conn.execute("SELECT country, visitor, ip FROM events").fetchall()
+    assert columns == ["id", "ts", "session_id", "kind", "view_id", "control_id", "device_class", "os_class",
+                       "country", "visitor", "ip"]
+    # The vendored table carries the public-site columns; a fleet app never fills them.
+    assert public_site and all(row == (None, None, None) for row in public_site)
     assert "leche" not in stored and "http" not in stored
 
 
