@@ -93,10 +93,13 @@ baseline = ".docs-ratchet-baseline.json"
 # whose count of `#NNN` issue references inside comments rises above
 # .comment-ratchet-baseline.json fails. Existing debt is baselined so it never
 # blocks; it just cannot grow. A scan that cannot complete exits 3, which
-# fails the gate. Procedure + limits: project-scaffolding docs/comment-ratchet.md.
+# fails the gate. history_phrases is on (a decision-history phrase in a comment or docstring);
+# docstrings stays off until its `#NNN` findings are burned. Procedure + limits:
+# project-scaffolding docs/comment-ratchet.md.
 [comment_ratchet]
 enabled  = true
 baseline = ".comment-ratchet-baseline.json"
+history_phrases = true
 
 # [structure_ratchet] -- the scaffold's baseline-and-ratchet structure stage. The gate
 # (scripts/verify-before-ship.ps1) runs scripts/structure_ratchet.py through
@@ -116,10 +119,15 @@ baseline = ".structure-ratchet-baseline.json"
 # scripts/instruction_ratchet_gate.py: a rule count above .instruction-ratchet-baseline.json,
 # or an instruction file past its size cap, fails. Existing hits are baselined and cannot
 # grow. A file that cannot be linted exits 3, which fails the gate. Procedure + limits:
-# project-scaffolding docs/instruction-ratchet.md.
+# project-scaffolding docs/instruction-ratchet.md. ci_expectations, agents_pointer, the 120-line
+# CLAUDE.md cap and repeated_text_words (CLAUDE.md text copied from docs/) are on.
 [instruction_ratchet]
 enabled  = true
 baseline = ".instruction-ratchet-baseline.json"
+ci_expectations     = true
+agents_pointer      = true
+claude_md_max_lines = 120
+repeated_text_words = 12
 
 # [doc_refs_ratchet] -- the scaffold's baseline-and-ratchet doc-references stage. The gate
 # (scripts/verify-before-ship.ps1) runs scripts/doc_refs_ratchet.py through
