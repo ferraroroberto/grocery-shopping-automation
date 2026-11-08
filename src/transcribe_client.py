@@ -19,6 +19,7 @@ import requests
 
 from src.no_window import NO_WINDOW
 from src.pooled_http import pooled_request
+from src.runtime_files import save_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -55,8 +56,7 @@ def transcode_to_wav(audio_bytes: bytes, *, sample_rate: int = 16000, timeout: i
     with tempfile.TemporaryDirectory() as tmp:
         src = Path(tmp) / "input"
         out = Path(tmp) / "audio.wav"
-        # runtime-write-exempt: writes into a TemporaryDirectory, removed on exit
-        src.write_bytes(audio_bytes)
+        save_bytes(src, audio_bytes)
         try:
             proc = subprocess.run(
                 [ffmpeg, "-y", "-hide_banner", "-loglevel", "error",

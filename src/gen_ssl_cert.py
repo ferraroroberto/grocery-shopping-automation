@@ -31,6 +31,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 
 from src.no_window import NO_WINDOW  # noqa: E402
+from src.runtime_files import make_dirs, save_bytes  # noqa: E402
 
 _NOW = lambda: datetime.datetime.now(datetime.timezone.utc)  # noqa: E731
 
@@ -54,8 +55,7 @@ def _local_ips() -> list[str]:
 
 def generate(out_dir: Path) -> tuple[Path, Path, Path]:
     """Generate CA cert and server cert/key. Returns (ca_cert, server_cert, server_key)."""
-    # runtime-write-exempt: the output directory is chosen by the operator (certificates/ by default), not a code folder
-    out_dir.mkdir(parents=True, exist_ok=True)
+    make_dirs(out_dir)
 
     local_ips = _local_ips()
     print(f"Detected IPs: {', '.join(local_ips)}")
@@ -117,12 +117,10 @@ def generate(out_dir: Path) -> tuple[Path, Path, Path]:
     cert_path = out_dir / "cert.pem"
     key_path = out_dir / "key.pem"
 
-    # runtime-write-exempt: the output directory is chosen by the operator (certificates/ by default), not a code folder
-    ca_path.write_bytes(ca_cert.public_bytes(serialization.Encoding.PEM))
-    # runtime-write-exempt: the output directory is chosen by the operator (certificates/ by default), not a code folder
-    cert_path.write_bytes(server_cert.public_bytes(serialization.Encoding.PEM))
-    # runtime-write-exempt: the output directory is chosen by the operator (certificates/ by default), not a code folder
-    key_path.write_bytes(
+    save_bytes(ca_path, ca_cert.public_bytes(serialization.Encoding.PEM))
+    save_bytes(cert_path, server_cert.public_bytes(serialization.Encoding.PEM))
+    save_bytes(
+        key_path,
         server_key.private_bytes(
             serialization.Encoding.PEM,
             serialization.PrivateFormat.TraditionalOpenSSL,

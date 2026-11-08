@@ -53,6 +53,8 @@ if str(_REPO_ROOT) not in sys.path:
 from src import data  # noqa: E402
 from src.benchmark.ametller_guest import GuestSession  # noqa: E402
 from src.benchmark.paths import runs_dir, state_dir  # noqa: E402
+from src.pooled_http import pooled_request  # noqa: E402
+from src.runtime_files import make_dirs, save_text  # noqa: E402
 
 logger = logging.getLogger("benchmark.build_basket")
 
@@ -207,9 +209,8 @@ def _float(value: object) -> Optional[float]:
 def mercadona_warehouse(postal_code: str) -> Optional[str]:
     """Warehouse id Mercadona serves ``postal_code`` from, or None on failure."""
     try:
-        # must-use-exempt: on-demand benchmark CLI (python -m src.benchmark.build_basket), a short-lived process with no poll loop, so there is no pool to share
-        resp = requests.put(
-            _MERCADONA_CHANGE_PC, json={"new_postal_code": postal_code},
+        resp = pooled_request(
+            "PUT", _MERCADONA_CHANGE_PC, json={"new_postal_code": postal_code},
             headers=_HTTP_HEADERS, timeout=15,
         )
         wh = resp.headers.get("x-customer-wh")
@@ -263,9 +264,8 @@ def fetch_mercadona(product_id: str, warehouse: Optional[str]) -> Optional[dict]
     if warehouse:
         params["wh"] = warehouse
     try:
-        # must-use-exempt: on-demand benchmark CLI (python -m src.benchmark.build_basket), a short-lived process with no poll loop, so there is no pool to share
-        resp = requests.get(
-            _MERCADONA_PRODUCT_API.format(id=product_id), params=params,
+        resp = pooled_request(
+            "GET", _MERCADONA_PRODUCT_API.format(id=product_id), params=params,
             headers=_HTTP_HEADERS, timeout=15,
         )
     except requests.RequestException as err:
@@ -303,8 +303,7 @@ def resolve_ametller_id(url: str) -> str:
     if match:
         return match.group(1)
     try:
-        # must-use-exempt: on-demand benchmark CLI (python -m src.benchmark.build_basket), a short-lived process with no poll loop, so there is no pool to share
-        resp = requests.get(url, headers=_HTTP_HEADERS, timeout=15, allow_redirects=True)
+        resp = pooled_request("GET", url, headers=_HTTP_HEADERS, timeout=15, allow_redirects=True)
         match = re.search(r"/(\d+)\.html", resp.url)
         if match:
             return match.group(1)
@@ -443,11 +442,9 @@ def build(run_date: str) -> Path:
         "items": items,
     }
     out_dir = runs_dir() / run_date
-    # runtime-write-exempt: the run directory comes from benchmark.runs_dir config, not a code folder
-    out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / "basket.json"
-    # runtime-write-exempt: the run directory comes from benchmark.runs_dir config, not a code folder
-    out.write_text(json.dumps(basket, ensure_ascii=False, indent=2), encoding="utf-8")
+    make_dirs(out_dir)
+    save_text(out, json.dumps(basket, ensure_ascii=False, indent=2))
     logger.info("✅ Wrote %s", out)
     return out
 

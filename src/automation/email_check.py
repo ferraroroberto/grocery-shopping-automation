@@ -153,8 +153,6 @@ def _write_processed_state(path: Path, state: dict[str, ProcessedEntry]) -> None
     A crash mid-write must never leave `gmail_processed_state.json` truncated
     or corrupt.
     """
-    # runtime-write-exempt: the processed-state path is caller-supplied; the default is config/gmail_processed_state.json
-    path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         store: {"message_id": entry.message_id, "timestamp": entry.timestamp}
         for store, entry in state.items()

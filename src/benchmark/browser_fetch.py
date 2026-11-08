@@ -51,6 +51,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 from src.automation.browser import _open_context  # noqa: E402
 from src.benchmark.paths import state_dir  # noqa: E402
+from src.runtime_files import make_dirs, save_text  # noqa: E402
 
 logger = logging.getLogger("benchmark.browser_fetch")
 
@@ -74,8 +75,7 @@ def open_actions_context(store: str, headless: bool = False) -> Iterator[tuple[B
     context on exit.
     """
     profile = state_dir() / "chrome" / store
-    # runtime-write-exempt: the Chrome profile lives under the runtime state dir
-    profile.mkdir(parents=True, exist_ok=True)
+    make_dirs(profile)
     with sync_playwright() as pw:
         context, page = _open_context(pw, headless=headless, user_data_dir=profile)
         try:
@@ -121,8 +121,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     status, body = fetch(args.store, args.url, args.mode, args.home, args.headless, args.settle)
     logger.info("ℹ️ %s → HTTP %d, %d chars", args.url, status, len(body))
     if args.out:
-        # runtime-write-exempt: the CLI's --out path is chosen by the operator
-        Path(args.out).write_text(body, encoding="utf-8")
+        save_text(args.out, body)
     else:
         print(json.dumps({"status": status, "body": body}, ensure_ascii=False) if args.mode == "api" else body)
     return 0 if 200 <= status < 400 else 1

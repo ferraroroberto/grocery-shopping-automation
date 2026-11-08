@@ -25,7 +25,7 @@ CONFIG_EXAMPLE_PATH = Path(__file__).resolve().parents[1] / "config" / "config.e
 # `config.json` is gitignored — seed it from `config.example.json` (committed)
 # the first time the app runs in a fresh checkout.
 if not CONFIG_PATH.exists() and CONFIG_EXAMPLE_PATH.exists():
-    # runtime-write-exempt: seeds the gitignored src/config.json that the live app reads, so moving it is the owner's call
+    # runtime-write-exempt: src/config.json is the household's hand-edited, gitignored config; every reader (app, tests, demo) opens it at this fixed path
     shutil.copyfile(CONFIG_EXAMPLE_PATH, CONFIG_PATH)
 
 with open(CONFIG_PATH, "r", encoding="utf-8") as f:

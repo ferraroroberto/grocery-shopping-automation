@@ -13,6 +13,8 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from src.runtime_files import make_dirs
+
 
 def write_json_atomic(path: Path, doc: Any) -> None:
     """Write ``doc`` as indented UTF-8 JSON to ``path``, creating parent folders.
@@ -21,8 +23,7 @@ def write_json_atomic(path: Path, doc: Any) -> None:
     partial target nor a stray ``.tmp`` beside it.
     """
     path = Path(path)
-    # runtime-write-exempt: the shared atomic-write helper; the target is whatever the caller passes
-    path.parent.mkdir(parents=True, exist_ok=True)
+    make_dirs(path.parent)
     fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.stem}.", suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:

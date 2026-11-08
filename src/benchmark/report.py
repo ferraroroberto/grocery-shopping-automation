@@ -32,6 +32,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 from src.benchmark import history  # noqa: E402
 from src.benchmark import score as S  # noqa: E402
+from src.runtime_files import save_text  # noqa: E402
 
 STORES_REGISTRY = Path(__file__).resolve().parents[2] / "config" / "benchmark_stores.json"
 MOVE_MIN_SAVING = 1.5  # €/month — smaller moves are listed, not tabled
@@ -396,8 +397,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     args = parser.parse_args(argv)
     sys.stdout.reconfigure(encoding="utf-8")
     out = args.run_dir / "report.html"
-    # runtime-write-exempt: the CLI writes into the run directory the operator names
-    out.write_text(render(args.run_dir), encoding="utf-8")
+    save_text(out, render(args.run_dir))
     print(f"✅ wrote {out}")
     return 0
 

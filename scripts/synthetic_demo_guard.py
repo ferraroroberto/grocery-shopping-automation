@@ -1,4 +1,4 @@
-"""Runtime guard for the design-review demo instance (#251): stdlib only.
+"""Runtime guard for the design-review demo instance (#251): stdlib only, plus ``src.runtime_files``.
 
 The demo's stubs (``synthetic_demo_app``) replace every route that would
 launch a process, reach a store, mail, the LLM hub or whisper. This guard is
@@ -25,6 +25,8 @@ import traceback
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional, Tuple
+
+from src.runtime_files import open_for_write
 
 ENV_ROOT = "SYNTHETIC_ROOT"
 ENV_PROTECT = "SYNTHETIC_PROTECT"       # os.pathsep-joined real paths that must never be opened
@@ -122,8 +124,7 @@ def install(policy: Policy, log_path: Optional[Path] = None) -> None:
             if reason is None:
                 return
             if log_path is not None:
-                # runtime-write-exempt: the demo guard's log path is caller-supplied, inside the throwaway demo instance
-                with open(log_path, "a", encoding="utf-8") as fh:
+                with open_for_write(log_path, "a", encoding="utf-8") as fh:
                     where = [f"{f.filename}:{f.lineno} {f.name}" for f in traceback.extract_stack()[-8:-2]]
                     fh.write(json.dumps({"event": event, "reason": reason, "where": where}) + "\n")
             raise PermissionError(f"synthetic demo guard refused: {reason}")
