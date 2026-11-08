@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Optional
 
 from src.benchmark.paths import state_dir
+from src.runtime_files import make_dirs, open_for_write, save_text
 
 PRICE_FIELDS = ["run_date", "store", "key", "comida", "tier", "baseline", "status", "confidence",
                 "name", "url", "pack_size", "unit", "pack_price", "unit_price"]
@@ -119,19 +120,16 @@ def record(run_dir: Path, history_file: Optional[Path] = None, prices_file: Opti
     summary = summarise(scenarios, basket)
     run_date = summary["run_date"]
 
-    # runtime-write-exempt: the history and prices files are caller-supplied paths under the benchmark runs dir
-    history_file.parent.mkdir(parents=True, exist_ok=True)
+    make_dirs(history_file.parent)
     runs = [r for r in load_history(history_file) if r["run_date"] != run_date] + [summary]
-    # runtime-write-exempt: the history and prices files are caller-supplied paths under the benchmark runs dir
-    history_file.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n"
-                                    for r in sorted(runs, key=lambda r: r["run_date"])), encoding="utf-8")
+    save_text(history_file, "".join(json.dumps(r, ensure_ascii=False) + "\n"
+                                    for r in sorted(runs, key=lambda r: r["run_date"])))
 
     kept: list[dict] = []
     if prices_file.exists():
         with prices_file.open(encoding="utf-8", newline="") as fh:
             kept = [row for row in csv.DictReader(fh) if row["run_date"] != run_date]
-    # runtime-write-exempt: the history and prices files are caller-supplied paths under the benchmark runs dir
-    with prices_file.open("w", encoding="utf-8", newline="") as fh:
+    with open_for_write(prices_file, "w", encoding="utf-8", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=PRICE_FIELDS)
         writer.writeheader()
         writer.writerows(kept + price_rows(run_date, basket, stores))

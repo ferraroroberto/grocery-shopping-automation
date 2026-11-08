@@ -29,6 +29,7 @@ from typing import Optional
 from src.atomic_json import write_json_atomic
 from src.automation.models import CartItem
 from src.automation.report import ADDED_UNVERIFIED, ADDED_VERIFIED, WOULD_ADD, RunReport
+from src.runtime_files import make_dirs, save_text
 
 logger = logging.getLogger(__name__)
 
@@ -62,8 +63,7 @@ def write_purchase_logs(
         by_store[item.super_name].append(item)
 
     day = (today or date_cls.today()).isoformat()
-    # runtime-write-exempt: the purchase logs directory is configured by the caller, not a code folder
-    logs_dir.mkdir(parents=True, exist_ok=True)
+    make_dirs(logs_dir)
 
     written: list[Path] = []
     for store, items in by_store.items():
@@ -86,8 +86,7 @@ def write_purchase_logs(
                 fresh[key] = entry
         merged.update(fresh)
         payload = {"date": day, "store": store, "items": list(merged.values())}
-        # runtime-write-exempt: the purchase logs directory is configured by the caller, not a code folder
-        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        save_text(path, json.dumps(payload, ensure_ascii=False, indent=2))
         logger.info("📝 [%s] purchase log written to %s (%d item(s))", store, path, len(merged))
         written.append(path)
 
@@ -105,8 +104,7 @@ def write_run_records(
     """
     stamp = (now or datetime.now()).strftime("%Y-%m-%dT%H%M%S")
     runs_dir = logs_dir / RUNS_SUBDIR
-    # runtime-write-exempt: the purchase logs directory is configured by the caller, not a code folder
-    runs_dir.mkdir(parents=True, exist_ok=True)
+    make_dirs(runs_dir)
 
     by_store: dict[str, list] = defaultdict(list)
     for outcome in report.outcomes:
@@ -124,12 +122,10 @@ def write_run_records(
             "cart_lines": report.cart_lines.get(store),
             "items": [o.to_dict() for o in outcomes],
         }
-        # runtime-write-exempt: the purchase logs directory is configured by the caller, not a code folder
-        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        save_text(path, json.dumps(payload, ensure_ascii=False, indent=2))
         written.append(path)
     log_path = runs_dir / f"{stamp}.log"
-    # runtime-write-exempt: the purchase logs directory is configured by the caller, not a code folder
-    log_path.write_text(console_text, encoding="utf-8")
+    save_text(log_path, console_text)
     written.append(log_path)
     logger.info("📝 run record written to %s (%d store(s))", runs_dir, len(by_store))
     return written
@@ -230,8 +226,6 @@ def write_fill_cleared(logs_dir: Path, run: str) -> None:
     """
     cleared = sorted(read_fill_cleared(logs_dir) | {run})[-CLEARED_KEEP:]
     state_dir = logs_dir / STATE_SUBDIR
-    # runtime-write-exempt: the purchase logs directory is configured by the caller, not a code folder
-    state_dir.mkdir(parents=True, exist_ok=True)
     path = state_dir / CLEARED_FILE
     write_json_atomic(path, {"cleared": cleared})
     logger.info("✅ fill %s marked done (%d kept)", run, len(cleared))

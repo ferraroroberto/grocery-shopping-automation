@@ -51,6 +51,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from scripts import synthetic_demo_guard as guard  # noqa: E402
 from src.no_window import NO_WINDOW  # noqa: E402
+from src.runtime_files import copy_file, make_dirs, save_text  # noqa: E402
 
 logger = logging.getLogger("design_review_synthetic")
 
@@ -76,17 +77,14 @@ def _git_lines(args: List[str]) -> List[str]:
 
 def copy_checkout(dest: Path) -> Path:
     """Tracked + untracked-unignored files of this checkout into ``dest`` (no tests, docs or history)."""
-    # runtime-write-exempt: writes only into the throwaway demo instance root the caller passes in
-    dest.mkdir(parents=True, exist_ok=True)
+    make_dirs(dest)
     for rel in _git_lines(["ls-files", "--cached", "--others", "--exclude-standard"]):
         src = REPO_ROOT / rel
         if rel.startswith(SKIP_DIRS) or not src.is_file():
             continue
         target = dest / rel
-        # runtime-write-exempt: writes only into the throwaway demo instance root the caller passes in
-        target.parent.mkdir(parents=True, exist_ok=True)
-        # runtime-write-exempt: writes only into the throwaway demo instance root the caller passes in
-        shutil.copyfile(src, target)
+        make_dirs(target.parent)
+        copy_file(src, target)
     return dest
 
 
@@ -116,10 +114,8 @@ def protected_paths(extra: str = "") -> List[str]:
 
 
 def _write_json(path: Path, value: object) -> None:
-    # runtime-write-exempt: writes only into the throwaway demo instance root the caller passes in
-    path.parent.mkdir(parents=True, exist_ok=True)
-    # runtime-write-exempt: writes only into the throwaway demo instance root the caller passes in
-    path.write_text(json.dumps(value, indent=2, ensure_ascii=False), encoding="utf-8")
+    make_dirs(path.parent)
+    save_text(path, json.dumps(value, indent=2, ensure_ascii=False))
 
 
 def configure(root: Path, app: Path, port: int) -> None:
@@ -131,8 +127,7 @@ def configure(root: Path, app: Path, port: int) -> None:
                   "voice_transcriber_url": CLOSED_URL, "logs_dir": str(root / "audio_audit_logs")})
     cfg["automation"]["purchase_logs_dir"] = str(root / "purchase_logs")
     cfg["benchmark"]["runs_dir"] = str(root / "benchmark_runs")
-    # runtime-write-exempt: writes only into the throwaway demo instance root the caller passes in
-    (root / "data").mkdir(parents=True, exist_ok=True)
+    make_dirs(root / "data")
     _write_json(app / "src" / "config.json", cfg)
 
     _write_json(app / "config" / "webapp_config.json",
@@ -157,10 +152,8 @@ def instance_env(root: Path, protected: List[str]) -> Dict[str, str]:
     env = {k: v for k, v in os.environ.items() if not any(m in k.upper() for m in SECRET_MARKERS)}
     home = root / "home"
     scratch = root / "tmp"                    # upload spooling and tempfile probes stay inside the tree
-    # runtime-write-exempt: writes only into the throwaway demo instance root the caller passes in
-    home.mkdir(parents=True, exist_ok=True)
-    # runtime-write-exempt: writes only into the throwaway demo instance root the caller passes in
-    scratch.mkdir(parents=True, exist_ok=True)
+    make_dirs(home)
+    make_dirs(scratch)
     env.update({
         "USERPROFILE": str(home), "HOME": str(home), "TEMP": str(scratch), "TMP": str(scratch),
         "TMPDIR": str(scratch), "PYTHONUTF8": "1", "PYTHONDONTWRITEBYTECODE": "1",

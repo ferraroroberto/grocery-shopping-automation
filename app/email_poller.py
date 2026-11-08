@@ -32,6 +32,7 @@ from src.gmail_config import (
     load_poller_settings,
     save_gmail_monitor_config,
 )
+from src.runtime_files import make_dirs, save_text
 
 logger = logging.getLogger("email_poller")
 
@@ -63,10 +64,8 @@ def _load_log(path: Optional[Path] = None) -> list[dict[str, Any]]:
 def _append_log(entries: list[dict[str, Any]], path: Optional[Path] = None) -> None:
     target = path or CHECK_LOG_PATH
     log = (_load_log(target) + entries)[-CHECK_LOG_LIMIT:]
-    # runtime-write-exempt: the check-log path is caller-supplied; the default is config/email_check_log.json, outside the code folders
-    target.parent.mkdir(parents=True, exist_ok=True)
-    # runtime-write-exempt: the check-log path is caller-supplied; the default is config/email_check_log.json, outside the code folders
-    target.write_text(json.dumps(log, ensure_ascii=False, indent=2), encoding="utf-8")
+    make_dirs(target.parent)
+    save_text(target, json.dumps(log, ensure_ascii=False, indent=2))
 
 
 def outcome_text(result: ConfirmationCheckResult) -> str:

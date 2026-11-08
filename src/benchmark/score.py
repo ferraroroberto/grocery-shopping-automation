@@ -49,6 +49,7 @@ if str(_REPO_ROOT) not in sys.path:
 from src.benchmark import history  # noqa: E402
 from src.benchmark.paths import mappings_dir  # noqa: E402
 from src.benchmark.results import MATCHED  # noqa: E402
+from src.runtime_files import make_dirs, save_text  # noqa: E402
 
 logger = logging.getLogger("benchmark.score")
 
@@ -554,8 +555,7 @@ def promote(run_dir: Path, stores: dict[str, dict]) -> list[Path]:
     """
     fields = ("status", "confidence", "name", "brand", "url", "ean", "pack_size", "unit")
     target = mappings_dir()
-    # runtime-write-exempt: the mappings and run directories are resolved from benchmark.runs_dir config, not a code folder
-    target.mkdir(parents=True, exist_ok=True)
+    make_dirs(target)
     written = []
     for store, doc in stores.items():
         mapping = {}
@@ -566,8 +566,7 @@ def promote(run_dir: Path, stores: dict[str, dict]) -> list[Path]:
             first, *others = [{f: c.get(f) for f in fields} for c in candidates]
             mapping[key] = first | ({"alternatives": others} if others else {}) | {"verified_run": run_dir.name}
         path = target / f"{store}.json"
-        # runtime-write-exempt: the mappings and run directories are resolved from benchmark.runs_dir config, not a code folder
-        path.write_text(json.dumps(mapping, ensure_ascii=False, indent=2), encoding="utf-8")
+        save_text(path, json.dumps(mapping, ensure_ascii=False, indent=2))
         written.append(path)
     return written
 
@@ -583,11 +582,9 @@ def main(argv: Optional[list[str]] = None) -> int:
         stream.reconfigure(encoding="utf-8")
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     res = score(args.run_dir)
-    # runtime-write-exempt: the mappings and run directories are resolved from benchmark.runs_dir config, not a code folder
-    (args.run_dir / "scenarios.json").write_text(json.dumps(res, ensure_ascii=False, indent=2), encoding="utf-8")
+    save_text(args.run_dir / "scenarios.json", json.dumps(res, ensure_ascii=False, indent=2))
     report = render_report(res)
-    # runtime-write-exempt: the mappings and run directories are resolved from benchmark.runs_dir config, not a code folder
-    (args.run_dir / "report.md").write_text(report, encoding="utf-8")
+    save_text(args.run_dir / "report.md", report)
     logger.info("✅ Wrote %s and report.md", args.run_dir / "scenarios.json")
     if args.promote:
         for p in promote(args.run_dir, load_run(args.run_dir)[1]):

@@ -1,4 +1,4 @@
-// Items → Prices (formerly the Stores mode): every item's
+// Items → Prices: every item's
 // per-store product links, a what-if store picker, and the monthly cost
 // simulator priced from the latest
 // supermarket-benchmark run. Picks are a local what-if — nothing is written to

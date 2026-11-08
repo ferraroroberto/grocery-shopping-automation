@@ -15,6 +15,7 @@
   - `certs.py` — the one `cert.pem`/`key.pem` lookup (`webapp/certificates/`, then `certificates/`) the router, tray manager and tunnel launcher share.
   - `webapp_config.py` — remote-access (token/password) config loader.
   - `atomic_json.py` — `write_json_atomic`, the one temp-file-then-`os.replace` JSON writer every state/config saver calls.
+  - `runtime_files.py` — guarded writers (`make_dirs`, `save_text`, `save_bytes`, `open_for_write`, `copy_file`) for runtime paths a caller names; they raise on a path under `src/`, `app/`, `scripts/`, `hooks/` or `skills/`, so such a write needs no exempt marker.
   - `log_setup.py` — `configure_logging()`, called only by the entry points (`app/api.py`, `app/app.py`); importing a `src/` module never touches the root logger.
 - **`src/automation/`** — Playwright + real-Chrome browser cart automation for Mercadona, Ametller and Carrefour (see [`src/automation/README.md`](../src/automation/README.md)).
 - **`src/benchmark/`** — quality-locked supermarket price benchmark: `build_basket.py` (monthly basket), `ametller_guest.py` (Ametller API via guest token), `results.py` (validated per-store research writer), `browser_fetch.py` (real Chrome for bot-protected stores), `score.py` (split scenarios, max-savings and recommended plan), `history.py` (run history), `report.py` (HTML report). The store registry is `config/benchmark_stores.json`. Driven by the `/supermarket-benchmark` project skill; see [Supermarket benchmark](benchmark-and-store-links.md).

@@ -129,9 +129,9 @@ def build_google_read_client(
 
 def write_token_atomically(path: Path, token_json: str) -> None:
     """Persist an OAuth token atomically without logging its contents."""
-    # runtime-write-exempt: the token path is caller-supplied by the host application
+    # runtime-write-exempt: portable component that may not import repo helpers (a test enforces it); the host application supplies the token path
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary_path = path.with_suffix(path.suffix + ".tmp")
-    # runtime-write-exempt: the token path is caller-supplied by the host application
+    # runtime-write-exempt: portable component that may not import repo helpers (a test enforces it); the host application supplies the token path
     temporary_path.write_text(token_json, encoding="utf-8")
     temporary_path.replace(path)
