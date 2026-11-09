@@ -57,8 +57,7 @@ def _start_take(page, *, no_audio_context: bool = False) -> None:
     page.locator("#voice-live").wait_for(state="visible")
 
 
-@pytest.mark.e2e
-def test_take_shows_the_shared_waveform_on_one_audio_context(page):
+def _check_waveform_on_one_audio_context(page):
     _start_take(page)
     host = page.locator("#voice-wave")
     host.locator(".rec-wave").wait_for()
@@ -84,8 +83,7 @@ def test_take_shows_the_shared_waveform_on_one_audio_context(page):
     assert page.locator("#voice-wave .rec-wave").count() == 0
 
 
-@pytest.mark.e2e
-def test_take_without_audio_context_still_runs_the_timer(page):
+def _check_timer_runs_without_audio_context(page):
     _start_take(page, no_audio_context=True)
     assert page.locator("#voice-wave .rec-wave").count() == 0
     first = page.locator("#voice-timer").inner_text()
@@ -94,3 +92,17 @@ def test_take_without_audio_context_still_runs_the_timer(page):
     )
     assert "saved on the PC" in page.locator("#voice-timer").inner_text()
     page.locator("#record-toggle").click()
+
+
+@pytest.mark.e2e
+def test_voice_take_shows_the_waveform_and_runs_the_timer(page, browser, server):
+    """A take shows the shared waveform on one audio context, and where the browser has
+    no AudioContext the take still runs its timer. The second take is a fresh page:
+    it carries none of the first take's init scripts."""
+    _check_waveform_on_one_audio_context(page)
+    no_audio = browser.new_page(viewport={"width": 1100, "height": 950})
+    try:
+        no_audio.goto(server.url)
+        _check_timer_runs_without_audio_context(no_audio)
+    finally:
+        no_audio.close()

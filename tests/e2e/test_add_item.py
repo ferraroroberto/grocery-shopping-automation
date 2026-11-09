@@ -10,26 +10,25 @@ from tests.e2e._helpers import (
 from tests.e2e._surface import surface
 
 
-@pytest.mark.e2e
-def test_add_item_increases_count(page):
+def _add_by_hand(page):
     # The plain count in Audit's page header: "N items".
     count = lambda: int(page.locator("#audit-context").text_content().split()[0])  # noqa: E731
     before = count()
     sheet = open_add_sheet(page)
     sheet.locator("#add-form input[name='comida']").fill("zzz e2e item")
-    # Zone and Supermarket are native pickers of the existing values (#241) —
-    # no typing; the text box behind them stays hidden.
+    # Zone and Supermarket are native pickers of the existing values -- no
+    # typing; the text box behind them stays hidden.
     sheet.locator("#add-form [data-picker] select").nth(0).select_option("mercadona")
     sheet.locator("#add-form [data-picker] select").nth(1).select_option("nevera")
     assert not sheet.locator("#add-form input[name='super']").is_visible()
     assert not sheet.locator("#add-form input[name='lugar']").is_visible()
-    # The sheet's one footer primary submits the form (#256).
+    # The sheet's one footer primary submits the form.
     with page.expect_response(lambda r: r.url.endswith("/api/items") and r.request.method == "POST") as resp:
         sheet.locator(".detail-save-btn").click()
     body = resp.value.request.post_data_json
     assert (body["super"], body["lugar"]) == ("mercadona", "nevera")
-    # The sheet closes on success with a transient toast (#200); the new item
-    # is in the Items list under its zone's group.
+    # The sheet closes on success with a transient toast; the new item is in
+    # the Items list under its zone's group.
     sheet.wait_for(state="hidden")
     page.wait_for_function("document.querySelector('#toast')?.textContent?.includes('zzz e2e item added')")
     group = page.locator("#pane-items .item-group", has=page.locator(".item-row", has_text="zzz e2e item"))
@@ -37,11 +36,10 @@ def test_add_item_increases_count(page):
     assert count() == before + 1
 
 
-@pytest.mark.e2e
-def test_add_item_new_zone_and_supermarket(page):
+def _add_with_a_new_zone_and_supermarket(page):
     """"New…" in the pickers reveals a text box so a first-time zone or
-    supermarket can still be entered (#241); the typed values are what saves.
-    A blank name is refused by the form itself: nothing is posted (#256)."""
+    supermarket can still be entered; the typed values are what saves.
+    A blank name is refused by the form itself: nothing is posted."""
     sheet = open_add_sheet(page)
     form = sheet.locator("#add-form")
     posts: list[str] = []
@@ -62,18 +60,46 @@ def test_add_item_new_zone_and_supermarket(page):
     sheet.wait_for(state="hidden")
     # A brand-new zone gets its own group in the Items list.
     assert "zzz balcon e2e" in [t.lower() for t in page.locator("#pane-items .item-group-head").all_inner_texts()]
-    assert page._js_errors == [], f"JS errors: {page._js_errors}"
+
+
+def _search_status(existing, new_url):
+    """The store search's finished run, stubbed at the HTTP seam (no Chrome)."""
+    return {"id": "e2e", "state": "done", "elapsed_s": 1.0, "error": None, "progress": None, "items": [
+        {"term": "zzz sandia e2e", "inventory_idx": None, "existing_super": "",
+         "store_errors": {"mercadona": "Timeout 20000ms exceeded"},
+         # Per-store lines: a failed store reads as failed, not "no results".
+         "stores": [{"store": "mercadona", "state": "failed", "count": 0, "reason": "timeout",
+                     "error": "Timeout 20000ms exceeded", "elapsed_s": 20.0},
+                    {"store": "carrefour", "state": "done", "count": 1, "reason": None,
+                     "error": None, "elapsed_s": 6.0}],
+         "candidates": [{"store": "carrefour", "name": "Sandia e2e", "product_url": new_url,
+                         "price_text": "3,00 EUR", "thumbnail": "", "match": "strong"}]},
+        # Same store + link as the row already holds, so /select rewrites it unchanged.
+        {"term": existing["comida"], "inventory_idx": existing["id"], "existing_super": existing["super"],
+         # The real server always sends the row's actual name (the frontend
+         # echoes it back on /select, so the server can refuse a pick whose
+         # row moved under it -- a mismatched value here would 409 the
+         # confirm below as stale).
+         "inventory_name": existing["comida"],
+         "store_errors": {}, "candidates": [{"store": existing["super"], "name": "Existing e2e",
+                                              "product_url": existing["buscador"], "price_text": "",
+                                              "thumbnail": "", "match": ""}]},
+    ]}
 
 
 @pytest.mark.e2e
-def test_add_item_product_search(page, server):
-    """The Add item sheet opens on the product search (#256; #182, it was the
-    Search tab). The store search is stubbed at the HTTP seam (no Chrome): a
-    new term's "Use" pre-fills Add by hand below it and nothing is saved until
-    the sheet's Add item, which closes it; reopened, the run is still there
-    with that card marked Added. A term already on the list keeps its confirm
-    row -> /select. Last in this file on purpose: it adds a row to the shared
-    fixture list."""
+def test_add_item_by_hand_new_zone_and_product_search(page, server):
+    """The Add item sheet adds an item by hand (pickers of the existing zones and
+    stores, a footer primary, a toast and the item under its zone), takes a
+    first-time zone and supermarket through "New…", and refuses a blank name.
+    It opens on the product search: a new term's "Use" pre-fills Add by hand below
+    it and nothing is saved until the sheet's Add item, which closes it; reopened,
+    the run is still there with that card marked Added. A term already on the list
+    keeps its confirm row -> /select. Search runs last on purpose: it adds a row
+    to the shared fixture list."""
+    _add_by_hand(page)
+    _add_with_a_new_zone_and_supermarket(page)
+
     sheet = open_add_sheet(page)
     search = sheet.locator("#product-search")
     search.locator("#search-term").wait_for()
@@ -85,27 +111,7 @@ def test_add_item_product_search(page, server):
     inventory = f"{server.url}/api/inventory"
     existing = next(i for i in page.request.get(inventory).json()["items"] if i["buscador"] and i["cantidad"] > 0)
     new_url = "https://www.carrefour.es/supermercado/e2e-sandia/R-e2e/p"
-    status = {"id": "e2e", "state": "done", "elapsed_s": 1.0, "error": None, "progress": None, "items": [
-        {"term": "zzz sandia e2e", "inventory_idx": None, "existing_super": "",
-         "store_errors": {"mercadona": "Timeout 20000ms exceeded"},
-         # Per-store lines (#211): a failed store reads as failed, not "no results".
-         "stores": [{"store": "mercadona", "state": "failed", "count": 0, "reason": "timeout",
-                     "error": "Timeout 20000ms exceeded", "elapsed_s": 20.0},
-                    {"store": "carrefour", "state": "done", "count": 1, "reason": None,
-                     "error": None, "elapsed_s": 6.0}],
-         "candidates": [{"store": "carrefour", "name": "Sandia e2e", "product_url": new_url,
-                         "price_text": "3,00 EUR", "thumbnail": "", "match": "strong"}]},
-        # Same store + link as the row already holds, so /select rewrites it unchanged.
-        {"term": existing["comida"], "inventory_idx": existing["id"], "existing_super": existing["super"],
-         # The real server always sends the row's actual name (#339: the
-         # frontend echoes it back on /select, so the server can refuse a
-         # pick whose row moved under it — a mismatched value here would
-         # 409 the confirm below as stale).
-         "inventory_name": existing["comida"],
-         "store_errors": {}, "candidates": [{"store": existing["super"], "name": "Existing e2e",
-                                              "product_url": existing["buscador"], "price_text": "",
-                                              "thumbnail": "", "match": ""}]},
-    ]}
+    status = _search_status(existing, new_url)
     for path in ("start", "status"):
         page.route(f"**/api/product-search/{path}", lambda route: route.fulfill(json=status))
     search.locator("#search-term").fill("sandia")
@@ -136,7 +142,7 @@ def test_add_item_product_search(page, server):
     created = [i for i in page.request.get(inventory).json()["items"] if i["comida"] == "zzz sandia e2e"]
     assert [(i["super"], i["buscador"], i["cantidad"]) for i in created] == [("carrefour", new_url, 1)]
 
-    # The header names the exact term searched; a matched row is only a hint (#214).
+    # The header names the exact term searched; a matched row is only a hint.
     heads = page.locator(".search-group-term").all_inner_texts()
     assert heads == ["Results for “zzz sandia e2e”", f"Results for “{existing['comida']}”"]
     assert f"Matches your item {existing['comida']}" in page.locator(".search-group-hint").inner_text()
@@ -150,6 +156,6 @@ def test_add_item_product_search(page, server):
     with page.expect_response(lambda r: r.url.endswith("/api/product-search/select")) as resp:
         old_card.locator("[data-action='search-confirm']").click()
     assert resp.value.ok and resp.value.request.post_data_json["inventory_idx"] == existing["id"]
-    assert resp.value.request.post_data_json["inventory_name"] == existing["comida"]  # #339
+    assert resp.value.request.post_data_json["inventory_name"] == existing["comida"]
     old_card.locator("button:has-text('Updated')").wait_for()
     assert page._js_errors == [], f"JS errors: {page._js_errors}"

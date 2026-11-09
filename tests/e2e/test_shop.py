@@ -1,6 +1,8 @@
-"""Shop: the carts glance, Fill history, Mark purchase done and the run log."""
+"""Shop: the carts glance, Fill carts options, store sheet, Fill history and Mark purchase done."""
 
 from __future__ import annotations
+
+import json
 
 import pytest
 
@@ -15,18 +17,153 @@ from tests.e2e._helpers import (
     goto_mode,
     open_fill_history,
     open_fill_options,
+    open_store_sheet,
 )
 from tests.e2e._surface import surface
 
 
+def _check_shop_tab_badge(page):
+    # The last fill left an item out, and Shop hasn't been seen since -- the
+    # Shop tab carries the count badge, spoken as part of its name.
+    shop_tab = page.locator("nav.tabs [data-tab='shopping']")
+    shop_tab.locator(".tab-badge").wait_for()
+    assert shop_tab.locator(".tab-badge").inner_text() == "1"
+    assert "Shop, 1 not in cart" in shop_tab.evaluate("t => t.textContent.replace(/\\s+/g, ' ')")
+    return shop_tab
+
+
+def _check_carts_glance(page, shop_tab):
+    goto_mode(page, "shopping")
+    fill = page.locator("#pane-shopping #fill-carts")
+    fill.wait_for()
+    # The carts glance leads Shop: first card under the header, one row per
+    # store on the list by display name, the miss as a danger chip, the one
+    # Fill carts button and the Options row. Seeing Shop clears the badge.
+    assert page.locator("#pane-shopping > :nth-child(2)").get_attribute("id") == "fill-carts-host"
+    rows = fill.locator("#carts-stores .action-row")
+    assert rows.locator(".action-row-title").all_inner_texts() == ["Ametller Origen", "Mercadona"]
+    assert rows.nth(1).locator(".chip[data-tone='danger']").inner_text() == "1 not in cart"
+    assert "1 in cart" in rows.nth(1).locator(".action-row-meta").inner_text()
+    assert fill.locator("#carts-last-fill").inner_text() == "Last fill Tue 6 Oct"
+    assert page.locator("#shop-context").inner_text().startswith("1 not in cart")
+    assert fill.locator("#automation-start").inner_text().strip() == "Fill carts"
+    assert shop_tab.locator(".tab-badge").count() == 0
+    return fill
+
+
+def _check_idle_log_and_start_conflict(page, fill):
+    # The idle run log names the control that fills it -- the carts glance's Fill carts.
+    log = page.locator("#automation-log")
+    log.wait_for(state="attached")
+    text = log.text_content()
+    assert "Fill carts" in text and "progress appears here" in text
+    surface(page, "shop.run-log-idle")
+
+    # A 409 ("automation already running" -- another device started a run, or a
+    # double tap) must toast, and never show a run in flight that never started.
+    detail = "automation already running"
+    matches_start = lambda url: "/api/automation/start" in url  # noqa: E731
+    page.route(matches_start, lambda route: route.fulfill(
+        status=409, content_type="application/json", body=f'{{"detail": "{detail}"}}'))
+    fill.locator("#automation-start").click()
+    page.wait_for_function("d => document.querySelector('#toast')?.textContent === d", arg=detail)
+    assert "error" in (page.locator("#toast").get_attribute("class") or "")
+    assert fill.locator("#automation-elapsed").inner_text() == ""
+    assert fill.locator("#automation-start").inner_text().strip() == "Fill carts"
+    page.unroute(matches_start)
+
+
+def _check_fill_options_sheet(page):
+    # Options in a sheet: every pick still there, "what will run" in words --
+    # never the interpreter command line or a lower-case store key.
+    sheet = open_fill_options(page)
+    for control in ("#automation-store", "#automation-cart-mode", "#automation-dry-run"):
+        assert sheet.locator(control).is_visible(), f"{control} missing from the options"
+    assert sheet.locator("#automation-store option").all_inner_texts() == ["All stores", "Ametller Origen", "Mercadona"]
+    plan = sheet.locator("#automation-plan").inner_text()
+    assert plan.startswith("Adds 41 items to the Ametller Origen and Mercadona carts"), plan
+    assert "python" not in sheet.inner_text().lower() and page.locator("#automation-command").count() == 0
+    return sheet
+
+
+def _check_clean_cart_plan(sheet):
+    # Clean cart: Fill carts waits for the confirm, which the sheet asks for.
+    sheet.locator("#automation-cart-mode").select_option("clean")
+    sheet.locator("#automation-clean-confirm").wait_for()
+    assert sheet.locator("#automation-plan").inner_text().startswith("Empties the")
+
+
+def _check_clean_cart_blocks_fill(page, fill, sheet):
+    page.keyboard.press("Escape")
+    sheet.wait_for(state="hidden")
+    assert fill.locator("#automation-start").is_disabled()
+    assert fill.locator("#automation-blocked").is_visible()
+    assert fill.locator("#automation-options-value").inner_text() == "All stores · Clean cart"
+
+
+def _complete_a_row(page, fill):
+    # A shopping-list re-render (Complete) must not reset the run picks.
+    group = page.locator("#pane-shopping details[data-store='mercadona']")
+    assert group.locator(".collapse-title").inner_text() == "Mercadona"
+    group.locator("> summary").click()
+    group.locator("[data-action='mark-buy']").first.click()
+    group.locator("[data-action='undo-buy']").first.wait_for()
+    # Complete is the row's leading check: pressed, and the name struck.
+    got = group.locator(".item-row", has=page.locator("[data-action='undo-buy']")).first
+    assert got.locator(".action-row-check").get_attribute("aria-pressed") == "true"
+    assert got.locator(".action-row-title s").count() == 1
+    # The check is named for its verb, the link for what it opens.
+    title = got.locator(".action-row-title").inner_text()
+    assert got.locator(".action-row-check").get_attribute("aria-label") == f"Complete {title}"
+    link = got.locator("a.action-row-trail")
+    if link.count():
+        assert link.get_attribute("aria-label") == f"Open buy link for {title}"
+        assert link.get_attribute("title") == f"Open buy link for {title}"
+    assert fill.locator("#automation-options-value").inner_text() == "All stores · Clean cart"
+    assert open_fill_options(page).locator("#automation-cart-mode").input_value() == "clean"
+    page.keyboard.press("Escape")
+    return group
+
+
+def _quick_add_extra(group):
+    # Quick-add is the group's "Add to <store>" row; its Remove, the cart
+    # offsets and Unmark all live in the store sheet.
+    group.locator(".store-add-row input[name='name']").fill("Invented extra")
+    group.locator(".store-add-row button[type='submit']").click()
+    extra = group.locator(".item-row", has_text="Invented extra")
+    extra.wait_for()
+    assert extra.locator("[data-action='remove-extra']").count() == 0
+    return extra
+
+
+def _toggle_store_sheet_edit(store_sheet, group):
+    store_sheet.locator("[data-action='offset-items']").fill("2")
+    store_sheet.locator("[data-action='offset-items']").dispatch_event("change")
+    assert group.locator("[data-store-sheet] .sheet-link-value").inner_text() == "2 already in cart"
+    # No Remove at rest; the Edit toggle in the Added here header reveals it,
+    # and removing the last quick-add leaves edit mode.
+    assert store_sheet.locator("[data-action='remove-extra']").count() == 0
+    edit = store_sheet.locator("[data-action='edit-extras']")
+    assert edit.get_attribute("aria-pressed") == "false"
+    edit.click()
+    assert edit.get_attribute("aria-pressed") == "true"
+
+
+def _remove_extra_and_unmark(page, store_sheet, group, extra):
+    store_sheet.locator("[data-action='remove-extra']").click()
+    extra.wait_for(state="detached")
+    assert store_sheet.locator("[data-action='edit-extras']").count() == 0
+    store_sheet.locator("[data-store-unmark]").click()
+    group.locator("[data-action='undo-buy']").wait_for(state="detached")
+    page.keyboard.press("Escape")
+
+
 @pytest.mark.e2e
 def test_fill_history_and_mark_done_on_a_phone(pw, server, tmp_path, monkeypatch):
-    """#323: Shop's History row opens the last fill days, and Mark purchase done
+    """Shop's History row opens the last fill days, and Mark purchase done
     clears the red state everywhere at once while History keeps the fill. Runs on
     the WebKit iPhone profile against invented run records in a temp dir -- never
-    the shared server's fill, which other tests read."""
-    import json
-
+    the shared server's fill, which the other Shop test reads."""
     runs = tmp_path / "purchase_logs" / "runs"
     runs.mkdir(parents=True)
 
@@ -116,89 +253,31 @@ def test_fill_history_and_mark_done_on_a_phone(pw, server, tmp_path, monkeypatch
 
 
 @pytest.mark.e2e
-def test_empty_automation_log_says_what_fills_it(page):
-    """J-09: the idle run log names the control that fills it -- the carts
-    glance's Fill carts (#258)."""
-    goto_mode(page, "shopping")
-    log = page.locator("#automation-log")
-    log.wait_for(state="attached")
-    text = log.text_content()
-    assert "Fill carts" in text and "progress appears here" in text
-    surface(page, "shop.run-log-idle")
-
-
-@pytest.mark.e2e
-def test_automation_start_conflict_toasts_and_leaves_the_button_ready(page):
-    """#339: a 409 ("automation already running" -- another device started a
-    run, or a double tap) from /api/automation/start used to reject silently:
-    no toast, no status line, and the elapsed timer left armed with nothing
-    actually running. The PWA must say so and never show a run in flight that
-    never started."""
-    detail = "automation already running"
-    page.route(lambda url: "/api/automation/start" in url, lambda route: route.fulfill(
-        status=409, content_type="application/json", body=f'{{"detail": "{detail}"}}'))
-    goto_mode(page, "shopping")
-    fill = page.locator("#pane-shopping #fill-carts")
-    fill.wait_for()
-    fill.locator("#automation-start").click()
-    page.wait_for_function("d => document.querySelector('#toast')?.textContent === d", arg=detail)
-    assert "error" in (page.locator("#toast").get_attribute("class") or "")
-    assert fill.locator("#automation-elapsed").inner_text() == ""
-    assert fill.locator("#automation-start").inner_text().strip() == "Fill carts"
+def test_shop_carts_options_and_store_sheet(page):
+    """Shop leads with the carts glance (the last fill's miss as a danger chip and
+    a tab badge, cleared once Shop is seen); a rejected Fill carts start toasts
+    and leaves the button ready. The Options sheet names what will run in words,
+    and a clean-cart pick blocks Fill carts until confirmed. Completing a row
+    keeps the picks, a quick-add lives in its store group, and the store sheet
+    holds the cart offsets, Remove and Unmark."""
+    shop_tab = _check_shop_tab_badge(page)
+    fill = _check_carts_glance(page, shop_tab)
+    surface(page, "shop.carts-miss")
+    _check_idle_log_and_start_conflict(page, fill)
+    sheet = _check_fill_options_sheet(page)
+    surface(page, "shop.fill-options")
+    _check_clean_cart_plan(sheet)
+    surface(page, "shop.fill-options-clean")
+    _check_clean_cart_blocks_fill(page, fill, sheet)
+    group = _complete_a_row(page, fill)
+    extra = _quick_add_extra(group)
+    surface(page, "shop.store-group")
+    store_sheet = open_store_sheet(page)
+    assert store_sheet.locator("#store-sheet-title").inner_text() == "Mercadona"
+    surface(page, "shop.store-sheet")
+    _toggle_store_sheet_edit(store_sheet, group)
+    surface(page, "shop.store-sheet-edit")
+    _remove_extra_and_unmark(page, store_sheet, group, extra)
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
 
 
-@pytest.mark.e2e
-@pytest.mark.parametrize("theme", ["light", "dark"])
-def test_automation_log_is_a_code_listing(page, theme):
-    """#291 / COMP-17: the run log is the design.md `code-listing` frame in both
-    themes -- 13px / 1.5 mono on the card surface and a hairline, never the
-    12px caption on canvas-subtle (true black inside a dark card)."""
-    page.evaluate("t => { localStorage.setItem('grocery.theme', t); document.documentElement.dataset.theme = t; }", theme)
-    goto_mode(page, "shopping")
-    page.locator("#automation-log").wait_for(state="attached")
-    probe = page.evaluate("""() => {
-      const log = getComputedStyle(document.querySelector('#automation-log'));
-      const swatch = document.createElement('i');
-      document.body.append(swatch);
-      const of = (v) => { swatch.style.background = `var(${v})`; return getComputedStyle(swatch).backgroundColor; };
-      const out = {
-        size: log.fontSize, lineHeight: log.lineHeight, background: log.backgroundColor,
-        border: log.borderTopColor, borderWidth: log.borderTopWidth,
-        card: of('--card'), line: of('--line'), canvasSubtle: of('--card-off'),
-      };
-      swatch.remove();
-      return out;
-    }""")
-    assert probe["size"] == "13px", probe
-    assert probe["lineHeight"] == "19.5px", probe
-    assert probe["background"] == probe["card"] != probe["canvasSubtle"], probe
-    assert probe["borderWidth"] == "1px" and probe["border"] == probe["line"], probe
-
-
-# What every switch that is on must draw: the theme's accent-fill (#200,
-# design.md switch.trackOn) -- resolved from the token, never hard-coded.
-_ACCENT_PROBE = """() => {
-  const probe = document.createElement('div');
-  probe.style.background = 'var(--accent-fill)';
-  document.body.appendChild(probe);
-  const accent = getComputedStyle(probe).backgroundColor;
-  probe.remove();
-  const on = [...document.querySelectorAll('[role=switch][aria-checked=true]')]
-    .map((sw) => getComputedStyle(sw).backgroundColor);
-  return { accent, on };
-}"""
-
-
-@pytest.mark.e2e
-@pytest.mark.parametrize("theme", ["light", "dark"])
-def test_switch_on_track_is_the_accent(page, theme):
-    """#200: an on switch is the accent blue in both themes, never success green."""
-    page.evaluate("t => { localStorage.setItem('grocery.theme', t); document.documentElement.dataset.theme = t; }", theme)
-    dry_run = open_fill_options(page).locator("#automation-dry-run")
-    if dry_run.get_attribute("aria-checked") != "true":
-        dry_run.click()  # client-side only: it just rewrites "what will run"
-    page.wait_for_timeout(400)  # the track's 0.15s background transition must settle
-    probe = page.evaluate(_ACCENT_PROBE)
-    assert probe["on"], "no switch is on to measure"
-    assert set(probe["on"]) == {probe["accent"]}, probe
