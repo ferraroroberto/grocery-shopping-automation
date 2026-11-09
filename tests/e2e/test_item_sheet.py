@@ -11,11 +11,10 @@ from tests.e2e._helpers import (
 from tests.e2e._surface import surface
 
 
-@pytest.mark.e2e
-def test_item_forms_label_every_field(page):
-    """The Add item sheet's form (#256) names all six fields (#213): the
-    numbers read "Target" / "In stock" even when the box holds a value. The
-    item sheet (#255) names the field on each of its pages the same way."""
+def _check_item_forms_label_every_field(page):
+    """The Add item sheet's form names all its fields: the numbers read "Target" /
+    "In stock" even when the box holds a value. The item sheet names the field on
+    each of its pages the same way."""
     form = open_add_sheet(page).locator("#add-form")
     for label in ["Item", "Supermarket", "Zone", "Target", "In stock", "Units per pack", "URL"]:
         assert form.get_by_label(label, exact=True).count() == 1, label
@@ -31,7 +30,7 @@ def test_item_forms_label_every_field(page):
         sheet.locator("[data-sheet-back]").click()
     surface(page, "items.item-sheet")
     page.keyboard.press("Escape")
-    assert page._js_errors == [], f"JS errors: {page._js_errors}"
+    sheet.wait_for(state="hidden")
 
 
 def _open_sheet_from(page, mode: str, name: str):
@@ -105,28 +104,7 @@ def _check_buy_link_opens_from_the_sheet(page, name, row):
     assert saved[cols["buscador"]] in (None, ""), saved[cols["buscador"]]
 
 
-@pytest.mark.e2e
-def test_item_sheet_opens_everywhere_edits_and_deletes(page, server):
-    """The item sheet (#255) is the one place an item is edited, opened from
-    every row that shows it: Home, Shop, Audit, the Items list (#256), and
-    a Prices row (onto its Stores & prices page, #257). Its staged
-    Save posts the whole row as the old Edit item form did: a blank cell stays
-    blank, never the "-" placeholder (#228), and Esc discards. Delete asks in
-    the in-app confirm sheet, never the browser's confirm() (#254)."""
-    name = "zzz e2e blank url"
-    created = page.request.post(
-        f"{server.url}/api/items",
-        data={"super": "mercadona", "lugar": "nevera", "comida": name, "cantidad": 1, "tenemos": 0, "buscador": ""},
-    )
-    assert created.ok, created.text()
-    page.reload()
-    page.wait_for_selector("[data-tab='audit']")
-
-    def row():
-        payload = page.request.get(f"{server.url}/api/inventory").json()
-        cols = payload["columns"]
-        return next((i for i in payload["items"] if i[cols["comida"]] == name), None), cols
-
+def _check_sheet_opens_from_every_row(page, name):
     title = page.locator("#item-sheet-title")
     for mode in ("dashboard", "shopping", "audit", "list"):
         sheet = _open_sheet_from(page, mode, name)
@@ -146,6 +124,32 @@ def test_item_sheet_opens_everywhere_edits_and_deletes(page, server):
     assert title.inner_text() == "Stores & prices"
     sheet.locator("[data-dialog-close]").click()
     sheet.wait_for(state="hidden")
+
+
+@pytest.mark.e2e
+def test_item_sheet_opens_everywhere_edits_and_deletes(page, server):
+    """The item sheet is the one place an item is edited, opened from every row
+    that shows it: Home, Shop, Audit, the Items list, and a Prices row (onto its
+    Stores & prices page). Every field is labelled. Its staged Save posts the
+    whole row: a blank cell stays blank, never the "-" placeholder, and Esc
+    discards. Delete asks in the in-app confirm sheet, never the browser's
+    confirm()."""
+    _check_item_forms_label_every_field(page)
+    name = "zzz e2e blank url"
+    created = page.request.post(
+        f"{server.url}/api/items",
+        data={"super": "mercadona", "lugar": "nevera", "comida": name, "cantidad": 1, "tenemos": 0, "buscador": ""},
+    )
+    assert created.ok, created.text()
+    page.reload()
+    page.wait_for_selector("[data-tab='audit']")
+
+    def row():
+        payload = page.request.get(f"{server.url}/api/inventory").json()
+        cols = payload["columns"]
+        return next((i for i in payload["items"] if i[cols["comida"]] == name), None), cols
+
+    _check_sheet_opens_from_every_row(page, name)
 
     # Esc discards a staged change: nothing is written.
     sheet = _open_sheet_from(page, "list", name)
@@ -209,10 +213,11 @@ def test_item_sheet_opens_everywhere_edits_and_deletes(page, server):
 
 @pytest.mark.e2e
 def test_item_sheet_sets_and_clears_a_fallback(page, server):
-    """The item sheet's Fallback if short page (#284): pick a store and paste a
+    """The item sheet's Fallback if short page: pick a store and paste a
     product link, Save fallback writes both cells at once, a link that is not a
     product page is flagged, and Clear fallback (a plain action in the page, no
-    trailing remove on the row) blanks both. Esc leaves an unsaved form unwritten."""
+    trailing remove on the row) blanks both. Esc leaves an unsaved form unwritten, and
+    typing while the store detail is still loading is not repainted away."""
     name = "zzz e2e fallback"
     created = page.request.post(
         f"{server.url}/api/items",
@@ -287,12 +292,12 @@ def test_item_sheet_sets_and_clears_a_fallback(page, server):
     delete = page.request.get(f"{server.url}/api/inventory").json()
     item_id = next(i["id"] for i in delete["items"] if i[delete["columns"]["comida"]] == name)
     assert page.request.delete(f"{server.url}/api/items/{item_id}").ok
+    _check_fallback_typing_survives_the_store_detail_load(page, server)
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
 
 
-@pytest.mark.e2e
-def test_fallback_typing_survives_the_store_detail_load(page, server):
-    """#293: typing in the item sheet's Fallback form while the store detail is
+def _check_fallback_typing_survives_the_store_detail_load(page, server):
+    """Typing in the item sheet's Fallback form while the store detail is
     still loading must not be repainted away when the load resolves (the guard
     read dataset.touched, which is "" -- falsy -- once the attribute is set)."""
     name = "zzz e2e fallback typing"
@@ -327,4 +332,3 @@ def test_fallback_typing_survives_the_store_detail_load(page, server):
     payload = page.request.get(f"{server.url}/api/inventory").json()
     item_id = next(i["id"] for i in payload["items"] if i[payload["columns"]["comida"]] == name)
     assert page.request.delete(f"{server.url}/api/items/{item_id}").ok
-    assert page._js_errors == [], f"JS errors: {page._js_errors}"

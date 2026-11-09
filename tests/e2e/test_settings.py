@@ -14,7 +14,7 @@ from tests.e2e._surface import surface
 
 
 @pytest.mark.e2e
-def test_settings_gear_opens_settings_from_every_tab(page, monkeypatch):
+def test_settings_gear_groups_logins_copy_link_and_export(page, browser, server, monkeypatch):
     """#200: Settings is never a tab -- the gear beside the theme toggle opens it
     from every tab, no nav tab is selected while it is open, and a tap on a tab
     (or on the gear again) comes back. #261: Settings is three inset groups,
@@ -77,12 +77,14 @@ def test_settings_gear_opens_settings_from_every_tab(page, monkeypatch):
     logins.wait_for(state="hidden")
     assert page.locator("#store-logins-value").inner_text() == "1 logged out"
     assert page.locator("#store-logins-value").get_attribute("data-tone") == "attention"
+    _check_copy_link_falls_back_without_a_secure_context(page)
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
+    # Last: it turns the server's token on, which the open page does not carry.
+    _check_export_csv_downloads_with_a_token_configured(browser, server, monkeypatch)
 
 
-@pytest.mark.e2e
-def test_copy_link_falls_back_without_a_secure_context(page):
-    """#339: the documented plain-HTTP LAN access (docs/running-and-access.md)
+def _check_copy_link_falls_back_without_a_secure_context(page):
+    """The documented plain-HTTP LAN access (docs/running-and-access.md)
     has no secure context, so `navigator.clipboard` is undefined there and
     "Copy link" used to throw unhandled with nothing on screen, instead of
     falling back to a selected textarea + `execCommand('copy')` the way
@@ -92,12 +94,10 @@ def test_copy_link_falls_back_without_a_secure_context(page):
     page.click("#copy-link")
     page.wait_for_function("document.querySelector('#toast')?.textContent === 'Link copied'")
     assert "error" not in (page.locator("#toast").get_attribute("class") or "")
-    assert page._js_errors == [], f"JS errors: {page._js_errors}"
 
 
-@pytest.mark.e2e
-def test_export_csv_downloads_with_a_token_configured(browser, server, monkeypatch):
-    """#293: Export CSV was a bare navigation carrying no bearer token, so off the
+def _check_export_csv_downloads_with_a_token_configured(browser, server, monkeypatch):
+    """Export CSV was a bare navigation carrying no bearer token, so off the
     PC (the cf-ray header makes the loopback test server look like tunnel
     traffic) it landed on a 401 JSON page. It must fetch with the stored token
     and save the file."""
@@ -146,13 +146,47 @@ def _sample_view_at(page, mode, size):
     return page.evaluate(_TEXT_PROBE)
 
 
+def _watch_usage_requests(page, server):
+    sent: list[str] = []
+    page.on("request", lambda r: sent.append(r.post_data or "") if "/api/usage/events" in r.url else None)
+    off_origin: list[str] = []
+    page.on("request", lambda r: off_origin.append(r.url) if "usage" in r.url and not r.url.startswith(server.url) else None)
+    return sent, off_origin
+
+
+def _check_usage_events_stay_on_origin(page, server, sent, off_origin):
+    """The vendored usage log posts view and tap events, constant ids
+    only, to this app's own origin -- and nothing else leaves the page. Driven
+    through the real UI (every tab and segment, Settings, a tracked control), flushed
+    the way a page hide flushes, and read back through the summary route."""
+    page.evaluate("""() => {
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    }""")
+    for _ in range(50):
+        summary = page.request.get(f"{server.url}/api/usage/summary?days=1").json()
+        if "settings" in summary["views"] and "settings.text-default" in summary["controls"]:
+            break
+        page.wait_for_timeout(100)
+    else:
+        raise AssertionError(f"events never arrived: {summary}")
+
+    assert {"shopping", "items", "items:prices", "settings"} <= set(summary["views"]), summary["views"]
+    assert summary["controls"]["settings.text-default"] >= 1
+    assert off_origin == [], f"usage events left the app's origin: {off_origin}"
+    payload = " ".join(sent)
+    assert "Authorization" not in payload and "burguer" not in payload.lower(), "only ids, classes and a session id are posted"
+
+
 @pytest.mark.e2e
-def test_text_size_scales_every_view(page):
-    """#200 / fleet-config#1211: the vendored Small / Default / Large control in
+def test_text_size_scales_every_view_and_usage_is_logged(page, server):
+    """The vendored Small / Default / Large control in
     Settings scales the text of every view. Proven with a computed-style probe:
     the root font-size steps 15 / 16 / 18px and, per view, every text element
     drawn in rem grows by the Large step (geometry stays px by design), and the
-    choice survives a reload."""
+    choice survives a reload. Visiting every view that way also feeds the vendored usage
+    log, which must post only constant ids to this app's own origin and nothing else."""
+    sent, off_origin = _watch_usage_requests(page, server)
     root_px = lambda: page.evaluate("parseFloat(getComputedStyle(document.documentElement).fontSize)")  # noqa: E731
     assert page.evaluate("document.documentElement.dataset.textsize") == "default"
     assert root_px() == 16
@@ -188,39 +222,5 @@ def test_text_size_scales_every_view(page):
     goto_mode(page, "settings")
     page.locator("#pane-settings [data-textsize='default']").click()
     assert root_px() == 16
-
-
-@pytest.mark.e2e
-def test_usage_log_records_views_and_tapped_controls(page, server):
-    """#276: the vendored usage log posts view and tap events, constant ids
-    only, to this app's own origin -- and nothing else leaves the page. Driven
-    through the real UI (tabs, a segment, Settings, a tracked control), flushed
-    the way a page hide flushes, and read back through the summary route."""
-    sent: list[str] = []
-    page.on("request", lambda r: sent.append(r.post_data or "") if "/api/usage/events" in r.url else None)
-    off_origin: list[str] = []
-    page.on("request", lambda r: off_origin.append(r.url) if "usage" in r.url and not r.url.startswith(server.url) else None)
-
-    page.click("[data-tab='shopping']")
-    page.click("[data-tab='items']")
-    page.locator(".subnav [data-mode='stores']").click()
-    goto_mode(page, "settings")
-    page.locator("#pane-settings [data-textsize='default']").click()
-    page.evaluate("""() => {
-      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
-      document.dispatchEvent(new Event('visibilitychange'));
-    }""")
-    for _ in range(50):
-        summary = page.request.get(f"{server.url}/api/usage/summary?days=1").json()
-        if "settings" in summary["views"] and "settings.text-default" in summary["controls"]:
-            break
-        page.wait_for_timeout(100)
-    else:
-        raise AssertionError(f"events never arrived: {summary}")
-
-    assert {"shopping", "items", "items:prices", "settings"} <= set(summary["views"]), summary["views"]
-    assert summary["controls"]["settings.text-default"] >= 1
-    assert off_origin == [], f"usage events left the app's origin: {off_origin}"
-    payload = " ".join(sent)
-    assert "Authorization" not in payload and "burguer" not in payload.lower(), "only ids, classes and a session id are posted"
+    _check_usage_events_stay_on_origin(page, server, sent, off_origin)
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
