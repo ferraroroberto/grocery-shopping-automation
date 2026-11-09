@@ -1,4 +1,8 @@
 {
   "version": 1,
-  "entries": []
+  "entries": [
+    {"key": "app/audio_audit.py", "counts": {"state-literal": 2}},
+    {"key": "app/webapp/routers/product_search.py", "counts": {"state-literal": 6}},
+    {"key": "scripts/synthetic_demo_app.py", "counts": {"state-literal": 2}}
+  ]
 }
