@@ -16,7 +16,7 @@ import yaml
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.no_window import NEW_PROCESS_GROUP_NO_WINDOW  # noqa: E402
+from src.no_window import NEW_GROUP_NO_WINDOW  # noqa: E402
 from src.uvicorn_launch import build_webapp_command, stop_process  # noqa: E402
 from src.webapp_config import append_auth_token, load_webapp_config  # noqa: E402
 
@@ -43,7 +43,7 @@ def _find_python() -> Path:
 def _spawn_uvicorn(port: int) -> subprocess.Popen:
     cmd = build_webapp_command("127.0.0.1", port, project_root=PROJECT_ROOT, python=_find_python())
     logger.info("Starting uvicorn on :%s", port)
-    return subprocess.Popen(cmd, cwd=str(PROJECT_ROOT), creationflags=NEW_PROCESS_GROUP_NO_WINDOW)
+    return subprocess.Popen(cmd, cwd=str(PROJECT_ROOT), creationflags=NEW_GROUP_NO_WINDOW)
 
 
 def _wait_for_uvicorn(port: int, timeout: float = 15.0) -> bool:
@@ -70,7 +70,7 @@ def _spawn_cloudflared(config_path: Path) -> subprocess.Popen:
         encoding="utf-8",
         errors="replace",
         bufsize=1,
-        creationflags=NEW_PROCESS_GROUP_NO_WINDOW,
+        creationflags=NEW_GROUP_NO_WINDOW,
     )
 
 

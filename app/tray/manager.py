@@ -26,7 +26,7 @@ import requests
 
 from app.tray.single_instance import cross_process_lock
 from src.certs import cert_paths
-from src.no_window import NEW_PROCESS_GROUP_NO_WINDOW, NO_WINDOW
+from src.no_window import NEW_GROUP_NO_WINDOW, NO_WINDOW
 from src.uvicorn_launch import build_webapp_command, stop_process
 from src.webapp_config import (
     DEFAULT_HOST,
@@ -243,7 +243,7 @@ class WebappManager:
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                     env=env,
-                    creationflags=NEW_PROCESS_GROUP_NO_WINDOW,
+                    creationflags=NEW_GROUP_NO_WINDOW,
                 )
                 self._proc = subprocess.Popen(cmd, **popen_kwargs)
             except FileNotFoundError as exc:
