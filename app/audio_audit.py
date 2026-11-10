@@ -24,6 +24,7 @@ from src.audio_audit_core import (
     clean_transcript,
     write_audit_log,
 )
+from src.audit_stage import AuditStage, advance
 from src.data import (
     COLUMNS,
     CONFIG,
@@ -150,7 +151,12 @@ def _reset_state() -> None:
         "audio_audit_paste_input",
     ):
         st.session_state.pop(k, None)
-    st.session_state.audio_audit_stage = "record"
+    st.session_state.audio_audit_stage = AuditStage.RECORD
+
+
+def _move_to(target: AuditStage) -> None:
+    """Advance the audit to ``target`` along the declared path."""
+    st.session_state.audio_audit_stage = advance(AuditStage(st.session_state.audio_audit_stage), target)
 
 
 def _ensure_state() -> None:
@@ -203,7 +209,7 @@ def _run_transcribe(cfg: Dict) -> None:
     # Pre-populate the editable text_area on the next stage. Safe to write here
     # because that widget has not been instantiated yet this run.
     st.session_state.audio_audit_transcript_input = transcript
-    st.session_state.audio_audit_stage = "transcribed"
+    _move_to(AuditStage.TRANSCRIBED)
 
 
 def _run_extract(df: pd.DataFrame, cfg: Dict) -> None:
@@ -257,7 +263,7 @@ def _run_extract(df: pd.DataFrame, cfg: Dict) -> None:
 
     logger.info(f"✅ extract done — {len(result.items)} items, zones: {result.zones_mentioned}")
     st.session_state.audio_audit_result = result
-    st.session_state.audio_audit_stage = "review"
+    _move_to(AuditStage.REVIEW)
 
 
 def _write_audit_log(
@@ -333,7 +339,7 @@ def _render_paste_transcript() -> None:
                 "audio_audit_audio_filename",
             ):
                 st.session_state.pop(k, None)
-            st.session_state.audio_audit_stage = "transcribed"
+            _move_to(AuditStage.TRANSCRIBED)
             st.rerun()
 
 
@@ -546,7 +552,7 @@ def _apply_accepted(df: pd.DataFrame, result: ExtractionResult, unseen: List[int
         log_path = _write_audit_log(new_df, result, accepted, target_path, old_tenemos)
         st.session_state.inventory_data = new_df
         st.session_state.audio_audit_log_path = str(log_path)
-        st.session_state.audio_audit_stage = "done"
+        _move_to(AuditStage.DONE)
         st.rerun()  # full rerun — inventory changed, sidebar must update
 
 
@@ -685,14 +691,14 @@ def main(df: pd.DataFrame) -> pd.DataFrame:
     if not _service_status_banner(cfg):
         st.stop()
 
-    stage = st.session_state.audio_audit_stage
-    if stage == "record":
+    stage = AuditStage(st.session_state.audio_audit_stage)
+    if stage is AuditStage.RECORD:
         _render_record(df, cfg)
-    elif stage == "transcribed":
+    elif stage is AuditStage.TRANSCRIBED:
         _render_transcribed(df, cfg)
-    elif stage == "review":
+    elif stage is AuditStage.REVIEW:
         df = _render_review(df, cfg)
-    elif stage == "done":
+    elif stage is AuditStage.DONE:
         _render_done()
 
     return df

@@ -1,7 +1,6 @@
 {
   "version": 1,
   "entries": [
-    {"key": "app/audio_audit.py", "counts": {"state-literal": 2}},
     {"key": "app/webapp/static/modules/automation.js", "counts": {"state-literal": 4}},
     {"key": "app/webapp/static/modules/home.js", "counts": {"state-literal": 1}}
   ]

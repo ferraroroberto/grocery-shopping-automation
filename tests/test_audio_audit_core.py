@@ -87,3 +87,33 @@ def test_read_last_audit_skips_an_unreadable_log(tmp_path: Path):
     _log(logs_dir, "2026-10-01_190000.json", {"timestamp": "2026-10-01T19:00:00"})
     _log(logs_dir, "2026-10-08_191500.json", "{not json")
     assert read_last_audit(logs_dir) == {"timestamp": "2026-10-01T19:00:00", "changed": 0, "unmatched": 0}
+
+
+def test_the_audit_walks_its_declared_path_and_can_start_over():
+    from src.audit_stage import AuditStage, advance
+
+    stage = AuditStage.RECORD
+    for target in (AuditStage.TRANSCRIBED, AuditStage.REVIEW, AuditStage.DONE):
+        stage = advance(stage, target)
+        assert stage is target
+    for current in AuditStage:
+        assert advance(current, AuditStage.RECORD) is AuditStage.RECORD
+
+
+# state-machine-proof: audio-audit-stage
+def test_an_audit_stage_cannot_be_skipped_or_reopened():
+    import pytest
+
+    from src.audit_stage import AuditStage, advance
+
+    illegal = [
+        (AuditStage.RECORD, AuditStage.REVIEW),
+        (AuditStage.RECORD, AuditStage.DONE),
+        (AuditStage.TRANSCRIBED, AuditStage.DONE),
+        (AuditStage.REVIEW, AuditStage.TRANSCRIBED),
+        (AuditStage.DONE, AuditStage.REVIEW),
+        (AuditStage.DONE, AuditStage.TRANSCRIBED),
+    ]
+    for current, target in illegal:
+        with pytest.raises(ValueError):
+            advance(current, target)
