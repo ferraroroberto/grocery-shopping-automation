@@ -19,5 +19,5 @@ def test_home_paints_the_declared_card_only_after_the_payload_lands() -> None:
     assert 'id="this-week"' in home
     paint = home.split("export function paintThisWeek()", 1)[1].split("\n}\n", 1)[0]
     guard = paint.index("!state.payload")
-    ready = paint.index('dataset.state = "ready"')
+    ready = paint.index("dataset.state = LoadState.READY")
     assert guard < ready, "ready must be set after the no-payload early return"

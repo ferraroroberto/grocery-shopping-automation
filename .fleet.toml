@@ -480,3 +480,10 @@ derive = "derive_search_state"
 name   = "audio-audit-stage"
 module = "src/audit_stage.py"
 type   = "AuditStage"
+
+# The PWA's load status for a read from the server, declared once (docs/pwa-overview.md).
+[[state_machines]]
+name   = "load-state"
+module = "app/webapp/static/modules/load-state.js"
+type   = "LoadState"
+derive = "deriveLoadState"
