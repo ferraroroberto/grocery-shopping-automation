@@ -22,6 +22,7 @@ import { showToast } from "../_vendored/toast/toast.js";
 import { fetchJson, jsonInit } from "./api.js";
 import { c, items, state, storedToken, updateHeaders } from "./core.js";
 import { chip, esc, html, icon, shortDate, switchMarkup } from "./dom.js";
+import { LoadState, deriveLoadState } from "./load-state.js";
 import { dialogShell } from "./stores/dialog.js";
 import { local, storeName } from "./stores/state.js";
 
@@ -46,8 +47,8 @@ const picks = { store: "all", cartMode: "keep", dryRun: false, cleanConfirmed: f
 // `cleared`: the owner marked that fill done — its misses stop showing.
 const fills = { last: null, cleared: false, loaded: false };
 
-// The History sheet's days, read each time it opens. `status`: loading | ready | error.
-const history = { days: [], status: "loading" };
+// The History sheet's days, read each time it opens; its status is deriveLoadState(history).
+const history = { days: [], pending: true, failed: false };
 
 const IDLE_LOG = "Not running. Press Fill carts to fill the store carts; progress appears here.";
 
@@ -428,14 +429,17 @@ function historySheet() {
 
 export async function openFillHistory() {
   const d = historySheet();
-  history.status = "loading";
+  history.pending = true;
+  history.failed = false;
   paintHistory();
   if (!d.open) d.showModal();
   try {
     history.days = (await fetchJson("/api/automation/fills/history")).days;
-    history.status = "ready";
+    history.pending = false;
+    history.failed = false;
   } catch (_) {
-    history.status = "error";
+    history.pending = false;
+    history.failed = true;
   }
   paintHistory();
 }
@@ -470,11 +474,12 @@ function paintHistory() {
   const d = document.getElementById(HISTORY_ID);
   if (!d) return;
   const body = d.querySelector(".stores-dialog-body");
-  body.dataset.state = history.status;
-  if (history.status === "error") {
+  const status = deriveLoadState(history);
+  body.dataset.state = status;
+  if (status === LoadState.ERROR) {
     const block = emptyStateEl("circle-alert", "Couldn't load the history.", { actionLabel: "Retry", onAction: openFillHistory });
     body.replaceChildren(block);
-  } else if (history.status === "loading") {
+  } else if (status === LoadState.LOADING) {
     body.replaceChildren(emptyStateEl("clock", "Reading the fill history…"));
   } else if (!history.days.length) {
     body.replaceChildren(emptyStateEl("shopping-cart", "No fills yet. Each Fill carts run shows up here."));

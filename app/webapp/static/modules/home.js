@@ -13,6 +13,7 @@ import { fillMissingCount, lastFillValue } from "./automation.js";
 import { activePaneBody, c, filteredItems, state } from "./core.js";
 import { icon } from "./dom.js";
 import { valueRow } from "./inventory.js";
+import { LoadState } from "./load-state.js";
 import { itemList } from "./rows.js";
 import { loadPricesReview, pricesReviewValue } from "./stores/index.js";
 
@@ -96,7 +97,7 @@ export function paintThisWeek() {
   paintValue("list", listValue());
   paintValue("carts", lastFillValue());
   paintValue("prices", pricesReviewValue());
-  card.dataset.state = "ready";
+  card.dataset.state = LoadState.READY;
 }
 
 // The search: nothing under the box until something is typed, then every

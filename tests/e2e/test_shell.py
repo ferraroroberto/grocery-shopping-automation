@@ -301,3 +301,22 @@ def test_phone_geometry_fits_and_targets_meet_the_floor(browser, pw, server):
         assert errors == [], f"WebKit JS errors: {errors}"
     finally:
         webkit.close()
+
+
+_LOAD_STATE_JS = """async () => {
+  const { LoadState, deriveLoadState } = await import('/static/modules/load-state.js');
+  const read = (f) => { try { return deriveLoadState(f); } catch (e) { return 'refused'; } };
+  return [read({ pending: true, failed: false }), read({ pending: false, failed: false }),
+          read({ pending: false, failed: true }), read({ pending: true, failed: true }),
+          Object.values(LoadState)];
+}"""
+
+
+@pytest.mark.e2e
+# state-machine-proof: load-state
+def test_load_state_derives_each_status_and_refuses_an_impossible_reading(page):
+    """The PWA's one load status: pending, settled and failed reads map to loading, ready and
+    error, and a read that is pending and failed at once is refused instead of picking one."""
+    loading, ready, error, impossible, members = page.evaluate(_LOAD_STATE_JS)
+    assert (loading, ready, error, impossible) == ("loading", "ready", "error", "refused")
+    assert members == ["loading", "ready", "error"]
