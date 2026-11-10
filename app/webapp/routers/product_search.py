@@ -23,6 +23,13 @@ from app.api_common import (
     load_inventory_or_error,
     save_or_error,
 )
+from src.automation.search_state import (
+    SearchObservation,
+    SearchState,
+    StoreState,
+    derive_search_state,
+    derive_store_state,
+)
 from src.data import COLUMNS, CONFIG, apply_item_edit, build_new_item_row
 from src.inventory_extract import ExtractionError
 from src.voice_command import VoiceItem, parse_voice_items
@@ -91,27 +98,24 @@ def _search_status() -> dict[str, Any]:
     end = run.get("finished_at") or time.time()
     elapsed = round(end - started, 1) if started else 0.0
 
-    state, error = "idle", None
+    result_seen, result_error = False, None
     progress = None
     results_by_term: dict[str, dict] = {}
     streamed: dict[str, dict[str, dict]] = {}
-    if run.get("id"):
+    has_run = bool(run.get("id"))
+    if has_run:
         chunks = run.get("chunks") or []
         progress = product_search_runner.latest_progress(chunks)
         streamed = product_search_runner.store_states(chunks)
-        if running:
-            state = "running"
-        else:
+        if not running:
             parsed = product_search_runner.parse_result(chunks)
-            if parsed is None:
-                state, error = "error", "the search did not return any result"
-            elif parsed.get("error"):
-                # e.g. the stores aren't logged in — surface the reason.
-                state, error = "error", parsed["error"]
-            else:
-                state = "done"
+            result_seen = parsed is not None
+            # e.g. the stores aren't logged in — surface the reason.
+            result_error = (parsed or {}).get("error") or None
+            if result_seen and not result_error:
                 for entry in parsed.get("results", []):
                     results_by_term[entry.get("query", "")] = entry
+    outcome = derive_search_state(SearchObservation(has_run, running, result_seen, result_error))
 
     merged = []
     for meta in run.get("items") or []:
@@ -121,8 +125,8 @@ def _search_status() -> dict[str, Any]:
             candidates, store_errors = entry.get("candidates", []), entry.get("errors", {})
         else:  # still running (or crashed): what each store has sent so far
             candidates = [c for ev in streamed.get(meta["term"], {}).values()
-                          if ev.get("state") == "done" for c in ev.get("candidates") or []]
-            store_errors = {r["store"]: r["error"] or "" for r in stores if r["state"] == "failed"}
+                          if ev.get("state") == StoreState.DONE for c in ev.get("candidates") or []]
+            store_errors = {r["store"]: r["error"] or "" for r in stores if r["failed"]}
         merged.append({
             "term": meta["term"],
             "inventory_idx": meta.get("inventory_idx"),
@@ -132,25 +136,29 @@ def _search_status() -> dict[str, Any]:
             "store_errors": store_errors,
             "stores": stores,
         })
-    return {"id": run.get("id"), "state": state, "elapsed_s": elapsed,
-            "items": merged, "error": error, "progress": progress}
+    # idle / running / failed are the same reading as `state`, for clients that
+    # branch on them instead of spelling a state string.
+    return {"id": run.get("id"), "state": outcome.state.value, "elapsed_s": elapsed,
+            "idle": outcome.state is SearchState.IDLE, "running": outcome.state is SearchState.RUNNING,
+            "failed": outcome.state is SearchState.ERROR,
+            "items": merged, "error": outcome.error, "progress": progress}
 
 
 def _store_rows(events: dict[str, dict], *, finished: bool) -> list[dict[str, Any]]:
     """One display row per store from its latest streamed event (issue #211).
 
-    `state` is `waiting` / `searching` / `done` / `failed`; a run that ended
-    (crash, cancel) with a store never reaching done/failed reports it
-    `failed` with reason `stopped`, so it never reads as still in flight.
+    `state` is a :class:`StoreState`; a run that ended (crash, cancel) with a
+    store still in flight reports it `failed` with reason `stopped`, so it never
+    reads as still searching. `in_flight`, `waiting` and `failed` are the same
+    reading for clients that branch on them.
     """
     rows = []
     for store, ev in events.items():
-        state, reason, error = ev.get("state"), ev.get("reason"), ev.get("error")
-        if finished and state not in ("done", "failed"):
-            state, reason, error = "failed", "stopped", "the search stopped before this store finished"
+        got = derive_store_state(ev.get("state"), ev.get("reason"), ev.get("error"), run_finished=finished)
         rows.append({
-            "store": store, "state": state, "count": len(ev.get("candidates") or []),
-            "reason": reason, "error": error, "elapsed_s": ev.get("elapsed_s"),
+            "store": store, "state": got.state.value, "count": len(ev.get("candidates") or []),
+            "reason": got.reason, "error": got.error, "elapsed_s": ev.get("elapsed_s"),
+            "in_flight": got.in_flight, "waiting": got.waiting, "failed": got.failed,
         })
     return rows
 

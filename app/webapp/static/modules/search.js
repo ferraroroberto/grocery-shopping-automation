@@ -113,8 +113,8 @@ function searchItemGroup(item) {
   const header = `<div class="search-group-head"><span class="search-group-term">Results for “${html(item.term)}”</span>${tag}</div>${hint}`;
   const stores = item.stores || [];
   const states = storeStates(item, stores);
-  const pending = search.running && stores.some((st) => st.state === "waiting" || st.state === "searching");
-  const failed = stores.some((st) => st.state === "failed") || Object.keys(item.store_errors || {}).length;
+  const pending = search.running && stores.some((st) => st.in_flight);
+  const failed = stores.some((st) => st.failed) || Object.keys(item.store_errors || {}).length;
   if (!cands.length) {
     // "No results" only when every store answered and none failed — a failed
     // or still-running store must never read as "nothing there".
@@ -132,7 +132,7 @@ function searchItemGroup(item) {
 // fall back to naming the stores in `store_errors`.
 function storeStates(item, stores) {
   const rows = stores.length
-    ? stores.map((st) => [st.state === "failed", `${storeName(st.store)}: ${storeStateText(st)}`])
+    ? stores.map((st) => [st.failed, `${storeName(st.store)}: ${storeStateText(st)}`])
     : Object.keys(item.store_errors || {}).map((store) => [true, `${storeName(store)}: ${FAILURE_COPY.error}`]);
   if (!rows.length) return "";
   return `<ul class="search-store-states">${rows.map(([bad, line]) =>
@@ -140,11 +140,10 @@ function storeStates(item, stores) {
 }
 
 function storeStateText(st) {
-  const inFlight = st.state === "waiting" || st.state === "searching";
-  if (inFlight && !search.running) return FAILURE_COPY.stopped; // cancelled mid-store
-  if (st.state === "waiting") return "waiting for the browser…";
-  if (st.state === "searching") return "searching…";
-  if (st.state === "failed") return FAILURE_COPY[st.reason] || FAILURE_COPY.error;
+  if (st.in_flight && !search.running) return FAILURE_COPY.stopped; // cancelled mid-store
+  if (st.waiting) return "waiting for the browser…";
+  if (st.in_flight) return "searching…";
+  if (st.failed) return FAILURE_COPY[st.reason] || FAILURE_COPY.error;
   return st.count ? `${st.count} result${st.count === 1 ? "" : "s"}` : "no results";
 }
 
@@ -294,11 +293,11 @@ function applySearchStatus(status) {
   const s = search;
   // "idle" = the run isn't registered yet (the /start call is still parsing the
   // utterance). Keep our optimistic running state; don't stop the poll early.
-  if (!status || status.state === "idle") return;
+  if (!status || status.idle) return;
   s.progress = status.progress || "";
   const changed = JSON.stringify(status.items || []) !== JSON.stringify(s.items);
   s.items = status.items || [];
-  if (status.state === "running") {
+  if (status.running) {
     s.running = true;
     // Re-render cards only when a store reported something new, so the 1 s
     // poll never wipes an open confirm row mid-edit.
@@ -308,7 +307,7 @@ function applySearchStatus(status) {
   }
   s.running = false;
   stopSearchPoll();
-  if (status.state === "error") s.error = status.error || "The search failed";
+  if (status.failed) s.error = status.error || "The search failed";
   renderSearch();
 }
 

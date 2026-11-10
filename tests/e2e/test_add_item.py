@@ -64,14 +64,17 @@ def _add_with_a_new_zone_and_supermarket(page):
 
 def _search_status(existing, new_url):
     """The store search's finished run, stubbed at the HTTP seam (no Chrome)."""
-    return {"id": "e2e", "state": "done", "elapsed_s": 1.0, "error": None, "progress": None, "items": [
+    return {"id": "e2e", "state": "done", "idle": False, "running": False, "failed": False,
+            "elapsed_s": 1.0, "error": None, "progress": None, "items": [
         {"term": "zzz sandia e2e", "inventory_idx": None, "existing_super": "",
          "store_errors": {"mercadona": "Timeout 20000ms exceeded"},
          # Per-store lines: a failed store reads as failed, not "no results".
          "stores": [{"store": "mercadona", "state": "failed", "count": 0, "reason": "timeout",
-                     "error": "Timeout 20000ms exceeded", "elapsed_s": 20.0},
+                     "error": "Timeout 20000ms exceeded", "elapsed_s": 20.0,
+                     "in_flight": False, "waiting": False, "failed": True},
                     {"store": "carrefour", "state": "done", "count": 1, "reason": None,
-                     "error": None, "elapsed_s": 6.0}],
+                     "error": None, "elapsed_s": 6.0,
+                     "in_flight": False, "waiting": False, "failed": False}],
          "candidates": [{"store": "carrefour", "name": "Sandia e2e", "product_url": new_url,
                          "price_text": "3,00 EUR", "thumbnail": "", "match": "strong"}]},
         # Same store + link as the row already holds, so /select rewrites it unchanged.

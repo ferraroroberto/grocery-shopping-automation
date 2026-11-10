@@ -467,3 +467,10 @@ name   = "cart-fill-run"
 module = "src/automation/run_state.py"
 type   = "RunState"
 derive = "derive_run_state"
+
+# The spoken product search's run and per-store lifecycles, declared once (docs/product-search-state.md).
+[[state_machines]]
+name   = "product-search-run"
+module = "src/automation/search_state.py"
+type   = "SearchState"
+derive = "derive_search_state"

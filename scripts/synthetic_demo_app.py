@@ -29,6 +29,7 @@ synthetic_demo_guard.install_from_env()
 import httpx  # noqa: E402
 
 from src import static_versioning  # noqa: E402
+from src.automation.search_state import REASON_ERROR, StoreState  # noqa: E402
 
 # The build identity runs `git rev-parse` at import; the copy has no history and the guard refuses a process.
 static_versioning._git_short_sha = lambda _repo_root: "demo"
@@ -100,11 +101,11 @@ def _search_lines(cmd: List[str]) -> List[str]:
             })
         lines.append(json.dumps({"event": "progress", "message": f"searching {query!r} (demo)"}))
         for store in ("mercadona", "ametller"):
-            lines.append(json.dumps({"event": "store", "query": query, "store": store, "state": "done",
+            lines.append(json.dumps({"event": "store", "query": query, "store": store, "state": StoreState.DONE.value,
                                      "candidates": [c for c in candidates if c["store"] == store],
                                      "error": None, "reason": None, "elapsed_s": 0.1}))
-        lines.append(json.dumps({"event": "store", "query": query, "store": "carrefour", "state": "failed",
-                                 "candidates": [], "error": errors["carrefour"], "reason": "error", "elapsed_s": 0.1}))
+        lines.append(json.dumps({"event": "store", "query": query, "store": "carrefour", "state": StoreState.FAILED.value,
+                                 "candidates": [], "error": errors["carrefour"], "reason": REASON_ERROR, "elapsed_s": 0.1}))
         results.append({"query": query, "candidates": candidates, "errors": errors})
     lines.append(json.dumps({"event": "result", "result": {"results": results}}))
     return lines
