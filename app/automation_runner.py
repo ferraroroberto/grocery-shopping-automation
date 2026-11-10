@@ -18,9 +18,16 @@ import subprocess
 import sys
 import threading
 from collections import deque
+from collections.abc import Iterable
 from pathlib import Path
 
 from app import subprocess_plumbing
+from src.automation.run_state import (
+    RunObservation,
+    RunStateResult,
+    derive_run_state,
+    summary_printed,
+)
 
 # The automation package and config.json resolve relative to the repo root;
 # the subprocess must run from there so relative paths behave like a terminal run.
@@ -79,3 +86,27 @@ def start_run(
 def stop_run(process: "subprocess.Popen | None") -> None:
     """Terminate a run, escalating to kill() after a short grace period."""
     subprocess_plumbing.stop(process)
+
+
+def run_state(
+    process: "subprocess.Popen | None",
+    output_lines: "Iterable[str]",
+    *,
+    dry_run: bool,
+    stop_requested: bool,
+) -> tuple[RunStateResult, "int | None"]:
+    """Observe the run once and derive its state; every reader goes through here.
+
+    Returns ``(state, returncode)``: the process is polled a single time, so
+    ``running`` and ``returncode`` always come from the same reading.
+    """
+    returncode = process.poll() if process is not None else None
+    obs = RunObservation(
+        has_process=process is not None,
+        running=process is not None and returncode is None,
+        returncode=returncode,
+        stop_requested=stop_requested,
+        dry_run=dry_run,
+        summary_seen=summary_printed(output_lines),
+    )
+    return derive_run_state(obs), returncode

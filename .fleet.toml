@@ -460,3 +460,10 @@ synthetic = true
 # on screen rather than a painted shell.
 [perf.review]
 ready_selector = '#this-week[data-state="ready"]'
+
+# The cart-fill run's lifecycle, declared once (docs/cart-fill-run-state.md).
+[[state_machines]]
+name   = "cart-fill-run"
+module = "src/automation/run_state.py"
+type   = "RunState"
+derive = "derive_run_state"

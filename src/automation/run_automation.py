@@ -75,6 +75,12 @@ from src.automation.report import (
     RunReport,
     miss_line,
 )
+from src.automation.run_state import (
+    EXIT_MISSING,
+    EXIT_OK,
+    EXIT_PROFILE_NOT_INITIALISED,
+    EXIT_UNCONFIRMED,
+)
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
@@ -710,10 +716,6 @@ def _cross_store_pass(
                 _fallback_failed(outcome, ERROR, str(err))
 
 
-# Exit code for a run with nothing missing but adds the store cart could not
-# confirm — distinct from 0 (all verified) and 1 (items not in the cart).
-EXIT_UNCONFIRMED = 3
-
 # Telegram caps a message at 4096 characters; stay well clear.
 _NOTIFY_MAX_CHARS = 3500
 
@@ -824,7 +826,7 @@ def _run(args: argparse.Namespace, capture: _ConsoleCapture) -> int:
                     deferred.append(store)
             except ProfileNotInitializedError as err:
                 logger.error("❌ %s", err)
-                return 2
+                return EXIT_PROFILE_NOT_INITIALISED
             except ProfileBusyError as err:
                 # Keep going: earlier stores' adds must still reach the summary
                 # and the purchase log, and a later store may find the profile free.
@@ -843,8 +845,8 @@ def _run(args: argparse.Namespace, capture: _ConsoleCapture) -> int:
         _notify(report)
     _write_purchase_log_if_live(report, args.dry_run, "\n".join([*capture.lines, summary]))
     if report.missing:
-        return 1
-    return EXIT_UNCONFIRMED if report.unconfirmed else 0
+        return EXIT_MISSING
+    return EXIT_UNCONFIRMED if report.unconfirmed else EXIT_OK
 
 
 if __name__ == "__main__":
