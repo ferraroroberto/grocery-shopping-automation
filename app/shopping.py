@@ -7,6 +7,13 @@ import pandas as pd
 import streamlit as st
 
 from app import automation_runner
+from src.automation.run_state import (
+    REASON_DRY_RUN,
+    REASON_EXITED_BEFORE_SUMMARY,
+    REASON_PROFILE_NOT_INITIALISED,
+    RunState,
+    RunStateResult,
+)
 from src.data import COLUMNS, get_supermarket_stats, get_unique_supermarkets
 
 # Session-state keys for the 🤖 Run Automation section. Documented
@@ -20,6 +27,8 @@ from src.data import COLUMNS, get_supermarket_stats, get_unique_supermarkets
 #   automation_output_lines   — deque[str], max 500 lines, drained by a thread
 #   automation_reader_thread  — the stdout reader Thread
 #   automation_started_at     — datetime the current run started
+#   automation_run_dry        — whether the current run is a dry run
+#   automation_stop_requested — the user pressed Stop on the current run
 
 
 def _render_automation_controls(df: pd.DataFrame) -> None:
@@ -89,6 +98,8 @@ def _render_automation_controls(df: pd.DataFrame) -> None:
         st.session_state.automation_output_lines = output_lines
         st.session_state.automation_reader_thread = reader_thread
         st.session_state.automation_started_at = datetime.now()
+        st.session_state.automation_run_dry = dry_run
+        st.session_state.automation_stop_requested = False
         st.rerun()
 
 
@@ -107,6 +118,7 @@ def _render_automation_live(process) -> None:
     st.code("\n".join(lines) if lines else "(waiting for output…)", language="text")
 
     if st.button("🛑 Stop", width="stretch", key="automation_stop_btn"):
+        st.session_state.automation_stop_requested = True
         automation_runner.stop_run(process)
         st.rerun()
 
@@ -114,15 +126,39 @@ def _render_automation_live(process) -> None:
     st.rerun()
 
 
+def _finished_message(derived: RunStateResult, returncode: "int | None"):
+    """The Streamlit widget and text for a finished run's derived state."""
+    state = derived.state
+    if state is RunState.SUCCEEDED and derived.reason == REASON_DRY_RUN:
+        return st.success, "✅ Dry run finished — nothing was added to any cart."
+    if state is RunState.SUCCEEDED:
+        return st.success, "✅ Every item is verified in the cart. Review and pay in the browser."
+    if state is RunState.STOPPED:
+        return st.warning, "🛑 Automation stopped. Some items may be in the cart already."
+    if state is RunState.MISSING:
+        return st.error, "❌ Some items are NOT in the cart — see the summary. Sort them out before paying."
+    if state is RunState.UNCONFIRMED:
+        return st.warning, "❔ Items added but NOT confirmed — the store cart couldn't be read."
+    if derived.reason == REASON_PROFILE_NOT_INITIALISED:
+        return st.error, "❌ The Chrome profile has no store login yet. Sign in first, then run again."
+    if derived.reason == REASON_EXITED_BEFORE_SUMMARY:
+        return st.error, "❌ Automation ended before its summary — it crashed. See the log above."
+    return st.error, f"❌ Automation ended unexpectedly (exit code {returncode}). See the log above."
+
+
 def _render_automation_finished(process) -> None:
     """Finished state: show the final output, the exit status, and a Dismiss button."""
     lines = st.session_state.get("automation_output_lines")
     st.code("\n".join(lines) if lines else "(no output)", language="text")
 
-    if process.returncode == 0:
-        st.success("✅ Automation finished — exit 0. Review and pay in the browser.")
-    else:
-        st.error(f"❌ Automation exited with code {process.returncode}. See the log above.")
+    derived, returncode = automation_runner.run_state(
+        process,
+        lines or (),
+        dry_run=bool(st.session_state.get("automation_run_dry")),
+        stop_requested=bool(st.session_state.get("automation_stop_requested")),
+    )
+    show, text = _finished_message(derived, returncode)
+    show(text)
 
     if st.button("Dismiss", width="stretch", key="automation_dismiss_btn"):
         for key in (
@@ -130,6 +166,8 @@ def _render_automation_finished(process) -> None:
             "automation_output_lines",
             "automation_reader_thread",
             "automation_started_at",
+            "automation_run_dry",
+            "automation_stop_requested",
         ):
             st.session_state.pop(key, None)
         st.rerun()

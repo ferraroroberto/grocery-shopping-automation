@@ -7,6 +7,7 @@ from dataclasses import asdict, dataclass, field, replace
 from typing import Optional
 
 from src.automation.models import CartItem
+from src.automation.run_state import SUMMARY_HEADER
 
 # Per-item outcome statuses. Only the store's own final cart
 # decides "in cart": the handler's "added" is provisional until verified.
@@ -200,7 +201,7 @@ class RunReport:
 
     def summary_text(self) -> str:
         """A compact, emoji-tagged summary; a run with misses ends on a loud banner."""
-        out = ["", "── Cart automation summary ──"]
+        out = ["", SUMMARY_HEADER]
         if self.dry_run:
             would = self._of(WOULD_ADD)
             out.append(f"🔎 Would add:         {len(would)}")

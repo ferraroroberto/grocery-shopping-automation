@@ -203,7 +203,7 @@ export function renderFillCarts({ force = false } = {}) {
 // The run in flight covers every store, or the one it was started for.
 function inRun(store) {
   const s = run.status;
-  return !!s?.running && (s.store === "all" || storeKey(s.store) === storeKey(store));
+  return isRunning(s) && (s.store === "all" || storeKey(s.store) === storeKey(store));
 }
 
 // One exception chip per store row, in the tone map's order of urgency.
@@ -259,7 +259,7 @@ export function lastFillValue() {
 // only while the latest fill has misses or unconfirmed items, is not already
 // done, and no run is in flight (that run's records will replace this fill).
 function markDoneVisible() {
-  return !!fills.last && !fills.cleared && !run.status?.running && (fillMissingCount() > 0 || fillUnconfirmedCount() > 0);
+  return !!fills.last && !fills.cleared && !isRunning(run.status) && (fillMissingCount() > 0 || fillUnconfirmedCount() > 0);
 }
 
 function cleanBlocked() {
@@ -495,35 +495,46 @@ async function refreshAutomation() {
   const status = await fetchJson("/api/automation/status").catch(() => null);
   if (!status) return;
   applyAutomationStatus(status);
-  if (status.running) {
+  if (isRunning(status)) {
     if (!run.startedAt) run.startedAt = Date.now();
     startAutomationTimer();
     connectAutomationEvents();
   }
 }
 
+// The run's state is derived once, on the server (src/automation/run_state.py);
+// this file only words it and sets the buttons from it.
+function runView(status) {
+  return RUN_VIEW[status?.state] || UNKNOWN_VIEW;
+}
+
+function isRunning(status) {
+  return runView(status).live;
+}
+
 function applyAutomationStatus(status) {
   run.status = status;
+  const running = isRunning(status);
   const log = document.querySelector("#automation-log");
-  if (log) log.textContent = status.lines?.length ? status.lines.join("\n") : (status.running ? "(waiting for output…)" : IDLE_LOG);
-  const finished = !status.running && status.returncode !== null && status.returncode !== undefined;
+  if (log) log.textContent = status.lines?.length ? status.lines.join("\n") : (running ? "(waiting for output…)" : IDLE_LOG);
+  const ending = runView(status).ending;
+  const finished = !!ending;
   const start = document.querySelector("#automation-start");
   const stop = document.querySelector("#automation-stop");
   const dismiss = document.querySelector("#automation-dismiss");
-  if (start) start.hidden = status.running || finished;
-  if (stop) stop.hidden = !status.running;
+  if (start) start.hidden = running || finished;
+  if (stop) stop.hidden = !running;
   if (dismiss) dismiss.hidden = !finished;
   const elapsed = document.querySelector("#automation-elapsed");
   const summary = document.querySelector("#automation-summary");
   if (summary) summary.hidden = true;
-  if (elapsed && !status.running && !finished) {
+  if (elapsed && !running && !finished) {
     elapsed.className = "panel-status";
     elapsed.textContent = "";
   }
   if (elapsed && finished) {
     stopAutomationTimer();
-    const [tone, text] = RUN_OUTCOME[status.returncode]
-      || ["error", `Fill carts stopped with code ${status.returncode}. See the run log.`];
+    const [tone, text] = ending(status);
     elapsed.className = `panel-status ${tone}`;
     elapsed.textContent = text;
     // The run's own end-of-run summary, lifted out of the long log so a
@@ -538,12 +549,31 @@ function applyAutomationStatus(status) {
   paintCarts();
 }
 
-// Exit codes from automation/run_automation.py: 0 every item verified in
-// the cart, 1 some item is NOT in the cart, 3 added but the cart couldn't be read.
-const RUN_OUTCOME = {
-  0: ["ok", "Every item is verified in the cart. Review and pay in the browser."],
-  1: ["error", "Some items are NOT in the cart — see the summary. Sort them out before paying."],
-  3: ["warn", "Items added but NOT confirmed — the store cart couldn't be read. Check it before paying."],
+// Every state the server can report, as this page shows it. `live` marks the
+// run in flight (Stop shows); an `ending` marks a finished run (Dismiss shows,
+// Fill carts waits) and words it as [tone, text]; a failure is worded by its reason.
+const RUN_VIEW = {
+  idle: { live: false, ending: null },
+  running: { live: true, ending: null },
+  stopped: { live: false, ending: () => ["warn", "Fill carts was stopped. Some items may already be in a cart — check before paying."] },
+  succeeded: {
+    live: false,
+    ending: (s) => (s.reason === "dry-run"
+      ? ["ok", "Dry run finished — nothing was added to any cart."]
+      : ["ok", "Every item is verified in the cart. Review and pay in the browser."]),
+  },
+  missing: { live: false, ending: () => ["error", "Some items are NOT in the cart — see the summary. Sort them out before paying."] },
+  unconfirmed: { live: false, ending: () => ["warn", "Items added but NOT confirmed — the store cart couldn't be read. Check it before paying."] },
+  failed: {
+    live: false,
+    ending: (s) => ["error", FAILURE_TEXT[s.reason] || `Fill carts ended unexpectedly (exit code ${s.returncode}). See the run log.`],
+  },
+};
+// A state this page predates is shown as a finished run to dismiss, never as idle.
+const UNKNOWN_VIEW = { live: false, ending: () => ["error", "Fill carts reported a state this page doesn't know. See the run log."] };
+const FAILURE_TEXT = {
+  "profile-not-initialised": "The store browser has no saved login yet. Sign in to the stores first, then fill carts again.",
+  "exited-before-summary": "Fill carts crashed before it could check the carts. See the run log; the carts may be partly filled.",
 };
 const SUMMARY_HEADER = "── Cart automation summary ──";
 
@@ -576,7 +606,7 @@ function connectAutomationEvents() {
   run.source.onmessage = async (event) => {
     const status = JSON.parse(event.data);
     applyAutomationStatus(status);
-    if (!status.running) {
+    if (!isRunning(status)) {
       run.source.close();
       run.source = null;
       const final = await fetchJson("/api/automation/status").catch(() => null);

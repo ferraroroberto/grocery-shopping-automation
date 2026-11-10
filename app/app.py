@@ -135,6 +135,7 @@ def _warn_if_automation_running(mode_key: str) -> None:
         "Shopping List mode). It will keep running in the background."
     )
     if st.button("🛑 Stop automation run", key="automation_stop_global"):
+        st.session_state.automation_stop_requested = True
         automation_runner.stop_run(process)
         st.rerun()
 

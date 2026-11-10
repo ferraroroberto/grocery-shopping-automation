@@ -20,6 +20,7 @@ from src.automation.purchase_log import (
     read_last_fill,
     write_fill_cleared,
 )
+from src.automation.run_state import RunState
 from src.data import purchase_logs_dir
 
 router = APIRouter()
@@ -62,6 +63,7 @@ def automation_start(payload: AutomationStartPayload) -> dict[str, Any]:
             "store": payload.store,
             "dry_run": payload.dry_run,
             "cart_mode": payload.cart_mode,
+            "stop_requested": False,
         }
     )
     return automation_status()
@@ -69,7 +71,12 @@ def automation_start(payload: AutomationStartPayload) -> dict[str, Any]:
 
 @router.post("/api/automation/stop")
 def automation_stop() -> dict[str, Any]:
-    automation_runner.stop_run(_AUTOMATION_RUN.get("process"))
+    process = _AUTOMATION_RUN.get("process")
+    # Only a run that is still going is stopped on purpose; a stop that finds it
+    # already finished must not rewrite how it ended.
+    if automation_runner.is_running(process):
+        _AUTOMATION_RUN["stop_requested"] = True
+    automation_runner.stop_run(process)
     return automation_status()
 
 
@@ -117,13 +124,20 @@ def automation_fill_clear(payload: FillClearPayload) -> dict[str, Any]:
 def automation_status() -> dict[str, Any]:
     process = _AUTOMATION_RUN.get("process")
     lines = list(_AUTOMATION_RUN.get("output_lines") or [])
-    running = automation_runner.is_running(process)
+    dry_run = bool(_AUTOMATION_RUN.get("dry_run", True))
+    derived, returncode = automation_runner.run_state(
+        process, lines, dry_run=dry_run, stop_requested=bool(_AUTOMATION_RUN.get("stop_requested"))
+    )
     return {
         "id": _AUTOMATION_RUN.get("id"),
-        "running": running,
-        "returncode": None if process is None or running else process.returncode,
+        "state": derived.state.value,
+        "reason": derived.reason,
+        # `running` and `returncode` stay for older clients; both come from the
+        # same reading as `state`.
+        "running": derived.state is RunState.RUNNING,
+        "returncode": returncode,
         "store": _AUTOMATION_RUN.get("store", "all"),
-        "dry_run": bool(_AUTOMATION_RUN.get("dry_run", True)),
+        "dry_run": dry_run,
         "cart_mode": _AUTOMATION_RUN.get("cart_mode", "keep"),
         "lines": lines,
     }
