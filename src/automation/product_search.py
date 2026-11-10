@@ -66,6 +66,12 @@ from src.automation.browser import (  # noqa: E402
     goto_with_login_check,
     launch_context,
 )
+from src.automation.search_state import (  # noqa: E402
+    REASON_ERROR,
+    REASON_SESSION,
+    REASON_TIMEOUT,
+    StoreState,
+)
 from src.product_match import label as match_label  # noqa: E402
 from src.product_match import score as match_score  # noqa: E402
 
@@ -284,16 +290,16 @@ def _noop_store(_event: dict) -> None:
 def _failure_reason(err: Exception) -> str:
     """Classify a store failure into the short code the UI words for the user."""
     if isinstance(err, SessionExpiredError):
-        return "session"
+        return REASON_SESSION
     if isinstance(err, PlaywrightTimeoutError):
-        return "timeout"
-    return "error"
+        return REASON_TIMEOUT
+    return REASON_ERROR
 
 
-def _store_event(query: str, store: str, state: str, *, candidates: Optional[list[dict]] = None,
+def _store_event(query: str, store: str, state: StoreState, *, candidates: Optional[list[dict]] = None,
                  error: Optional[str] = None, reason: Optional[str] = None,
                  elapsed_s: float = 0.0) -> dict:
-    return {"query": query, "store": store, "state": state, "candidates": candidates or [],
+    return {"query": query, "store": store, "state": state.value, "candidates": candidates or [],
             "error": error, "reason": reason, "elapsed_s": round(elapsed_s, 1)}
 
 
@@ -315,7 +321,7 @@ def _search_one(page: Page, query: str, limit: int, on_progress: ProgressFn = _n
     for store, searcher in SEARCHERS.items():
         label = _STORE_LABEL.get(store, store)
         on_progress(f"Searching {label} for “{query}”…")
-        on_store(_store_event(query, store, "searching"))
+        on_store(_store_event(query, store, StoreState.SEARCHING))
         t0 = time.monotonic()
         try:
             found = searcher(page, query, limit)
@@ -326,14 +332,14 @@ def _search_one(page: Page, query: str, limit: int, on_progress: ProgressFn = _n
                            store, query, elapsed, reason, err)
             errors[store] = str(err)
             on_progress(f"{label}: couldn't search")
-            on_store(_store_event(query, store, "failed", error=str(err), reason=reason,
+            on_store(_store_event(query, store, StoreState.FAILED, error=str(err), reason=reason,
                                   elapsed_s=elapsed))
             continue
         elapsed = time.monotonic() - t0
         logger.info("🔎 [%s] %d candidate(s) for %r in %.1fs", store, len(found), query, elapsed)
         candidates.extend(found)
         on_progress(f"{label}: {len(found)} result(s)")
-        on_store(_store_event(query, store, "done", candidates=[asdict(c) for c in found],
+        on_store(_store_event(query, store, StoreState.DONE, candidates=[asdict(c) for c in found],
                               elapsed_s=elapsed))
     return {
         "query": query,
@@ -361,7 +367,7 @@ def search_all(queries: list[str], *, limit: int = DEFAULT_LIMIT,
 
     for term in terms:
         for store in SEARCHERS:
-            on_store(_store_event(term, store, "waiting"))
+            on_store(_store_event(term, store, StoreState.WAITING))
     on_progress("Opening the browser…")
     t0 = time.monotonic()
 

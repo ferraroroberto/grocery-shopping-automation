@@ -53,6 +53,7 @@ Unit + FastAPI `TestClient` + a Playwright e2e that drives the real buttons. The
 | Prices: choosing each item's store with the benchmark | [docs/prices.md](docs/prices.md) |
 | Shop: the Carts card, fill history, the list | [docs/shopping.md](docs/shopping.md) |
 | The cart-fill run's declared states: stopped, failed, dry run, missing | [docs/cart-fill-run-state.md](docs/cart-fill-run-state.md) |
+| The product search's declared states: run and per-store | [docs/product-search-state.md](docs/product-search-state.md) |
 | Cart automation: logins, cart modes, the cart guard | [docs/browser-automation.md](docs/browser-automation.md), [docs/browser-automation-build.md](docs/browser-automation-build.md), [src/automation/README.md](src/automation/README.md) |
 | Supermarket benchmark, per-store links, the store API, overrides | [docs/benchmark-and-store-links.md](docs/benchmark-and-store-links.md), [docs/supermarket-benchmark.md](docs/supermarket-benchmark.md) |
 | Config (`src/config.json`), usage log, Telegram, Gmail check, spreadsheet columns | [docs/configuration.md](docs/configuration.md) |

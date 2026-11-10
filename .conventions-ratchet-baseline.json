@@ -2,10 +2,7 @@
   "version": 1,
   "entries": [
     {"key": "app/audio_audit.py", "counts": {"state-literal": 2}},
-    {"key": "app/webapp/routers/product_search.py", "counts": {"state-literal": 6}},
     {"key": "app/webapp/static/modules/automation.js", "counts": {"state-literal": 4}},
-    {"key": "app/webapp/static/modules/home.js", "counts": {"state-literal": 1}},
-    {"key": "app/webapp/static/modules/search.js", "counts": {"state-literal": 8}},
-    {"key": "scripts/synthetic_demo_app.py", "counts": {"state-literal": 2}}
+    {"key": "app/webapp/static/modules/home.js", "counts": {"state-literal": 1}}
   ]
 }
