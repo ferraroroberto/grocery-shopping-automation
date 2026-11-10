@@ -8,6 +8,8 @@ Audit's **Voice** segment, where the tab opens: walk the house dictating the inv
 
 **Named but uncounted items.** Whisper regularly drops a dictated number or pushes it onto the next item, so an item you clearly named comes back with no count. Those rows land in **Needs you** as "Count missing": type the number to apply it, leave the box blank to skip. They are *never* offered in the "set to 0" section — an item you named out loud must not be zeroable, which is what previously wiped a stocked row. Each mention is pinned to an inventory row by the LLM, and by the deterministic fallback in `src/audit_resolve.py` when the LLM leaves it open (it recovers whisper drift like *Aximell*→actimel, *Copos de arena*→copos avena, *Ganzos*→garbanzos, and declines rather than guessing when two rows fit equally well).
 
+**Legacy Streamlit stages.** The Streamlit voice audit (`app/audio_audit.py`) walks `record`, `transcribed`, `review`, `done`. The stage names and the only legal moves between them live in `src/audit_stage.py` (`AuditStage`, `advance`): each step moves one stage forward, starting over is legal from any stage, and skipping or reopening a stage raises instead of rendering a screen the earlier stages never prepared. It is registered in `.fleet.toml` as the `audio-audit-stage` state machine.
+
 **Replaying past walks.** Every applied audit stores its transcript and raw LLM result, so `scripts/replay_audit_log.py` can re-run the matcher over that corpus and *measure* a prompt or resolver change instead of asserting it:
 
 ```powershell

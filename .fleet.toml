@@ -474,3 +474,9 @@ name   = "product-search-run"
 module = "src/automation/search_state.py"
 type   = "SearchState"
 derive = "derive_search_state"
+
+# The legacy Streamlit voice audit's stages, declared once (docs/audit.md).
+[[state_machines]]
+name   = "audio-audit-stage"
+module = "src/audit_stage.py"
+type   = "AuditStage"
