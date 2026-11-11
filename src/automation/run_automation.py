@@ -11,7 +11,7 @@ single shared Chrome context per store. ``--cart-mode keep`` (default) adds the
 list on top of the existing cart; ``clean`` empties the cart first. Snapshots
 each store's whole-cart total before and after for a run-level delta.
 
-The cart guard (issue #247): a transient add failure is retried once at the end
+The cart guard: a transient add failure is retried once at the end
 of the store's pass; then the store's own final cart is read and every intended
 item reconciled against it — that, not the handler's "added", decides success.
 Unavailable/out-of-stock items get a suggested alternative from the store's
@@ -19,7 +19,7 @@ search. The run ends on a summary of verified items and every miss with its
 reason, sends it through the app's notifier, keeps a per-run record, and exits
 non-zero when anything is not in the cart.
 
-Fallbacks (issue #283): a row may declare a fallback product (``fallback_super``
+Fallbacks: a row may declare a fallback product (``fallback_super``
 + ``fallback_url``). When the final cart shows the primary short — partly or
 completely — the shortfall goes to the fallback: in the same store's session
 when the fallback is in that store, else in a cross-store pass after every
@@ -550,7 +550,7 @@ def _process_store_live(
     item's outcome, and unavailable/out-of-stock items get a suggestion.
 
     After the check, every short item whose fallback is in this store gets
-    its shortfall added here and verified (issue #283); fallbacks at other
+    its shortfall added here and verified; fallbacks at other
     stores are queued for the cross-store pass.
 
     When `keep_open` is set, the browser is left on screen after the last item

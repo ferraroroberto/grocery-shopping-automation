@@ -1,4 +1,4 @@
-"""Runtime guard for the design-review demo instance (#251): stdlib only, plus ``src.runtime_files``.
+"""Runtime guard for the design-review demo instance: stdlib only, plus ``src.runtime_files``.
 
 The demo's stubs (``synthetic_demo_app``) replace every route that would
 launch a process, reach a store, mail, the LLM hub or whisper. This guard is

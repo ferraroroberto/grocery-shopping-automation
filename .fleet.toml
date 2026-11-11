@@ -95,13 +95,14 @@ baseline = ".docs-ratchet-baseline.json"
 # whose count of `#NNN` issue references inside comments rises above
 # .comment-ratchet-baseline.json fails. Existing debt is baselined so it never
 # blocks; it just cannot grow. A scan that cannot complete exits 3, which
-# fails the gate. history_phrases is on (a decision-history phrase in a comment or docstring);
-# docstrings stays off until its `#NNN` findings are burned. Procedure + limits:
+# fails the gate. history_phrases is on (a decision-history phrase in a comment or docstring)
+# and docstrings is on (a `#NNN` reference inside a docstring). Procedure + limits:
 # project-scaffolding docs/comment-ratchet.md.
 [comment_ratchet]
 enabled  = true
 baseline = ".comment-ratchet-baseline.json"
 history_phrases = true
+docstrings = true
 
 # [structure_ratchet] -- the scaffold's baseline-and-ratchet structure stage. The gate
 # (scripts/verify-before-ship.ps1) runs scripts/structure_ratchet.py through

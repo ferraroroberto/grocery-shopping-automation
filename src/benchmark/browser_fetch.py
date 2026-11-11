@@ -1,4 +1,4 @@
-"""Fetch a URL through real Chrome for stores that block plain HTTP (issue #145).
+"""Fetch a URL through real Chrome for stores that block plain HTTP.
 
 Some supermarket sites (Carrefour, Dia, …) answer ``curl``/``requests`` with a
 bot-manager 403. This CLI loads the URL in real Chrome with the repo's stealth
@@ -9,7 +9,7 @@ For stores that need **clicks** (a postcode picker, a consent banner) rather
 than a plain navigate-and-read, :func:`open_actions_context` opens the same
 stealth-launched, same-profile context for a research agent to drive
 interactively — so "this store needs clicks" doesn't mean hand-rolling a
-second, un-stealthed ``sync_playwright()`` launch (issue #296):
+second, un-stealthed ``sync_playwright()`` launch:
 
     from src.benchmark.browser_fetch import open_actions_context
     with open_actions_context("carrefour") as (context, page):

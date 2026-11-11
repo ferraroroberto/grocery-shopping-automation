@@ -1,4 +1,4 @@
-"""Validated, incremental writer for per-store benchmark results (issue #145).
+"""Validated, incremental writer for per-store benchmark results.
 
 Store-research agents never hand-edit JSON: every finding goes through this
 CLI, which validates it against ``basket.json`` (known item key, same unit as
@@ -19,7 +19,7 @@ Item record (``--json``)::
                   — for a match, `url` must be the product card's own link
                   (with its product id), not a slug-only or search URL: the
                   writer checks it against the store's `product_url_pattern`
-                  in config/benchmark_stores.json, when one is declared (issue #156)
+                  in config/benchmark_stores.json, when one is declared
     pack_size     float, in the BASKET item's unit (convert g→kg, ml→l, eggs→ud)
     unit          must equal the basket item's current unit
     pack_price    float EUR (the price you'd pay today)
@@ -93,7 +93,7 @@ def basket_units(basket: dict) -> dict[str, str]:
 def validate_item(key: str, record: dict, units: dict[str, str], store: Optional[str] = None) -> dict:
     """Validate one item record; returns it normalised or raises ResultError.
 
-    ``store`` (issue #156), when given, additionally rejects a match whose
+    ``store``, when given, additionally rejects a match whose
     ``url`` doesn't look like that store's real product page — see
     :func:`_product_url_pattern`. A store with no declared pattern, or no
     ``store`` at all (e.g. the unit tests below), skips this check.

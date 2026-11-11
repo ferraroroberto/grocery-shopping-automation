@@ -1,4 +1,4 @@
-"""The webapp the design-review demo instance serves (#251): the real app with its side effects stubbed.
+"""The webapp the design-review demo instance serves: the real app with its side effects stubbed.
 
 ``uvicorn scripts.synthetic_demo_app:app`` runs from the instance's code copy
 (``scripts/design_review_synthetic.py``), whose ``src/config.json`` already

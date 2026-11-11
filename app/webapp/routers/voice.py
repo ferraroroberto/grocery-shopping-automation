@@ -1,4 +1,4 @@
-"""Voice bridge for the HA Voice PE pucks (home-automation#315, #86)."""
+"""Voice bridge for the HA Voice PE pucks."""
 
 from typing import Any
 
@@ -36,7 +36,7 @@ class VoiceCommandPayload(BaseModel):
 
 @router.post("/api/voice/command")
 def voice_command(payload: VoiceCommandPayload) -> dict[str, Any]:
-    """Voice bridge for the HA Voice PE pucks (home-automation#315, #86).
+    """Voice bridge for the HA Voice PE pucks.
 
     Receives free Spanish text relayed by an HA ``rest_command`` and returns a
     short ready-to-speak ``speech`` string the HA intent template relays

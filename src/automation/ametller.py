@@ -1,9 +1,8 @@
 """Ametller Origen add-to-cart handler.
 
 Ametller Origen runs on **Salesforce Commerce Cloud** (the Chakra-UI
-"Composable Storefront" / PWA Kit). It migrated off VTEX in May 2026 — see
-issue #12. Its product page has a numeric quantity stepper plus an "AÑADIR"
-button: you set the quantity *first* and then add in one operation.
+"Composable Storefront" / PWA Kit). It migrated off VTEX in May 2026. Its product page has a numeric quantity stepper plus an
+"AÑADIR" button: you set the quantity *first* and then add in one operation.
 
 The legacy ``/p`` product URLs stored in the inventory sheet still work — the
 new site **301-redirects** each to an ID-based URL (``/{productId}.html``). The
@@ -14,7 +13,7 @@ The handler is **idempotent**: it reads the current cart quantity first and
 only adds the missing units, so a re-run does not double-add. It never reduces
 a line that already has more than the shopping list asks for.
 
-**Verification (issue #12).** The cart is read via Salesforce Commerce Cloud's
+**Verification.** The cart is read via Salesforce Commerce Cloud's
 **SCAPI Shopper Baskets** API — the authoritative source the storefront itself
 uses. The minicart/drawer DOM is not consulted. The basket endpoint returns
 every line with its true quantity for the live session, so both the idempotency
@@ -467,7 +466,7 @@ def _require_registered_auth(page: Page) -> dict:
 
 
 def check_login(page: Page) -> None:
-    """Read-only login check (issue #217): reads the storefront's auth, no basket.
+    """Read-only login check: reads the storefront's auth, no basket.
 
     Raises:
         NotLoggedInError: the saved profile session has lapsed to a guest.

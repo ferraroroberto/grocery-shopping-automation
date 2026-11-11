@@ -90,8 +90,8 @@ def automation_reset() -> dict[str, Any]:
 
 @router.get("/api/automation/fills")
 def automation_fills() -> dict[str, Any]:
-    """Shop's carts glance (#258): the stores Fill carts knows, the last fill's outcome per store,
-    and whether the owner marked that fill done (#323)."""
+    """Shop's carts glance: the stores Fill carts knows, the last fill's outcome per store,
+    and whether the owner marked that fill done."""
     logs_dir = purchase_logs_dir()
     last = read_last_fill(logs_dir)
     cleared = last is not None and last["run"] in read_fill_cleared(logs_dir)
@@ -100,7 +100,7 @@ def automation_fills() -> dict[str, Any]:
 
 @router.get("/api/automation/fills/history")
 def automation_fill_history() -> dict[str, Any]:
-    """Fill history (#323): the last ten fill days, newest first, each flagged when marked done."""
+    """Fill history: the last ten fill days, newest first, each flagged when marked done."""
     logs_dir = purchase_logs_dir()
     cleared = read_fill_cleared(logs_dir)
     days = [{**day, "cleared": day["run"] in cleared} for day in read_fill_history(logs_dir, HISTORY_DAYS)]
@@ -109,7 +109,7 @@ def automation_fill_history() -> dict[str, Any]:
 
 @router.post("/api/automation/fills/clear")
 def automation_fill_clear(payload: FillClearPayload) -> dict[str, Any]:
-    """Mark the latest fill done (#323). ``run`` is the stamp the client saw: a newer fill is a 409."""
+    """Mark the latest fill done. ``run`` is the stamp the client saw: a newer fill is a 409."""
     logs_dir = purchase_logs_dir()
     last = read_last_fill(logs_dir)
     if last is None:

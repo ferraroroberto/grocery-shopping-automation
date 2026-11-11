@@ -1,7 +1,7 @@
 """Shared webapp process lifecycle: the ``app.webapp.serve`` command line and the
 stop sequence every launcher that spawns it — the tray (``app/tray/manager.py``)
 and the named-tunnel launcher (``scripts/run_named_tunnel.py``) — needs the
-same way (#294). Each caller keeps its own Popen call (different cwd/env/
+same way. Each caller keeps its own Popen call (different cwd/env/
 stdout handling), host and adopt-or-spawn policy.
 """
 

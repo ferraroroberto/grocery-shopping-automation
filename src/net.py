@@ -88,9 +88,9 @@ def whisper_host_hint(hub_base_url: str, whisper_model: str, timeout: float = 2.
     port check only sees whichever host ``whisper_url`` happens to be
     configured for. This turns a bare "unreachable" into an actionable hint
     ("it's running on X instead") pointing at the hub's placement UI, without
-    changing what gets probed or how transcription itself is routed (#107,
-    #138) — best-effort only, so any failure (hub down, bad JSON, no match)
-    returns ``None`` rather than raising.
+    changing what gets probed or how transcription itself is routed — best-effort
+    only, so any failure (hub down, bad JSON, no match) returns ``None`` rather
+    than raising.
     """
     try:
         resp = httpx.get(f"{hub_base_url.rstrip('/')}/admin/api/models", timeout=timeout)

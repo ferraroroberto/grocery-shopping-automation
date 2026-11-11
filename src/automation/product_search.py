@@ -1,4 +1,4 @@
-"""Search the supermarket sites for a spoken product term (issue #87).
+"""Search the supermarket sites for a spoken product term.
 
 Given a Spanish free-text term (e.g. "sandia"), search every supported store and
 return candidate products — name, price, product URL, thumbnail — so the app can
@@ -7,8 +7,8 @@ only *finds and ranks for display*; a human picks which candidate fills
 ``buscador``.
 
 Both stores' search mechanisms ride the logged-in shared Chrome profile
-(``src/automation/browser.py``). Ametller was dropped from product search in issue
-#211 (its cart handler and stored items stay):
+(``src/automation/browser.py``). Ametller is not searched
+(its cart handler and stored items stay):
 
 * **Mercadona** — a clean Algolia-backed JSON endpoint the storefront itself
   calls: ``GET https://tornillos.mercadona.es/search?q={term}&lang=es``. The
@@ -18,7 +18,7 @@ Both stores' search mechanisms ride the logged-in shared Chrome profile
   ``https://tienda.mercadona.es/product/{id}/{slug}``. Hits come
   relevance-ranked.
 
-* **Carrefour** (issue #157) — behind Cloudflare like the cart handler
+* **Carrefour** — behind Cloudflare like the cart handler
   (:mod:`src.automation.carrefour`), so this is a real-Chrome DOM read rather than
   a direct API call: load ``https://www.carrefour.es/?query={term}`` (``query=``,
   not ``q=`` — verified live 2026-09-29) and read the results grid, whose cards
@@ -32,7 +32,7 @@ Both stores' search mechanisms ride the logged-in shared Chrome profile
   :func:`_parse_carrefour_card`, so it is unit-tested without a browser. Cards
   come in the store's own relevance order, same as Mercadona.
 
-Each store's outcome is streamed as it lands (issue #211): ``on_store`` gets a
+Each store's outcome is streamed as it lands: ``on_store`` gets a
 ``waiting`` event for every store before the browser is up, then ``searching``
 and ``done`` / ``failed`` per store, so the app shows Mercadona's cards while
 Carrefour is still loading and tells a failed store apart from "no results".
@@ -193,7 +193,7 @@ def _parse_carrefour_price(text: str) -> Optional[float]:
 def _carrefour_card_unorderable(raw: dict) -> bool:
     """True when the card's add control is disabled ("Agotado temporalmente").
 
-    Verified live 2026-10-09 (issue #249): every such card's product page
+    Verified live 2026-10-09: every such card's product page
     redirects off the product (the cart run's ``ProductUnavailableError``), so
     the pick could never be ordered. A card with no add control at all is not
     this signal and is kept.
@@ -208,7 +208,7 @@ def _parse_carrefour_card(raw: dict) -> Optional[dict]:
     data (see ``tests/store_automation/test_product_search.py``) rather than a live Cloudflare
     fetch. Returns ``None`` for a card with no product id or no name (e.g. a
     sponsored banner tile that isn't a real result), and for a card the store
-    shows as unorderable (:func:`_carrefour_card_unorderable`, issue #249) so
+    shows as unorderable (:func:`_carrefour_card_unorderable`) so
     the app never offers a pick the cart run would find unavailable.
     """
     href = str(raw.get("href") or "")
@@ -314,7 +314,7 @@ def _search_one(page: Page, query: str, limit: int, on_progress: ProgressFn = _n
     — never silently reduced past ``limit`` without the cap being visible to the
     caller (per-store ``limit``). ``on_progress`` receives a status line before
     and after each store; ``on_store`` receives each store's result the moment
-    it lands, so one slow store never hides another's cards (issue #211).
+    it lands, so one slow store never hides another's cards.
     """
     candidates: list[Candidate] = []
     errors: dict[str, str] = {}

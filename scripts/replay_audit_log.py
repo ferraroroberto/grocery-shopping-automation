@@ -3,7 +3,7 @@
 Every applied audit writes its transcript **and** the raw LLM result to
 ``audio_audit_logs/*.json``. That is a real regression corpus, so a change to the
 extraction prompt or to ``src/audit_resolve.py`` can be *measured* against past
-walks instead of asserted (issue #132).
+walks instead of asserted.
 
 Two modes:
 

@@ -47,7 +47,7 @@ MAX_POLL_INTERVAL_MINUTES = 1440
 
 @dataclass
 class MonitoredSender:
-    """One whitelisted sender plus its Auto-tab monitoring metadata (#73)."""
+    """One whitelisted sender plus its Auto-tab monitoring metadata."""
 
     address: str
     name: str = ""
@@ -57,7 +57,7 @@ class MonitoredSender:
 
 @dataclass
 class PollerSettings:
-    """Background email-poller switch + cadence (Auto tab, issue #73)."""
+    """Background email-poller switch + cadence (Auto tab)."""
 
     enabled: bool = False
     interval_minutes: int = DEFAULT_POLLER_INTERVAL_MINUTES

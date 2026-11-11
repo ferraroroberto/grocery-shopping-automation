@@ -1,4 +1,4 @@
-"""Ametller Origen SCAPI over plain HTTP with a *guest* token (issue #145).
+"""Ametller Origen SCAPI over plain HTTP with a *guest* token.
 
 The storefront's own public SLAS client (from its SSR ``mobify-data`` config)
 issues guest tokens through the standard PKCE flow — no credentials, no login,

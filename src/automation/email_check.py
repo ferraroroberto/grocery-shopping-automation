@@ -6,9 +6,9 @@ its item list, matches it against the latest purchase log, sends a plain
 Telegram summary, and records the message as processed so a repeat call is a
 no-op.
 
-This is the seam issue #73 will call from a scheduled/web-app-integrated
-poller — this module intentionally adds no scheduler and no web route, only
-the pure check function below.
+This is the seam a scheduled/web-app-integrated poller calls — this module
+intentionally adds no scheduler and no web route, only the pure check
+function below.
 """
 
 from __future__ import annotations
@@ -86,7 +86,7 @@ class ProcessedEntry:
     """The last confirmation email processed for a store, and when it was sent.
 
     `timestamp` is the watermark that stops the check walking backwards in
-    time when the newest email leaves the Gmail search window (issue #134).
+    time when the newest email leaves the Gmail search window.
     It never decreases, so after a forced re-run of an older email it can
     belong to a later message than `message_id`. `None` only for a state file
     written before the watermark existed; it is filled in on the first check
@@ -122,7 +122,7 @@ def _load_processed_state(path: Path) -> dict[str, ProcessedEntry]:
     """Read the per-store processed-message state, tolerating the legacy shape.
 
     Accepts both the current `{"store": {"message_id": ..., "timestamp": ...}}`
-    form and the pre-#134 `{"store": "<message id>"}` form, which loads as an
+    form and the legacy `{"store": "<message id>"}` form, which loads as an
     entry with no watermark.
     """
     if not path.exists():
@@ -168,7 +168,7 @@ def _backfill_watermark(
 ) -> Optional[ProcessedEntry]:
     """Return this store's entry, learning its timestamp from the fetched mail.
 
-    A state file written before #134 records only a message id, so it carries
+    A legacy state file records only a message id, so it carries
     no watermark to compare against. Whenever that id is still among the
     fetched confirmations its timestamp is knowable for free — adopt it and
     persist the upgraded entry, so the guard is armed from the first check
@@ -277,15 +277,15 @@ def check_latest_confirmation(
 
     Idempotent across repeated calls: once a message id has been processed
     it is skipped on subsequent runs (`already_processed=True`), so the
-    Auto-tab poller (#73) can call this safely without double-notifying.
+    Auto-tab poller can call this safely without double-notifying.
     A confirmation older than the last processed one is never re-processed
     either (`regressed=True`): when the newest email leaves the Gmail search
     window — trashed, spammed, or aged past the lookback — `latest` falls
     back to a stale one, and alerting on it matches a weeks-old confirmation
-    against the current purchase log (issue #134).
+    against the current purchase log.
     `ignore_processed=True` re-processes the latest email even if already
     seen — the Auto tab's end-to-end test path. `notify_only_on_problem=True`
-    keeps a fully-matched order silent (issue #73: don't spam Telegram for a
+    keeps a fully-matched order silent (no Telegram spam for a
     clean confirmation) — only a dropped/unmatched item alerts.
     """
     if store not in STORE_SUBJECTS:

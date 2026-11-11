@@ -1,6 +1,6 @@
-"""Voice-command parsing + apply + speech building (issue #86).
+"""Voice-command parsing + apply + speech building.
 
-The HA Voice PE pipeline relays free Spanish text here (home-automation#315):
+The HA Voice PE pipeline relays free Spanish text here:
 the hub LLM parses items/quantities against the inventory candidates — same
 client pattern as `inventory_extract.py` — and pure Python applies the change
 and builds the short spoken reply. The LLM never picks the operation (HA's

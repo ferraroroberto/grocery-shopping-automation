@@ -78,7 +78,7 @@ _RELOGIN_HINT = (
 
 class StoreAccessError(RuntimeError):
     """A store's saved session could not be used. Each subclass names one cause,
-    so the run log never reports one failure as another (issue #217)."""
+    so the run log never reports one failure as another."""
 
     def __init__(self, store: str, message: str) -> None:
         super().__init__(message)
@@ -175,7 +175,7 @@ def _open_context(
 def human_delay(min_s: float = 0.5, max_s: float = 2.0) -> None:
     """Sleep a random duration to space out actions like a human would.
 
-    Store handlers (issues #2 / #3) call this between navigations and clicks.
+    Store handlers call this between navigations and clicks.
     """
     time.sleep(random.uniform(min_s, max_s))
 
@@ -225,7 +225,7 @@ def launch_context(
             in.
         on_wait: Optional ``(delay_s, attempt, total)`` callback fired before
             each backoff sleep, so a caller can tell the user it is waiting on
-            the profile rather than searching (issue #211).
+            the profile rather than searching.
 
     Returns:
         ``(playwright, context, page)``. The caller owns cleanup: call

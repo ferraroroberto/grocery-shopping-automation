@@ -153,7 +153,7 @@ def _set_quantity(page: Page, item: CartItem, target: int) -> None:
     Only ever adds. The caller (`add_to_cart`) already returns before this
     when the line is at or above `target`, matching Ametller and Carrefour:
     `--cart-mode keep` means "add the list on top of whatever is already in
-    the cart" (issue #339), never shrink a line someone else filled by hand.
+    the cart", never shrink a line someone else filled by hand.
     """
     qty = _read_product_qty(page)
 
@@ -189,7 +189,7 @@ def add_to_cart(page: Page, item: CartItem) -> None:
     Idempotent: reads the current cart quantity and only adds what is missing,
     so a re-run after a partial failure is safe. Never reduces a line that
     already holds more than ``item.comprar`` — ``--cart-mode keep`` means "add
-    the list on top of whatever is already in the cart" (issue #339), and the
+    the list on top of whatever is already in the cart", and the
     other two handlers already leave such a line alone.
 
     Raises:
@@ -311,7 +311,7 @@ def cart_lines_from_json(cart: object) -> dict[str, float]:
 
 
 def read_cart_lines(page: Page) -> dict[str, float]:
-    """The whole cart as product id → quantity, for the run's final check (#247).
+    """The whole cart as product id → quantity, for the run's final check.
 
     Read-only: loads the storefront home and parses the cart JSON that page
     load itself fetches.

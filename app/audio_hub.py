@@ -69,9 +69,9 @@ async def vt_request(method: str, path: str, **kwargs: Any) -> httpx.Response:
 async def transcode_and_transcribe(file: UploadFile, *, prompt: str | None = None) -> str:
     """Read `file`, transcode to WAV, and transcribe it via the hub transcribe role.
 
-    Shared by ``/api/product-search/transcribe`` and ``/api/audio/transcribe``
-    (issue #95): both read the upload, transcode with an ffmpeg-missing
-    fallback to the raw bytes, call ``transcribe()``, and translate a
+    Shared by ``/api/product-search/transcribe`` and ``/api/audio/transcribe``:
+    both read the upload, transcode with an ffmpeg-missing fallback to the
+    raw bytes, call ``transcribe()``, and translate a
     ``TranscriptionError`` into a 502. ``prompt`` (and the Spanish-forcing
     ``language``, always taken from config) is the only thing the two call
     sites differ on.

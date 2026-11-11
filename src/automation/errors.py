@@ -38,7 +38,7 @@ class PartialStockError(RuntimeError):
     The handler's sign of a stock cap: the product is sold and some units
     landed, but the line will not grow (the + control is gone, or the quantity
     stopped moving). Not retried: the run's final cart read decides the real
-    number, and the item's fallback, if any, supplies the rest (issue #283).
+    number, and the item's fallback, if any, supplies the rest.
     """
 
     def __init__(self, item: CartItem, in_cart: float) -> None:

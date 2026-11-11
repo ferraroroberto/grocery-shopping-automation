@@ -3,7 +3,7 @@
 Usage:
     python -m src.automation.check_logins [--store STORE] [--json] [--headless]
 
-Read-only (issue #217): opens the shared profile once (waiting with the
+Read-only: opens the shared profile once (waiting with the
 profile backoff if a sibling job holds it) and, for every store handler that
 exposes ``check_login(page)``, loads the storefront and asks the store's own
 session signal. It never reads or writes a cart, and never logs in or out.

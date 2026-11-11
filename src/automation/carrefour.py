@@ -1,4 +1,4 @@
-"""Carrefour add-to-cart handler (issue #150).
+"""Carrefour add-to-cart handler.
 
 Carrefour's storefront (``www.carrefour.es/supermercado``) sits behind
 Cloudflare: plain HTTP is blocked, but a real Chrome session works and the
@@ -24,11 +24,11 @@ sale point), so a URL-based login check alone would not catch an expired
 session. The header API is the *only* login signal: the cart API answers a
 logged-in account that has no cart yet (e.g. right after an order) with
 ``404 {"type": "no_cart"}`` — the storefront's own page load gets the same 404
-(verified live 2026-10-06, issue #217) — so that 404 reads as an empty cart,
+(verified live 2026-10-06) — so that 404 reads as an empty cart,
 never as a lapsed session. Every other non-OK answer raises the
 :class:`~src.automation.browser.StoreAccessError` subclass that names its cause.
 
-Cut picker (issue #176, verified live 2026-09-28): fresh-fish pages such as
+Cut picker (verified live 2026-09-28): fresh-fish pages such as
 "Dorada de ración" show "Selecciona el tipo de corte" — one
 ``li.cut-selector__item`` per cut, titled with its label (Entero · Entero
 limpio · Rodajas · …), the chosen one carrying ``selected``; the page opens on
@@ -232,7 +232,7 @@ def _read_cart(page: Page) -> dict[str, dict]:
 
 
 def check_login(page: Page) -> None:
-    """Read-only login check (issue #217): load the home page, ask the header API.
+    """Read-only login check: load the home page, ask the header API.
 
     Touches no cart. Returns when logged in.
 
@@ -441,7 +441,7 @@ def cart_key(url: str) -> str:
 
 
 def read_cart_lines(page: Page) -> dict[str, float]:
-    """The whole food cart as product id → units, for the run's final check (#247).
+    """The whole food cart as product id → units, for the run's final check.
 
     Read-only: one page load and the cart API GET.
 
