@@ -1,6 +1,6 @@
 """Deterministic parser for Carrefour's "Aviso de pedido NNN preparado" email.
 
-Built against a real message (issue #158) read from the local email archive —
+Built against a real message read from the local email archive —
 never from a live mailbox. Unlike Ametller's HTML table, Carrefour's body is
 line-oriented text: each product is a name line followed by one
 ``Pedido <n> ... Entregado <m>`` line, grouped under section headings
@@ -93,6 +93,6 @@ def parse_confirmed_items(body_text: str) -> list[str]:
     """Return the ordered names of the products Carrefour actually delivered.
 
     Products with ``Entregado 0`` are omitted — callers diff this list against
-    the purchase log to find them (#73).
+    the purchase log to find them.
     """
     return [line.name for line in parse_confirmed_lines(body_text) if line.delivered > 0]

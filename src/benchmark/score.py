@@ -1,4 +1,4 @@
-"""Score a benchmark run into split scenarios (issue #145). Deterministic, no LLM.
+"""Score a benchmark run into split scenarios. Deterministic, no LLM.
 
     python -m src.benchmark.score benchmark_runs/2026-09-27 [--promote]
 

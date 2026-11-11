@@ -212,7 +212,7 @@ def set_store_url(df: pd.DataFrame, row: int, store: str, url: str, *, save: boo
 
 def set_fallback(df: pd.DataFrame, row: int, store: str, url: str, *, save: bool = True,
                  xlsx_path: Optional[str] = None) -> pd.DataFrame:
-    """Set one row's fallback product (#283, #284), or clear it with a blank store *and* url.
+    """Set one row's fallback product, or clear it with a blank store *and* url.
 
     The two cells go together. A sheet without the ``fallback_*`` columns gains
     them only when a fallback is first set; clearing there writes nothing.

@@ -96,7 +96,7 @@ def apply_preview(df: pd.DataFrame, picks: Mapping[Union[int, str], str],
     when both packs are known in the same unit, else the old target with a
     flag — ``unit_mismatch``, ``pack_unknown`` or ``no_url`` (the row has no
     URL for the new store, so it can't be applied yet). ``tenemos`` is the
-    stock converted by the same factor, rounded to the nearest pack (#160),
+    stock converted by the same factor, rounded to the nearest pack,
     next to ``tenemos_from``; unconverted when the target isn't. Packs use
     the household's overrides where set. ``old_name`` / ``new_name`` are the
     products the old and new links point to, for display (None when unknown).
@@ -146,7 +146,7 @@ def apply_preview(df: pd.DataFrame, picks: Mapping[Union[int, str], str],
 def apply_changes(df: pd.DataFrame, changes: list[Mapping[str, Any]], *,
                   xlsx_path: Optional[str] = None) -> pd.DataFrame:
     """Apply ``[{row, store, cantidad, tenemos?}]``: ``super``, ``buscador`` (from ``url_<store>``),
-    ``cantidad`` and — when the change carries it — the converted stock ``tenemos`` (#160).
+    ``cantidad`` and — when the change carries it — the converted stock ``tenemos``.
 
     Every change is validated before anything is written, and the whole batch
     is saved once — or rolled back together when the save fails.

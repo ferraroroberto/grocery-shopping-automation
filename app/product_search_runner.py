@@ -1,4 +1,4 @@
-"""Subprocess plumbing for the on-demand product search (issue #87).
+"""Subprocess plumbing for the on-demand product search.
 
 Runs ``python -m src.automation.product_search`` in the background and captures its
 JSON stdout. Kept UI-agnostic and separate from ``automation_runner`` (which
@@ -13,7 +13,7 @@ subprocess also serialises cleanly against the cart automation via
 The child's stderr (its ``logging`` output: per-store phase + elapsed) is
 appended to :data:`LOG_PATH`, as are the router's own parse-phase notes via
 :func:`note` — the webapp runs with no console, so without this file a hung
-search leaves nothing to read (issue #211).
+search leaves nothing to read.
 """
 
 from __future__ import annotations
@@ -116,7 +116,7 @@ def store_states(chunks: list[str]) -> dict[str, dict[str, dict[str, Any]]]:
     """Return ``{query: {store: latest store event}}`` from the streamed events.
 
     Store order follows first appearance (the engine's own run order), so the
-    caller can list stores without knowing the engine's store set (issue #211).
+    caller can list stores without knowing the engine's store set.
     """
     states: dict[str, dict[str, dict[str, Any]]] = {}
     for event in _events(chunks):

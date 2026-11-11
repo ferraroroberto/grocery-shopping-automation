@@ -2,16 +2,16 @@
 
 Writes one JSON log per store that had at least one item added — the "what we
 bought" source of truth a later step diffs against a parsed order-confirmation
-email (issue #70; email reading/matching is out of scope here). Each item
+email (email reading/matching is out of scope here). Each item
 carries its `buscador` product URL alongside the name/quantity, so a later
 step can resolve straight back to the actual product (and, for Ametller, the
 numeric `productId` embedded in that URL) instead of matching on name alone.
 
 A second run on the same day merges into that day's log rather than replacing
 it. Beside the purchase logs, :func:`write_run_records` keeps one record per
-store *per run* under ``runs/`` (issue #247): every intended item with its
+store *per run* under ``runs/``: every intended item with its
 outcome, the verified cart snapshot, suggestions, and the run's console output.
-:func:`read_fill_history` reads them back a fill day at a time (issue #323), and
+:func:`read_fill_history` reads them back a fill day at a time, and
 ``state/fill_cleared.json`` remembers which fills the owner marked done — the
 run records themselves are never rewritten.
 """

@@ -139,9 +139,9 @@ def _coerce_quantity_column(df: pd.DataFrame, col: str) -> pd.Series:
     A blank or stray-text `cantidad`/`tenemos` cell is an ordinary result of
     editing the sheet through "Open spreadsheet", and plain `.astype(int)` on
     such a column raises `IntCastingNaNError` — neither `SpreadsheetLockedError`
-    nor `InventoryFileError`, so `load_inventory_or_error` didn't translate it
-    and every inventory endpoint returned a bare 500 with no message (issue
-    #339). A blank cell defaults to 0; a cell that is filled in but still not a
+    nor `InventoryFileError`, so `load_inventory_or_error` does not translate it
+    and every inventory endpoint would return a bare 500 with no message. A
+    blank cell defaults to 0; a cell that is filled in but still not a
     number names the offending rows instead.
     """
     original = df[col]
@@ -250,7 +250,7 @@ def fallback_pair(
     primary_url: str,
     label: str = "",
 ) -> Optional[Tuple[str, str]]:
-    """A row's fallback as ``(store, url)``, or ``None`` (issue #283).
+    """A row's fallback as ``(store, url)``, or ``None``.
 
     The one rule for both readers of the fallback cells — the cart run and the
     item sheet's record: a blank store, a non-``http(s)`` URL, or a fallback
@@ -272,7 +272,7 @@ def get_unique_zones(df: pd.DataFrame) -> List[str]:
     """Return sorted unique zones from inventory data.
 
     NaN is dropped, not sorted: a row created without a zone/supermarket
-    (e.g. voice-added, issue #86) must not crash the str sort.
+    (e.g. voice-added) must not crash the str sort.
     """
     return sorted(df[COLUMNS["lugar"]].dropna().unique().tolist())
 

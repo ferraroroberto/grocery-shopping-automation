@@ -1,4 +1,4 @@
-"""Per-product purchase options a store's product page asks for (issue #176).
+"""Per-product purchase options a store's product page asks for.
 
 Some store product pages carry a choice that is not a different product — the
 same product id, the same URL, one option picked on the page before "Añadir".
@@ -20,7 +20,7 @@ different product (even for the same item) never inherits it::
 
 ``cut`` is the option's visible label on the product page, matched exactly.
 ``note`` is for people only. The item review dialog shows them per store
-(:func:`options_for_url`, issue #179).
+(:func:`options_for_url`).
 """
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-"""Invented data for the design-review demo instance (#251).
+"""Invented data for the design-review demo instance.
 
 Everything here is made up: product names, brands, prices, stores' product ids
 and the ``demo.invalid`` URLs (a TLD that never resolves). Nothing is derived
@@ -183,7 +183,7 @@ def write_run(runs: Path, date: str, price_factor: float) -> Path:
 
 
 def write_last_fill(logs: Path) -> None:
-    """Invented Fill carts run records under ``<purchase logs>/runs/`` (#258)."""
+    """Invented Fill carts run records under ``<purchase logs>/runs/``."""
     runs = logs / "runs"
     make_dirs(runs)
     for store, statuses in LAST_FILL.items():
@@ -193,7 +193,7 @@ def write_last_fill(logs: Path) -> None:
 
 
 def write_last_audit(logs: Path) -> None:
-    """One invented voice-audit log under the audit logs dir (#259)."""
+    """One invented voice-audit log under the audit logs dir."""
     make_dirs(logs)
     save_text(logs / LAST_AUDIT_FILE, json.dumps(LAST_AUDIT, indent=2))
 

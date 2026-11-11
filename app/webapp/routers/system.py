@@ -194,7 +194,7 @@ def bootstrap_session() -> dict[str, str]:
 
 @router.post("/api/actions/check-logins")
 def check_logins() -> dict[str, Any]:
-    """Run the read-only store-login check (issue #217) — never touches a cart.
+    """Run the read-only store-login check — never touches a cart.
 
     Blocking (sync handler, so FastAPI runs it in its threadpool): returns once
     the child has checked every store, up to the runner's timeout.

@@ -33,7 +33,7 @@ _IN_CART = (ADDED_VERIFIED, ADDED_UNVERIFIED)
 
 @dataclass
 class FallbackOutcome:
-    """What the item's fallback supplied (issue #283).
+    """What the item's fallback supplied.
 
     Attributes:
         store: Store key the fallback was (to be) bought at.

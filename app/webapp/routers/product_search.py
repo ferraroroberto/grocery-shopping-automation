@@ -1,10 +1,10 @@
-"""On-demand product search (issue #87) — speak/type an item, search the
+"""On-demand product search — speak/type an item, search the
 stores, validate a candidate card to fill its `buscador`. No automated
 decision. Single-flight: one search runs at a time (it drives the shared
 Chrome profile), tracked in this module's `_SEARCH_RUN`.
 
 Each store's cards and state stream into `/status` as they land, so a slow
-or failed store never hides another's results (issue #211)."""
+or failed store never hides another's results."""
 
 import logging
 import time
@@ -72,7 +72,7 @@ class ProductSearchSelectPayload(BaseModel):
 
 def _search_term(item: VoiceItem, text: str, only_item: bool) -> str:
     """The store query for one parsed item: the user's own words, never the
-    matched inventory row's name (issue #214) — that match is only a hint about
+    matched inventory row's name — that match is only a hint about
     which row a pick would update. `phrase` is what the user said; a model that
     omitted it leaves the unmatched name (already as spoken) or, for a lone
     matched item, the typed text. Only a multi-item utterance with matched,
@@ -145,7 +145,7 @@ def _search_status() -> dict[str, Any]:
 
 
 def _store_rows(events: dict[str, dict], *, finished: bool) -> list[dict[str, Any]]:
-    """One display row per store from its latest streamed event (issue #211).
+    """One display row per store from its latest streamed event.
 
     `state` is a :class:`StoreState`; a run that ended (crash, cancel) with a
     store still in flight reports it `failed` with reason `stopped`, so it never

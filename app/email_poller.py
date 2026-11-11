@@ -1,13 +1,13 @@
-"""Background email-confirmation poller for the Settings pane (issue #73).
+"""Background email-confirmation poller for the Settings pane.
 
-Wraps the #72 seam (`src.automation.email_check.check_latest_confirmation`) in a
+Wraps the seam (`src.automation.email_check.check_latest_confirmation`) in a
 scheduled loop: a daemon thread wakes periodically, and when polling is
 enabled and the configured interval has elapsed it checks every enabled
 monitored sender's store. Each check (scheduled or manual) appends one entry
 to a small gitignored log so the Settings pane can show what happened last.
 
 Already-processed emails are skipped by the seam itself (processed-state
-file, #72); a manual `force=True` run re-processes the latest email — the
+file); a manual `force=True` run re-processes the latest email — the
 end-to-end test path.
 """
 

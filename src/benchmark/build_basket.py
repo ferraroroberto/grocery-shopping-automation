@@ -1,4 +1,4 @@
-"""Build the benchmark baseline basket (issue #145).
+"""Build the benchmark baseline basket.
 
 Reads the inventory spreadsheet and the cart-automation purchase logs, derives
 the household's **average monthly quantity** per item, fetches today's product

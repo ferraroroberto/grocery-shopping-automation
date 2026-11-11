@@ -1,4 +1,4 @@
-"""Run history for the supermarket benchmark (issue #145).
+"""Run history for the supermarket benchmark.
 
 Every finished run is recorded into two append-only-by-run files under
 ``<runs_dir>/_state/`` (default ``benchmark_runs/``; gitignored — prices are

@@ -8,7 +8,7 @@ from typing import Optional
 
 @dataclass(frozen=True)
 class Fallback:
-    """The product to buy instead when an item's primary comes up short (issue #283).
+    """The product to buy instead when an item's primary comes up short.
 
     Attributes:
         store: Store key holding the fallback, e.g. ``"carrefour"`` (lowercase).

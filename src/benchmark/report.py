@@ -1,4 +1,4 @@
-"""Render a scored benchmark run as a self-contained HTML report (issue #145).
+"""Render a scored benchmark run as a self-contained HTML report.
 
     python -m src.benchmark.report benchmark_runs/2026-09-27     # → <run>/report.html
 

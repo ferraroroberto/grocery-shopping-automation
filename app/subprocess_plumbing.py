@@ -1,7 +1,7 @@
 """Shared spawn/drain/stop plumbing for background subprocess-backed runners.
 
-Factored out of ``app/automation_runner.py`` and ``app/product_search_runner.py``
-(issue #95): both modules build a ``python -m <module>`` argv, spawn it with
+Factored out of ``app/automation_runner.py`` and ``app/product_search_runner.py``:
+both modules build a ``python -m <module>`` argv, spawn it with
 ``PYTHONUTF8`` forced and ``cwd`` set to the repo root, drain its stdout on a
 background thread into a buffer the caller owns, expose an ``is_running()``
 check, and stop the process with the same terminate/wait-5s/kill escalation.

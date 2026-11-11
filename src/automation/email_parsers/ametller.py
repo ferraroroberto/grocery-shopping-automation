@@ -1,7 +1,7 @@
 """Deterministic parser for Ametller Origen's "La comanda està preparada!"
 order-confirmation email.
 
-Built against a real message (issue #72) pulled read-only via the vendored
+Built against a real message pulled read-only via the vendored
 ``src.gmail_readonly`` component. Ametller's plain-text MIME part is not actually
 plain for the item table — the ESP template embeds the same raw HTML table
 markup used in the ``text/html`` alternative, so
@@ -37,7 +37,7 @@ def parse_confirmed_items(body_text: str) -> list[str]:
     """Return the ordered list of confirmed product names from the email body.
 
     Items dropped by the store (out of stock, etc.) simply do not appear —
-    callers diff this list against the purchase log to find them (#73).
+    callers diff this list against the purchase log to find them.
     """
     return [
         _clean_item_name(match)

@@ -7,9 +7,9 @@ rarely share enough characters for string similarity alone. A persisted
 correspondence table (`config/item_name_aliases.json`, keyed by store) is
 the primary match path; a fuzzy fallback only covers minor future drift in
 an *already-aliased* website name (e.g. a wording or emoji tweak), not the
-first-time internal-name gap, per issue #72.
+first-time internal-name gap.
 
-Between those two sits a containment tier (issue #116): when the short
+Between those two sits a containment tier: when the short
 `comida` name survives verbatim inside the longer catalogue line — "pulpo
 cocido" in "Pulpo cocido Gilmar 300g" — the brand/pack suffix drags the
 fuzzy ratio far below threshold even though the pair is obviously the same
@@ -111,11 +111,10 @@ def match_items(
     """Match confirmed email items against the purchase-log catalog.
 
     Match order per website name: alias-table lookup, then exact normalized
-    match against `comida`, then whole-token containment against `comida`
-    (issue #116), then fuzzy fallback (``difflib`` ratio) against both
-    alias-table keys and `comida` values. Whatever `comida` values are
-    never matched are returned as `dropped_comida` — the signal #73 alerts
-    on.
+    match against `comida`, then whole-token containment against `comida`,
+    then fuzzy fallback (``difflib`` ratio) against both alias-table keys and
+    `comida` values. Whatever `comida` values are never matched are returned
+    as `dropped_comida` — the signal the email poller alerts on.
     """
     result = MatchResult()
     comida_by_norm = {normalize(item.comida): item.comida for item in catalog}

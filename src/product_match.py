@@ -1,4 +1,4 @@
-"""Score how well a store's search hit matches the spoken query (issue #87).
+"""Score how well a store's search hit matches the spoken query.
 
 UI-free and deterministic — the unit-tested core of the product search. This is
 a **display aid**, never an auto-decision: the app orders candidate cards by
@@ -7,7 +7,7 @@ this score and labels them, but a human always picks which product fills
 
 The score assumes **Spanish-language** hit names. Both stores now supply them:
 Mercadona's ``display_name`` is Spanish, and Ametller's SCAPI is queried with
-``locale=es`` (issue #111 — before that it returned Catalan, which made the
+``locale=es`` (the default is Catalan, which would make the
 score meaningless there). The caller still presents Ametller hits in the
 store's own relevance order rather than re-sorting by this score; see
 ``src/automation/product_search.py`` for how each store is queried and why.

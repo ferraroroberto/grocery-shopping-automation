@@ -1,4 +1,4 @@
-"""Per-store product links, store picks and the cost simulator (issue #148).
+"""Per-store product links, store picks and the cost simulator.
 
 UI-free. Each inventory row may carry one product URL per supermarket in an
 optional ``url_<store>`` column (store keys from ``config/benchmark_stores.json``);
@@ -14,7 +14,7 @@ Inventory rows are joined to benchmark items by
 Every mutator persists through :func:`src.data.save_inventory_data` and rolls
 the in-memory frame back when the save fails (e.g. the sheet is locked).
 
-**Overrides and review state (#165)** live in
+**Overrides and review state** live in
 ``<runs_dir>/_state/overrides.json`` (gitignored household data, never in the
 xlsx and never written into the benchmark mappings)::
 
@@ -34,7 +34,7 @@ progress (any row's ``item_key(comida)``). A missing or unreadable file reads
 as empty (⚠️ logged); a write sets an unreadable file aside first, and every
 write is atomic (temp file + replace).
 
-**Monthly cost what-if baseline (#183)** lives in
+**Monthly cost what-if baseline** lives in
 ``<runs_dir>/_state/baseline.json``::
 
     {"set_at": "<ISO timestamp>", "run_date": "<YYYY-MM-DD>",
@@ -49,7 +49,7 @@ status quo. It never touches the review reference points (``moved``,
 ``is_basket_store``, the quantity check's "before") — those keep comparing
 against the benchmark until a new run.
 
-Split by concern (#297); every public name is re-exported here, so importers
+Split by concern; every public name is re-exported here, so importers
 keep using ``src.store_links`` unchanged:
 
 * :mod:`.registry` — the store registry, link kinds, run discovery, the errors

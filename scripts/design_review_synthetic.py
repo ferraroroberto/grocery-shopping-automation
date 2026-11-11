@@ -1,9 +1,9 @@
-"""A throwaway grocery webapp on invented data, for ``/design-review --synthetic`` (#251).
+"""A throwaway grocery webapp on invented data, for ``/design-review --synthetic``.
 
 fleet-config's design-review walk must never touch the household's real
 spreadsheet, so the redesign walks an instance nobody uses. This script is that
 instance and speaks the launcher contract ``capture.SyntheticInstance`` expects
-(fleet-config#995, ``docs/skills.md`` "Two legs, two interpreters"): run with
+(fleet-config's ``docs/skills.md`` "Two legs, two interpreters"): run with
 this repo's ``.venv`` from the checkout root, it prints ``URL=<base>`` once the
 webapp answers, runs until its stdin reaches EOF, then stops the server and
 deletes its temp tree.

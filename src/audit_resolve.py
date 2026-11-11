@@ -2,7 +2,7 @@
 
 Whisper drifts on dictated Spanish product names — "garbanzos" comes back as
 "Ganzos", "actimel" as "Aximell", "copos avena" as "Copos de arena". When the
-LLM hands back such a phrase without resolving it to an `idx` (issue #132), this
+LLM hands back such a phrase without resolving it to an `idx`, this
 module is the safety net: a UI-free, unit-tested fuzzy resolver that either names
 one candidate row or honestly declines.
 

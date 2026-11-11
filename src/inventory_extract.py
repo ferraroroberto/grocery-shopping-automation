@@ -144,8 +144,8 @@ def _clean_unmatched(
 
     A mention that names an inventory row is not really *unmatched* — it is a row
     whose count went missing, and the caller has to be able to tell the two apart
-    (issue #132: mentions with a resolved row were being offered for zeroing, which
-    zeroed items the speaker had named out loud). So each entry comes back with a
+    (otherwise mentions with a resolved row get offered for zeroing, which
+    zeroes items the speaker named out loud). So each entry comes back with a
     validated `idx` (or None) plus `resolved_by` saying who resolved it.
 
     Two passes on purpose: every idx the LLM supplied is banked first, so the

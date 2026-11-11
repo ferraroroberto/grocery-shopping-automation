@@ -27,7 +27,7 @@ convention, so there is no watcher and no per-request work.
 
 Local port of the fleet-wide pattern (photo-ocr / voice-transcriber
 ``src/static_versioning.py``); kept close to the originals so swapping to
-the canonical scaffold helper (ferraroroberto/project-scaffolding#78) once
+the canonical scaffold helper once
 it lands is a near-mechanical change.
 """
 

@@ -76,7 +76,7 @@ def _offer_snapshot(ctx: _RunContext, key: str, store: str) -> dict[str, Any]:
 
 
 def set_baseline(df: pd.DataFrame, run_dir: Optional[Path] = None) -> dict[str, Any]:
-    """Freeze the list's current stores as the new "today" for :func:`simulate` (#183).
+    """Freeze the list's current stores as the new "today" for :func:`simulate`.
 
     Snapshots :func:`_current_stores` — each basket item's store as the list
     has it right now — plus its price through :meth:`_RunContext.offer` at
@@ -145,7 +145,7 @@ def simulate(df: pd.DataFrame, picks: Mapping[Union[int, str], str], orders_per_
     stay at the store in the list now (the row's ``super``). "Today" is
     normally the benchmark's status quo — each basket item at the store it
     was bought from when the run was taken — so it stays fixed after a
-    switch is applied to ``super``. A baseline (:func:`set_baseline`, #183)
+    switch is applied to ``super``. A baseline (:func:`set_baseline`)
     freezes the list's current stores as "today" instead, for as long as it
     is still tied to the latest run — an older one is ignored (``baseline``
     is still reported, with ``stale`` True) and "today" falls back to the

@@ -432,7 +432,7 @@ def set_item_checked(df: pd.DataFrame, item_id: int, checked: bool,
 
 
 def run_status(base: Optional[Path] = None) -> dict[str, Any]:
-    """The latest run's age and review due date, the stores it covers, the override count and the baseline (#183)."""
+    """The latest run's age and review due date, the stores it covers, the override count and the baseline."""
     items = load_overrides(base)["items"]
     n_overrides = sum(len(v) for v in items.values() if isinstance(v, dict))
     run = latest_run_dir(base)
