@@ -171,13 +171,11 @@ const usage = initUsageLog({
 const SEGMENT_VIEW = { audio: "audit:voice", audit: "audit:manual", list: "items:list", stores: "items:prices" };
 
 function openSettings() {
-  settingsReturnTab = nav.getTab();
+  // The nav reports no tab while Settings is up, so a second open keeps the first return tab.
+  settingsReturnTab = nav.getTab() || settingsReturnTab;
   state.mode = "settings";
   el.app.querySelectorAll(":scope > .pane").forEach((pane) => { pane.hidden = pane !== settingsPane; });
-  document.querySelectorAll(".tabs .tab").forEach((tab) => {
-    tab.classList.remove("active");
-    tab.setAttribute("aria-selected", "false");
-  });
+  nav.setTab(null);
   el.app.scrollTop = 0;
   window.scrollTo(0, 0);
   usage.trackView("settings");
