@@ -88,6 +88,8 @@ exclude  = ["**/_vendored/**", "scripts/*_ratchet_gate.py", "tests/ratchet_gates
 [docs_ratchet]
 enabled  = true
 baseline = ".docs-ratchet-baseline.json"
+# The automation reference doc lives beside its code, outside docs/, so it is listed here.
+include  = ["README.md", "docs/", "src/automation/README.md"]
 
 # [comment_ratchet] -- the scaffold's no-history-comments ratchet (fleet-config
 # issue #340's audit bucket). The gate (scripts/verify-before-ship.ps1) runs
@@ -142,6 +144,7 @@ repeated_text_words = 12
 [doc_refs_ratchet]
 enabled  = true
 baseline = ".doc-refs-ratchet-baseline.json"
+include  = ["README.md", "CLAUDE.md", "docs/", "src/automation/README.md"]
 # The hub, whisper, the voice-transcriber and this repo's legacy Streamlit app, which the docs name on purpose.
 allow_refs = [":8000", ":8443", ":8501"]
 

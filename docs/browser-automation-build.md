@@ -1,209 +1,62 @@
-# Browser cart automation — implementation notes and adding a new store
+# Browser cart automation — structure and adding a store handler
 
-How the `src/automation/` package is structured and why. Written so the *next*
-store handler is faster to add — most of the cost was discovering quirks, not
-writing code. For the canonical module-by-module reference see
-[`src/automation/README.md`](../src/automation/README.md).
+How the `src/automation/` package is put together and what a new store handler has to provide. For the module-by-module reference see [`src/automation/README.md`](../src/automation/README.md); for running it, logins and the cart guard see [browser-automation.md](browser-automation.md).
 
----
-
-## 1. The shape of the solution
+## 1. Shape
 
 ```
-src/                inventory Excel I/O + config (pre-existing, UI-agnostic)
 src/automation/         UI-agnostic browser automation
-  browser.py          Playwright factory: persistent Chrome profile, login check
+  browser.py            Playwright factory: persistent Chrome profile, login check
   bootstrap_session.py  one-time interactive login (plain chrome.exe)
-  check_logins.py     read-only per-store login check
-  grocery_reader.py   inventory XLSX -> list[CartItem]
-  models.py           CartItem dataclass
-  errors.py           OutOfStockError, AddToCartFailed
-  mercadona.py        add_to_cart(page, item)  — store handler
-  ametller.py         add_to_cart(page, item)  — store handler
-  carrefour.py        add_to_cart(page, item)  — store handler
-  product_options.py  per-store, per-product page-option picks (e.g. a cut)
-  report.py           RunReport summary
-  run_automation.py   CLI runner: read list -> group by store -> dispatch,
-                       plus the cart guard (retry, verify, fallback, notify)
+  check_logins.py       read-only per-store login check
+  grocery_reader.py     inventory XLSX -> list[CartItem]
+  models.py             CartItem dataclass
+  errors.py             OutOfStockError, AddToCartFailed
+  mercadona.py          store handler
+  ametller.py           store handler
+  carrefour.py          store handler
+  product_options.py    per-store, per-product page-option picks (e.g. a cut)
+  report.py             RunReport summary
+  run_automation.py     CLI runner: read list -> group by store -> dispatch,
+                        plus the cart guard (retry, verify, fallback, notify)
 app/
   automation_runner.py  subprocess plumbing (spawn, drain stdout, stop)
-  shopping.py           legacy Streamlit "Run Automation" UI section
+  shopping.py           legacy Streamlit "Run Automation" section
 ```
 
-See [`src/automation/README.md`](../src/automation/README.md) for the full
-module-by-module reference, including the modules added since this was
-written (purchase log, email-confirmation check, product search, benchmark).
+`src/automation/` never imports `streamlit`, and `app/` never drives Playwright. The CLI runner is the seam: the PWA (`app/webapp/routers/automation.py`) and the legacy Streamlit integration both wrap the exact command typed in a terminal, so the terminal stays a first-class debugging path.
 
-The hard rule that paid off: **`src/automation/` never imports `streamlit`, and
-`app/` never drives Playwright.** The CLI runner is the seam — both the PWA
-(`app/webapp/routers/automation.py`) and the legacy Streamlit integration are
-"just" a subprocess wrapper around the exact command you would type in a
-terminal, which means the terminal stays a first-class debugging path
-forever.
+## 2. Login and cart operations are split
 
----
+The stores' login pages are reCAPTCHA-protected and reject a Playwright-launched browser (even `channel="chrome"`: "Could not connect to the reCAPTCHA service"), so exporting cookies into a fresh Playwright context does not work. The split that does:
 
-## 2. reCAPTCHA — the thing that almost sank the project
+1. **Bootstrap login in a plain `chrome.exe` subprocess**, never Playwright: `subprocess.Popen([chrome, f"--user-data-dir={USER_DATA_DIR}", *urls])`. A Chrome process started with only `--user-data-dir` looks like a human's browser. The operator logs into each store, closes the window and presses Enter.
+2. **Drive cart operations with Playwright against that same on-disk profile** (`launch_persistent_context(user_data_dir=..., channel="chrome")`). Cart pages are not reCAPTCHA-gated, only login is, so once the session cookie is in the profile Playwright drives the carts without a challenge.
+3. **One shared profile for all stores** (`automation/chrome_user_data/`, gitignored).
 
-The original plan was the textbook one: log in once, export cookies to JSON,
-re-inject them into a fresh Playwright Chromium context. **It does not work
-here.** Mercadona's and Ametller's login pages are reCAPTCHA-protected and the
-challenge inspects the browser: a Playwright-launched browser (even
-`channel="chrome"`) trips *"Could not connect to the reCAPTCHA service"* and
-the login never completes.
+Playwright never touches a login page. A persistent profile directory can be opened by one browser process at a time, so the runner works stores sequentially (open one context, finish, close, open the next); two store windows cannot be open side by side. The filled cart persists in the store account, so any store can be opened afterwards with its cart already there, and `--keep-open` pauses after each store in an interactive terminal run so the cart can be reviewed and paid before the window closes.
 
-What worked, after iterating:
+## 3. What every handler shares
 
-1. **Bootstrap login in a plain `chrome.exe` subprocess** — not Playwright at
-   all. `subprocess.Popen([chrome, f"--user-data-dir={USER_DATA_DIR}", *urls])`.
-   A normal Chrome process started with only `--user-data-dir` looks like a
-   human's browser and logs in fine. The operator logs into each store, closes
-   the window, presses Enter.
-2. **Drive cart operations with Playwright against that same on-disk profile**
-   (`launch_persistent_context(user_data_dir=..., channel="chrome")`). Cart
-   pages are *not* reCAPTCHA-gated — only login is — so once the session cookie
-   is in the profile, Playwright drives the carts without challenge.
-3. **One shared profile for all stores** (`automation/chrome_user_data/`,
-   gitignored). Decided during planning; keeps bootstrap and the model simple.
+- **Idempotent.** A handler reads the current cart quantity and adds only what is missing, so a re-run after a partial failure never double-adds and never reduces a line that already has enough.
+- **Pinned selectors.** Selectors sit in a `SELECTORS` dict per handler with a "verified live" date, so a DOM change is a one-line fix and the staleness is visible. Prefer stable hooks (`data-testid`, ARIA labels, component classes, visible button text); never generated style hashes such as Emotion `css-*` classes, which change on every deploy.
+- **Wait before believing the page.** Verification polls with a timeout instead of checking once, and a click is never trusted: the handler confirms that a counter moved and retries a no-op click.
+- **Typed, per-item errors.** `OutOfStockError` and `AddToCartFailed` bubble to the runner, which records them in `RunReport` and keeps going, so one bad item never aborts the run.
+- **Verified against the store's own cart.** The cart guard reconciles every intended item against the final cart, read through the handler's `read_cart_lines`. A store with no cart reader leaves its adds "not confirmed" rather than verified.
 
-**Lesson:** the anti-bot gate is on *login*, not on *use*. Split the two. Never
-let Playwright touch the login page. This single insight is the backbone of the
-whole package.
+How each store differs is in [`src/automation/README.md`](../src/automation/README.md) under *Store-specific notes*.
 
-A consequence to remember: a persistent profile directory **can only be opened
-by one browser process at a time.** That is why the runner does stores
-*sequentially* (open Mercadona context, finish, close, open Ametller) and why
-"both store windows open side by side" is not possible — see the Streamlit
-integration section below.
+## 4. Adding a store handler
 
----
-
-## 3. The first two stores, two completely different DOMs
-
-We verified every selector live and pinned them in a `SELECTORS` dict per
-handler with a "verified live on <date>" note, so a DOM change is a one-line
-fix and the staleness is visible. Carrefour (`carrefour.py`) joined later as a
-third handler, with its own quirks (the fresh-fish cut picker, `product_options.json`,
-SCAPI auth reused by the product-search module) — see
-[`src/automation/README.md`](../src/automation/README.md) rather than this historical
-walk-through.
-
-### Mercadona (`mercadona.py`) — a React app, counts *units*
-
-- Stable `data-testid` attributes — pleasant to target. Scope everything to
-  `[data-testid='private-product-detail-info']` so the "related products"
-  carousel (which reuses the same testids) is never matched.
-- Two UI states: a single "Añadir al carro" button when the item is not in the
-  cart, a `+`/`-` picker when it is. The handler reads which is present.
-- **The critical quirk (operator-reported, then confirmed):** clicking `+`
-  *sometimes silently no-ops*. The fix is `_click_until()` — click, then poll
-  the on-page "N ud." count for up to ~4 s; if it did not move, click again
-  (up to 3 attempts). Never trust a click; verify the counter moved.
-- Mercadona counts **units**: 3 bottles of the same milk = the header badge
-  goes +3. Every run verifies *both* the product's on-page unit count *and* the
-  header cart badge delta before declaring success.
-
-### Ametller Origen (`ametller.py`) — Salesforce Commerce Cloud, SCAPI verification
-
-Ametller Origen migrated off VTEX to **Salesforce Commerce Cloud** (the
-Chakra-UI "Composable Storefront") in May 2026.
-
-- Quantity model: set the stepper *first*, then click "AÑADIR" once. The
-  site hydrates slowly — navigation waits are deliberately generous (3–4 s).
-- **Verification reads the SCAPI Shopper Baskets API** directly — not the
-  minicart DOM. The storefront exposes its own basket endpoint via
-  `/mobify/proxy/api`; the handler calls it with the SLAS shopper token that
-  the storefront stores in `localStorage` (`access_token_ametller`). Both the
-  idempotency check ("already have N") and the post-add verification ("add
-  landed") use this authoritative source.
-- **Lines are matched by numeric `productId`**, read from the redirected URL
-  (`…/{productId}.html`). The legacy `/p` buy URLs stored in the inventory
-  sheet 301-redirect there, so no inventory change was needed.
-- **Session check**: the same `localStorage` entry reveals whether the session
-  is still a *registered* shopper. If it has lapsed to a guest, the handler
-  raises `NotLoggedInError` immediately.
-- **Selectors** use Chakra component classes (`h1.chakra-heading`,
-  `input.chakra-numberinput__field`) and ARIA labels — never the Emotion
-  `css-*` hashes, which are regenerated on every deploy and would silently
-  break the handler.
-- A product page that renders an empty shell (no title, no productId) is
-  reported as `ProductUnavailableError` — a run-end alert to fix the buy URL,
-  not a hard failure.
-- After firing "AÑADIR", the handler polls the basket a few times with a
-  short delay, returning as soon as the target quantity appears. A retry (up
-  to `_MAX_ADD_ATTEMPTS`) reloads the product page and re-reads the basket to
-  avoid double-adding.
-
-### Shared design decisions
-
-- **Idempotency is mandatory.** Both handlers read the *current* cart quantity
-  and only add what is missing. A re-run after a partial failure is safe; it
-  never double-adds and never reduces a line that already has enough. This is
-  what makes "just run it again" a valid recovery strategy.
-- **Wait before believing the page.** The operator's exact words: *"if you go
-  too fast maybe the page is not getting the feedback."* True for both stores.
-  Verification polls with a timeout instead of checking once.
-- **Errors are typed and per-item.** `OutOfStockError` / `AddToCartFailed`
-  bubble to the runner, which records them in `RunReport` and *keeps going* —
-  one bad item never aborts the whole run.
-
----
-
-## 4. Surfacing it in the Streamlit app
-
-The CLI already printed a clean ✅/⚠️/❌ summary, so this integration is a
-subprocess wrapper, not new automation logic.
-
-- `app/automation_runner.py` — `build_command()`, `start_run()` (spawns
-  `python -u -m src.automation.run_automation`, attaches a daemon thread draining
-  merged stdout/stderr into a bounded `deque`), `stop_run()` (terminate, then
-  kill after a grace period). No `streamlit` import.
-- `app/shopping.py` — a bordered **🤖 Run Automation** section: store
-  selectbox, dry-run checkbox (default on), a live `st.code` view of the
-  output, and a Stop button.
-
-**The one real design decision:** how to stream output without trapping the
-script. The audio-audit mode uses a *blocking* worker-thread loop — but a
-blocking loop means a Stop button can never be clicked. So this uses a
-**rerun-driven** loop instead: each Streamlit pass renders one frame of output
-and calls `st.rerun()` after a 1 s sleep. The Stop button stays live because
-every pass is a full, responsive script run. The subprocess and its output
-deque live in `st.session_state`, so a page rerun never orphans a run, and
-`app.py` shows a warning + Stop button if you switch modes mid-run.
-
-- `-u` on the child Python is not optional — without it, the child's stdout is
-  block-buffered when it is a pipe and nothing streams until the process exits.
-- The subprocess inherits the repo root as `cwd` so the relative paths in
-  `config.json` resolve exactly as they do in a terminal run.
-
-**What this integration deliberately does *not* do:** leave both browser
-windows open side by side "ready to pay". It can't — the shared persistent
-profile is single-process (see the reCAPTCHA section above). What actually
-happens is better anyway: the filled cart
-**persists server-side in your store account**, so you open either store when
-you like and the cart is already there. For an interactive terminal run, the
-new `--keep-open` flag pauses after each store so you can review and pay before
-the window closes; the Streamlit integration never passes it (it would block on
-stdin).
-
----
-
-## 5. If you add a third store tomorrow
-
-1. **Do not touch the login flow.** Add the store's login URL to
-   `bootstrap_session.py`'s URL list; the plain-Chrome bootstrap already
-   handles it. Add login-redirect markers to `_LOGIN_URL_MARKERS` in
-   `browser.py`.
-2. Write `src/automation/<store>.py` with one function: `add_to_cart(page, item)`.
-   Start by opening the product page by hand and finding selectors; pin them in
-   a `SELECTORS` dict with a "verified live" date.
-3. Decide the store's counting model first (units vs. distinct products) — it
-   dictates how you verify. Find the *most reliable* place to read the true
-   quantity back; do not trust a header badge until you have proven it.
-4. Assume every click can silently fail. Verify by polling a counter, retry on
-   no-op.
-5. Catalogue the modals before writing the happy path. Each one is a
-   `_handle_*` helper that is a safe no-op when the modal is absent.
-6. Make it idempotent: read current quantity, add only the difference.
-7. Register the module in `HANDLERS` in `run_automation.py`. The CLI, the
-   `RunReport` summary, and the Streamlit integration all pick it up for free.
+1. **Login.** Add the store's URL to `_BOOTSTRAP_URLS` in `bootstrap_session.py`; the plain-Chrome bootstrap does the rest. Add the substrings of its login page URL to `_LOGIN_URL_MARKERS` in `browser.py` so a redirect to the login page raises `SessionExpiredError`.
+2. **Handler module.** Write `src/automation/<store>.py`. Open the product page by hand first and find selectors, then pin them in `SELECTORS`. It exposes:
+   - `add_to_cart(page, item)` — required.
+   - `read_cart_total(page)` — the cart's unit count, used for the before/after totals.
+   - `read_cart_lines(page)` and `cart_key(url)` — the final-cart reader the cart guard verifies against, keyed by the id `cart_key` extracts from a product URL.
+   - `clear_cart(page)` — used by the `clean` cart mode.
+   - `check_login(page)` — the read-only session signal behind `check_logins`; raise `NotLoggedInError` when the store reports no account.
+3. **Counting model.** Decide first whether the store counts units or distinct products, since it dictates how to verify. Find the most reliable place to read the true quantity back, and do not trust a header badge until it is proven.
+4. **Clicks and modals.** Assume every click can silently fail: verify by polling a counter and retry on a no-op. Catalogue the modals before writing the happy path; each is a `_handle_*` helper that is a safe no-op when the modal is absent.
+5. **Idempotence.** Read the current quantity and add only the difference.
+6. **Register** the module in `HANDLERS` in `run_automation.py`. The CLI, the `RunReport` summary, `check_logins` and the app integrations read that registry.
+7. **Rest of the repo.** Any other place that keys on the store name needs its entry too: the `super` values the inventory sheet uses, the store registry in `config/benchmark_stores.json`, the product search, and the confirmation-email parser and sender whitelist if the store sends one.

@@ -45,7 +45,7 @@ terminal. The profile is saved to `chrome_user_data/`.
 (`chrome.exe` is auto-detected; pass `--chrome-path` if it lives somewhere
 non-standard.)
 
-**Check the logins without touching a cart** (issue #217):
+**Check the logins without touching a cart:**
 
 ```powershell
 & .\.venv\Scripts\python.exe -m src.automation.check_logins            # every store
@@ -98,7 +98,7 @@ holder; if it is still held after that, that store's items are reported as
 errors (`Chrome profile busy (held by another job)`), the run carries on to the
 next store, and the exit code is 1.
 
-### Cart guard: retry, verify, report (issue #247)
+### Cart guard: retry, verify, report
 
 What the run says is in the cart must be in the cart, so every live run:
 
@@ -142,7 +142,7 @@ cart check …s, … same-store fallback(s) …s, suggestions …s`): one cart r
 store, plus one add per retried item, one search per unavailable item, and one
 add per fallback product plus a second cart read when a same-store fallback ran.
 
-### Fallbacks: partial stock (issue #283)
+### Fallbacks: partial stock
 
 A row may name a **fallback** product in two optional sheet columns:
 `fallback_super` (the store key, e.g. `carrefour`) and `fallback_url` (its
@@ -150,7 +150,7 @@ product URL). Neither is required — a sheet without them loads unchanged — a
 a blank store, a value that isn't an `http(s)` URL, or a fallback that is the
 row's own primary all mean "no fallback". One fallback per row; a fallback
 never has its own. The item sheet's **Fallback if short** page edits these
-columns (#284, `app/webapp/static/modules/fallback.js`, `PUT /api/items/{id}/fallback`);
+columns (`app/webapp/static/modules/fallback.js`, `PUT /api/items/{id}/fallback`);
 see `docs/items.md` for how it reads.
 
 When the final cart shows the primary short — partly (a stock cap) or
@@ -198,7 +198,7 @@ least one item added, to the directory configured by
 gitignored — mirrors the `audio_audit_logs/` convention). The file is named
 `<date>_<store>.json` and records, per ordered item, the name, quantity, and
 `buscador` product URL — the "what we bought" source of truth the
-order-confirmation email check below diffs against (issue #72). The URL is
+order-confirmation email check below diffs against. The URL is
 what could let a later step resolve back to the actual product instead of
 matching on name alone. Dry runs and stores with zero added items produce no
 file. Only units in the cart are logged (verified, or not confirmed where the
@@ -224,7 +224,7 @@ filled cart itself persists in your store account regardless.
 ### From the web app
 
 The FastAPI/PWA app drives automation from the **Carts** glance card at the
-top of its **🛒 Shop** tab (#258): tap **Fill carts**, and its **Options**
+top of its **🛒 Shop** tab: tap **Fill carts**, and its **Options**
 sheet picks a
 store (or "All stores"), a cart mode, and *Dry run*. The automation endpoints in `app/webapp/routers/automation.py` spawn
 this same CLI as a subprocess and stream its output live to the page
@@ -240,7 +240,7 @@ plumbing in `app/automation_runner.py`.
   and the header badge (picker clicks sometimes silently no-op, so they are
   retried until the count moves).
 - **Ametller Origen** runs on **Salesforce Commerce Cloud** (the Chakra-UI
-  "Composable Storefront" — it migrated off VTEX in May 2026, issue #12).
+  "Composable Storefront"; the site no longer runs on VTEX).
   Quantities are verified against the **SCAPI Shopper Baskets** API — the
   storefront's own source of truth — using the SLAS shopper token the site
   stores in `localStorage`. Lines are matched by numeric `productId`, read from
@@ -253,7 +253,7 @@ plumbing in `app/automation_runner.py`.
   failure. Selectors use Chakra component classes, ARIA labels, and visible
   button text only — never the Emotion `css-*` hashes, which are regenerated
   on every deploy and will silently break the handler.
-- **Carrefour** (issue #150) sits behind **Cloudflare**: plain HTTP is
+- **Carrefour** sits behind **Cloudflare**: plain HTTP is
   blocked, but a real Chrome session works and the storefront's own
   `/cloud-api/*` endpoints answer an in-page `fetch` riding the session
   cookies. The logged-in account carries the delivery address and sale point,
@@ -266,14 +266,14 @@ plumbing in `app/automation_runner.py`.
   rather than relying on a login redirect. The cart API answers a logged-in
   account with no cart yet (e.g. right after an order) with
   `404 {"type": "no_cart"}` — the storefront's own page gets the same 404 — so
-  that reads as an empty cart, never as a lapsed session (issue #217). A
+  that reads as an empty cart, never as a lapsed session. A
   product URL that redirects away
   from a `/R-<id>/p` product page — to the home page, a category, or a
   *different* product — is reported as **🔗 Unavailable (check URL)**, never
   silently bought as a substitute. The full cart page (`/MiCarrito`) asks for
   a step-up login, so the handler never navigates there — and never to
   checkout.
-- **Product options** (issue #176). Some product pages ask for a choice that
+- **Product options.** Some product pages ask for a choice that
   is not a different product. Carrefour's fresh fish has a **cut picker**
   ("Selecciona el tipo de corte": Entero · Entero limpio · Rodajas · …) that
   opens on *Entero*; the chosen cut travels with the "Añadir" request and comes
@@ -290,9 +290,9 @@ plumbing in `app/automation_runner.py`.
   A product whose page offers cuts but has no entry is added in the page's
   default cut, with a warning in the log.
   The item sheet's **Stores & prices** page shows the cut on
-  that store's row, so the setting is never hidden (issue #179).
+  that store's row, so the setting is never hidden.
 
-### Order-confirmation email check (issue #72)
+### Order-confirmation email check
 
 Supermarkets sometimes drop an item from an order (out of stock) and send a
 confirmation email listing what actually shipped. `src.automation.email_check`
@@ -348,18 +348,18 @@ and matches it against the latest purchase log so a dropped item is visible.
   purchase-log item is never matched is reported as dropped.
 - **Closing the loop**: once a confirmation email is fetched, parsed, and
   matched, `check_latest_confirmation()` sends a plain Telegram summary via
-  the `src/notify/` component (issue #71) — e.g. which items matched and
+  the `src/notify/` component — e.g. which items matched and
   which purchase-log item didn't show up in the confirmation. It records the
   processed Gmail message id **and its timestamp** in gitignored
   `config/gmail_processed_state.json` so a repeat call is a no-op. The
   timestamp is a watermark: a confirmation *older* than the last processed
   one is never re-processed either. Without it, trashing or archiving the
-  email just handled made the newest *remaining* one — potentially weeks old
-  — look brand new, re-alerting with a stale confirmation matched against the
-  current purchase log (issue #134). A pre-#134 state file holding a bare
-  message id still loads, and adopts its watermark on the first check that
-  can still see that message.
-- **Background poller (issue #73)**: `app/email_poller.py` calls that seam on a
+  email just handled would make the newest *remaining* one — potentially weeks
+  old — look brand new, re-alerting with a stale confirmation matched against
+  the current purchase log. A state file holding a bare message id still
+  loads, and adopts its watermark on the first check that can still see that
+  message.
+- **Background poller**: `app/email_poller.py` calls that seam on a
   schedule. The PWA's ⚙️ Settings (the header gear) → **Email watch** sheet
   selects which whitelisted senders are monitored (each mapped
   to a store via the `store` field in `config/gmail_config.json`), switches
@@ -369,7 +369,7 @@ and matches it against the latest purchase log so a dropped item is visible.
   *Test last email* re-processes the newest confirmation even if already
   seen — the end-to-end dry run, and it always sends the Telegram summary.
   Scheduled / *Check now* runs alert **only on a problem** (a dropped or
-  unrecognized item) — a fully-matched order stays silent, per issue #73 —
+  unrecognized item) — a fully-matched order stays silent —
   and are idempotent: an already-processed message logs "no new email" and
   never re-notifies. A confirmation older than the last processed one gets
   its own line, `Stale email ignored: …`, rather than the routine "no new
@@ -391,20 +391,22 @@ send if a match is found):
 | `grocery_reader.py` | `read_cart_items(store=None)` — inventory XLSX → `list[CartItem]`. |
 | `browser.py` | `launch_context()`, `goto_with_login_check()`, `human_delay()`, the `StoreAccessError` family. |
 | `bootstrap_session.py` | One-time interactive login (run via `-m`). |
-| `check_logins.py` | Read-only per-store login check (run via `-m`; issue #217). |
+| `check_logins.py` | Read-only per-store login check (run via `-m`). |
 | `mercadona.py` | Mercadona `add_to_cart(page, item)` handler. |
 | `ametller.py` | Ametller Origen `add_to_cart(page, item)` handler. |
-| `carrefour.py` | Carrefour `add_to_cart(page, item)` handler (issue #150). |
-| `product_options.py` | `preferred_cut(store, product_id)` — per-product page options from `config/product_options.json` (issue #176). |
+| `carrefour.py` | Carrefour `add_to_cart(page, item)` handler. |
+| `product_options.py` | `preferred_cut(store, product_id)` — per-product page options from `config/product_options.json`. |
 | `run_automation.py` | CLI runner — reads the list, dispatches to handlers, prints a summary. |
 | `report.py` | `RunReport` — per-run summary with `print_summary()`. |
+| `run_state.py` | `RunState`, the exit-code constants and `derive_run_state` — the one place a cart-fill run's lifecycle is declared (see [cart-fill-run-state](../../docs/cart-fill-run-state.md)). |
+| `search_state.py` | `SearchState`, `StoreState` and their derive functions — the one place the product search's run and per-store lifecycles are declared (see [product-search-state](../../docs/product-search-state.md)). |
 | `purchase_log.py` | `write_purchase_logs()` — persists what was ordered, per store, after a live run. |
-| `product_search.py` | `search_all()` — searches Mercadona + Carrefour for a spoken product term, streamed per store, and ranks candidates for display; the engine behind Items → Add item's **Find a store product** (issue #87, Carrefour added in #157, Ametller dropped in #211, moved into Add item in #182). |
+| `product_search.py` | `search_all()` — searches Mercadona + Carrefour for a spoken product term, streamed per store, and ranks candidates for display; the engine behind Items → Add item's **Find a store product**. |
 | `email_parsers/__init__.py` | Deterministic (non-LLM) per-store order-confirmation email parsers — package marker. |
 | `email_parsers/ametller.py` | Deterministic order-confirmation item-list parser for Ametller. |
-| `email_parsers/carrefour.py` | Deterministic "order prepared" item-list parser for Carrefour (delivered lines only; issue #158). |
+| `email_parsers/carrefour.py` | Deterministic "order prepared" item-list parser for Carrefour (delivered lines only). |
 | `item_matching.py` | `match_items()` — resolves confirmed email items to purchase-log `comida` values (alias table + fuzzy fallback). |
-| `email_check.py` | `check_latest_confirmation()` — the Gmail-fetch → parse → match → notify orchestration entrypoint (issue #72). |
+| `email_check.py` | `check_latest_confirmation()` — the Gmail-fetch → parse → match → notify orchestration entrypoint. |
 
 The app-side glue lives under `app/`, not here — see "From the web app" above
 for the FastAPI/PWA **Fill carts** section (🛒 Shop tab) and the legacy Streamlit **🤖 Run

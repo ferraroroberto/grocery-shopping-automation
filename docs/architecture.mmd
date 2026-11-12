@@ -4,23 +4,23 @@
 %% Update this diagram in the same PR as any material structural change (a
 %% new mode/route, a module moved, a new external dependency wired in) —
 %% same anti-staleness contract as this repo's own `.fleet.toml` `description`
-%% field. See ferraroroberto/fleet-config#256 for the general convention.
+%% field. See fleet-config's architecture README for the general convention.
 
 flowchart TB
   subgraph frontend["Primary surface — FastAPI + vanilla-JS PWA (:8502)"]
     STATIC["app/webapp/static/\nindex.html · tokens.css · styles.css · generated PWA icons\n_vendored/ (fleet nav, icons, card, disclosure, modal, switch, empty-state, segmented, action-row, home-head, text-size, toast, usage-log)"]
-    APPJS["app/webapp/static/app.js\norchestrator: render() mode routing, delegated listeners, boot\n4 nav tabs (#182, #200): Home · Shop · Audit · Items; Settings is the header gear, never a tab"]
-    JSMODULES["app/webapp/static/modules/ (ES modules, no bundler)\ncore (state + render mediator, header lines, retired-tab + retired-mode migration) · dom (+ status chip) · rows (one item row + stepper) · item-sheet (the one item sheet every row opens) · add-sheet (Add item sheet: search, then by hand) · confirm (confirm sheet) · media · api\nhome (Home: This week card + item search, #260) · inventory (Audit › Manual, Items list) · shopping · stores/ (Items › Prices; folder: index facade · state · simulator (glance card) · benchmark (Benchmark sheet) · list · actions · dialogs · review) · audio (Audit › Voice: glance, results, checklist, transcript sheet, #259)\nsearch → Add item sheet · automation (carts glance + Fill carts options sheet, #258; Fill history sheet + Mark purchase done, #323) · store-sheet → Shop · settings (Settings inset groups + Store logins sheet, #261) · email (Email watch sheet) → Settings"]
+    APPJS["app/webapp/static/app.js\norchestrator: render() mode routing, delegated listeners, boot\n4 nav tabs: Home · Shop · Audit · Items; Settings is the header gear, never a tab"]
+    JSMODULES["app/webapp/static/modules/ (ES modules, no bundler)\ncore (state + render mediator, header lines, retired-tab + retired-mode migration) · dom (+ status chip) · rows (one item row + stepper) · item-sheet (the one item sheet every row opens) · add-sheet (Add item sheet: search, then by hand) · confirm (confirm sheet) · media · api\nhome (Home: This week card + item search) · inventory (Audit › Manual, Items list) · shopping · stores/ (Items › Prices; folder: index facade · state · simulator (glance card) · benchmark (Benchmark sheet) · list · actions · dialogs · review) · audio (Audit › Voice: glance, results, checklist, transcript sheet)\nsearch → Add item sheet · automation (carts glance + Fill carts options sheet; Fill history sheet + Mark purchase done) · store-sheet → Shop · settings (Settings inset groups + Store logins sheet) · email (Email watch sheet) → Settings"]
     API["app/api.py\ncomposition root: lifespan, middleware, static mount, router includes"]
-    ROUTERS["app/webapp/routers/ — one APIRouter per concern\nsystem (shell, version, manifest, login, access, actions)\ninventory · stores · automation · product_search · audio · voice · email · usage (#276)"]
+    ROUTERS["app/webapp/routers/ — one APIRouter per concern\nsystem (shell, version, manifest, login, access, actions)\ninventory · stores · automation · product_search · audio · voice · email · usage"]
     APICOMMON["app/api_common.py\ndata-layer → HTTP translation (lock/file errors → status codes),\ninventory payload builder shared by every router"]
     AUDIOHUB["app/audio_hub.py\nvoice-transcriber session proxy + whisper transcode/transcribe"]
-    STATICFILES["app/webapp/static_files.py\nCachingStaticFiles (per-suffix cache policy, JS import stamping) + BUILD_INFO"]
+    STATICFILES["app/static_files.py\nCachingStaticFiles (per-suffix cache policy, JS import stamping) + BUILD_INFO"]
     MW["app/middleware.py\nBearerTokenMiddleware + is_pc_itself trust check"]
     RUNNER["app/automation_runner.py\nstreams src.automation.run_automation subprocess into the app"]
     PSRUNNER["app/product_search_runner.py\nspawns src.automation.product_search, captures its JSON stdout"]
-    LCRUNNER["app/login_check_runner.py\nruns src.automation.check_logins, returns per-store login states (#217)"]
-    SUBPROC["app/subprocess_plumbing.py\nshared spawn/drain/stop plumbing (#95)"]
+    LCRUNNER["app/login_check_runner.py\nruns src.automation.check_logins, returns per-store login states"]
+    SUBPROC["app/subprocess_plumbing.py\nshared spawn/drain/stop plumbing"]
     POLLER["app/email_poller.py\nbackground confirmation-email poll loop + check log"]
     VERSIONING["src/static_versioning.py\nBuildInfo: fleet asset hash, JS/HTML import stamping, git SHA"]
     APPJS --> JSMODULES
@@ -29,8 +29,8 @@ flowchart TB
     JSMODULES --> API
     JSMODULES -->|stores/: /api/stores/* + store-url, what-if picks,
 item sheet's store pages: store-detail / store-override / checked,
-item sheet's fallback page: PUT /api/items/{id}/fallback (#284),
-monthly-cost baseline: set/reset (#183)| ROUTERS
+item sheet's fallback page: PUT /api/items/{id}/fallback,
+monthly-cost baseline: set/reset| ROUTERS
     MW --> API
     API --> ROUTERS
     API --> STATICFILES
@@ -71,13 +71,13 @@ monthly-cost baseline: set/reset (#183)| ROUTERS
 
   subgraph datalayer["src/ — UI-free data & business layer"]
     DATA["src/data.py\nconfig load, XLSX read/write,\nsupermarket stats, quantity mutators,\noptional per-store url_* columns"]
-    STORELINKS["src/store_links/ (package)\nper-store URL import, store pick,\ncost simulator + apply with pack/stock conversion (#148),\nper-item review + your overrides in\nbenchmark_runs/_state/overrides.json (#165),\nmonthly-cost what-if baseline in\nbenchmark_runs/_state/baseline.json (#183)"]
+    STORELINKS["src/store_links/ (package)\nper-store URL import, store pick,\ncost simulator + apply with pack/stock conversion,\nper-item review + your overrides in\nbenchmark_runs/_state/overrides.json,\nmonthly-cost what-if baseline in\nbenchmark_runs/_state/baseline.json"]
     AUDIOCORE["src/audio_audit_core.py\ntranscript cleaning, audit-log writer + last-audit reader"]
     EXTRACT["src/inventory_extract.py\nLLM match against inventory"]
-    AUDITRESOLVE["src/audit_resolve.py\ndeterministic fuzzy fallback for mentions\nthe LLM left unresolved (#132)"]
-    VOICECMD["src/voice_command.py\nSpanish voice-command parse (LLM) +\napply + speech replies (home-automation#315)"]
-    HUBCLIENT["src/hub_client.py\nshared call_hub_llm() helper (#95)"]
-    PRODMATCH["src/product_match.py\nranks store search hits vs the spoken term (display aid, #87)"]
+    AUDITRESOLVE["src/audit_resolve.py\ndeterministic fuzzy fallback for mentions\nthe LLM left unresolved"]
+    VOICECMD["src/voice_command.py\nSpanish voice-command parse (LLM) +\napply + speech replies"]
+    HUBCLIENT["src/hub_client.py\nshared call_hub_llm() helper"]
+    PRODMATCH["src/product_match.py\nranks store search hits vs the spoken term (display aid)"]
     TRANSCRIBE["src/transcribe_client.py\nhub transcribe-role client (audit → whisper) + ffmpeg transcode"]
     NET["src/net.py\nLAN-IP / port-probe helpers"]
     WEBCFG["src/webapp_config.py\ntoken/password remote-access config"]
@@ -86,12 +86,12 @@ monthly-cost baseline: set/reset (#183)| ROUTERS
     NOTIFYCFG["src/notify_config.py + src/notify/\nvendored Telegram notifier (from whatsapp-radar)"]
     SSL["src/gen_ssl_cert.py\nlocal CA + server cert"]
     CERTS["src/certs.py\ncert_paths(): resolve the served cert/key,\nread the Tailscale SAN host off it"]
-    UVICORNLAUNCH["src/uvicorn_launch.py\nbuild_uvicorn_command() + stop_process():\none uvicorn argv + CTRL_BREAK→terminate→kill(5s)\nsequence shared by the tray and the tunnel (#294)"]
-    USAGELOG["src/usage_log.py + src/runtime_data.py (vendored)\nlocal-only usage log: constant view/control ids,\ndevice class, no content (#276)"]
+    UVICORNLAUNCH["src/uvicorn_launch.py\nbuild_uvicorn_command() + stop_process():\none uvicorn argv + CTRL_BREAK→terminate→kill(5s)\nsequence shared by the tray and the tunnel"]
+    USAGELOG["src/usage_log.py + src/runtime_data.py (vendored)\nlocal-only usage log: constant view/control ids,\ndevice class, no content"]
   end
   APICOMMON --> DATA
   ROUTERS --> STORELINKS
-  ROUTERS -.->|last fill per store, Shop glance (#258)| PURCHASELOG
+  ROUTERS -.->|last fill per store, Shop glance| PURCHASELOG
   STORELINKS --> DATA
   ROUTERS --> DATA
   ROUTERS --> AUDIOCORE
@@ -121,7 +121,7 @@ monthly-cost baseline: set/reset (#183)| ROUTERS
   STATIC -.->|usage-log.js batches view + tap events to the app's own origin| ROUTERS
 
   subgraph cartauto["src/automation/ — Playwright cart automation"]
-    RUNAUTO["run_automation.py\nCLI entrypoint + cart guard (#247):\nretry once, verify final cart, suggest, notify\n+ partial-stock fallbacks (#283): same-store in session,\ncross-store in a reopen pass"]
+    RUNAUTO["run_automation.py\nCLI entrypoint + cart guard:\nretry once, verify final cart, suggest, notify\n+ partial-stock fallbacks: same-store in session,\ncross-store in a reopen pass"]
     RUNSTATE["run_state.py\nthe cart-fill run's declared states + one derive\nfunction + exit-code constants"]
     SEARCHSTATE["search_state.py
 the product search's declared run + per-store states
@@ -129,14 +129,14 @@ the product search's declared run + per-store states
     STOREMODS["mercadona.py · ametller.py · carrefour.py\nper-store cart handlers"]
     BROWSER["browser.py\nreal-Chrome launch, dedicated chrome_user_data/ profile"]
     BOOTSTRAP["bootstrap_session.py\none-time interactive store login"]
-    CHECKLOGINS["check_logins.py\nread-only per-store login check (#217)"]
+    CHECKLOGINS["check_logins.py\nread-only per-store login check"]
     READER["grocery_reader.py\nreads shopping-list rows from the inventory"]
     REPORT["report.py / models.py / errors.py\nrun summary, CartItem, typed exceptions"]
-    PURCHASELOG["purchase_log.py\nper-store purchase_logs/ JSON after a live run\n+ per-run records in purchase_logs/runs/ (#247)\n+ fill history reader + done marker in purchase_logs/state/ (#323)"]
+    PURCHASELOG["purchase_log.py\nper-store purchase_logs/ JSON after a live run\n+ per-run records in purchase_logs/runs/\n+ fill history reader + done marker in purchase_logs/state/"]
     EMAILCHECK["email_check.py\nconfirmation-email check seam:\nsubject similarity, processed-state idempotency"]
     EMAILPARSERS["email_parsers/ametller.py, carrefour.py\ndeterministic per-store item-list parsers"]
     ITEMMATCH["item_matching.py\nalias/exact/contains/fuzzy matching vs latest purchase log"]
-    PRODSEARCH["product_search.py\nstore product search (Mercadona Algolia +\nCarrefour DOM read, #157; Ametller dropped #211),\nper-store streamed results, reuses browser.py (#87)"]
+    PRODSEARCH["product_search.py\nstore product search (Mercadona Algolia +\nCarrefour DOM read),\nper-store streamed results, reuses browser.py"]
     RUNAUTO --> RUNSTATE
     RUNAUTO --> STOREMODS
     STOREMODS --> BROWSER
@@ -167,7 +167,7 @@ the product search's declared run + per-store states
   ITEMMATCH -.->|latest purchase_logs/ JSON| PURCHASELOG
   READER --> XLSX
 
-  subgraph benchmark["src/benchmark/ — supermarket price benchmark (#145)"]
+  subgraph benchmark["src/benchmark/ — supermarket price benchmark"]
     BBASKET["build_basket.py
 monthly basket from xlsx + purchase_logs,
 current product via Mercadona API / Ametller guest SCAPI"]
@@ -233,7 +233,7 @@ orchestration recipe + Sonnet research-agent prompt"]
     GENTOKEN["gen_token.py / set_password.py\nbearer-token + password auth"]
     TAILCERT["gen_tailscale_cert.py\nTailscale HTTPS cert"]
     TUNNEL["run_named_tunnel.py"]
-    SYNTH["design_review_synthetic.py (#251)\nthrowaway copy of the checkout on invented data for the design-review walk:\nsynthetic_demo_data (workbook + benchmark runs) · synthetic_demo_app (every side effect stubbed)\nsynthetic_demo_guard (audit hook refuses launches, real services, real data)"]
+    SYNTH["design_review_synthetic.py\nthrowaway copy of the checkout on invented data for the design-review walk:\nsynthetic_demo_data (workbook + benchmark runs) · synthetic_demo_app (every side effect stubbed)\nsynthetic_demo_guard (audit hook refuses launches, real services, real data)"]
     GENICONS["gen_icons.py\nPWA · tray · Stream Deck icon family"]
   end
   GENTOKEN --> WEBCFG
