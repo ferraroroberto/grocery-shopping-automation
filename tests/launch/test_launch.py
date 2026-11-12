@@ -32,3 +32,31 @@ def test_config_server_defaults_round_trips_and_rejects_unknown_values(tmp_path:
     path.write_text('{"server": "gunicorn"}', encoding="utf-8")
     with pytest.raises(ValueError):
         load_webapp_config(path)
+
+
+def test_webapp_bat_serves_through_the_shared_launcher() -> None:
+    """``webapp.bat`` must not rebuild the cert lookup or the serve command line.
+
+    A second copy once ignored ``server`` in ``webapp_config.json``; the batch
+    file now delegates to ``src.uvicorn_launch``, so any cert, flag or server
+    knowledge showing up in it again is the same drift.
+    """
+    bat = (Path(__file__).resolve().parents[2] / "webapp.bat").read_text(encoding="utf-8")
+    assert "-m src.uvicorn_launch" in bat
+    for duplicated in ("cert.pem", "key.pem", "--ssl-", "app.webapp.serve", "src.webapp_config"):
+        assert duplicated not in bat, f"webapp.bat re-implements {duplicated!r}"
+
+
+def test_manual_launcher_runs_the_tray_command_for_the_configured_server(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import src.uvicorn_launch as launch
+
+    save_webapp_config(WebappConfig(host="127.0.0.1", port=18502, server="uvicorn"), tmp_path / "w.json")
+    monkeypatch.setattr(launch, "load_webapp_config", lambda: load_webapp_config(tmp_path / "w.json"))
+    monkeypatch.setattr(launch, "PROJECT_ROOT", tmp_path)
+    ran: list[list[str]] = []
+    monkeypatch.setattr(launch.subprocess, "call", lambda cmd, **_k: ran.append(cmd) or 0)
+
+    assert launch.main() == 0
+    assert ran == [build_webapp_command("127.0.0.1", 18502, project_root=tmp_path, server="uvicorn")]

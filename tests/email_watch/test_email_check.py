@@ -24,6 +24,7 @@ from src.automation.email_check import (
     subject_matches,
 )
 from src.automation.item_matching import MatchedItem, MatchResult
+from src.gmail_config import MonitoredSender
 
 
 def test_subject_matches_exact():
@@ -115,7 +116,8 @@ class _FakeMailbox:
         self._emails = emails
         self.closed = False
 
-    def resolve_sources(self, **_kwargs):
+    def resolve_sources(self, **kwargs):
+        self.resolved_senders = kwargs.get("senders")
         return (SimpleNamespace(search="q"),)
 
     def messages(self, _search, **_kwargs):
@@ -135,7 +137,7 @@ class _RecordingNotifier:
 
 def _wire_check(monkeypatch, emails, notifier):
     """Point check_latest_confirmation at fake Gmail, parser, and notifier."""
-    monkeypatch.setattr(email_check, "load_gmail_senders", lambda: (object(),))
+    monkeypatch.setattr(email_check, "load_monitored_senders", lambda: [MonitoredSender("a@b.c")])
     monkeypatch.setattr(email_check, "build_gmail_mailbox", lambda: _FakeMailbox(emails))
     monkeypatch.setattr(
         email_check,
@@ -253,6 +255,37 @@ def test_ignore_processed_still_reprocesses_an_older_email(tmp_path, monkeypatch
     _wire_check(monkeypatch, [OLD, mid], notifier)
     assert check_latest_confirmation("ametller", processed_state_path=path).regressed
     assert len(notifier.sent) == 1
+
+
+def test_check_fetches_only_enabled_senders(tmp_path, monkeypatch):
+    # Settings -> Email watch switches a sender off; the check must not fetch it.
+    mailbox = _FakeMailbox([NEW])
+    _wire_check(monkeypatch, [NEW], _RecordingNotifier())
+    monkeypatch.setattr(email_check, "build_gmail_mailbox", lambda: mailbox)
+    monkeypatch.setattr(
+        email_check,
+        "load_monitored_senders",
+        lambda: [
+            MonitoredSender("on@example.com", "On", "ametller", True),
+            MonitoredSender("off@example.com", "Off", "ametller", False),
+        ],
+    )
+
+    check_latest_confirmation("ametller", processed_state_path=tmp_path / "state.json")
+
+    assert [s.address for s in mailbox.resolved_senders] == ["on@example.com"]
+
+
+def test_check_with_every_sender_disabled_reports_no_sender(tmp_path, monkeypatch):
+    _wire_check(monkeypatch, [NEW], _RecordingNotifier())
+    monkeypatch.setattr(
+        email_check, "load_monitored_senders", lambda: [MonitoredSender("off@example.com", enabled=False)]
+    )
+
+    result = check_latest_confirmation("ametller", processed_state_path=tmp_path / "state.json")
+
+    assert not result.checked
+    assert result.reason == "no Gmail sender whitelisted"
 
 
 def test_default_purchase_logs_dir_follows_the_config_knob(tmp_path, monkeypatch):

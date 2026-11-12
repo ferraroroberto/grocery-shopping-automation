@@ -27,7 +27,6 @@ from src.atomic_json import write_json_atomic
 from src.gmail_readonly import (
     GmailMailbox,
     GmailReadClient,
-    GmailSender,
     build_google_read_client,
 )
 
@@ -75,18 +74,6 @@ def _read_config(target: Path) -> dict:
         logger.warning("⚠️ %s is not a JSON object; treating config as empty", target)
         return {}
     return raw
-
-
-def load_gmail_senders(path: Optional[Path] = None) -> tuple[GmailSender, ...]:
-    """Return the configured sender whitelist, or an empty tuple if unset."""
-
-    target = Path(path) if path is not None else DEFAULT_WHITELIST_PATH
-    senders = _read_config(target).get("senders") or []
-    return tuple(
-        GmailSender(str(entry.get("address") or ""), str(entry.get("name") or ""))
-        for entry in senders
-        if isinstance(entry, dict) and entry.get("address")
-    )
 
 
 def load_monitored_senders(path: Optional[Path] = None) -> list[MonitoredSender]:
