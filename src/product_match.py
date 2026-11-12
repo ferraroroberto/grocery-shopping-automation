@@ -5,12 +5,11 @@ a **display aid**, never an auto-decision: the app orders candidate cards by
 this score and labels them, but a human always picks which product fills
 ``buscador`` (per the "no automated decision" requirement).
 
-The score assumes **Spanish-language** hit names. Both stores now supply them:
-Mercadona's ``display_name`` is Spanish, and Ametller's SCAPI is queried with
-``locale=es`` (the default is Catalan, which would make the
-score meaningless there). The caller still presents Ametller hits in the
-store's own relevance order rather than re-sorting by this score; see
-``src/automation/product_search.py`` for how each store is queried and why.
+The score assumes **Spanish-language** hit names. Both searched stores supply
+them: Mercadona's ``display_name`` and Carrefour's result titles are Spanish.
+The caller still presents hits in each store's own relevance order rather than
+re-sorting by this score; see ``src/automation/product_search.py`` for how each
+store is queried and why.
 """
 
 from __future__ import annotations
