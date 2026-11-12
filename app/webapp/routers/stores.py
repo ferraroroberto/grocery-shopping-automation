@@ -10,7 +10,6 @@ the baseline routes, which write only ``_state/baseline.json``, echo
 ``{"baseline": ...}``.
 """
 
-import logging
 from functools import lru_cache
 from typing import Any, Callable, Optional
 
@@ -29,12 +28,7 @@ from src import store_links
 from src.automation.product_options import options_for_url
 from src.store_links import NoBenchmarkRunError, StoreLinkError
 
-logger = logging.getLogger(__name__)
-
 router = APIRouter()
-
-# Used only when the cart-automation package can't be imported here.
-_FALLBACK_HANDLERS = frozenset({"mercadona", "ametller", "carrefour"})
 
 
 class StoreUrlPayload(BaseModel):
@@ -102,11 +96,8 @@ def _call(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
 @lru_cache(maxsize=1)
 def _handler_stores() -> frozenset[str]:
     """Stores with a cart-automation handler (others are manual orders)."""
-    try:
-        from src.automation.run_automation import HANDLERS
-    except ImportError as exc:
-        logger.warning("⚠️ Cart handlers not importable (%s) — assuming %s", exc, sorted(_FALLBACK_HANDLERS))
-        return _FALLBACK_HANDLERS
+    from src.automation.run_automation import HANDLERS
+
     return frozenset(HANDLERS)
 
 

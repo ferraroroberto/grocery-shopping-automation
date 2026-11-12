@@ -26,9 +26,6 @@ LOG_PATH = _REPO_ROOT / "logs" / "check_logins.log"
 # Generous per-store page-load allowance once the shared profile is free
 # (bot-challenge retries included).
 _PAGE_LOAD_ALLOWANCE_S = 60
-# Only used if src.automation.run_automation.HANDLERS can't be imported:
-# mercadona, ametller, carrefour.
-_FALLBACK_STORE_COUNT = 3
 
 
 def _timeout_s() -> int:
@@ -39,12 +36,8 @@ def _timeout_s() -> int:
     schedule it is meant to cover.
     """
     from src.automation import browser
-    try:
-        from src.automation.run_automation import HANDLERS
-        store_count = len(HANDLERS)
-    except ImportError:
-        store_count = _FALLBACK_STORE_COUNT
-    return sum(browser._PROFILE_WAIT_BACKOFF_S) + _PAGE_LOAD_ALLOWANCE_S * store_count
+    from src.automation.run_automation import HANDLERS
+    return sum(browser._PROFILE_WAIT_BACKOFF_S) + _PAGE_LOAD_ALLOWANCE_S * len(HANDLERS)
 
 
 class LoginCheckError(RuntimeError):
