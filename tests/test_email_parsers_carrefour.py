@@ -25,6 +25,7 @@ from src.automation.email_parsers.carrefour import (
     parse_confirmed_items,
     parse_confirmed_lines,
 )
+from src.gmail_config import MonitoredSender
 
 FIXTURE = Path(__file__).parent / "fixtures" / "carrefour_order_prepared.txt"
 
@@ -175,7 +176,7 @@ def test_check_matches_confirmation_against_a_carrefour_purchase_log(tmp_path, m
         body_text=_body(),
     )
     notifier = _Notifier()
-    monkeypatch.setattr(email_check, "load_gmail_senders", lambda: (object(),))
+    monkeypatch.setattr(email_check, "load_monitored_senders", lambda: [MonitoredSender("a@b.c")])
     monkeypatch.setattr(email_check, "build_gmail_mailbox", lambda: _Mailbox([email]))
     monkeypatch.setattr(email_check, "load_alias_table", lambda *a, **k: {})
     monkeypatch.setattr(email_check, "build_notify_notifier", lambda: notifier)

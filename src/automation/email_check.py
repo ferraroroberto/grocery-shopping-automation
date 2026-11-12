@@ -31,8 +31,8 @@ from src.automation.item_matching import (
 )
 from src.automation.item_matching import normalize as _normalize_text
 from src.data import purchase_logs_dir as default_purchase_logs_dir
-from src.gmail_config import build_gmail_mailbox, load_gmail_senders
-from src.gmail_readonly import GmailReadError, NormalizedEmail
+from src.gmail_config import build_gmail_mailbox, load_monitored_senders
+from src.gmail_readonly import GmailReadError, GmailSender, NormalizedEmail
 from src.notify_config import build_notify_notifier
 
 logger = logging.getLogger("email_check")
@@ -294,7 +294,7 @@ def check_latest_confirmation(
     state_path = processed_state_path or DEFAULT_PROCESSED_STATE_PATH
     logs_dir = purchase_logs_dir or default_purchase_logs_dir()
 
-    senders = load_gmail_senders()
+    senders = tuple(GmailSender(s.address, s.name) for s in load_monitored_senders() if s.enabled)
     if not senders:
         return ConfirmationCheckResult(store, checked=False, reason="no Gmail sender whitelisted")
 
