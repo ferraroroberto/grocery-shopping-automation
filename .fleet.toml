@@ -76,6 +76,10 @@ no_window = { src = "src/no_window.py", sha = "ade32f799c9102daf72535b4899ab2843
 enabled  = true
 baseline = ".static-ratchet-baseline.json"
 exclude  = ["**/_vendored/**", "scripts/*_ratchet_gate.py", "tests/ratchet_gates/**"]
+# The scaffold's default set plus F821: a name used but never imported or defined is a
+# NameError at runtime that no test of a different code path reaches. Replaces the default,
+# so it repeats the scaffold list (scripts/static_ratchet.py DEFAULT_RULES).
+ruff_rules = ["B002", "B003", "B004", "B005", "B006", "B012", "B015", "B016", "B017", "B018", "B020", "B021", "B022", "B025", "B026", "B029", "B030", "B031", "B032", "B033", "B034", "B035", "B039", "S102", "S103", "S113", "S201", "S307", "S506", "S602", "S604", "S605", "S701", "I001", "F821"]
 
 # [docs_ratchet] -- the scaffold's baseline-and-ratchet docs stage. The gate
 # (scripts/verify-before-ship.ps1) runs scripts/docs_ratchet.py through

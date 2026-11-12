@@ -9,7 +9,7 @@ import pytest
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from src.automation import product_search
-from src.automation.browser import SessionExpiredError
+from src.automation.browser import NavigationTimeoutError, SessionExpiredError
 
 
 class FakeResp:
@@ -284,6 +284,12 @@ def test_search_one_failed_store_is_distinct_from_no_results(monkeypatch):
     assert final["carrefour"]["state"] == "failed"
     assert final["carrefour"]["reason"] == "session"
     assert "carrefour" in res["errors"]
+
+
+def test_failure_reason_maps_both_timeout_kinds_to_the_slow_site_reason():
+    assert product_search._failure_reason(NavigationTimeoutError("mercadona", "https://x", 30.0)) == "timeout"
+    assert product_search._failure_reason(PlaywrightTimeoutError("no cards rendered")) == "timeout"
+    assert product_search._failure_reason(RuntimeError("boom")) == "error"
 
 
 def test_search_all_marks_every_store_waiting_for_the_browser(monkeypatch):

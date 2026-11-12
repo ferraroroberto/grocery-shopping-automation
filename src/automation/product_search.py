@@ -60,6 +60,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 from src.automation import carrefour  # noqa: E402  (BASE_URL + product_id_from_url)
 from src.automation.browser import (  # noqa: E402
+    NavigationTimeoutError,
     ProfileBusyError,
     ProfileNotInitializedError,
     SessionExpiredError,
@@ -291,7 +292,7 @@ def _failure_reason(err: Exception) -> str:
     """Classify a store failure into the short code the UI words for the user."""
     if isinstance(err, SessionExpiredError):
         return REASON_SESSION
-    if isinstance(err, PlaywrightTimeoutError):
+    if isinstance(err, (PlaywrightTimeoutError, NavigationTimeoutError)):
         return REASON_TIMEOUT
     return REASON_ERROR
 
