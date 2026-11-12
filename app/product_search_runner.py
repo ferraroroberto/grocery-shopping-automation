@@ -1,9 +1,11 @@
 """Subprocess plumbing for the on-demand product search.
 
 Runs ``python -m src.automation.product_search`` in the background and captures its
-JSON stdout. Kept UI-agnostic and separate from ``automation_runner`` (which
-streams the cart automation's *line* output) because this one wants the whole
-stdout parsed as a single JSON document at the end.
+stdout, an NDJSON stream: ``progress`` and per-store events while it runs, then
+one ``result`` line. Kept UI-agnostic and separate from ``automation_runner``
+(which tails the cart automation's free-form log lines) because this one's
+output is structured events, parsed by :func:`parse_result` and
+:func:`store_states` while the run is still in progress.
 
 The search drives real Chrome on the shared profile, so it must run out of
 process — sync Playwright cannot run inside the async uvicorn worker, and a
@@ -35,7 +37,7 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 LOG_PATH = _REPO_ROOT / "logs" / "product_search.log"
 _LOG_MAX_BYTES = 1_000_000
 
-# Re-exported so existing callers (app/api.py) keep working unchanged.
+# Re-exported for the product-search router (app/webapp/routers/product_search.py).
 is_running = subprocess_plumbing.is_running
 stop = subprocess_plumbing.stop
 

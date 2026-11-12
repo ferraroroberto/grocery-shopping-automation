@@ -36,8 +36,8 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 # Keep only the most recent lines — a long run can print thousands.
 MAX_OUTPUT_LINES = 500
 
-# Re-exported so existing callers (app/api.py, app/app.py, app/shopping.py)
-# keep working unchanged.
+# Re-exported for the cart-automation router (app/webapp/routers/automation.py)
+# and the legacy Streamlit app (app/app.py, app/shopping.py).
 is_running = subprocess_plumbing.is_running
 
 
