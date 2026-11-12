@@ -9,7 +9,7 @@
   - `gen_ssl_cert.py` — generate a local CA + server cert for HTTPS.
   - `inventory_extract.py` / `transcribe_client.py` — audio-audit transcription + LLM extraction (via the `local-llm-hub` hub).
   - `audit_resolve.py` — deterministic fuzzy resolver mapping a dictated phrase back to one inventory row when the LLM leaves it unresolved; declines on a weak or ambiguous match rather than guessing.
-  - `voice_command.py` — voice-command bridge for the HA Voice PE pucks: `POST /api/voice/command` takes free Spanish text with an intent (`add` / `target` / `stock` / `query`), parses items + quantities against the inventory via the hub LLM, applies through `data.py`, and returns a short ready-to-speak `speech` reply. The intent is chosen by Home Assistant's deterministic sentence match — the LLM never picks the operation.
+  - `voice_command.py` — voice-command bridge for the HA Voice PE pucks: `POST /api/voice/command` takes free Spanish text with an intent (`add` / `target` / `stock` / `query`), parses items + quantities against the inventory via the hub LLM, applies through `data.py`, and returns a short ready-to-speak `speech` reply. The intent is chosen by Home Assistant's deterministic sentence match — the LLM never picks the operation. Contract, auth and failure replies: [Voice commands](voice-commands.md).
   - `audio_audit_core.py` — UI-agnostic transcript cleaning + audit-log writer shared by the PWA and the legacy Streamlit mode.
   - `net.py` — LAN-IP / port-probe helpers shared by the FastAPI and Streamlit front ends.
   - `certs.py` — the one `cert.pem`/`key.pem` lookup (`webapp/certificates/`, then `certificates/`) the router, tray manager and tunnel launcher share.

@@ -26,7 +26,7 @@ Open `http://127.0.0.1:8502` (or `https://` once a cert exists in `certificates/
 & .\.venv\Scripts\python.exe -m pytest
 ```
 
-Unit + FastAPI `TestClient` + a Playwright e2e that drives the real buttons. The whole pre-ship gate (pytest, then the static, docs, comment, structure, instruction, doc-refs, dead-code and conventions ratchets) is `& .\scripts\verify-before-ship.ps1`. Details: [docs/testing.md](docs/testing.md). Where new code goes, and what the structure ratchet holds: [docs/layout.md](docs/layout.md).
+Unit + FastAPI `TestClient` + a Playwright e2e that drives the real buttons. The whole pre-ship gate is `& .\scripts\verify-before-ship.ps1`; every stage is described in [docs/testing.md](docs/testing.md). Where new code goes, and what the structure ratchet holds: [docs/layout.md](docs/layout.md).
 
 ## Typical workflow
 
@@ -56,6 +56,7 @@ Unit + FastAPI `TestClient` + a Playwright e2e that drives the real buttons. The
 | The product search's declared states: run and per-store | [docs/product-search-state.md](docs/product-search-state.md) |
 | Cart automation: logins, cart modes, the cart guard | [docs/browser-automation.md](docs/browser-automation.md), [docs/browser-automation-build.md](docs/browser-automation-build.md), [src/automation/README.md](src/automation/README.md) |
 | Supermarket benchmark, per-store links, the store API, overrides | [docs/benchmark-and-store-links.md](docs/benchmark-and-store-links.md), [docs/supermarket-benchmark.md](docs/supermarket-benchmark.md) |
+| Home Assistant voice commands: the request/response contract, intents, auth, busy and error replies | [docs/voice-commands.md](docs/voice-commands.md) |
 | Config (`src/config.json`), usage log, Telegram, Gmail check, spreadsheet columns | [docs/configuration.md](docs/configuration.md) |
 | Repository layout | [docs/project-structure.md](docs/project-structure.md) |
 | Tests and the gate | [docs/testing.md](docs/testing.md) |
