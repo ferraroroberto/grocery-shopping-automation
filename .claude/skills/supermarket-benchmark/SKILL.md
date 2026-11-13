@@ -1,13 +1,13 @@
 ---
 name: supermarket-benchmark
-description: 'Re-run the quality-locked supermarket price benchmark (issue #145) — rebuild the monthly basket from list.xlsx + purchase_logs, fan out one Sonnet research agent per store, score split scenarios deterministically, review, and publish a recommendation. E.g. "/supermarket-benchmark", "/supermarket-benchmark carrefour dia" (only those stores), "re-run the supermarket benchmark".'
+description: 'Re-run the quality-locked supermarket price benchmark (issue #145) — rebuild the monthly basket from list.xlsx + purchase_logs, fan out one easy-tier research worker per store, score split scenarios deterministically, review, and publish a recommendation. E.g. "/supermarket-benchmark", "/supermarket-benchmark carrefour dia" (only those stores), "re-run the supermarket benchmark".'
 ---
 
 # supermarket-benchmark
 
 Answers: *is our Mercadona + Ametller split still the cheapest way to buy this household's groceries **without dropping quality**, or should we consolidate / re-split?* Methodology and schemas: `docs/supermarket-benchmark.md`. Everything under `benchmark_runs/` is gitignored (the repo is public).
 
-**Roles.** The orchestrator (this session, Opus) owns the basket review, the spec decisions, blocked-store recovery, the scoring review and the recommendation. Store research is fanned out to **Sonnet** `general-purpose` sub-agents, one per store, all in parallel (Sonnet is exempt from the fleet's 3-concurrent-Opus cap). Never run research agents on Opus.
+**Roles.** The orchestrator (this session) owns the basket review, the spec decisions, blocked-store recovery, the scoring review and the recommendation. Store research is the one delegated part: each store is an independent, self-contained pricing task with a fixed prompt and a validator-checked output, so it runs as one worker per store at the `easy` tier (`fleet-config`'s `docs/model-tiers.md`), concurrently where the host allows. If the host cannot launch workers, run the stores one after another in this session with the same prompt.
 
 ## Arguments
 
@@ -29,11 +29,15 @@ Print every item's tier, current product and ingredients. For any **tier B** ite
 
 **Show the user the tier-B spec table and get confirmation before step 3** — a wrong spec poisons every store.
 
-### 3. Fan out research (Sonnet, parallel)
+### 3. Research each store (`easy`-tier workers)
 
-For each store, spawn one `general-purpose` agent with `model: "sonnet"` in a **single message** (so they run concurrently), using the prompt template below with `{store}`, `{run_dir}` filled in. Mercadona and Ametller are baselines: their agents research only the items **not** currently bought there (the prompt handles this).
+Give each store its own worker, using the prompt template below with `{store}`, `{run_dir}` filled in. Mercadona and Ametller are baselines: their workers research only the items **not** currently bought there (the prompt handles this).
 
-If an agent returns early, check `python -m src.benchmark.results status --run {run_dir} --store {store}` and resume it (SendMessage) or spawn a fresh one — it continues from the missing keys.
+If a worker returns early, check `python -m src.benchmark.results status --run {run_dir} --store {store}` and resume it or start a fresh one — it continues from the missing keys.
+
+#### Claude Code fan-out *(Claude Code only — skip on other agents)*
+
+Spawn one `general-purpose` agent per store with `model: "sonnet"`, all in a **single message** so they run concurrently (Sonnet is exempt from the fleet's 3-concurrent-Opus cap; never run these workers on Opus). Resume one that returned early with `SendMessage`.
 
 ### 4. Recover blocked stores (orchestrator) *(Claude Code only — skip on other agents)*
 
