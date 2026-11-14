@@ -99,7 +99,7 @@ def _check_named_item_is_never_offered_for_zeroing(page, monkeypatch):
 
 @pytest.mark.e2e
 def test_voice_match_apply_and_named_row(page, server, monkeypatch):
-    """Audit > Voice: the glance with Record, then match, then Apply as the one
+    """Audit > Voice: the glance, Record pinned at the pane's foot, then match, then Apply as the one
     primary with "Needs you" first; a mention no item took is fixed in Manual in two
     taps (Find, then the stepper) and the review waits as it was left; Apply writes
     the log the glance then reads. A row the speaker named without a count offers a
@@ -113,10 +113,10 @@ def test_voice_match_apply_and_named_row(page, server, monkeypatch):
         page.locator("#voice-results").wait_for(timeout=600000)
         assert page.locator("#audio-status.ok").count() >= 1
         return
-    glance = page.locator("#pane-audit #voice-glance")
     assert page.locator("#pane-audit .pane-body > :first-child").get_attribute("id") == "voice-glance"
-    assert glance.locator("#record-toggle").inner_text().strip() == "Record"
-    assert "button-primary" in glance.locator("#record-toggle").get_attribute("class")
+    record = page.locator("#pane-audit .pane-body > .voice-record-bar:last-child #record-toggle")
+    assert record.inner_text().strip() == "Record"
+    assert "button-primary" in record.get_attribute("class")
     # The match model reads humanized, never the raw config id (gemini_pro) --
     # on the transcript card and in its menu, beside Clear.
     assert page.locator("#audio-model-label").inner_text() == "Gemini Pro"

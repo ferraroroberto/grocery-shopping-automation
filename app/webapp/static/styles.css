@@ -872,6 +872,18 @@ a.button-tint[data-open-link-page] {
 .voice-live[hidden] { display: none; }
 .voice-wave { display: block; color: var(--accent); }
 .voice-timer { color: var(--muted); font-size: var(--font-body-sm); font-variant-numeric: tabular-nums; }
+/* Record/Stop, pinned to the bottom of the pane while the checklist scrolls:
+   the pane's last child, so it rests at the end once scrolled there. On the
+   phone it sits the gap above the bottom-nav fade (nav-tabs.css's reserve
+   includes that gap); wider, the gap above the screen edge. Canvas-filled,
+   no shadow: the nav pill stays the one raised floating layer. */
+.voice-record-bar {
+  position: sticky;
+  bottom: calc(var(--nav-bottom-reserve, calc(2 * var(--gap))) - var(--gap));
+  z-index: 10;
+  padding-block: var(--space-sm);
+  background: var(--bg);
+}
 /* The results area holds nothing until a match: no gap slot in the pane. */
 .voice-results { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
 .voice-results:empty { display: none; }

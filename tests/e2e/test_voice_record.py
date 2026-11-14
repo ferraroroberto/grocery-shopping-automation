@@ -33,22 +33,26 @@ FAKE_MIC = """
 """
 
 
-def _stub_voice_service(page) -> None:
-    def fulfil(route, body):
-        route.fulfill(status=200, content_type="application/json", body=json.dumps(body))
+SPOKEN = "en la nevera, dos yogures."
 
-    page.route("**/api/audio/health", lambda r: fulfil(r, {"hub_ok": True, "whisper_ok": True, "voice_ok": True}))
-    page.route("**/api/audio/session", lambda r: fulfil(r, {"session_id": "fake"}))
-    page.route("**/api/audio/session/fake/chunk", lambda r: fulfil(r, {}))
+
+def _fulfil(route, body) -> None:
+    route.fulfill(status=200, content_type="application/json", body=json.dumps(body))
+
+
+def _stub_voice_service(page, finish: dict | None = None) -> None:
+    page.route("**/api/audio/health", lambda r: _fulfil(r, {"hub_ok": True, "whisper_ok": True, "voice_ok": True}))
+    page.route("**/api/audio/session", lambda r: _fulfil(r, {"session_id": "fake"}))
+    page.route("**/api/audio/session/fake/chunk", lambda r: _fulfil(r, {}))
     page.route("**/api/audio/session/fake/events", lambda r: r.abort())
-    page.route("**/api/audio/session/fake/finish**", lambda r: fulfil(r, {"silent": True}))
+    page.route("**/api/audio/session/fake/finish**", lambda r: _fulfil(r, finish or {"silent": True}))
 
 
-def _start_take(page, *, no_audio_context: bool = False) -> None:
+def _start_take(page, *, no_audio_context: bool = False, finish: dict | None = None) -> None:
     if no_audio_context:
         page.add_init_script("window.__noAudioContext = true;")
     page.add_init_script(FAKE_MIC)
-    _stub_voice_service(page)
+    _stub_voice_service(page, finish)
     page.reload()
     page.wait_for_selector("[data-tab='audit']")
     page.wait_for_function(LOADED_JS)
@@ -106,3 +110,54 @@ def test_voice_take_shows_the_waveform_and_runs_the_timer(page, browser, server)
         _check_timer_runs_without_audio_context(no_audio)
     finally:
         no_audio.close()
+
+
+
+def _check_record_stays_in_reach(page) -> None:
+    """The checklist unfolded and scrolled into: Record still sits in the viewport,
+    clear above the bottom-nav pill, with nothing painted over it."""
+    page.evaluate("document.querySelectorAll('#pane-audit .checklist-zone').forEach((d) => { d.open = true; })")
+    page.locator("#pane-audit .voice-checklist").evaluate("el => el.scrollIntoView({block: 'center'})")
+    geometry = page.evaluate(
+        """() => {
+          const r = document.querySelector('#record-toggle').getBoundingClientRect();
+          const nav = document.querySelector('nav.tabs').getBoundingClientRect();
+          const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+          return {top: r.top, bottom: r.bottom, navTop: nav.top, viewport: innerHeight,
+                  scrolled: window.scrollY, onTop: !!hit?.closest('#record-toggle')};
+        }"""
+    )
+    assert geometry["scrolled"] > 0, geometry
+    assert geometry["navTop"] > geometry["viewport"] / 2, f"no bottom pill on this phone: {geometry}"
+    assert 0 <= geometry["top"] and geometry["bottom"] <= geometry["navTop"], geometry
+    assert geometry["onTop"], geometry
+
+
+@pytest.mark.e2e
+def test_record_stays_in_reach_and_stop_matches_on_its_own(browser, server):
+    """On a touch phone Record/Stop is pinned above the bottom-nav pill, so it stays
+    under the thumb while the checklist scrolls; Stop transcribes the take and matches
+    it without a Match tap."""
+    context = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    phone = context.new_page()
+    errors: list[str] = []
+    phone.on("pageerror", lambda exc: errors.append(str(exc)))
+    matched = []
+
+    def match(route):
+        matched.append(route.request.post_data_json)
+        _fulfil(route, {"items": [], "zones_mentioned": [], "unmatched_mentions": [], "model": "gemini_pro"})
+
+    try:
+        phone.route("**/api/audio/match", match)
+        phone.goto(server.url)
+        _start_take(phone, finish={"transcript": SPOKEN})
+        _check_record_stays_in_reach(phone)
+        phone.locator("#record-toggle").click()
+        phone.locator("#voice-results").wait_for()
+        assert matched and matched[0]["transcript"] == SPOKEN
+        assert phone.input_value("#transcript") == SPOKEN
+        assert phone.locator("#record-toggle").inner_text().strip() == "Record"
+        assert errors == [], f"JS errors: {errors}"
+    finally:
+        context.close()
