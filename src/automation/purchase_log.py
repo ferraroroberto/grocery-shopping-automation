@@ -182,8 +182,8 @@ def read_fill_history(logs_dir: Path, limit: int = 10) -> list[dict]:
 
     Same reading as :func:`read_last_fill`, one entry per day: ``run`` (the day's
     newest stamp — what Mark done records), ``date``, ``time`` (that stamp's
-    ``HH:MM``) and per store the later run's counts plus ``problems``, the items
-    that are not in the cart as ``{"item", "status"}``.
+    ``HH:MM``) and per store the later run's counts plus ``items``, every item
+    the run meant to add as ``{"item", "status"}`` in list order.
     """
     days: dict[str, dict[str, dict]] = defaultdict(dict)
     for record in _run_records(logs_dir):
@@ -196,12 +196,11 @@ def read_fill_history(logs_dir: Path, limit: int = 10) -> list[dict]:
         newest = max(str(record["run"]) for record in days[day].values())
         stores = {}
         for store, record in sorted(days[day].items()):
-            problems = [
+            items = [
                 {"item": str(item.get("comida") or ""), "status": str(item.get("status"))}
                 for item in record.get("items") or []
-                if str(item.get("status")) not in (ADDED_VERIFIED, ADDED_UNVERIFIED, WOULD_ADD)
             ]
-            stores[store] = {**_store_outcome(record), "problems": problems}
+            stores[store] = {**_store_outcome(record), "items": items}
         history.append({"run": newest, "date": day, "time": f"{newest[11:13]}:{newest[13:15]}", "stores": stores})
     return history
 

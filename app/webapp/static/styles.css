@@ -928,22 +928,26 @@ a.button-tint[data-open-link-page] {
 .store-sheet-head .icon-button { --icon-btn-box: var(--row-sm); }
 .fill-plan .hint, .sheet-section .meta, .email-sheet .hint { margin: 0; }
 
-/* Fill history: the last ten fill days as flat list rows on a hairline,
-   one line per store with its exception chip, the misses folded under it. */
-.fill-days, .fill-stores, .fill-problem-list { list-style: none; margin: 0; padding: 0; }
-.fill-day { padding: 12px 0; display: grid; gap: var(--space-sm); }
-.fill-day + .fill-day { border-top: 1px solid var(--line-muted); }
-.fill-day-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
+/* Fill history: the last ten fill days as flat list rows on a hairline, the
+   newest open and older ones folded under their date; each store is a line
+   with its exception chip, then every item grouped by outcome. */
+.fill-days, .fill-stores, .fill-item-list { list-style: none; margin: 0; padding: 0; }
+.fill-day-item + .fill-day-item { border-top: 1px solid var(--line-muted); }
+.fill-day { display: grid; gap: var(--space-sm); padding-bottom: 12px; }
+.fill-day:not([open]) { padding-bottom: 0; }
+.fill-day-head { color: var(--ink); gap: var(--space-sm); }
 .fill-day-title { font-weight: 600; }
-.fill-stores { display: grid; gap: var(--space-sm); }
+.fill-stores { display: grid; gap: var(--space-md); }
+.fill-store { display: grid; gap: var(--space-xs); }
 .fill-store-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-sm); }
 .fill-store-name { font-weight: 600; }
 .fill-store-meta, .fill-store-note { color: var(--muted); font-size: var(--font-body-sm); }
-.fill-problems .inline-disclosure-summary { font-weight: 400; font-size: var(--font-body-sm); }
-.fill-problem-list { display: grid; gap: var(--space-xs); padding-bottom: var(--space-xs); font-size: var(--font-body-sm); }
-.fill-problem-list li { display: flex; justify-content: space-between; gap: var(--space-sm); }
-.fill-problem-item { min-width: 0; overflow-wrap: anywhere; }
-.fill-problem-status { flex: none; color: var(--muted); }
+.fill-group { display: grid; gap: var(--space-xs); }
+.fill-group-head { display: flex; justify-content: space-between; gap: var(--space-sm); color: var(--muted); font-size: var(--font-body-sm); font-weight: 600; }
+.fill-item-list { display: grid; gap: var(--space-xs); font-size: var(--font-body-sm); }
+.fill-item-list li { display: flex; justify-content: space-between; gap: var(--space-sm); }
+.fill-item { min-width: 0; overflow-wrap: anywhere; }
+.fill-item-status { flex: none; color: var(--muted); }
 
 /* ------------------------------------------------------- Settings */
 /* Inset groups (above): the rows are link rows (glyph, label, muted value,
