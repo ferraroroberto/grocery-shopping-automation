@@ -60,7 +60,7 @@ app = FastAPI(
     lifespan=_lifespan,
 )
 app.state.webapp_config = load_webapp_config()
-app.state.login_lockout = LoginLockout(on_alert=build_login_alert(build_alert_notifier, "grocery"))
+app.state.login_lockout = LoginLockout(on_alert=build_login_alert("grocery", build_alert_notifier))
 app.add_middleware(
     BearerTokenMiddleware,
     get_token=lambda: getattr(app.state.webapp_config, "auth_token", ""),
