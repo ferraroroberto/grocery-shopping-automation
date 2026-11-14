@@ -859,6 +859,8 @@ a.button-tint[data-open-link-page] {
 .carts-stores .action-row-main:active, .voice-glance-rows .action-row-main:active { background: transparent; }
 .carts-actions, .voice-actions { display: grid; gap: var(--space-sm); }
 .carts-actions > [hidden], .voice-actions > [hidden] { display: none; }
+/* Redo and Cancel both hidden (most of the time): no empty slot in the glance. */
+.voice-actions:not(:has(> :not([hidden]))) { display: none; }
 
 /* ------------------------------------------------------- Audit › Voice */
 /* The Voice and results glances: label / figure rows like the carts glance,
