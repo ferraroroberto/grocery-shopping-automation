@@ -2,11 +2,13 @@
 // transcribe it, match what was said to inventory rows via the LLM hub, and
 // apply the accepted counts.
 //
-// The view reads top to bottom: the Voice glance (when did I last count? the
-// one Record button, a waveform and timer while recording), the match results
-// once there are some (their glance with Apply, the one primary, then "Needs
-// you" first and the detected items by zone), the checklist card, and the
-// transcript card, whose menu holds the match model and Clear.
+// The view reads top to bottom: the Voice glance (when did I last count? a
+// waveform and timer while recording), the match results once there are some
+// (their glance with Apply, the one primary, then "Needs you" first and the
+// detected items by zone), the checklist card, and the transcript card, whose
+// menu holds the match model and Clear. Record/Stop sits in a bar pinned to
+// the bottom of the pane, so it stays under the thumb while the checklist
+// scrolls; stopping a take transcribes it and then matches it on its own.
 //
 // Recording is hardened: every 1 s chunk is streamed to the PC and
 // archived to disk by the voice-transcriber app the moment it arrives, so the
@@ -194,7 +196,6 @@ export function renderAudio() {
         <span id="voice-timer" class="voice-timer"></span>
       </div>
       <div class="voice-actions">
-        <button id="record-toggle" data-track="voice.record" class="${audio.matches ? "button-tint" : "button-primary"} btn-block" type="button">${recordLabel(recording)}</button>
         <button id="audio-redo" data-track="voice.redo" class="button-surface btn-block" type="button"${audio.sessionId && !recording ? "" : " hidden"}>${icon("refresh-cw")}Redo transcription</button>
         <button id="audio-cancel" data-track="voice.cancel" class="button-surface btn-block" type="button" hidden>${icon("x")}Cancel</button>
       </div>
@@ -210,7 +211,10 @@ export function renderAudio() {
       </div>
       <textarea id="transcript" aria-label="Transcript" placeholder="The transcript appears here, or paste one.">${audio.transcript ? html(audio.transcript) : ""}</textarea>
       <button id="match-transcript" data-track="voice.match" class="button-tint btn-block" type="button">${icon("list-checks")}Match</button>
-    </section>`;
+    </section>
+    <div class="voice-record-bar">
+      <button id="record-toggle" data-track="voice.record" class="${audio.matches ? "button-tint" : "button-primary"} btn-block" type="button">${recordLabel(recording)}</button>
+    </div>`;
   paintLastAudit();
   renderMatches();
   // A transcribe or match still running (a hop to Manual and back): its
@@ -699,10 +703,25 @@ function closeAudioPartialStream() {
   }
 }
 
+// A take with words in it goes straight on to matching: the walk ends at
+// Stop, and the next tap is Apply. With the matching service down the
+// transcript waits for a manual Match instead of failing loudly.
 async function finishRecording() {
+  if (await transcribeTake()) {
+    if (audio.health && !audio.health.hub_ok) {
+      setAudioStatus("Transcript ready — start local-llm-hub, then tap Match", "");
+    } else {
+      await matchTranscript();
+    }
+  }
+}
+
+// Upload the take's tail and transcribe it; true when a transcript arrived.
+async function transcribeTake() {
   stopRecordTimer();
   stopWave();
   showLive(false);
+  let transcribed = false;
   try {
     setAudioStatus(`Finalising upload · ${audio.pendingUploads} chunk(s) left…`);
     await audio.uploadChain;
@@ -717,7 +736,8 @@ async function finishRecording() {
       audio.transcript = body.transcript || "";
       const field = document.querySelector("#transcript");
       if (field) field.value = audio.transcript;
-      setAudioStatus("Transcript ready — recording saved on the PC. Match it below.", "ok");
+      setAudioStatus("Transcript ready — recording saved on the PC.", "ok");
+      transcribed = Boolean(audio.transcript.trim());
     }
   } catch (error) {
     closeAudioPartialStream();
@@ -736,6 +756,7 @@ async function finishRecording() {
       button.innerHTML = recordLabel(false);
     }
   }
+  return transcribed;
 }
 
 // Re-run whisper on the saved audio — crash recovery, or after a finish error.
@@ -762,8 +783,10 @@ export async function redoTranscribe() {
 }
 
 export async function matchTranscript() {
+  // A take that finished while Manual was showing has no box to read: its
+  // transcript is already in `audio`.
   const field = document.querySelector("#transcript");
-  const transcript = (field?.value || "").trim();
+  const transcript = (field ? field.value : audio.transcript).trim();
   audio.transcript = transcript;
   if (!transcript) {
     setAudioStatus("Add or transcribe a transcript first", "error");
