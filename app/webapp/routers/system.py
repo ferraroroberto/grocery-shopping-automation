@@ -4,7 +4,6 @@ install manifest, auth handshake, health, access URLs, and desktop actions
 store logins)."""
 
 import hashlib
-import hmac
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -14,6 +13,7 @@ from app import login_check_runner
 from app.api_common import REPO_ROOT, STATIC_DIR, inventory_error
 from app.middleware import client_address, is_pc_itself
 from app.static_files import BUILD_INFO
+from src import password
 from src.automation.bootstrap_session import launch_bootstrap_chrome
 from src.certs import cert_paths
 from src.data import CONFIG
@@ -123,7 +123,7 @@ async def login(request: Request) -> dict[str, str]:
     wait = 0.0 if exempt else lockout.retry_after(client)
     if wait > 0:
         raise HTTPException(status_code=429, detail="too many attempts", headers=retry_after_header(wait))
-    if not cfg.auth_password:
+    if not password.is_configured(legacy=cfg.auth_password):
         raise HTTPException(status_code=503, detail="password auth not configured")
     if not cfg.auth_token:
         raise HTTPException(status_code=503, detail="bearer token not configured")
@@ -133,8 +133,7 @@ async def login(request: Request) -> dict[str, str]:
     except ValueError:
         body = {}
     presented = str(body.get("password") or "")
-    # Compare bytes: compare_digest raises TypeError on non-ASCII str operands.
-    if not hmac.compare_digest(presented.encode("utf-8"), cfg.auth_password.encode("utf-8")):
+    if not password.check_password(presented, legacy=cfg.auth_password):
         if not exempt:
             lockout.record_failure(client)
         raise HTTPException(status_code=401, detail="bad password")
