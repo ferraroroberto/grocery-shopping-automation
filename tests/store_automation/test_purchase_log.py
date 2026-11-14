@@ -155,7 +155,8 @@ def _record_fill(logs_dir: Path, store: str, at, items: list[tuple[str, str]], m
 
 def test_read_fill_history_groups_by_day_newest_first(tmp_path: Path):
     """#323: one entry per fill day, a store filled twice counts its later run,
-    only the misses are listed, a broken record is skipped, the limit applies."""
+    every item is listed with its status in list order, a broken record is skipped,
+    the limit applies."""
     from datetime import datetime
 
     from src.automation.purchase_log import read_fill_history, read_last_fill
@@ -177,9 +178,12 @@ def test_read_fill_history_groups_by_day_newest_first(tmp_path: Path):
     newest = history[0]
     assert (newest["run"], newest["time"]) == ("2026-10-06T191701", "19:17")
     assert newest["stores"]["carrefour"] == {
-        "in_cart": 1, "unconfirmed": 1, "missing": 0, "cart_mode": "clean", "problems": [],
+        "in_cart": 1, "unconfirmed": 1, "missing": 0, "cart_mode": "clean",
+        "items": [{"item": "kiwi", "status": ADDED_VERIFIED}, {"item": "quinoa", "status": ADDED_UNVERIFIED}],
     }
-    assert newest["stores"]["mercadona"]["problems"] == [{"item": "sal", "status": OUT_OF_STOCK}]
+    assert newest["stores"]["mercadona"]["items"] == [
+        {"item": "sal", "status": OUT_OF_STOCK}, {"item": "miel", "status": ADDED_VERIFIED},
+    ]
     # The glance reader is untouched: same day, same counts.
     last = read_last_fill(logs_dir)
     assert last["run"] == newest["run"]

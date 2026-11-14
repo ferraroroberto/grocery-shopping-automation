@@ -671,7 +671,9 @@ def test_automation_fill_history_and_mark_done(client, temp_env):
     assert fills["cleared"] is False and fills["last_fill"]["run"] == "2026-10-06T191701"
     days = client.get("/api/automation/fills/history").json()["days"]
     assert [(d["date"], d["cleared"]) for d in days] == [("2026-10-06", False), ("2026-09-29", False)]
-    assert days[0]["stores"]["mercadona"]["problems"] == [{"item": "item 1", "status": "out_of_stock"}]
+    assert days[0]["stores"]["mercadona"]["items"] == [
+        {"item": "item 0", "status": "added_verified"}, {"item": "item 1", "status": "out_of_stock"},
+    ]
 
     assert client.post("/api/automation/fills/clear", json={"run": "2026-09-29T190000"}).status_code == 409
     for _ in range(2):  # the repeat is idempotent

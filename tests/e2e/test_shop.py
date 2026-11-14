@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 
 import pytest
 
@@ -186,6 +187,38 @@ def _remove_extra_and_unmark(page, store_sheet, group, extra):
     page.keyboard.press("Escape")
 
 
+def _assert_history_lists_every_item(phone, sheet) -> None:
+    """Newest day open, older days folded; every item under its outcome."""
+    # History: newest day first and open, older days folded, a line per store
+    # with every item listed under its outcome.
+    days = sheet.locator(".fill-day")
+    assert days.locator(".fill-day-title").all_inner_texts() == ["Wed 14 Oct · 19:17", "Wed 7 Oct · 18:00"]
+    assert [d.get_attribute("open") is not None for d in days.all()] == [True, False]
+    assert sheet.locator(".chip", has_text="Done").count() == 0
+    newest = days.first.locator(".fill-store")
+    assert newest.locator(".fill-store-name").all_inner_texts() == ["Carrefour", "Mercadona"]
+    assert "2 in cart" in newest.first.inner_text() and "Clean cart" in newest.first.inner_text()
+    assert newest.first.locator(".chip[data-tone='attention']").inner_text() == "1 not confirmed"
+    assert newest.nth(1).locator(".chip[data-tone='danger']").inner_text() == "1 not in cart"
+
+    def group(store, label):
+        return store.locator(".fill-group", has=phone.locator(".fill-group-head span:first-child", has_text=re.compile(f"^{label}$")))
+
+    def rows(store, label):
+        return [" ".join(t.split()) for t in group(store, label).locator("li").all_inner_texts()]
+
+    assert rows(newest.first, "In cart") == ["invented rice"]
+    assert rows(newest.first, "Unconfirmed") == ["invented oats"]
+    assert group(newest.first, "Not in cart").count() == 0
+    assert rows(newest.nth(1), "In cart") == ["invented soup"]
+    assert rows(newest.nth(1), "Not in cart") == ["invented broth Out of stock"]
+    # The older day stays folded until opened, then lists its item too.
+    older = days.nth(1)
+    assert not older.locator(".fill-store").first.is_visible()
+    older.locator("summary").click()
+    assert rows(older.locator(".fill-store").first, "In cart") == ["invented rice"]
+
+
 @pytest.mark.e2e
 def test_fill_history_and_mark_done_on_a_phone(pw, server, tmp_path, monkeypatch):
     """Shop's History row opens the last fill days, and Mark purchase done
@@ -223,20 +256,8 @@ def test_fill_history_and_mark_done_on_a_phone(pw, server, tmp_path, monkeypatch
         assert phone.locator("#shop-context").inner_text().startswith("1 not in cart")
         assert fill.locator("#automation-history-value").inner_text() == "Wed 14 Oct"
 
-        # History: newest day first, a line per store, only the misses folded.
         sheet = open_fill_history(phone)
-        days = sheet.locator(".fill-day")
-        assert days.locator(".fill-day-title").all_inner_texts() == ["Wed 14 Oct · 19:17", "Wed 7 Oct · 18:00"]
-        assert sheet.locator(".chip", has_text="Done").count() == 0
-        newest = days.first.locator(".fill-store")
-        assert newest.locator(".fill-store-name").all_inner_texts() == ["Carrefour", "Mercadona"]
-        assert "2 in cart" in newest.first.inner_text() and "Clean cart" in newest.first.inner_text()
-        assert newest.first.locator(".chip[data-tone='attention']").inner_text() == "1 not confirmed"
-        assert newest.nth(1).locator(".chip[data-tone='danger']").inner_text() == "1 not in cart"
-        assert newest.first.locator("details").count() == 0
-        broth = newest.nth(1).locator("details")
-        broth.locator("summary").click()
-        assert " ".join(broth.locator("li").inner_text().split()) == "invented broth Out of stock"
+        _assert_history_lists_every_item(phone, sheet)
         assert_no_horizontal_overflow(phone)
         assert_min_target(sheet.locator("button:visible, summary:visible"))
         assert_no_overlap(sheet.locator("button:visible, summary:visible"))

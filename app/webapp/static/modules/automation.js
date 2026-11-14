@@ -451,6 +451,28 @@ function problemLabel(status) {
   return PROBLEM_LABELS[status] || String(status).replaceAll("_", " ");
 }
 
+// A store's items under the outcome they reached, in list order. Any status
+// that is not an added one lands in "Not in cart" with its reason beside it.
+const FILL_GROUPS = [
+  { label: "In cart", statuses: ["added_verified"] },
+  { label: "Unconfirmed", statuses: ["added_unverified"] },
+  { label: "Would add", statuses: ["would_add"] },
+  { label: "Not in cart", statuses: null },
+];
+
+function fillGroupsMarkup(items) {
+  const known = new Set(FILL_GROUPS.flatMap((g) => g.statuses || []));
+  return FILL_GROUPS.map((group) => {
+    const rows = items.filter((i) => (group.statuses ? group.statuses.includes(i.status) : !known.has(i.status)));
+    if (!rows.length) return "";
+    const reason = (i) => (group.statuses ? "" : `<span class="fill-item-status">${esc(problemLabel(i.status))}</span>`);
+    return `<div class="fill-group">
+        <div class="fill-group-head"><span>${esc(group.label)}</span><span class="fill-group-count">${rows.length}</span></div>
+        <ul class="fill-item-list">${rows.map((i) => `<li><span class="fill-item">${html(i.item)}</span>${reason(i)}</li>`).join("")}</ul>
+      </div>`;
+  }).join("");
+}
+
 function historySheet() {
   return dialogShell(HISTORY_ID, "Fill history", "Done", (shell) => {
     shell.classList.add("fill-history-sheet");
@@ -482,26 +504,21 @@ function storeLine(store, outcome) {
   const status = outcomeChip(outcome);
   const chipMarkup = status ? ` ${chip(status.label, status.tone)}` : "";
   const note = outcome.cart_mode === "clean" ? ` <span class="fill-store-note">Clean cart</span>` : "";
-  const problems = outcome.problems?.length
-    ? `<details class="inline-disclosure fill-problems">
-        <summary class="inline-disclosure-summary" data-track="shop.not-in-cart"><span>${esc(plural(outcome.problems.length, "item"))} not in cart</span><span class="inline-chevron" aria-hidden="true">›</span></summary>
-        <ul class="fill-problem-list">${outcome.problems.map((p) => `<li><span class="fill-problem-item">${html(p.item)}</span><span class="fill-problem-status">${esc(problemLabel(p.status))}</span></li>`).join("")}</ul>
-      </details>`
-    : "";
   return `<li class="fill-store">
       <div class="fill-store-line">
         <span class="fill-store-name">${html(storeLabel(store))}</span>
         <span class="fill-store-meta">${esc(`${outcome.in_cart + outcome.unconfirmed} in cart`)}${chipMarkup}${note}</span>
-      </div>${problems}
+      </div>${fillGroupsMarkup(outcome.items || [])}
     </li>`;
 }
 
-function dayRow(day) {
+// The newest fill opens expanded; an older day folds under its date.
+function dayRow(day, index) {
   const done = day.cleared ? ` ${chip("Done", "neutral")}` : "";
-  return `<li class="fill-day">
-      <div class="fill-day-head"><span class="fill-day-title">${esc(`${fillDay(day.date)} · ${day.time}`)}</span>${done}</div>
+  return `<li class="fill-day-item"><details class="fill-day inline-disclosure"${index === 0 ? " open" : ""}>
+      <summary class="inline-disclosure-summary fill-day-head" data-track="shop.fill-day"><span class="fill-day-title">${esc(`${fillDay(day.date)} · ${day.time}`)}</span>${done}<span class="inline-chevron" aria-hidden="true">›</span></summary>
       <ul class="fill-stores">${Object.entries(day.stores).map(([store, outcome]) => storeLine(store, outcome)).join("")}</ul>
-    </li>`;
+    </details></li>`;
 }
 
 function paintHistory() {
@@ -518,7 +535,7 @@ function paintHistory() {
   } else if (!history.days.length) {
     body.replaceChildren(emptyStateEl("shopping-cart", "No fills yet. Each Fill carts run shows up here."));
   } else {
-    body.innerHTML = `<ul class="fill-days">${history.days.map(dayRow).join("")}</ul>`;
+    body.innerHTML = `<ul class="fill-days">${history.days.map((day, index) => dayRow(day, index)).join("")}</ul>`;
   }
 }
 
