@@ -25,6 +25,12 @@ _USAGE_DIR_ENV = "GROCERY_SHOPPING_AUTOMATION_DATA_DIR"
 if not Path(os.environ.get(_USAGE_DIR_ENV, "")).name.startswith("grocery-usage-"):
     os.environ[_USAGE_DIR_ENV] = tempfile.mkdtemp(prefix="grocery-usage-")
 
+# The login password hash (src/password.py) is read on every login, so a run
+# must never see the live config/app_password.json: point it at a file that
+# does not exist. Assigned, not defaulted, so no outer value reaches the live
+# file; servers the suite spawns inherit it.
+os.environ["APP_PASSWORD_FILE"] = str(Path(tempfile.mkdtemp(prefix="grocery-password-")) / "app_password.json")
+
 import src.data as data  # noqa: E402
 from app.api import app  # noqa: E402
 from src.inventory_extract import ExtractionResult

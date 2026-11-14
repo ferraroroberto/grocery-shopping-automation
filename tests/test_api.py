@@ -564,6 +564,23 @@ def test_password_and_query_token_auth(client):
         cfg.auth_password = orig_password
 
 
+def test_stored_hash_replaces_the_legacy_password(client, tmp_path, monkeypatch):
+    from src import password
+
+    monkeypatch.setenv(password.ENV_VAR, str(tmp_path / "app_password.json"))
+    cfg = api.app.state.webapp_config
+    orig_token, orig_password = cfg.auth_token, cfg.auth_password
+    cfg.auth_token = "test-token"
+    cfg.auth_password = "test-password"
+    try:
+        password.set_password("4321")
+        assert client.post("/api/login", json={"password": "4321"}).json() == {"token": "test-token"}
+        assert client.post("/api/login", json={"password": "test-password"}).status_code == 401
+    finally:
+        cfg.auth_token = orig_token
+        cfg.auth_password = orig_password
+
+
 def test_non_ascii_password_and_token_never_500(client):
     """Regression for #293: hmac.compare_digest raises TypeError on non-ASCII
     str operands, which turned a valid accented password (or a non-ASCII

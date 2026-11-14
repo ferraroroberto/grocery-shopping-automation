@@ -74,3 +74,6 @@ Thumbs.db
 # product search run log (issue #211)
 logs/
 .proof/
+
+# The app password hash (src/password.py)
+config/app_password.json

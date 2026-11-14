@@ -76,10 +76,10 @@ App-level auth matches the sibling pattern. `auth_token` is off by default, whic
 
 ```powershell
 & .\.venv\Scripts\python.exe scripts\gen_token.py
-& .\.venv\Scripts\python.exe scripts\set_password.py PW
+& .\.venv\Scripts\python.exe -m src.password set
 ```
 
-Re-run `scripts\gen_token.py --force` to rotate the token, `scripts\gen_token.py --clear` to disable bearer auth, and `scripts\set_password.py --clear` to remove the password prompt.
+The password command prompts twice and stores only a salted hash in `config/app_password.json` (git-ignored), through the vendored `src/password.py` every fleet app shares; any non-empty password works. Until it has run, an older plaintext `auth_password` in `webapp_config.json` still signs in; after, that value is ignored and can be deleted. Re-run `scripts\gen_token.py --force` to rotate the token and `scripts\gen_token.py --clear` to disable bearer auth.
 
 ## Mobile Access (same Wi-Fi network)
 For the FastAPI/PWA rebuild, launch `webapp.bat` and open `http://<local-ip>:8502` or `https://<local-ip>:8502` if local certs are present. The app binds to all network interfaces automatically, so the same URL also works over Tailscale when the device can reach this PC.
