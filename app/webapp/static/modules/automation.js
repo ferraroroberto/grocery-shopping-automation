@@ -29,6 +29,7 @@ import { local, storeName } from "./stores/state.js";
 const OPTIONS_ID = "fill-carts-options";
 const HISTORY_ID = "fill-history";
 const SEEN_KEY = "grocery.fillSeen";
+const PICKS_KEY = "grocery.fillPicks";
 
 const run = {
   source: null,
@@ -39,7 +40,38 @@ const run = {
 
 // What the next Fill carts runs with. Kept here, not read back from the
 // Options sheet, so the glance can start a run before the sheet was ever opened.
-const picks = { store: "all", cartMode: "keep", dryRun: false, cleanConfirmed: false };
+// The store and cart mode are remembered on this device, so the sheet opens only
+// to change something. A dry run and the clean-cart OK are per visit: a real fill
+// is one tap away, and emptying a store cart is confirmed again every time.
+const picks = { store: "all", cartMode: "keep", dryRun: false, cleanConfirmed: false, ...rememberedPicks() };
+
+function rememberedPicks() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PICKS_KEY) || "{}");
+    return {
+      ...(typeof saved.store === "string" && saved.store ? { store: saved.store } : {}),
+      ...(saved.cartMode === "clean" ? { cartMode: "clean" } : {}),
+    };
+  } catch (_) {
+    return {}; // private mode or a damaged value: the defaults stand
+  }
+}
+
+function rememberPicks() {
+  try {
+    localStorage.setItem(PICKS_KEY, JSON.stringify({ store: picks.store, cartMode: picks.cartMode }));
+  } catch (_) {
+    // private mode: the picks last for this visit only
+  }
+}
+
+// A remembered store that has left the list is not a pick any more: fall back to
+// all stores for this run.
+function dropStaleStore() {
+  const supermarkets = state.payload?.summary.supermarkets;
+  if (!supermarkets || picks.store === "all") return;
+  if (!supermarkets.some((s) => storeKey(s) === storeKey(picks.store))) picks.store = "all";
+}
 
 // The last fill day's outcome per store key, once read. Display names and
 // cart-handler flags come from the shared Stores registry (stores/state.js),
@@ -275,6 +307,7 @@ function optionsValue() {
 export function paintCarts() {
   const list = document.querySelector("#carts-stores");
   if (!list) return;
+  dropStaleStore();
   const stores = listStores();
   list.innerHTML = stores.length
     ? stores.map(storeRow).join("")
@@ -372,6 +405,7 @@ function onOptionsChange(event) {
     picks.cartMode = event.target.value;
     picks.cleanConfirmed = false; // a fresh OK for every switch to Clean
   }
+  rememberPicks();
   paintOptions();
   paintCarts();
 }

@@ -125,6 +125,34 @@ def _complete_a_row(page, fill):
     return group
 
 
+def _check_picks_are_remembered(page):
+    # The store and cart mode survive a reload, so the sheet opens only to change
+    # something; the clean-cart OK and a dry run do not -- Fill carts waits again.
+    def reopen():
+        page.reload()  # reopens on Shop, the tab it was left on
+        fill = page.locator("#pane-shopping #fill-carts")
+        fill.locator("#carts-stores .action-row").first.wait_for()
+        return fill
+
+    fill = reopen()
+    assert fill.locator("#automation-options-value").inner_text() == "All stores · Clean cart"
+    assert fill.locator("#automation-start").is_disabled()
+    assert fill.locator("#automation-blocked").is_visible()
+    sheet = open_fill_options(page)
+    assert sheet.locator("#automation-clean-confirm").get_attribute("aria-checked") == "false"
+    sheet.locator("#automation-cart-mode").select_option("keep")
+    sheet.locator("#automation-store").select_option("mercadona")
+    page.keyboard.press("Escape")
+    sheet.wait_for(state="hidden")
+    fill = reopen()
+    assert fill.locator("#automation-options-value").inner_text() == "Mercadona · Keep cart"
+    assert fill.locator("#automation-start").is_enabled()
+    # A remembered store that is no longer on the list reads as all stores.
+    page.evaluate("localStorage.setItem('grocery.fillPicks', JSON.stringify({store: 'gone', cartMode: 'keep'}))")
+    fill = reopen()
+    assert fill.locator("#automation-options-value").inner_text() == "All stores · Keep cart"
+
+
 def _quick_add_extra(group):
     # Quick-add is the group's "Add to <store>" row; its Remove, the cart
     # offsets and Unmark all live in the store sheet.
@@ -278,6 +306,7 @@ def test_shop_carts_options_and_store_sheet(page):
     _toggle_store_sheet_edit(store_sheet, group)
     surface(page, "shop.store-sheet-edit")
     _remove_extra_and_unmark(page, store_sheet, group, extra)
+    _check_picks_are_remembered(page)
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
 
 
