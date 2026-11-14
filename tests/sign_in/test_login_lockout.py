@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import threading
 
 import pytest
@@ -53,7 +54,7 @@ def lan(clock: FakeClock, notifier: FakeNotifier):
     cfg = app.state.webapp_config
     saved = (cfg.auth_password, cfg.auth_token, app.state.login_lockout)
     cfg.auth_password, cfg.auth_token = PASSWORD, TOKEN
-    app.state.login_lockout = LoginLockout(clock=clock, on_alert=build_login_alert(lambda: notifier, "grocery"))
+    app.state.login_lockout = LoginLockout(clock=clock, on_alert=build_login_alert("grocery", lambda: notifier))
     try:
         with TestClient(app, client=LAN_CLIENT) as test_client:
             yield test_client
@@ -95,7 +96,7 @@ def test_the_pc_itself_is_never_locked_out(clock, notifier):
     cfg = app.state.webapp_config
     saved = (cfg.auth_password, cfg.auth_token, app.state.login_lockout)
     cfg.auth_password, cfg.auth_token = PASSWORD, TOKEN
-    app.state.login_lockout = LoginLockout(clock=clock, on_alert=build_login_alert(lambda: notifier, "grocery"))
+    app.state.login_lockout = LoginLockout(clock=clock, on_alert=build_login_alert("grocery", lambda: notifier))
     try:
         with TestClient(app, client=PC_CLIENT) as pc:
             assert [_login(pc, "wrong").status_code for _ in range(12)] == [401] * 12
@@ -109,7 +110,7 @@ def test_a_tunnel_request_over_loopback_is_not_the_pc_and_is_counted_by_its_edge
     cfg = app.state.webapp_config
     saved = (cfg.auth_password, cfg.auth_token, app.state.login_lockout)
     cfg.auth_password, cfg.auth_token = PASSWORD, TOKEN
-    app.state.login_lockout = LoginLockout(clock=clock, on_alert=build_login_alert(lambda: notifier, "grocery"))
+    app.state.login_lockout = LoginLockout(clock=clock, on_alert=build_login_alert("grocery", lambda: notifier))
     try:
         with TestClient(app, client=PC_CLIENT) as tunnel:
             guesser = {"cf-connecting-ip": "203.0.113.9", "cf-ray": "abc"}
@@ -128,3 +129,22 @@ def test_a_lan_caller_cannot_mint_addresses_with_a_forged_header(lan):
     for i in range(6):
         assert _login(lan, "wrong", **{"cf-connecting-ip": f"203.0.113.{i}"}).status_code == 401
     assert _login(lan, "wrong", **{"cf-connecting-ip": "203.0.113.99"}).status_code == 429
+
+
+def test_no_alert_channel_is_reported_unconfigured(clock, caplog):
+    cfg = app.state.webapp_config
+    saved = (cfg.auth_password, cfg.auth_token, app.state.login_lockout)
+    cfg.auth_password, cfg.auth_token = PASSWORD, TOKEN
+    app.state.login_lockout = LoginLockout(
+        clock=clock, on_alert=build_login_alert("grocery", lambda: None, run=lambda send: send())
+    )
+    try:
+        with (
+            caplog.at_level(logging.WARNING, logger="src.login_alert"),
+            TestClient(app, client=LAN_CLIENT) as test_client,
+        ):
+            for _ in range(3):
+                _login(test_client, "wrong")
+    finally:
+        cfg.auth_password, cfg.auth_token, app.state.login_lockout = saved
+    assert "unconfigured" in caplog.text and "3 wrong passwords" in caplog.text

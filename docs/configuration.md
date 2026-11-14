@@ -43,8 +43,9 @@ check that lets it skip the bearer token) is never counted. A request through
 the public tunnel is counted by Cloudflare's `cf-connecting-ip`, believed only
 from a loopback socket. Three wrong passwords in a row from one client send one
 Telegram message (app name, client address, count; never a password or token)
-from a thread, at most one per five minutes across all clients
-(`src/login_alert.py`).
+from a thread, at most one per five minutes across all clients, through the
+vendored `src/login_alert.py` shared by every fleet app. With no Telegram
+channel configured the alert is logged as `unconfigured` at warning level.
 
 Manual smoke check:
 
