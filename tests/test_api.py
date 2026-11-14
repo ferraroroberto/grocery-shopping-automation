@@ -253,7 +253,7 @@ def test_index_shell_is_no_cache_and_hash_stamped(client):
 
 
 def test_version_reports_build_identity(client):
-    """/api/version feeds the PWA footer readout + stale-shell reload guard."""
+    """/api/version feeds the PWA footer readout + the build-watch prompt."""
     body = client.get("/api/version").json()
     assert set(body) == {"git_sha", "built_at", "asset_hash"}
     assert body["asset_hash"] == api.BUILD_INFO.fleet_hash

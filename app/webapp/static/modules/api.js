@@ -115,30 +115,13 @@ export async function mutate(url, payload, method = "POST") {
 }
 
 // --------------------------------------------------- build identity
-// Ported from home-automation main.js — visible proof of which build the PWA
-// is running (the page-foot line), plus a one-shot reload
-// when the served asset hash changed since the last visit (iOS standalone
-// PWAs can cling to an old shell even with stamped asset URLs).
-const ASSET_HASH_KEY = "grocery.assetHash";
-const ASSET_RELOAD_KEY = "grocery.assetReloadedFor";
-
+// Visible proof of which build the PWA is running (the page-foot line). A newer
+// build is offered by the vendored build-watch prompt on a tap; nothing here
+// reloads the page, so an unsent draft survives a deploy.
 export async function fetchVersion() {
   try {
     const body = await fetchJson("/api/version");
-    const sha = body.git_sha || "unknown";
-    const assetHash = body.asset_hash || "";
-    const previousHash = localStorage.getItem(ASSET_HASH_KEY) || "";
-    if (
-      assetHash && previousHash && previousHash !== assetHash &&
-      sessionStorage.getItem(ASSET_RELOAD_KEY) !== assetHash
-    ) {
-      localStorage.setItem(ASSET_HASH_KEY, assetHash);
-      sessionStorage.setItem(ASSET_RELOAD_KEY, assetHash);
-      window.location.reload();
-      return;
-    }
-    if (assetHash) localStorage.setItem(ASSET_HASH_KEY, assetHash);
-    el.buildReadout.textContent = buildReadoutText(sha, body.built_at || "");
+    el.buildReadout.textContent = buildReadoutText(body.git_sha || "unknown", body.built_at || "");
   } catch (_) {
     el.buildReadout.textContent = "";
   }
