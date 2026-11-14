@@ -49,18 +49,19 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .app {
   max-width: 772px;
   margin: 0 auto;
-  padding-top: calc(env(safe-area-inset-top, 0px) + var(--gap));
   padding-left: var(--gap);
   padding-right: var(--gap);
 }
-/* Bottom padding is desktop/wide-only, deliberately split out of the rule
+/* Top and bottom padding are desktop/wide-only, deliberately split out of the rule
    above: the coarse-pointer + narrow breakpoint is
-   where nav-tabs.css reserves .app's bottom padding for the floating tab bar
+   where nav-tabs.css owns .app's padding (the safe-area top every app shares
+   and the bottom reservation for the floating tab bar)
    (its own `.app { padding: ... }` in that media condition) — a shorthand
    `padding` here would win the cascade (equal specificity, later in source
    order) and silently clobber that reservation. */
 @media (pointer: fine), (min-width: 521px) {
   .app {
+    padding-top: calc(env(safe-area-inset-top, 0px) + var(--gap));
     padding-bottom: calc(env(safe-area-inset-bottom, 0) + 24px);
     scroll-padding-bottom: calc(env(safe-area-inset-bottom, 0) + 24px);
   }
