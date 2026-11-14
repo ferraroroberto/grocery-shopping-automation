@@ -5,7 +5,7 @@ import { initNavTabs } from "./_vendored/nav/nav-tabs.js";
 import { setSwitch } from "./_vendored/switch/switch.js";
 import { bindTextSize } from "./_vendored/text-size/text-size.js";
 import { initUsageLog } from "./_vendored/usage-log/usage-log.js";
-import { fetchVersion, itemUrl, loadInventory, mutate } from "./modules/api.js";
+import { fetchJson, fetchVersion, itemUrl, loadInventory, mutate } from "./modules/api.js";
 import {
   applyAudio,
   audioUnmatchedCount,
@@ -66,6 +66,7 @@ import {
 } from "./modules/stores/index.js";
 import { loadMeta } from "./modules/stores/simulator.js";
 import { itemById } from "./modules/stores/state.js";
+import { initBuildWatch } from "./_vendored/build-watch/build-watch.js";
 
 // Page-header context lines (design.md "page header"): the exception
 // that needs you, in its tone, else the plain fact — never the mode name the
@@ -391,6 +392,7 @@ loadInventory().then(() => {
 // The last fill feeds Shop's header and its tab badge from whichever tab
 // opens; a Shop that opens has already asked (onTabChange → syncFillCarts).
 if (nav.getTab() !== "shopping") loadFills();
+initBuildWatch({ fetchJson });
 fetchVersion();
 // The Stores registry (display names, cart-handler flags) is read fleet-wide
 // for store labels (automation.js, fallback.js, item-sheet.js, search.js) —
