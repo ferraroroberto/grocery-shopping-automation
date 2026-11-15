@@ -108,7 +108,7 @@ function addRow(label) {
         ${icon("plus", "store-add-icon")}
         <input class="field" name="name" placeholder="Add to ${esc(label)}" aria-label="Item to add to ${esc(label)}" required>
         <input class="field quick-add-qty" name="qty" type="number" min="1" value="1" aria-label="Quantity">
-        <button class="icon-button" type="submit" data-track="shop.quick-add" aria-label="Add to ${esc(label)}" title="Add">${icon("arrow-right")}</button>
+        <button class="button-tint" type="submit" data-track="shop.quick-add" aria-label="Add to ${esc(label)}">Add</button>
       </form>
     </li>`;
 }

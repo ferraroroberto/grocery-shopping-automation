@@ -317,7 +317,7 @@ function editFormMarkup(d, s) {
       <p class="panel-status error review-edit-status" role="status"></p>
       <div class="review-edit-actions">
         <button type="submit" class="button-tint" data-track="review.save">Save</button>
-        ${s.override ? `<button type="button" class="button-surface" data-track="review.reset" data-review-reset="${esc(s.store)}">Reset to benchmark</button>` : ""}
+        ${s.override ? `<button type="button" class="button-tint danger" data-track="review.reset" data-review-reset="${esc(s.store)}">Reset to benchmark</button>` : ""}
         <button type="button" class="button-surface" data-track="review.cancel" data-review-cancel>Cancel</button>
       </div>
     </form>`;
@@ -336,7 +336,7 @@ function addLinkMarkup(d) {
           `<option value="${esc(s.key)}">${esc(s.name)}</option>`).join("")}</select>
         <input id="review-add-url" class="field" type="url" inputmode="url" autocomplete="off" spellcheck="false"
                placeholder="https://…" data-review-add-url>
-        <button type="button" class="button-surface" data-track="review.add-link" data-review-add>Add link</button>
+        <button type="button" class="button-tint" data-track="review.add-link" data-review-add>Add link</button>
       </div>
     </div>`;
 }
