@@ -273,11 +273,11 @@ def _sign_in(page):
 def _check_sheets_and_dialogs_are_styled(page, theme):
     """The Add item sheet, the Benchmark sheet and its baseline dialog, the item
     sheet's pages and the apply dialog all render on the vendored recipes."""
-    # The Add item sheet: the search's tint button, the two pickers, and the
-    # footer primary that submits the form.
+    # The Add item sheet: the two pickers and the footer primary that submits
+    # the form; the search submit is a glyph-only icon-button, outside the probe.
     open_add_sheet(page)
     found = _check_dialog(page, theme, "add-sheet")
-    assert found["buttons"] == ["Search", "Add item"] and found["selects"] == 2, found
+    assert found["buttons"] == ["Add item"] and found["selects"] == 2, found
     page.keyboard.press("Escape")
 
     # The Benchmark sheet: the plan and baseline buttons, full width so no

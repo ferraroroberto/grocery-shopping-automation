@@ -90,10 +90,10 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 /* The same expansion for every control drawn at --control-h: (36 - 44) / 2 = -4px
    a side. Neighbours keep >= 8px between them (--space-sm) so the expanded
    rectangles touch but never overlap. */
-:is(.danger, .pill, .store-chip, .button-surface) {
+:is(.pill, .store-chip, .button-surface) {
   position: relative;
 }
-:is(.danger, .pill, .store-chip, .button-surface)::before {
+:is(.pill, .store-chip, .button-surface)::before {
   content: "";
   position: absolute;
   inset: calc((var(--control-h) - var(--hit-min)) / 2);
@@ -253,16 +253,6 @@ main.app > .pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: va
 }
 
 /* ------------------------------------------------------------- controls */
-.danger {
-  min-height: var(--control-h);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--line);
-  background: var(--card);
-  color: var(--ink);
-  padding: 0 12px;
-  font-size: var(--font-label);
-  font-weight: 600;
-}
 /* button-primary height for the view's primary action and every form submit */
 form button[type="submit"] { min-height: var(--primary-h); }
 /* A destructive action's paint is the vendored `.button-tint.danger` (outlined:
@@ -283,7 +273,7 @@ form button[type="submit"] { min-height: var(--primary-h); }
 }
 /* A glyph beside a button's label is icons.size.inline, never the label's own
    14px em (COMP-02). */
-:is(.danger, .button-primary, .button-tint, .button-surface) > .icon {
+:is(.button-primary, .button-tint, .button-surface) > .icon {
   width: var(--icon-inline);
   height: var(--icon-inline);
 }
@@ -373,19 +363,6 @@ textarea { min-height: 150px; padding: 10px; resize: vertical; }
   background: var(--input-bg);
   color: var(--ink);
   font-size: var(--font-label);
-}
-/* Compact tint action at the control height — Buscar sits in line with the
-   term box and reads the same size as the Usar buttons. */
-.search-bar .button-tint {
-  flex: 0 0 auto;
-  width: auto;
-  min-height: var(--field-h);
-  padding: 0 var(--space-md);
-  font-size: var(--font-label);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45em; /* breathing room between the magnifier and the label */
 }
 .icon-button.recording { color: var(--deficit); }
 @media (prefers-reduced-motion: no-preference) {
@@ -835,7 +812,7 @@ a.button-tint[data-open-link-page] {
 
 /* ----------------------------------------------- confirm sheet */
 /* confirm.js on the vendored modal shell. Its one button keeps the spec's 48px
-   even as the destructive tint (the app's own .danger is a 36px control). */
+   even as the destructive tint. */
 .confirm-dialog .confirm-message { margin: 0; }
 .confirm-dialog .detail-save-btn { min-height: var(--primary-h); padding: 0 var(--space-md); font-size: var(--font-body); }
 
@@ -913,7 +890,6 @@ a.button-tint[data-open-link-page] {
 .store-add-row .quick-add { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-sm); padding-left: 10px; }
 .store-add-row .quick-add > .field:first-of-type { flex: 1; min-width: 0; }
 .store-add-row .quick-add-qty { flex: none; width: 64px; text-align: center; }
-.store-add-row .icon-button { --icon-btn-box: var(--row-sm); }
 .store-add-icon { flex: none; width: var(--icon-inline); height: var(--icon-inline); color: var(--muted); }
 .collapse-body .sheet-link { padding-inline: 10px; }
 

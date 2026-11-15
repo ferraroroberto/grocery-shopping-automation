@@ -119,7 +119,7 @@ function planMarkup() {
   const count = Object.keys(activePicks()).length;
   return `<div class="benchmark-actions">
       <button type="button" class="button-tint btn-block" data-track="prices.recommended" data-stores-action="recommended"${local.meta.run_date ? "" : " disabled"}>Load recommended plan</button>
-      <button type="button" class="button-surface btn-block" data-track="prices.reset" data-stores-action="reset"${count ? "" : " disabled"}>Reset to my list${count ? ` (${count})` : ""}</button>
+      <button type="button" class="button-tint danger btn-block" data-track="prices.reset" data-stores-action="reset"${count ? "" : " disabled"}>Reset to my list${count ? ` (${count})` : ""}</button>
     </div>`;
 }
 
@@ -148,7 +148,7 @@ function excludedNote() {
 
 function baselineButtonMarkup() {
   return activeBaseline()
-    ? `<button type="button" class="button-surface btn-block" data-track="prices.reset-baseline" data-stores-action="reset-baseline">${icon("refresh-cw")}Reset to benchmark</button>`
+    ? `<button type="button" class="button-tint danger btn-block" data-track="prices.reset-baseline" data-stores-action="reset-baseline">${icon("refresh-cw")}Reset to benchmark</button>`
     : `<button type="button" class="button-surface btn-block" data-track="prices.set-baseline" data-stores-action="set-baseline">${icon("check")}Set as baseline</button>`;
 }
 

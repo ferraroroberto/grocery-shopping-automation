@@ -61,8 +61,8 @@ export function renderSearch() {
       </button>
       <input id="search-term" class="search-term" type="search" enterkeyhint="search" autocomplete="off"
              aria-label="Product to search" placeholder="e.g. sandía" value="${esc(s.term)}"${s.running ? " disabled" : ""} />
-      <button id="search-run" data-track="add.search-run" class="button-tint"${s.running ? " disabled" : ""} type="button">
-        ${icon("search")}Search
+      <button id="search-run" data-track="add.search-run" class="icon-button"${s.running ? " disabled" : ""} type="button" aria-label="Search" title="Search">
+        ${icon("search")}
       </button>
     </div>
     <div id="search-status" class="panel-status" role="status" aria-live="polite"></div>
