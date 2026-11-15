@@ -245,6 +245,8 @@ def _check_chromium_phone_geometry(browser, server):
         group = pg.locator("#pane-shopping details[data-store='mercadona']")
         group.locator("> summary").click()
         add_row = group.locator(".store-add-row")
+        # A form commit, never a verb inside a list row (design-review COMP-14).
+        assert not add_row.evaluate("e => !!e.closest('li')")
         assert_min_target(add_row.locator("button:visible, input:visible"))
         assert_no_overlap(add_row.locator("button:visible, input:visible"))
         assert_no_horizontal_overflow(pg)

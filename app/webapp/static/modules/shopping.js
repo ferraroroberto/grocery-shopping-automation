@@ -1,7 +1,7 @@
 // The shopping list under Shop's carts glance: one folding group per
 // store, with Got-it marks and free-text quick-adds. The list comes second —
 // the household fills the carts and rarely ticks items off after — so it stays
-// folded and plain. Each group ends on an "Add to <store>" row and a Store
+// folded and plain. Each group ends on an "Add to <store>" form and a Store
 // options row opening the store sheet (store-sheet.js: the cart offsets, the
 // quick-adds' Remove, Unmark all). All of it is client-side progress
 // (persisted via core's shopping state) over the server's buy list.
@@ -54,8 +54,7 @@ export function renderShopping() {
     const doneUnits = storeItems.filter((item) => state.shopping.bought.has(item.id)).reduce((n, item) => n + Number(item[cols.comprar] || 0), 0) + extras.filter((item) => extraBought.has(item.id)).reduce((n, item) => n + Number(item.qty || 0), 0) + Number(offset.units || 0);
     const label = storeLabel(store);
     const rows = storeItems.map((item) => shoppingRow(item, cols)).join("")
-      + extras.map((item) => extraRow(item, store, extraBought)).join("")
-      + addRow(label) + optionsRow(offset);
+      + extras.map((item) => extraRow(item, store, extraBought)).join("");
     return `<details class="card card--collapsible" data-store="${html(store)}"${openStores.has(store) ? " open" : ""}>
       <summary class="collapse-summary" data-track="shop.store-group">
         <span class="collapse-main">
@@ -65,7 +64,7 @@ export function renderShopping() {
         </span>
         <span class="collapse-chevron" aria-hidden="true">›</span>
       </summary>
-      <div class="collapse-body">${itemList(rows, { bare: true })}</div>
+      <div class="collapse-body">${rows ? itemList(rows, { bare: true }) : ""}${addForm(label)}${itemList(optionsRow(offset), { bare: true })}</div>
     </details>`;
   }).join("");
 }
@@ -101,16 +100,15 @@ function extraRow(item, store, extraBought) {
   });
 }
 
-// The quick-add as the list's last row: a name, a quantity, one add button.
-function addRow(label) {
-  return `<li class="action-row store-add-row">
-      <form class="quick-add">
-        ${icon("plus", "store-add-icon")}
-        <input class="field" name="name" placeholder="Add to ${esc(label)}" aria-label="Item to add to ${esc(label)}" required>
-        <input class="field quick-add-qty" name="qty" type="number" min="1" value="1" aria-label="Quantity">
-        <button class="button-tint" type="submit" data-track="shop.quick-add" aria-label="Add to ${esc(label)}">Add</button>
-      </form>
-    </li>`;
+// The quick-add after the item rows: a name, a quantity, one add button. A form
+// commit of its own, not a list row, so its Add is not a verb inside a row.
+function addForm(label) {
+  return `<form class="quick-add store-add-row">
+      ${icon("plus", "store-add-icon")}
+      <input class="field" name="name" placeholder="Add to ${esc(label)}" aria-label="Item to add to ${esc(label)}" required>
+      <input class="field quick-add-qty" name="qty" type="number" min="1" value="1" aria-label="Quantity">
+      <button class="button-tint" type="submit" data-track="shop.quick-add" aria-label="Add to ${esc(label)}">Add</button>
+    </form>`;
 }
 
 function optionsRow(offset) {

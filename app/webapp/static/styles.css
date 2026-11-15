@@ -885,10 +885,10 @@ a.button-tint[data-open-link-page] {
 .checklist-items .action-row-main:active { background: transparent; }
 .checklist-items .action-row-trail { margin-right: 0; }
 
-/* A store group's last rows: "Add to <store>" (name, quantity, one add) and
-   the Store options link row. */
-.store-add-row .quick-add { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-sm); padding-left: 10px; }
-.store-add-row .quick-add > .field:first-of-type { flex: 1; min-width: 0; }
+/* A store group's closing blocks: the "Add to <store>" form (name, quantity, one
+   add) between the item rows and the Store options link row. */
+.store-add-row { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; padding-inline: 10px; }
+.store-add-row > .field:first-of-type { flex: 1; min-width: 0; }
 .store-add-row .quick-add-qty { flex: none; width: 64px; text-align: center; }
 .store-add-icon { flex: none; width: var(--icon-inline); height: var(--icon-inline); color: var(--muted); }
 .collapse-body .sheet-link { padding-inline: 10px; }
