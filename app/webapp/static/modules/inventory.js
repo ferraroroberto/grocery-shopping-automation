@@ -6,10 +6,10 @@ import { activePaneBody, c, filteredItems, items, state } from "./core.js";
 import { html, text } from "./dom.js";
 import { buyText, itemList, itemRow, rowValue, stepper } from "./rows.js";
 
-// "Buy 2" closes a row's meta line while the item is short; a stocked item
-// says nothing (a normal state gets no mark, design.md status chip).
+// "buy 2" is the figure at a row meta line's tail while the item is short; a
+// stocked item says nothing (a normal state gets no mark, design.md status chip).
 function buyNote(item, cols) {
-  return Number(item[cols.comprar]) > 0 ? ` · buy ${buyText(item, cols)}` : "";
+  return Number(item[cols.comprar]) > 0 ? `buy ${buyText(item, cols)}` : "";
 }
 
 // Home's search and Items' list: the zone and store, the stock/target pair as
@@ -19,7 +19,8 @@ export function valueRow(item, cols, { zone = true } = {}) {
   const where = zone ? `${text(item[cols.lugar])} · ${text(item[cols.super])}` : text(item[cols.super]);
   return itemRow({
     title: item[cols.comida],
-    meta: `${where}${buyNote(item, cols)}`,
+    meta: where,
+    tail: buyNote(item, cols),
     trail: rowValue(`${text(item[cols.tenemos])}/${text(item[cols.cantidad])}`),
     attrs: `data-id="${item.id}"`,
   });
@@ -47,7 +48,8 @@ export function renderAudit() {
     : kept.filter((item) => item[cols.lugar] === state.zone).sort(byName);
   const rows = source.map((item) => itemRow({
     title: item[cols.comida],
-    meta: `${state.query ? `${text(item[cols.lugar])} · ` : ""}Target ${text(item[cols.cantidad])} · ${text(item[cols.super])}${buyNote(item, cols)}`,
+    meta: `${state.query ? `${text(item[cols.lugar])} · ` : ""}${text(item[cols.super])}`,
+    tail: [`Target ${text(item[cols.cantidad])}`, buyNote(item, cols)].filter(Boolean).join(" · "),
     trail: stepper("current", text(item[cols.tenemos]), text(item[cols.comida])),
     attrs: `data-id="${item.id}"`,
   })).join("");

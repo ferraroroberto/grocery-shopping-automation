@@ -6,21 +6,30 @@
 // nothing here reads app state.
 import { chip, esc, html, icon } from "./dom.js";
 
-// `lead`: { pressed, action, label } for the leading check (an item got), or
-// null. `chip`: { label, tone, title? } closing the meta line, for an
-// exception only. `trail`: the markup of the one trailing item (stepper(),
-// rowValue(), rowLink(), a picker). `attrs`: the row's data-*
+// The split meta line of the vendored action-row ("The split meta"): the words
+// truncate on one line, the `tail` figure (a count, a quantity, a change) sits
+// whole beside them, and a status chip follows outside both. Empty when there
+// is nothing to say.
+export function metaLine({ text = "", tail = "", status = null }) {
+  if (!text && !tail && !status) return "";
+  const figure = tail ? `<span class="action-row-meta-tail">${esc(tail)}</span>` : "";
+  const flag = status ? chip(status.label, status.tone, status.title) : "";
+  return `<span class="action-row-meta"><span class="action-row-meta-text">${esc(text)}</span>${figure}${flag}</span>`;
+}
+
+// `meta`: the words of the muted line; `tail`: the figure that must stay
+// whole beside them. `lead`: { pressed, action, label } for the leading check
+// (an item got), or null. `chip`: { label, tone, title? } closing the meta
+// line, for an exception only. `trail`: the markup of the one trailing item
+// (stepper(), rowValue(), rowLink(), a picker). `attrs`: the row's data-*
 // hooks. `open: false` keeps the row inert (a free-text quick-add has no item
 // to open). Optional, for Prices: `page`, the item sheet page a row tap
 // opens; `className`, an extra class on the row; `after`, a full-width line
 // under the row (the store reference pills). Optional, for Audit's "Needs
 // you": `action`, what a row tap does instead of opening the item sheet.
-export function itemRow({ title, meta = "", chip: status = null, lead = null, trail = "", attrs = "", open = true, struck = false, page = "", className = "", after = "", action = "open-item" }) {
+export function itemRow({ title, meta = "", tail = "", chip: status = null, lead = null, trail = "", attrs = "", open = true, struck = false, page = "", className = "", after = "", action = "open-item" }) {
   const name = struck ? `<s>${html(title)}</s>` : html(title);
-  const metaLine = meta || status
-    ? `<span class="action-row-meta">${esc(meta)}${status ? `${meta ? " " : ""}${chip(status.label, status.tone, status.title)}` : ""}</span>`
-    : "";
-  const body = `<span class="action-row-title">${name}</span>${metaLine}`;
+  const body = `<span class="action-row-title">${name}</span>${metaLine({ text: meta, tail, status })}`;
   const main = open
     // dynamic-id-exempt: `action` is one of the fixed row actions dispatched by app.js (open-item, audio-find, ...)
     ? `<button type="button" class="action-row-main" data-track="row.${action}" data-action="${action}"${page ? ` data-sheet-page="${page}"` : ""}${action === "open-item" ? ' aria-haspopup="dialog"' : ""}>${body}</button>`

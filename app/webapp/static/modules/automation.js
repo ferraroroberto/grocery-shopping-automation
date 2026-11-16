@@ -23,6 +23,7 @@ import { fetchJson, jsonInit } from "./api.js";
 import { c, items, state, storedToken, updateHeaders } from "./core.js";
 import { chip, esc, html, icon, shortDate, switchMarkup } from "./dom.js";
 import { LoadState, deriveLoadState } from "./load-state.js";
+import { metaLine } from "./rows.js";
 import { dialogShell } from "./stores/dialog.js";
 import { local, storeName } from "./stores/state.js";
 
@@ -258,12 +259,10 @@ function outcomeChip(outcome) {
 function storeRow({ store, count, label }) {
   const outcome = liveOutcomes()[storeKey(store)];
   const filled = outcome ? ` · ${outcome.in_cart + outcome.unconfirmed} in cart` : "";
-  const status = storeChip(store);
-  const chipMarkup = status ? ` ${chip(status.label, status.tone)}` : "";
   return `<li class="action-row">
       <div class="action-row-main">
         <span class="action-row-title">${html(label)}</span>
-        <span class="action-row-meta">${esc(`${count} to buy${filled}`)}${chipMarkup}</span>
+        ${metaLine({ tail: `${count} to buy${filled}`, status: storeChip(store) })}
       </div>
     </li>`;
 }

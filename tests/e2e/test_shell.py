@@ -31,6 +31,23 @@ _HOME_RECTS_JS = """() => Object.fromEntries(['#pane-inventory .home-head', '#th
   .map((s) => { const r = document.querySelector(s).getBoundingClientRect(); return [s, [Math.round(r.top), Math.round(r.bottom)]]; })
   .concat([['scrollY', [scrollY, document.querySelector('main.app').scrollTop]]]))"""
 
+# Each visible row meta line is the split form (LAYOUT-09, COMP-07): one line,
+# its tail figure and chip whole inside the line's box, never ellipsized.
+_META_TAILS_JS = """() => [...document.querySelectorAll('.action-row-meta')]
+  .filter((meta) => meta.getClientRects().length)
+  .flatMap((meta) => {
+    const box = meta.getBoundingClientRect();
+    const line = parseFloat(getComputedStyle(meta).lineHeight);
+    const bad = [];
+    if (!meta.querySelector(':scope > .action-row-meta-text')) bad.push('not split');
+    if (box.height > line * 1.6) bad.push('wraps');
+    for (const part of meta.querySelectorAll(':scope > .action-row-meta-tail, :scope > .chip')) {
+      const r = part.getBoundingClientRect();
+      if (r.right > box.right + 0.5 || part.scrollWidth > part.clientWidth + 0.5) bad.push('figure cut: ' + part.textContent);
+    }
+    return bad.map((why) => why + ' in ' + meta.textContent);
+  })"""
+
 _ALL_MODES = ["dashboard", "audit", "list", "stores", "shopping", "audio", "settings"]
 
 _FIRST_AFTER_HEADER_JS = r"""
@@ -277,12 +294,34 @@ def _check_chromium_phone_geometry(browser, server):
         pg.close()
 
 
+def _check_meta_tails(browser, server):
+    """Every row's meta line at 390px, light and dark: the figure beside the
+    words stays whole, on one line."""
+    for scheme in ("light", "dark"):
+        pg = browser.new_page(viewport={"width": 390, "height": 844}, color_scheme=scheme)
+        try:
+            pg.goto(server.url)
+            pg.wait_for_function(LOADED_JS)
+            seen = 0
+            for mode in ["dashboard", "shopping", "audit", "list", "stores"]:
+                goto_mode(pg, mode)
+                if mode == "shopping":
+                    pg.locator("#pane-shopping details[data-store]").evaluate_all(
+                        "els => els.forEach((d) => { d.open = true; })")
+                seen += pg.locator(".action-row-meta:visible").count()
+                assert pg.evaluate(_META_TAILS_JS) == [], f"{scheme} {mode}"
+            assert seen, f"{scheme}: no row meta line was drawn"
+        finally:
+            pg.close()
+
+
 @pytest.mark.e2e
 def test_phone_geometry_fits_and_targets_meet_the_floor(browser, pw, server):
     """Phone width on both engines: Chromium at 390px sweeps every view and
     sheet for sideways scroll, touch targets and overlaps; WebKit (iPhone,
     390px) checks the four tabs keep full labels and 44px targets."""
     _check_chromium_phone_geometry(browser, server)
+    _check_meta_tails(browser, server)
     webkit = pw.webkit.launch()
     try:
         phone = webkit.new_page(**pw.devices["iPhone 13"])
