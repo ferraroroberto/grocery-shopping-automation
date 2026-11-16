@@ -226,7 +226,8 @@ _DIALOG_CONTROLS_PROBE = r"""(id) => {
     const s = getComputedStyle(f), box = f.getBoundingClientRect();
     if (Math.abs(box.height - fieldH) > 0.5) bad.push(`${name(f)} is ${box.height}px tall`);
     if (s.backgroundColor !== field.bg) bad.push(`${name(f)} fill ${s.backgroundColor}`);
-    if (s.borderTopColor !== field.border) bad.push(`${name(f)} border ${s.borderTopColor}`);
+    // The vendored field draws its boundary as an inset ring inside a transparent 44px band.
+    if (s.borderTopColor !== field.border && !s.boxShadow.includes(field.border)) bad.push(`${name(f)} border ${s.borderTopColor} ring ${s.boxShadow}`);
     if (Math.abs(parseFloat(s.borderTopLeftRadius) - radius) > 0.5) bad.push(`${name(f)} radius ${s.borderTopLeftRadius}`);
     inside(f, box);
   }
