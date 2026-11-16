@@ -88,7 +88,7 @@ function rowMarkup(item, inUse = storesInUse()) {
     ? `${today ? `${storeName(today)} · ` : ""}No store links yet`
     : pick !== today ? `What-if · in list ${storeName(today)}` : `Bought at ${storeName(today)}`;
   const select = options.length > 1
-    ? `<select class="field store-pick action-row-trail" data-track="prices.pick-store" data-stores-pick aria-label="Buy ${esc(name)} at">${options.map((key) =>
+    ? `<select class="select-native store-pick action-row-trail" data-track="prices.pick-store" data-stores-pick aria-label="Buy ${esc(name)} at">${options.map((key) =>
         `<option value="${esc(key)}"${key === pick ? " selected" : ""}>${esc(storeName(key))}${key === today ? " (in list)" : ""}</option>`).join("")}</select>`
     : "";
   // The picked store leads, then the cheapest (LAYOUT-03, accepted in

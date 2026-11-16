@@ -158,7 +158,7 @@ function candidateConfirmPanel() {
   const d = search.draft || { lugar: "", tenemos: 0, cantidad: 1 };
   const zones = state.payload?.summary?.zones || [];
   const zoneField = zones.length
-    ? `<select class="field" data-track="add.zone" data-confirm="lugar" aria-label="Zone">${zones.map((z) =>
+    ? `<select class="select-native" data-track="add.zone" data-confirm="lugar" aria-label="Zone">${zones.map((z) =>
         `<option value="${html(z)}"${z === d.lugar ? " selected" : ""}>${html(z)}</option>`).join("")}</select>`
     : `<input class="field" data-confirm="lugar" value="${esc(d.lugar)}" placeholder="Zone" aria-label="Zone" />`;
   return `<div class="candidate-confirm">

@@ -323,7 +323,7 @@ export function openTranscriptMenu() {
     .join("");
   d.querySelector(".stores-dialog-body").innerHTML = `
     <label class="field-label">Match model
-      <select id="audio-model" data-track="voice.model"${options && !audioAbort ? "" : " disabled"}>${options || `<option>${html(humanizeModelId(audio.model) || "Default model")}</option>`}</select>
+      <select id="audio-model" class="select-native" data-track="voice.model"${options && !audioAbort ? "" : " disabled"}>${options || `<option>${html(humanizeModelId(audio.model) || "Default model")}</option>`}</select>
     </label>
     <button id="audio-clear" data-track="voice.clear" class="button-tint danger btn-block" type="button">${icon("trash-2")}Clear transcript</button>`;
   if (!d.open) d.showModal();
