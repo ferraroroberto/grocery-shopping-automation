@@ -347,10 +347,10 @@ function paintOptions() {
   const option = (value, label) => `<option value="${esc(value)}"${value === picks.store ? " selected" : ""}>${html(label)}</option>`;
   d.querySelector(".stores-dialog-body").innerHTML = `
     <label class="field-label">Store
-      <select id="automation-store" data-track="shop.store">${option("all", "All stores")}${supermarkets.map((s) => option(s, storeLabel(s))).join("")}</select>
+      <select id="automation-store" class="select-native" data-track="shop.store">${option("all", "All stores")}${supermarkets.map((s) => option(s, storeLabel(s))).join("")}</select>
     </label>
     <label class="field-label">Cart mode
-      <select id="automation-cart-mode" data-track="shop.cart-mode">
+      <select id="automation-cart-mode" class="select-native" data-track="shop.cart-mode">
         <option value="keep"${picks.cartMode === "keep" ? " selected" : ""}>Keep cart</option>
         <option value="clean"${picks.cartMode === "clean" ? " selected" : ""}>Clean cart</option>
       </select>

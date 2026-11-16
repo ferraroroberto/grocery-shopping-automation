@@ -106,7 +106,7 @@ function paintSheet() {
         <div class="zone-item"><span>Poll automatically</span>${switchMarkup(s.poller.enabled, "Poll automatically", { id: "email-poller-enabled" })}</div>
       </div>
       <label class="field-label">Frequency
-        <select id="email-poller-interval" data-track="email.frequency">${intervalOptions}</select>
+        <select id="email-poller-interval" class="select-native" data-track="email.frequency">${intervalOptions}</select>
       </label>
       <div id="email-monitor-status" class="panel-status">${emailNextCheckText(s)}</div>
     </section>
