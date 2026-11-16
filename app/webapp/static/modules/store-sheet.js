@@ -16,6 +16,7 @@
 import { storeLabel } from "./automation.js";
 import { c, items, render, saveShoppingState, state } from "./core.js";
 import { esc, icon } from "./dom.js";
+import { metaLine } from "./rows.js";
 import { dialogShell } from "./stores/dialog.js";
 
 const SHEET_ID = "store-sheet";
@@ -57,7 +58,7 @@ function paint() {
   const extras = state.shopping.extras[current] || [];
   const got = boughtHere().length + (state.shopping.extraBought[current] || []).length;
   const extraRows = extras.map((x) => `<li class="action-row" data-extra-id="${x.id}">
-      <div class="action-row-main"><span class="action-row-title">${esc(x.name)}</span><span class="action-row-meta">Buy ${esc(x.qty)}</span></div>
+      <div class="action-row-main"><span class="action-row-title">${esc(x.name)}</span>${metaLine({ tail: `Buy ${x.qty}` })}</div>
       ${editing ? `<button type="button" class="icon-button action-row-trail" data-track="store.remove-extra" data-action="remove-extra" aria-label="Remove ${esc(x.name)}" title="Remove ${esc(x.name)}">${icon("x")}</button>` : ""}
     </li>`).join("");
   d.querySelector(".stores-dialog-body").innerHTML = `

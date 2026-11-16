@@ -405,7 +405,8 @@ function needRowsMarkup({ cols, picks, byId, name, needCount, stillUnmatched }) 
     const value = picks.counts[m.idx] ?? (Number.isInteger(m.approx_count) ? m.approx_count : "");
     return itemRow({
       title: item[cols.comida],
-      meta: `Count missing · in stock ${Number(item[cols.tenemos]) || 0}${heard}`,
+      meta: `Count missing${heard}`,
+      tail: `in stock ${Number(item[cols.tenemos]) || 0}`,
       trail: trail(`<input class="field count-input hit-target" type="number" inputmode="numeric" min="0" step="1"
         value="${esc(value)}" placeholder="?" aria-label="Count for ${esc(name(item))}" data-audio-count-idx="${m.idx}">`),
       attrs: `data-id="${m.idx}"`,
@@ -430,11 +431,11 @@ function detectedGroups({ cols, picks, clamp, byId, matched, name }) {
     const item = byId.get(match.idx);
     const current = Number(item[cols.tenemos]) || 0;
     const proposed = Math.min(Number(match.count) || 0, (Number(item[cols.cantidad]) || 0) + clamp);
-    const listZone = match.zone && match.zone !== item[cols.lugar] ? ` · list: ${text(item[cols.lugar])}` : "";
-    const evidence = match.evidence ? ` · ${match.evidence}` : "";
+    const listZone = match.zone && match.zone !== item[cols.lugar] ? `list: ${text(item[cols.lugar])}` : "";
     return itemRow({
       title: item[cols.comida],
-      meta: `${current} → ${proposed}${listZone}${evidence}`,
+      meta: [listZone, match.evidence].filter(Boolean).join(" · "),
+      tail: `${current} → ${proposed}`,
       trail: trail(switchMarkup(picks.accept[match.idx] ?? true, `Accept ${name(item)}`, { "data-audio-idx": match.idx, "data-count": proposed })),
       attrs: `data-id="${match.idx}"`,
     });
@@ -454,7 +455,8 @@ function unseenRowsMarkup({ cols, picks, name, namedIdx }) {
   );
   return unseen.map((item) => itemRow({
     title: item[cols.comida],
-    meta: `Not mentioned · ${Number(item[cols.tenemos])} → 0 · ${text(item[cols.lugar])}`,
+    meta: `Not mentioned · ${text(item[cols.lugar])}`,
+    tail: `${Number(item[cols.tenemos])} → 0`,
     trail: trail(switchMarkup(picks.zero[item.id] ?? false, `Set ${name(item)} to zero`, { "data-audio-zero": item.id })),
     attrs: `data-id="${item.id}"`,
   })).join("");

@@ -78,7 +78,8 @@ function shoppingRow(item, cols) {
   return itemRow({
     title: name,
     struck: bought,
-    meta: `${text(item[cols.lugar])} · buy ${buyText(item, cols)}`,
+    meta: text(item[cols.lugar]),
+    tail: `buy ${buyText(item, cols)}`,
     chip: url ? null : { label: "No link", tone: "attention" },
     lead: { pressed: bought, action: bought ? "undo-buy" : "mark-buy", label: `Complete ${name}` },
     trail: url ? rowLink(url, `Open buy link for ${name}`) : "",
@@ -93,7 +94,8 @@ function extraRow(item, store, extraBought) {
   return itemRow({
     title: item.name,
     struck: bought,
-    meta: `Added here · buy ${item.qty}`,
+    meta: "Added here",
+    tail: `buy ${item.qty}`,
     lead: { pressed: bought, action: bought ? "undo-extra" : "mark-extra", label: `Complete ${item.name}` },
     attrs: `data-extra-id="${item.id}" data-store="${html(store)}"`,
     open: false,
