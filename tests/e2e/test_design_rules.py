@@ -341,7 +341,7 @@ def test_copy_rules_and_themed_surfaces(page, browser, server):
         _check_on_switch_is_the_accent(page)
         _open_sign_in_sheet(page)
         assert _check_dialog(page, theme, "sign-in-sheet")["buttons"] == ["Sign in"]
-        surface(page, "app.sign-in")
+        surface(page, "shared.login")
         _sign_in(page)
         _check_sheets_and_dialogs_are_styled(page, theme)
     assert page._js_errors == [], f"JS errors: {page._js_errors}"

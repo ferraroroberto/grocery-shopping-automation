@@ -55,7 +55,7 @@ export function renderShopping() {
     const label = storeLabel(store);
     const rows = storeItems.map((item) => shoppingRow(item, cols)).join("")
       + extras.map((item) => extraRow(item, store, extraBought)).join("");
-    return `<details class="card card--collapsible" data-store="${html(store)}"${openStores.has(store) ? " open" : ""}>
+    return `<details class="card card--collapsible" data-surface="shop.store-group" data-store="${html(store)}"${openStores.has(store) ? " open" : ""}>
       <summary class="collapse-summary" data-track="shop.store-group">
         <span class="collapse-main">
           ${icon("shopping-basket")}

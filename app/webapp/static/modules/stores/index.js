@@ -40,7 +40,7 @@ export function renderStores() {
     return;
   }
   body.innerHTML = `
-    <section id="stores-sim" class="card stores-glance"></section>
+    <section id="stores-sim" class="card stores-glance" data-surface="items.prices-glance"></section>
     <section class="card stores-list-card">
       <div class="card-head">
         <h2 class="card-title">${icon("package")}Items</h2>

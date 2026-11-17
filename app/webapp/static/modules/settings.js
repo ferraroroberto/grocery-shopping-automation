@@ -90,6 +90,7 @@ function paintLoginsValue() {
 
 function loginsSheet() {
   return dialogShell(LOGINS_ID, "Store logins", "Done", (shell) => {
+    shell.dataset.surface = "settings.store-logins";
     shell.classList.add("store-logins-sheet");
     const done = shell.querySelector(".detail-save-btn");
     done.disabled = false;

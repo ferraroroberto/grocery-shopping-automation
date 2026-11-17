@@ -33,6 +33,7 @@ const labelled = (caption, input) => `<label class="field-label">${caption}${inp
 
 function dialog() {
   return dialogShell(SHEET_ID, "Add item", "Add item", (shell) => {
+    shell.dataset.surface = "items.add-sheet";
     shell.classList.add("add-sheet");
     const add = shell.querySelector(".detail-save-btn");
     add.type = "submit";
@@ -58,7 +59,7 @@ function dialog() {
 function formMarkup() {
   const zones = state.payload.summary.zones;
   const stores = state.payload.summary.supermarkets;
-  return `<section id="product-search" class="add-sheet-section" aria-label="Find a store product"></section>
+  return `<section id="product-search" class="add-sheet-section" aria-label="Find a store product" data-surface="items.product-search"></section>
     <section class="add-sheet-section" aria-labelledby="add-by-hand-title">
       <h3 class="card-title" id="add-by-hand-title">${icon("pencil")}Add by hand</h3>
       <form id="add-form" class="form">

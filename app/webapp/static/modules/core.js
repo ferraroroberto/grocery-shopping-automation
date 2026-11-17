@@ -94,7 +94,7 @@ const PAGE_HEADERS = [
 ];
 
 function pageHeaderHtml({ icon: iconName, title, contextId, context, themeToggleId }) {
-  return `<div class="card home-head">
+  return `<div class="card home-head" data-surface="app.page-header">
       <h1 class="home-title">
         ${icon(iconName)}
         ${title}

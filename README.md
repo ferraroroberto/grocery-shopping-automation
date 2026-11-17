@@ -48,6 +48,7 @@ Unit + FastAPI `TestClient` + a Playwright e2e that drives the real buttons. The
 |---|---|
 | Launch, icons, legacy Streamlit, Tailscale + Cloudflare access, phone access, HTTPS certificates, the design-review demo instance | [docs/running-and-access.md](docs/running-and-access.md) |
 | The PWA: tabs, header, Settings, item sheet | [docs/pwa-overview.md](docs/pwa-overview.md) |
+| UX surface map: every tab, view, sheet, dialog, Settings row and state, with a diagram per area; generated from `docs/ux-surfaces.yaml` | [docs/ux-surface-map.md](docs/ux-surface-map.md) |
 | Audit: manual counts and the voice audit | [docs/audit.md](docs/audit.md) |
 | Items: editing, adding, finding a store product | [docs/items.md](docs/items.md) |
 | Prices: choosing each item's store with the benchmark | [docs/prices.md](docs/prices.md) |

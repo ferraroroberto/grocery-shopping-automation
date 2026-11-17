@@ -309,7 +309,7 @@ function editFormMarkup(d, s) {
       <label class="field-label" for="${id("note")}">Note
         <input id="${id("note")}" class="field" name="note" value="${val(ov.note)}" placeholder="Where you checked, why" autocomplete="off"></label>`
     : `<p class="hint">This item isn't in the benchmark basket, so only its link can be changed here.</p>`;
-  return `<form class="review-edit" data-review-form="${esc(s.store)}" novalidate>
+  return `<form class="review-edit" data-surface="items.item-sheet-price-editor" data-review-form="${esc(s.store)}" novalidate>
       <label class="field-label" for="${id("url")}">Link at ${esc(s.store_name)}
         <input id="${id("url")}" class="field" name="url" type="url" inputmode="url" autocomplete="off" spellcheck="false"
                value="${val(s.url)}" placeholder="https://…"></label>

@@ -264,7 +264,7 @@
 
     <!-- Fleet bottom-tab nav — direct <body> child, sibling to <main class="app">
          (load-bearing for iOS PWA pinning; see _vendored/nav/README.md). -->
-    <nav class="tabs" role="tablist" aria-label="Sections" data-active-tab="inventory">
+    <nav class="tabs" role="tablist" aria-label="Sections" data-active-tab="inventory" data-surface="app.nav">
       <button id="tabInventory" type="button" class="tab active" data-tab="inventory"
               role="tab" aria-selected="true" aria-controls="pane-inventory">
         <svg class="tab-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
@@ -306,7 +306,7 @@
     </nav>
 
     <main class="app">
-      <section id="pane-inventory" class="pane" role="tabpanel" aria-labelledby="tabInventory" aria-label="Inventory">
+      <section id="pane-inventory" class="pane" role="tabpanel" aria-labelledby="tabInventory" aria-label="Inventory" data-surface="home.tab">
         <!-- Page header: injected as this pane's first child by
              modules/core.js (pageHeaderHtml) — see that module for the
              shared markup every one of the 5 panes gets (#153 J-04). -->
@@ -319,7 +319,7 @@
              node into the active pane BELOW the segmented control, so the
              control never moves vertically when the search appears/disappears.
              On Items' list the Add item button shares its row (#256). -->
-        <section id="toolbar" class="toolbar" aria-label="Inventory search" hidden>
+        <section id="toolbar" class="toolbar" aria-label="Inventory search" data-surface="app.search" hidden>
           <input id="search" class="search" type="search" placeholder="Search item, zone, store" aria-label="Search by item, zone or supermarket" autocomplete="off" />
           <button id="items-add" class="button-tint" data-track="items.add-item" type="button" aria-haspopup="dialog" hidden>
             <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg>
@@ -328,7 +328,7 @@
         </section>
         <div class="pane-body"></div>
       </section>
-      <section id="pane-shopping" class="pane" role="tabpanel" aria-labelledby="tabShopping" aria-label="Shopping" hidden>
+      <section id="pane-shopping" class="pane" role="tabpanel" aria-labelledby="tabShopping" aria-label="Shopping" data-surface="shop.tab" hidden>
         <!-- The carts glance leads Shop (#258): the weekly Fill carts, with
              the last fill's outcome per store. A static host OUTSIDE
              .pane-body: the list re-renders on every Got-it tap, which must
@@ -337,7 +337,7 @@
         <h2 class="pane-title">Shopping list</h2>
         <div class="pane-body"></div>
       </section>
-      <section id="pane-audit" class="pane" role="tabpanel" aria-labelledby="tabAudit" aria-label="Audit" hidden>
+      <section id="pane-audit" class="pane" role="tabpanel" aria-labelledby="tabAudit" aria-label="Audit" data-surface="audit.tab" hidden>
         <h2 class="pane-title">Check your stock</h2>
         <!-- Vendored segmented control (#254): two peer modes; the raised
              segment is the state, kept in step by app.js render(). Voice, the
@@ -348,7 +348,7 @@
         </div>
         <div class="pane-body"></div>
       </section>
-      <section id="pane-items" class="pane" role="tabpanel" aria-labelledby="tabItems" aria-label="Items" hidden>
+      <section id="pane-items" class="pane" role="tabpanel" aria-labelledby="tabItems" aria-label="Items" data-surface="items.tab" hidden>
         <h2 class="pane-title">Manage items</h2>
         <!-- Two peer segments (#256): the item list and the store prices. -->
         <div class="segmented subnav" role="group" aria-label="Items view">
@@ -360,7 +360,7 @@
       <!-- Settings is never a tab (design.md "Navigation", #200): this pane is
            opened by the gear in every pane's header (app.js openSettings), not
            by the nav, so it has no tabpanel role and no nav button. -->
-      <section id="pane-settings" class="pane" aria-label="Settings" hidden>
+      <section id="pane-settings" class="pane" aria-label="Settings" data-surface="settings.main" hidden>
         <!-- Inset groups under overline headers (#261, design.md "settings
              group"): every row shows its value. The text size, changed in
              place, stays inline; Store logins and Email watch open sheets
@@ -438,7 +438,7 @@
       </section>
 
       <!-- Build identity: which build the PWA is running, filled by fetchVersion. -->
-      <footer class="page-foot">
+      <footer class="page-foot" data-surface="app.page-foot">
         <p id="buildReadout"></p>
       </footer>
     </main>

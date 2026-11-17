@@ -16,6 +16,7 @@ const SHEET_ID = "stores-benchmark-sheet";
 
 function dialog() {
   return dialogShell(SHEET_ID, "Benchmark", "Import latest run", (shell) => {
+    shell.dataset.surface = "items.benchmark-sheet";
     shell.classList.add("benchmark-sheet");
     const primary = shell.querySelector(".detail-save-btn");
     primary.dataset.storesAction = "import";

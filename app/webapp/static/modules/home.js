@@ -45,7 +45,7 @@ function weekRow({ key, mode, track, glyph, label }) {
 export function renderHome() {
   const node = host();
   if (node && !node.firstElementChild) {
-    node.innerHTML = `<section id="this-week" class="card this-week" aria-labelledby="this-week-title">
+    node.innerHTML = `<section id="this-week" class="card this-week" aria-labelledby="this-week-title" data-surface="home.this-week">
         <div class="card-head"><h2 id="this-week-title" class="card-title">${icon("house")}This week</h2></div>
         <ul class="action-rows this-week-rows">${WEEK_ROWS.map(weekRow).join("")}</ul>
       </section>`;

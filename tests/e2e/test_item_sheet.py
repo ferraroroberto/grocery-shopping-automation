@@ -197,7 +197,7 @@ def test_item_sheet_opens_everywhere_edits_and_deletes(page, server):
     sheet.locator("[data-sheet-delete]").click()
     confirm.wait_for()
     assert name in confirm.locator(".confirm-message").inner_text()
-    surface(page, "items.delete-confirm")
+    surface(page, "app.confirm")
     confirm.locator("[data-confirm='no']").click()
     assert not confirm.is_visible() and sheet.is_visible()
     assert row()[0] is not None

@@ -75,6 +75,7 @@ function changed() {
 
 function dialog() {
   return dialogShell(SHEET_ID, "", "Save", (shell) => {
+    shell.dataset.surface = "items.item-sheet";
     shell.classList.add("item-sheet");
     shell.querySelector(".detail-header").insertAdjacentHTML("afterbegin",
       `<button type="button" class="icon-button detail-close item-sheet-back" aria-label="Back" data-track="item.back" data-sheet-back hidden>${icon("chevron-left")}</button>`);
@@ -106,14 +107,14 @@ function pagesMarkup() {
       <ul class="action-rows item-sheet-links">${links}</ul>
       <button type="button" class="button-tint danger item-sheet-delete" data-track="item.delete" data-sheet-delete>${icon("trash-2")}Delete item</button>
     </div>
-    <div class="item-sheet-page" data-page="zone" hidden></div>
-    <div class="item-sheet-page" data-page="store" hidden></div>
-    <div class="item-sheet-page" data-page="link" hidden></div>
-    <div class="item-sheet-page" data-page="pack" hidden></div>
-    <div class="item-sheet-page" data-page="fallback" hidden></div>
-    <div class="item-sheet-page" data-page="name" hidden></div>
-    <div class="item-sheet-page" data-page="quantity" hidden></div>
-    <div class="item-sheet-page" data-page="prices" hidden></div>`;
+    <div class="item-sheet-page" data-page="zone" data-surface="items.item-sheet-zone" hidden></div>
+    <div class="item-sheet-page" data-page="store" data-surface="items.item-sheet-store" hidden></div>
+    <div class="item-sheet-page" data-page="link" data-surface="items.item-sheet-link" hidden></div>
+    <div class="item-sheet-page" data-page="pack" data-surface="items.item-sheet-pack" hidden></div>
+    <div class="item-sheet-page" data-page="fallback" data-surface="items.item-sheet-fallback" hidden></div>
+    <div class="item-sheet-page" data-page="name" data-surface="items.item-sheet-name" hidden></div>
+    <div class="item-sheet-page" data-page="quantity" data-surface="items.item-sheet-quantity" hidden></div>
+    <div class="item-sheet-page" data-page="prices" data-surface="items.item-sheet-prices" hidden></div>`;
 }
 
 // The four field pages, filled from the sheet's values each time it opens.
