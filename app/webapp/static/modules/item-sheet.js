@@ -219,8 +219,11 @@ function paintValues() {
 
 function paintTitle() {
   const d = dialog();
-  d.querySelector(`#${SHEET_ID}-title`).textContent =
-    sheet.page === "main" ? text(value("comida")) : PAGE_TITLE[sheet.page];
+  const title = d.querySelector(`#${SHEET_ID}-title`);
+  const isName = sheet.page === "main";
+  title.textContent = isName ? text(value("comida")) : PAGE_TITLE[sheet.page];
+  // The main page's title is the item's own name, not an app label, so TYPE-06 skips it.
+  title.toggleAttribute("data-user-content", isName);
 }
 
 // One page at a time (home-automation's unit sheet): a link row opens
