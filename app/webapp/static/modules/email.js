@@ -52,6 +52,7 @@ function paintValue() {
 
 function sheet() {
   return dialogShell(SHEET_ID, "Email watch", "Done", (shell) => {
+    shell.dataset.surface = "settings.email-watch";
     shell.classList.add("email-sheet");
     const done = shell.querySelector(".detail-save-btn");
     done.disabled = false;

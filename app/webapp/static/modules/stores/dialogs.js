@@ -14,7 +14,9 @@ const FLAG_TEXT = {
 };
 
 export function openSetBaselineConfirm() {
-  const dialog = dialogShell("stores-baseline-dialog", "Set as baseline", "Set baseline");
+  const dialog = dialogShell("stores-baseline-dialog", "Set as baseline", "Set baseline", (shell) => {
+    shell.dataset.surface = "items.baseline-dialog";
+  });
   const bodyEl = dialog.querySelector(".stores-dialog-body");
   const status = dialog.querySelector(".stores-dialog-status");
   const save = dialog.querySelector(".detail-save-btn");
@@ -57,7 +59,9 @@ export async function resetBaseline() {
 }
 
 export async function openApplyReview() {
-  const dialog = dialogShell("stores-apply-dialog", "Review changes", "Apply");
+  const dialog = dialogShell("stores-apply-dialog", "Review changes", "Apply", (shell) => {
+    shell.dataset.surface = "items.apply-dialog";
+  });
   const bodyEl = dialog.querySelector(".stores-dialog-body");
   const status = dialog.querySelector(".stores-dialog-status");
   const save = dialog.querySelector(".detail-save-btn");

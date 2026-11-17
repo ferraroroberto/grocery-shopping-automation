@@ -6,6 +6,7 @@ import { esc, icon } from "../dom.js";
 export function dialogShell(id, title, saveLabel, init) {
   let dialog = document.getElementById(id);
   if (dialog) return dialog;
+  // unmarked-surface-exempt: every caller stamps its own constant data-surface in its init callback
   dialog = document.createElement("dialog");
   dialog.id = id;
   // dynamic-id-exempt: `id` is the literal sheet id each caller passes (one constant per sheet)

@@ -194,7 +194,7 @@ export function renderFillCarts({ force = false } = {}) {
   const node = host();
   if (!node) return;
   if (!node.firstElementChild || force) {
-    node.innerHTML = `<section id="fill-carts" class="card carts-glance" aria-labelledby="fill-carts-title">
+    node.innerHTML = `<section id="fill-carts" class="card carts-glance" aria-labelledby="fill-carts-title" data-surface="shop.carts">
       <div class="card-head">
         <h2 id="fill-carts-title" class="card-title">${icon("shopping-cart")}Carts</h2>
         <span class="card-head-meta" id="carts-last-fill"></span>
@@ -224,7 +224,7 @@ export function renderFillCarts({ force = false } = {}) {
           ${icon("chevron-right", "sheet-link-chevron")}
         </button>
       </li></ul>
-      <details class="inline-disclosure carts-log">
+      <details class="inline-disclosure carts-log" data-surface="shop.run-log">
         <summary class="inline-disclosure-summary" data-track="shop.run-log"><span>Run log</span><span class="inline-chevron" aria-hidden="true">›</span></summary>
         <pre id="automation-log" class="log">${IDLE_LOG}</pre>
       </details>
@@ -324,6 +324,7 @@ export function paintCarts() {
 // ------------------------------------------------------------ Options sheet
 function optionsSheet() {
   return dialogShell(OPTIONS_ID, "Fill carts options", "Done", (shell) => {
+    shell.dataset.surface = "shop.fill-options";
     shell.classList.add("fill-options");
     const done = shell.querySelector(".detail-save-btn");
     done.disabled = false;
@@ -474,6 +475,7 @@ function fillGroupsMarkup(items) {
 
 function historySheet() {
   return dialogShell(HISTORY_ID, "Fill history", "Done", (shell) => {
+    shell.dataset.surface = "shop.fill-history";
     shell.classList.add("fill-history-sheet");
     const done = shell.querySelector(".detail-save-btn");
     done.disabled = false;

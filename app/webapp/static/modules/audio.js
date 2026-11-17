@@ -181,7 +181,7 @@ export function renderAudio() {
   const audioCfg = state.payload.audio || { models: [], default_model: "" };
   if (!audio.model) audio.model = audioCfg.default_model || audioCfg.models[0] || "";
   const recording = isRecording();
-  activePaneBody().innerHTML = `<section id="voice-glance" class="card voice-glance" aria-labelledby="voice-glance-title">
+  activePaneBody().innerHTML = `<section id="voice-glance" class="card voice-glance" aria-labelledby="voice-glance-title" data-surface="audit.voice-glance">
       <div class="card-head">
         <h2 id="voice-glance-title" class="card-title">${icon("mic")}Voice audit</h2>
         <span class="card-head-meta" id="voice-last-date"></span>
@@ -212,7 +212,7 @@ export function renderAudio() {
       <textarea id="transcript" aria-label="Transcript" placeholder="The transcript appears here, or paste one.">${audio.transcript ? html(audio.transcript) : ""}</textarea>
       <button id="match-transcript" data-track="voice.match" class="button-tint btn-block" type="button">${icon("list-checks")}Match</button>
     </section>
-    <div class="voice-record-bar">
+    <div class="voice-record-bar" data-surface="audit.voice-record">
       <button id="record-toggle" data-track="voice.record" class="${audio.matches ? "button-tint" : "button-primary"} btn-block" type="button">${recordLabel(recording)}</button>
     </div>`;
   paintLastAudit();
@@ -292,6 +292,7 @@ function paintLastAudit() {
 // behind a confirm. Built once at <body> level, so it carries its own listeners.
 function transcriptSheet() {
   return dialogShell(MENU_ID, "Transcript", "Done", (shell) => {
+    shell.dataset.surface = "audit.transcript-menu";
     shell.classList.add("transcript-sheet");
     const done = shell.querySelector(".detail-save-btn");
     done.disabled = false;
@@ -479,7 +480,7 @@ function renderMatches() {
   const unseenRows = unseenRowsMarkup(ctx);
 
   const needYou = ctx.needCount.length + ctx.stillUnmatched.length;
-  target.innerHTML = `<section id="voice-results" class="card voice-glance" aria-labelledby="voice-results-title">
+  target.innerHTML = `<section id="voice-results" class="card voice-glance" aria-labelledby="voice-results-title" data-surface="audit.voice-results">
       <div class="card-head">
         <h2 id="voice-results-title" class="card-title">${icon("circle-check")}Match results</h2>
         <span class="card-head-meta">${html(humanizeModelId(audio.matches.model))}</span>

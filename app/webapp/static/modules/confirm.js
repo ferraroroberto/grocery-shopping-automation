@@ -12,6 +12,7 @@ function sheet() {
   if (dialog) return dialog;
   dialog = document.createElement("dialog");
   dialog.id = ID;
+  dialog.dataset.surface = "app.confirm";
   dialog.dataset.trackView = "confirm";
   dialog.className = "detail-dialog confirm-dialog";
   dialog.setAttribute("aria-labelledby", `${ID}-title`);

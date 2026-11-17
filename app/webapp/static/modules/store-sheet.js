@@ -26,6 +26,7 @@ let editing = false; // the Added here list is in edit mode (Remove shown)
 
 function sheet() {
   return dialogShell(SHEET_ID, "", "Done", (shell) => {
+    shell.dataset.surface = "shop.store-sheet";
     shell.classList.add("store-sheet");
     const done = shell.querySelector(".detail-save-btn");
     done.disabled = false;
