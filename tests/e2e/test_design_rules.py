@@ -69,9 +69,8 @@ def _check_color_scheme_follows_chosen_theme(browser, server, chosen, os_theme):
     """Native controls (option lists, date pickers, scrollbars) draw in the app's chosen
     theme: `color-scheme` on :root must follow `data-theme` even when the OS says otherwise,
     and native inputs inherit it."""
-    ctx = browser.new_context(color_scheme=os_theme)
-    ctx.add_init_script(f"localStorage.setItem('grocery.theme', '{chosen}')")
-    pg = ctx.new_page()
+    pg = browser.new_page(color_scheme=os_theme)
+    pg.add_init_script(f"localStorage.setItem('grocery.theme', '{chosen}')")
     pg.goto(server.url)
     pg.wait_for_selector("[data-tab='audit']")
     scheme = pg.evaluate(
@@ -83,7 +82,7 @@ def _check_color_scheme_follows_chosen_theme(browser, server, chosen, os_theme):
                    select: probe('select'), date: probe('input', 'date') };
         }"""
     )
-    ctx.close()
+    pg.close()
     assert scheme == {"root": chosen, "theme": chosen, "select": chosen, "date": chosen}
 
 

@@ -103,10 +103,9 @@ def _check_export_csv_downloads_with_a_token_configured(browser, server, monkeyp
     and save the file."""
     cfg = app.state.webapp_config
     monkeypatch.setattr(cfg, "auth_token", "e2e-token")
-    context = browser.new_context(viewport={"width": 1100, "height": 950}, extra_http_headers={"cf-ray": "e2e-LHR"})
-    context.add_init_script("localStorage.setItem('grocery.authToken', 'e2e-token')")
+    pg = browser.new_page(viewport={"width": 1100, "height": 950}, extra_http_headers={"cf-ray": "e2e-LHR"})
+    pg.add_init_script("localStorage.setItem('grocery.authToken', 'e2e-token')")
     try:
-        pg = context.new_page()
         pg.goto(server.url)
         pg.wait_for_function(LOADED_JS)
         goto_mode(pg, "settings")
@@ -116,7 +115,7 @@ def _check_export_csv_downloads_with_a_token_configured(browser, server, monkeyp
         with open(download.value.path(), encoding="utf-8") as saved:
             assert saved.readline().strip()
     finally:
-        context.close()
+        pg.close()
 
 
 # Computed font-size (px) of every visible text-bearing element in the visible
