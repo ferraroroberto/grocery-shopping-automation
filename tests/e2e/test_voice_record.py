@@ -138,8 +138,7 @@ def test_record_stays_in_reach_and_stop_matches_on_its_own(browser, server):
     """On a touch phone Record/Stop is pinned above the bottom-nav pill, so it stays
     under the thumb while the checklist scrolls; Stop transcribes the take and matches
     it without a Match tap."""
-    context = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
-    phone = context.new_page()
+    phone = browser.new_page(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
     errors: list[str] = []
     phone.on("pageerror", lambda exc: errors.append(str(exc)))
     matched = []
@@ -160,4 +159,4 @@ def test_record_stays_in_reach_and_stop_matches_on_its_own(browser, server):
         assert phone.locator("#record-toggle").inner_text().strip() == "Record"
         assert errors == [], f"JS errors: {errors}"
     finally:
-        context.close()
+        phone.close()

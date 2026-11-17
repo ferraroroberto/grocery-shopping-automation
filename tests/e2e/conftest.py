@@ -6,6 +6,11 @@ audio-match timeout fix against an actual model.
 
 The server is module-scoped, so each story file starts from the committed
 fixture list and the tests inside one file share it in file order.
+
+Loopback sockets: every closed connection to the server leaves a TIME_WAIT pair,
+and a drained pool fails a page load as ERR_ADDRESS_IN_USE. The server holds idle
+connections for HARNESS_KEEP_ALIVE_S, a context outlives its test (`_shared_context`)
+and a drained pool is named as its own failure (`_port_pool`).
 """
 
 from __future__ import annotations
@@ -25,11 +30,18 @@ import src.automation.product_options as product_options
 import src.data as data
 from app.api import app
 from tests.e2e._helpers import LIVE, LOADED_JS, stub_extract
+from tests.e2e._port_pool import pytest_runtest_makereport  # noqa: F401 — relabel hook
+from tests.e2e._port_pool import pytest_terminal_summary as port_pool_summary
+from tests.e2e._shared_context import SharedContexts
+from tests.e2e._shared_context import write_summary as shared_context_summary
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FIXTURE = REPO_ROOT / "tests" / "fixtures" / "list_test_fixture.xlsx"
 # Invented benchmark run the Items → Stores view prices from (#148).
 BENCHMARK_RUNS = REPO_ROOT / "tests" / "fixtures" / "store_links"
+# uvicorn closes an idle connection after 5 s, shorter than a test's pause between
+# page loads, so the browser reopened one per burst; a minute keeps them in use.
+HARNESS_KEEP_ALIVE_S = 60
 
 
 def _free_port() -> int:
@@ -83,7 +95,9 @@ def server(tmp_path_factory):
     cfg.auth_password = ""
 
     port = _free_port()
-    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning")
+    config = uvicorn.Config(
+        app, host="127.0.0.1", port=port, log_level="warning", timeout_keep_alive=HARNESS_KEEP_ALIVE_S
+    )
     srv = uvicorn.Server(config)
     thread = threading.Thread(target=srv.run, daemon=True)
     thread.start()
@@ -116,9 +130,23 @@ def pw():
 
 @pytest.fixture(scope="module")
 def browser(pw, server):
+    """Chromium, with `new_context` / `new_page` leasing one shared context per arguments."""
     b = pw.chromium.launch()
-    yield b
+    yield SharedContexts(b, server.url)
     b.close()
+
+
+@pytest.fixture(autouse=True)
+def _reset_leased_contexts(request):
+    """Reset every shared context the test used, so the next one starts from a clean one."""
+    yield
+    if "browser" in request.fixturenames:
+        request.getfixturevalue("browser").release_leased()
+
+
+def pytest_terminal_summary(terminalreporter):
+    shared_context_summary(terminalreporter)
+    port_pool_summary(terminalreporter)
 
 
 @pytest.fixture()
@@ -137,4 +165,4 @@ def page(browser, server, request):
         out = REPO_ROOT / "test-results"
         out.mkdir(exist_ok=True)
         pg.screenshot(path=str(out / f"{request.node.name}.png"))
-    pg.close()
+    # The page closes with its context's reset (`_reset_leased_contexts`).
