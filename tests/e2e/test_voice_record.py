@@ -115,7 +115,8 @@ def test_voice_take_shows_the_waveform_and_runs_the_timer(page, browser, server)
 
 def _check_record_stays_in_reach(page) -> None:
     """The checklist unfolded and scrolled into: Record still sits in the viewport,
-    clear above the bottom-nav pill, with nothing painted over it."""
+    clear above the bottom-nav pill, with nothing painted over it, and the strip under
+    it down to the screen edge is the docked bar's, never a checklist row scrolling by."""
     page.evaluate("document.querySelectorAll('#pane-audit .checklist-zone').forEach((d) => { d.open = true; })")
     page.locator("#pane-audit .voice-checklist").evaluate("el => el.scrollIntoView({block: 'center'})")
     geometry = page.evaluate(
@@ -123,14 +124,20 @@ def _check_record_stays_in_reach(page) -> None:
           const r = document.querySelector('#record-toggle').getBoundingClientRect();
           const nav = document.querySelector('nav.tabs').getBoundingClientRect();
           const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+          const under = [];
+          for (let y = Math.ceil(r.bottom) + 1; y < innerHeight; y += 6) {
+            const el = document.elementFromPoint(16, y);
+            if (!el?.closest('.voice-record-bar')) under.push({y, el: el?.className || el?.tagName});
+          }
           return {top: r.top, bottom: r.bottom, navTop: nav.top, viewport: innerHeight,
-                  scrolled: window.scrollY, onTop: !!hit?.closest('#record-toggle')};
+                  scrolled: window.scrollY, onTop: !!hit?.closest('#record-toggle'), under};
         }"""
     )
     assert geometry["scrolled"] > 0, geometry
     assert geometry["navTop"] > geometry["viewport"] / 2, f"no bottom pill on this phone: {geometry}"
     assert 0 <= geometry["top"] and geometry["bottom"] <= geometry["navTop"], geometry
     assert geometry["onTop"], geometry
+    assert geometry["under"] == [], f"content scrolls between Record and the screen edge: {geometry}"
 
 
 @pytest.mark.e2e
