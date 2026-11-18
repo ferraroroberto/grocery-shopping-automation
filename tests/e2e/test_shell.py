@@ -298,6 +298,7 @@ def _check_meta_tails(browser, server):
     """Every row's meta line at 390px, light and dark: the figure beside the
     words stays whole, on one line."""
     for scheme in ("light", "dark"):
+        # browser-per-iteration-exempt: each colour scheme starts from fresh storage, because the app persists its last view
         pg = browser.new_page(viewport={"width": 390, "height": 844}, color_scheme=scheme)
         try:
             pg.goto(server.url)
