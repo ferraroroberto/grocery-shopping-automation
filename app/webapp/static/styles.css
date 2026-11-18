@@ -839,14 +839,28 @@ a.button-tint[data-open-link-page] {
 /* Record/Stop, pinned to the bottom of the pane while the checklist scrolls:
    the pane's last child, so it rests at the end once scrolled there. On the
    phone it sits the gap above the bottom-nav fade (nav-tabs.css's reserve
-   includes that gap); wider, the gap above the screen edge. Canvas-filled,
-   no shadow: the nav pill stays the one raised floating layer. */
+   includes that gap) and a canvas band, fixed to the screen edge, fills the
+   strip under it: no row scrolls between Record and the nav pill. The band is
+   viewport-fixed rather than the bar's own padding so the bar keeps its
+   place at the pane's end, clear of the build footer. Wider, the bar floats
+   the gap above the screen edge. Canvas-filled, no shadow: the nav pill
+   stays the one raised floating layer. */
 .voice-record-bar {
   position: sticky;
   bottom: calc(var(--nav-bottom-reserve, calc(2 * var(--gap))) - var(--gap));
   z-index: 10;
   padding-block: var(--space-sm);
   background: var(--bg);
+}
+@media (pointer: coarse) and (max-width: 520px) {
+  .voice-record-bar::after {
+    content: "";
+    position: fixed;
+    inset: auto 0 0;
+    height: calc(var(--nav-bottom-reserve) - var(--gap));
+    background: var(--bg);
+    z-index: -1;
+  }
 }
 /* The results area holds nothing until a match: no gap slot in the pane. */
 .voice-results { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
