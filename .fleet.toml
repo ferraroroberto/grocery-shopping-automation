@@ -484,6 +484,19 @@ id        = "settings-check-logins"
 clicks    = ['#pane-inventory .home-settings', "#open-store-logins", "#check-logins"]
 synthetic = true
 
+# --- the Mac nightly (project-scaffolding docs/mac-runner.md) ---------------
+# Unit leg = every test outside tests/e2e that is not marked windows_only (the
+# PowerShell gate script tests); e2e leg = the suite, which boots its own
+# in-thread uvicorn on invented fixtures, so it takes no autoboot flag. views
+# reuses the synthetic instance declared in [design.review.synthetic].
+[ci.nightly]
+python       = "3.14"
+requirements = ["requirements.txt"]
+samples      = "config"
+unit         = ["tests", "--ignore=tests/e2e"]
+e2e          = ["tests/e2e"]
+views        = ["/"]
+
 # [perf.review] -- /perf-review's definition of "ready": Home's This week card, which
 # paints data-state="ready" only once the inventory payload has landed, so ready is data
 # on screen rather than a painted shell.

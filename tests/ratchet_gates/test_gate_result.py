@@ -28,7 +28,12 @@ POWERSHELL = (
     Path(os.environ.get("SystemRoot", "")) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
 )
 
-windows_only = pytest.mark.skipif(sys.platform != "win32", reason="the gate is a Windows PowerShell script")
+_needs_windows = pytest.mark.skipif(sys.platform != "win32", reason="the gate is a Windows PowerShell script")
+
+
+def windows_only(test):
+    """Skip off Windows and carry the marker the Mac nightly deselects (-m "not windows_only")."""
+    return pytest.mark.windows_only(_needs_windows(test))
 
 
 def _verdict_block() -> str:
