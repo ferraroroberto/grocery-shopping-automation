@@ -226,7 +226,8 @@ def _open_item_sheet_on_prices(page, burger):
     assert dialog.locator("tr[data-review-store='ametller'] .review-option").count() == 0
     # TOUCH-01 (#257): a store's link is a labelled 44px target, not the raw URL.
     link = dialog.locator("tr[data-review-store='ametller'] .review-url").first
-    assert link.inner_text() == "Open at Ametller Origen"
+    # WebKit's inner_text keeps a trailing newline after a block-level link.
+    assert link.inner_text().strip() == "Open at Ametller Origen"
     assert link.get_attribute("href").startswith("https://www.ametllerorigen.com/")
     assert link.bounding_box()["height"] >= 44
     return dialog

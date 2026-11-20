@@ -2,6 +2,7 @@
 
 - **`tests/`** — `pytest` suite (`test_*.py`: unit + FastAPI `TestClient` + a Playwright e2e that drives the real buttons) plus standalone smoke scripts (`smoke_*.py`, `automation_smoke_*.py`) that drive real stores and stay out of the gate. Run `& .\.venv\Scripts\python.exe -m pytest` for the suite alone.
 - **The e2e** stubs the LLM hub by default; set `GROCERY_E2E_LIVE=1` (with the hub running) to exercise the real model. It also feeds the design inventory: each test calls the vendored `surface(page, "<tab>.<surface>")` (`tests/e2e/_surface.py`) once its surface is open, a no-op unless fleet-config's `/design-review measure grocery-shopping-automation --e2e` sets `DESIGN_SURFACE_CAPTURE`; a new surface takes one call in the test that opens it.
+- **The e2e's browser engine** follows pytest-playwright's `--browser` (Chromium when it is absent), which is how the Mac nightly runs the whole suite on WebKit, the only engine installed there; `pytest-playwright` is in `requirements.txt` because the nightly leg passes its options and refuses a checkout without the plugin. The Audit voice-take tests skip on an engine with no `MediaRecorder` / `AudioContext` (Playwright's Windows WebKit build), and run where both exist.
 
 ## Loopback sockets in the e2e
 

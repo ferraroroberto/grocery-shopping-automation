@@ -218,7 +218,7 @@ def test_shell_tabs_headers_and_landing_views(page):
     assert page._js_errors == [], f"JS errors: {page._js_errors}"
 
 
-def _check_chromium_phone_geometry(browser, server):
+def _check_phone_geometry(browser, server):
     """Rendered geometry at phone width (design-lint `rendered-leg`): no view
     scrolls sideways, and the nav tabs and the header buttons keep a >=44px
     effective target without overlapping."""
@@ -318,10 +318,10 @@ def _check_meta_tails(browser, server):
 
 @pytest.mark.e2e
 def test_phone_geometry_fits_and_targets_meet_the_floor(browser, pw, server):
-    """Phone width on both engines: Chromium at 390px sweeps every view and
-    sheet for sideways scroll, touch targets and overlaps; WebKit (iPhone,
-    390px) checks the four tabs keep full labels and 44px targets."""
-    _check_chromium_phone_geometry(browser, server)
+    """Phone width on both engines: the suite's browser (Chromium unless `--browser` names
+    another) at 390px sweeps every view and sheet for sideways scroll, touch targets and
+    overlaps; WebKit (iPhone, 390px) checks the four tabs keep full labels and 44px targets."""
+    _check_phone_geometry(browser, server)
     _check_meta_tails(browser, server)
     webkit = pw.webkit.launch()
     try:
