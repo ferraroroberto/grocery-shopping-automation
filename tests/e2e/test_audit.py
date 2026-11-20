@@ -245,7 +245,10 @@ def _check_stale_list_write_reloads(page):
     page.route(is_delta, refuse)
     goto_mode(page, "audit")
     row = page.locator("#pane-audit .item-row").first
-    with page.expect_request(lambda r: r.method == "GET" and r.url.endswith("/api/inventory")):
+    # The re-read ends with an /api/access fetch; navigating away before it lands makes WebKit
+    # report the cancelled request as a page error, so the step waits for it too.
+    with page.expect_request(lambda r: r.method == "GET" and r.url.endswith("/api/inventory")), \
+            page.expect_response(lambda r: r.url.endswith("/api/access")):
         row.locator("[data-action='current-plus']").click()
     page.wait_for_function("d => document.querySelector('#toast')?.textContent === d", arg=_STALE_DETAIL)
     assert "error" in (page.locator("#toast").get_attribute("class") or "")

@@ -49,6 +49,10 @@ def _stub_voice_service(page, finish: dict | None = None) -> None:
 
 
 def _start_take(page, *, no_audio_context: bool = False, finish: dict | None = None) -> None:
+    # A take needs MediaRecorder and AudioContext; Playwright's Windows WebKit build ships neither,
+    # so there the take cannot start, which is the engine's gap and not the app's.
+    if not page.evaluate("typeof MediaRecorder !== 'undefined' && typeof AudioContext !== 'undefined'"):
+        pytest.skip("this browser engine has no MediaRecorder / AudioContext, so no take can start")
     if no_audio_context:
         page.add_init_script("window.__noAudioContext = true;")
     page.add_init_script(FAKE_MIC)

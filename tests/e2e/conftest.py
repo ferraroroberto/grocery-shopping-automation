@@ -129,9 +129,10 @@ def pw():
 
 
 @pytest.fixture(scope="module")
-def browser(pw, server):
-    """Chromium, with `new_context` / `new_page` leasing one shared context per arguments."""
-    b = pw.chromium.launch()
+def browser(pw, server, browser_name):
+    """The engine `--browser` names (Chromium by default; the Mac nightly has only WebKit installed),
+    with `new_context` / `new_page` leasing one shared context per arguments."""
+    b = getattr(pw, browser_name).launch()
     yield SharedContexts(b, server.url)
     b.close()
 
