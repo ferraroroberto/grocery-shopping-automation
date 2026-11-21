@@ -46,15 +46,11 @@ from typing import Optional
 
 import requests
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-
-from src import data  # noqa: E402
-from src.benchmark.ametller_guest import GuestSession  # noqa: E402
-from src.benchmark.paths import runs_dir, state_dir  # noqa: E402
-from src.pooled_http import pooled_request  # noqa: E402
-from src.runtime_files import make_dirs, save_text  # noqa: E402
+from src import data
+from src.benchmark.ametller_guest import GuestSession
+from src.benchmark.paths import runs_dir, state_dir
+from src.pooled_http import pooled_request
+from src.runtime_files import make_dirs, save_text
 
 logger = logging.getLogger("benchmark.build_basket")
 

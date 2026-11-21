@@ -42,14 +42,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-
-from src.benchmark import history  # noqa: E402
-from src.benchmark.paths import mappings_dir  # noqa: E402
-from src.benchmark.results import MATCHED  # noqa: E402
-from src.runtime_files import make_dirs, save_text  # noqa: E402
+from src.benchmark import history
+from src.benchmark.paths import mappings_dir
+from src.benchmark.results import MATCHED
+from src.runtime_files import make_dirs, save_text
 
 logger = logging.getLogger("benchmark.score")
 

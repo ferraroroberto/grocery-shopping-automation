@@ -26,13 +26,9 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-
-from src.benchmark import history  # noqa: E402
-from src.benchmark import score as S  # noqa: E402
-from src.runtime_files import save_text  # noqa: E402
+from src.benchmark import history
+from src.benchmark import score as S
+from src.runtime_files import save_text
 
 STORES_REGISTRY = Path(__file__).resolve().parents[2] / "config" / "benchmark_stores.json"
 MOVE_MIN_SAVING = 1.5  # €/month — smaller moves are listed, not tabled

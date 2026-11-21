@@ -54,12 +54,8 @@ from urllib.parse import quote
 from playwright.sync_api import Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-
-from src.automation import carrefour  # noqa: E402  (BASE_URL + product_id_from_url)
-from src.automation.browser import (  # noqa: E402
+from src.automation import carrefour  # BASE_URL + product_id_from_url
+from src.automation.browser import (
     NavigationTimeoutError,
     ProfileBusyError,
     ProfileNotInitializedError,
@@ -67,14 +63,14 @@ from src.automation.browser import (  # noqa: E402
     goto_with_login_check,
     launch_context,
 )
-from src.automation.search_state import (  # noqa: E402
+from src.automation.search_state import (
     REASON_ERROR,
     REASON_SESSION,
     REASON_TIMEOUT,
     StoreState,
 )
-from src.product_match import label as match_label  # noqa: E402
-from src.product_match import score as match_score  # noqa: E402
+from src.product_match import label as match_label
+from src.product_match import score as match_score
 
 logger = logging.getLogger("automation.product_search")
 

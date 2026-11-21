@@ -81,14 +81,9 @@ from src.automation.run_state import (
     EXIT_PROFILE_NOT_INITIALISED,
     EXIT_UNCONFIRMED,
 )
-
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-
-from src.data import purchase_logs_dir  # noqa: E402
-from src.notify import NotifierError  # noqa: E402
-from src.notify_config import build_notify_notifier  # noqa: E402
+from src.data import purchase_logs_dir
+from src.notify import NotifierError
+from src.notify_config import build_notify_notifier
 
 logger = logging.getLogger("automation.run_automation")
 
