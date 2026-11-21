@@ -39,19 +39,14 @@ import logging
 import sys
 import time
 from contextlib import contextmanager
-from pathlib import Path
 from typing import Iterator, Optional
 from urllib.parse import urlsplit
 
 from playwright.sync_api import BrowserContext, Page, sync_playwright
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-
-from src.automation.browser import _open_context  # noqa: E402
-from src.benchmark.paths import state_dir  # noqa: E402
-from src.runtime_files import make_dirs, save_text  # noqa: E402
+from src.automation.browser import _open_context
+from src.benchmark.paths import state_dir
+from src.runtime_files import make_dirs, save_text
 
 logger = logging.getLogger("benchmark.browser_fetch")
 
