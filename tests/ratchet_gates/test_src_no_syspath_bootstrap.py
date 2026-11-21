@@ -12,7 +12,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 ALLOWED = frozenset({"src/gen_ssl_cert.py"})
 _PATH_MUTATORS = frozenset({"insert", "append", "extend"})
 
