@@ -247,7 +247,7 @@ record = "https://github.com/ferraroroberto/grocery-shopping-automation/issues/1
 
 [[design.accepted]]
 check  = "glyph-icons"
-detail = "4 arrow/shape character(s) drawn as icons in rendered text; use the matching Lucide glyph (design.md Icons): app/webapp/static/modules/audio.js:433, app/webapp/static/modules/audio.js:453, app/webapp/static/modules/audio.js:539, app/webapp/static/modules/rows.js:67"
+detail = "4 arrow/shape character(s) drawn as icons in rendered text; use the matching Lucide glyph (design.md Icons): app/webapp/static/modules/audio.js:439, app/webapp/static/modules/audio.js:460, app/webapp/static/modules/audio.js:546, app/webapp/static/modules/rows.js:76"
 reason = "the arrow is a numeric from/to separator inside row meta text (`current → proposed`, `3 → 0`, `14 units → 3 packs`), not an icon standing for an action; two in audio.js and one in rows.js are those meta strings, the fourth in audio.js is a code comment the lint's scan also reads"
 record = "https://github.com/ferraroroberto/grocery-shopping-automation/issues/299"
 
