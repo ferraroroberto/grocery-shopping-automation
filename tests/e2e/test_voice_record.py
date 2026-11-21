@@ -5,14 +5,21 @@ from __future__ import annotations
 import json
 
 import pytest
+from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
 from tests.e2e._helpers import LOADED_JS, goto_mode
 
 # A tone through an AudioContext stands in for the mic (no hardware, no recording);
 # every context the page opens is counted so a second one per take shows up.
+# `__takeErrors` collects what the page swallows, so a take that never starts says why.
 FAKE_MIC = """
 (() => {
   window.__contexts = [];
+  window.__takeErrors = [];
+  addEventListener("unhandledrejection", (e) => window.__takeErrors.push(String(e.reason)));
+  addEventListener("error", (e) => window.__takeErrors.push(String(e.message)));
+  // An engine that leaves navigator.mediaDevices undefined still gets the fake mic.
+  if (!navigator.mediaDevices) Object.defineProperty(navigator, "mediaDevices", { value: {}, configurable: true });
   const Real = window.AudioContext;
   if (Real && !window.__noAudioContext) {
     window.AudioContext = class extends Real {
@@ -62,7 +69,12 @@ def _start_take(page, *, no_audio_context: bool = False, finish: dict | None = N
     page.wait_for_function(LOADED_JS)
     goto_mode(page, "audio")
     page.locator("#record-toggle").click()
-    page.locator("#voice-live").wait_for(state="visible")
+    try:
+        page.locator("#voice-live").wait_for(state="visible", timeout=15000)
+    except PlaywrightTimeout:
+        status = page.locator("#audio-status").inner_text()
+        errors = page.evaluate("window.__takeErrors")
+        raise AssertionError(f"the take never started: status={status!r}, page errors={errors}") from None
 
 
 def _check_waveform_on_one_audio_context(page):
