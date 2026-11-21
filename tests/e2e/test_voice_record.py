@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 import pytest
+from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
 from tests.e2e._helpers import LOADED_JS, goto_mode
@@ -26,15 +27,27 @@ FAKE_MIC = """
       constructor(...args) { super(...args); window.__contexts.push(this); }
     };
   }
-  navigator.mediaDevices.getUserMedia = async () => {
-    const Ctx = Real || window.webkitAudioContext;
-    const ctx = new Ctx();
-    const osc = ctx.createOscillator();
-    const dest = ctx.createMediaStreamDestination();
-    osc.connect(dest);
-    osc.start();
-    return dest.stream;
-  };
+  // Defined on the object itself, so an engine whose own getUserMedia is read-only or lives on the
+  // prototype still answers with the fake instead of its real (permission-gated) one. The app maps
+  // every rejection to "Mic permission denied", so a throw in the fake is recorded here first.
+  Object.defineProperty(navigator.mediaDevices, "getUserMedia", {
+    configurable: true,
+    writable: true,
+    value: async () => {
+      try {
+        const Ctx = Real || window.webkitAudioContext;
+        const ctx = new Ctx();
+        const osc = ctx.createOscillator();
+        const dest = ctx.createMediaStreamDestination();
+        osc.connect(dest);
+        osc.start();
+        return dest.stream;
+      } catch (e) {
+        window.__takeErrors.push("fake mic: " + String(e));
+        throw e;
+      }
+    },
+  });
   if (window.__noAudioContext) { delete window.AudioContext; delete window.webkitAudioContext; }
 })();
 """
@@ -55,6 +68,19 @@ def _stub_voice_service(page, finish: dict | None = None) -> None:
     page.route("**/api/audio/session/fake/finish**", lambda r: _fulfil(r, finish or {"silent": True}))
 
 
+def _grant_microphone(page) -> None:
+    """Grant the app origin the microphone where the engine has the permission to give.
+
+    macOS WebKit refuses a take with "Mic permission denied" unless the context holds the grant;
+    an engine without a `microphone` permission (Playwright's Windows WebKit build) rejects the
+    name, and there the fake mic alone suffices."""
+    origin = "/".join(page.url.split("/", 3)[:3])
+    try:
+        page.context.grant_permissions(["microphone"], origin=origin)
+    except PlaywrightError:
+        pass
+
+
 def _start_take(page, *, no_audio_context: bool = False, finish: dict | None = None) -> None:
     # A take needs MediaRecorder and AudioContext; Playwright's Windows WebKit build ships neither,
     # so there the take cannot start, which is the engine's gap and not the app's.
@@ -64,6 +90,7 @@ def _start_take(page, *, no_audio_context: bool = False, finish: dict | None = N
         page.add_init_script("window.__noAudioContext = true;")
     page.add_init_script(FAKE_MIC)
     _stub_voice_service(page, finish)
+    _grant_microphone(page)
     page.reload()
     page.wait_for_selector("[data-tab='audit']")
     page.wait_for_function(LOADED_JS)
