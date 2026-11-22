@@ -11,7 +11,7 @@ from tests.e2e._helpers import (
 )
 from tests.e2e._surface import surface
 
-_PILL_COUNT_JS = "(key) => document.querySelector(`[data-stores-filter='${key}'] .pill-count`)?.textContent"
+_PILL_COUNT_JS = "(key) => document.querySelector(`[data-stores-filter='${key}'] .segmented-count`)?.textContent"
 _STORE_PILL = "[data-stores-store='{}']"
 
 
@@ -173,9 +173,22 @@ def _check_only_items_i_buy(page, server, all_rows):
     assert zero_row.count() == 1
 
 
+def _check_status_filter_segmented(page):
+    # The Show items filter is the vendored segmented control: one segment
+    # pressed, every label and count readable at phone width (no clipping).
+    seg = page.locator(".segmented[aria-label='Show items']")
+    assert seg.locator(".segmented-item[aria-pressed='true']").count() == 1
+    page.set_viewport_size({"width": 390, "height": 844})
+    clipped = seg.locator(".segmented-item").evaluate_all("els => els.filter((e) => e.scrollWidth > e.clientWidth).map((e) => e.textContent)")
+    overflows = seg.evaluate("el => el.scrollWidth > el.clientWidth")
+    page.set_viewport_size({"width": 1100, "height": 950})
+    assert not clipped and not overflows, f"Show items segments clip at 390px: {clipped}, track overflow {overflows}"
+
+
 def _filter_needs_checking(page):
     # ── Per-item review (#165) ──
     page.wait_for_function(f"({_PILL_COUNT_JS})('needs') === '1'")
+    _check_status_filter_segmented(page)
     page.click("[data-stores-filter='needs']")
     burger = page.locator(".store-row", has_text="burguer ternera").first
     assert page.locator(".store-row").count() == 1

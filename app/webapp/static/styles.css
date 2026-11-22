@@ -575,9 +575,13 @@ details[open] > summary .inline-chevron { transform: rotate(90deg); }
 .inline-disclosure-summary { color: var(--muted); }
 .inline-disclosure[open] > .log { margin-top: var(--space-sm); }
 
-/* All · Needs checking · Checked, then the multi-select Store row —
-   above the show-all switch; both wrap on a phone. */
+/* All · Needs checking · Checked (a segmented control), then the multi-select
+   Store row — above the show-all switch; the store pills wrap on a phone. */
 .stores-filter { margin-top: var(--space-sm); }
+/* "Needs checking 12" is wider than a third of a phone card: columns stay equal
+   while they fit and grow to their label when they would clip. */
+.segmented.stores-filter { grid-auto-columns: minmax(max-content, 1fr); }
+.segmented-count { font-weight: 400; font-variant-numeric: tabular-nums; }
 .stores-filter .pill { display: inline-flex; align-items: center; gap: var(--space-xs); padding: 0 12px; }
 .stores-filter-label { align-self: center; color: var(--muted); font-size: var(--font-label); font-weight: 600; }
 .pill-count {

@@ -124,10 +124,9 @@ function rowMarkup(item, inUse = storesInUse()) {
 function filterMarkup() {
   const counts = local.checks?.counts;
   const count = { needs: counts?.needs_checking, checked: counts?.checked };
-  return `<div class="pills stores-filter" role="radiogroup" aria-label="Show items">${FILTERS.map(([key, label]) => {
-    const on = key === local.filter;
+  return `<div class="segmented stores-filter" role="group" aria-label="Show items">${FILTERS.map(([key, label]) => {
     const n = count[key];
-    return `<button type="button" class="pill${on ? " active" : ""}" role="radio" aria-checked="${on}" data-track="prices.filter" data-stores-filter="${key}">${label}${n !== undefined ? ` <span class="pill-count">${n}</span>` : ""}</button>`;
+    return `<button type="button" class="segmented-item" aria-pressed="${key === local.filter}" data-track="prices.filter" data-stores-filter="${key}">${label}${n !== undefined ? ` <span class="segmented-count">${n}</span>` : ""}</button>`;
   }).join("")}</div>`;
 }
 
