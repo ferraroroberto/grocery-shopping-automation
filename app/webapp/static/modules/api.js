@@ -48,6 +48,13 @@ export async function fetchJson(url, init = {}) {
   return body;
 }
 
+// The restart sheet reads the POST's status itself (a refusal is an answer, not an error).
+export async function postRestart(url, body) {
+  const response = await fetchUnlocked(url, jsonInit("POST", body));
+  const data = await response.json().catch(() => null);
+  return { status: response.status, body: data };
+}
+
 // An item route that names the item it means. Ids are row positions,
 // so the server checks the name and refuses (409, X-Inventory-Stale) once
 // another device's delete has moved the list under this one.

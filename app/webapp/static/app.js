@@ -5,7 +5,8 @@ import { initNavTabs } from "./_vendored/nav/nav-tabs.js";
 import { setSwitch } from "./_vendored/switch/switch.js";
 import { bindTextSize } from "./_vendored/text-size/text-size.js";
 import { initUsageLog } from "./_vendored/usage-log/usage-log.js";
-import { fetchJson, fetchVersion, itemUrl, loadInventory, mutate } from "./modules/api.js";
+import { fetchJson, fetchVersion, itemUrl, loadInventory, mutate, postRestart } from "./modules/api.js";
+import { initRestartSheet } from "./_vendored/page-foot/restart-sheet.js";
 import {
   applyAudio,
   audioUnmatchedCount,
@@ -394,6 +395,7 @@ loadInventory().then(() => {
 if (nav.getTab() !== "shopping") loadFills();
 initBuildWatch({ fetchJson });
 fetchVersion();
+initRestartSheet({ fetchJson, postJson: postRestart });
 // The Stores registry (display names, cart-handler flags) is read fleet-wide
 // for store labels (automation.js, fallback.js, item-sheet.js, search.js) —
 // loaded here so Home/Shop show real names before Items → Prices is ever
