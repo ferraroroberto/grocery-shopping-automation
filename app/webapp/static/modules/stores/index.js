@@ -84,11 +84,7 @@ export async function onStoresClick(event) {
   if (filter) {
     local.filter = filter.dataset.storesFilter;
     writeStored(FILTER_KEY, local.filter);
-    document.querySelectorAll("[data-stores-filter]").forEach((b) => {
-      const on = b === filter;
-      b.classList.toggle("active", on);
-      b.setAttribute("aria-checked", String(on));
-    });
+    document.querySelectorAll("[data-stores-filter]").forEach((b) => b.setAttribute("aria-pressed", String(b === filter)));
     paintList();
     return;
   }
