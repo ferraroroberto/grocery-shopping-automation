@@ -21,6 +21,7 @@ from app.webapp.routers import (
     email,
     inventory,
     product_search,
+    restart,
     stores,
     system,
     usage,
@@ -79,5 +80,6 @@ for _router in (
     voice.router,
     email.router,
     usage.router,
+    restart.router,
 ):
     app.include_router(_router)

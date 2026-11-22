@@ -3,7 +3,7 @@
 import hmac
 from collections.abc import Callable
 
-from fastapi import Request
+from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -54,6 +54,20 @@ def client_address(request: Request) -> str:
     return host
 
 
+def require_authenticated(request: Request) -> None:
+    """Route dependency: refuse unless :class:`BearerTokenMiddleware` let this call in.
+
+    The middleware marks a request it admitted by auth (no token configured off
+    the public tunnel, the PC itself, or a matching token); the exempt paths
+    (``/``, ``/static/*``, login) are admitted without that mark. A route that
+    must never be reachable on an exempt path, such as the restart, depends on
+    this so it cannot be mounted open, and an app built without the middleware
+    refuses it too.
+    """
+    if not getattr(request.state, "auth_passed", False):
+        raise HTTPException(status_code=401, detail="missing or invalid bearer token")
+
+
 class BearerTokenMiddleware(BaseHTTPMiddleware):
     """Require a bearer token on non-loopback API calls when configured; with
     none configured, refuse API calls that arrived through the tunnel."""
@@ -80,9 +94,12 @@ class BearerTokenMiddleware(BaseHTTPMiddleware):
                     content={"detail": "tunnel access refused: no auth_token is configured on this server"},
                     headers={"WWW-Authenticate": 'Bearer realm="grocery"'},
                 )
+            if not via_cloudflare:
+                request.state.auth_passed = True
             return await call_next(request)
 
         if is_pc_itself(request):
+            request.state.auth_passed = True
             return await call_next(request)
 
         if exempt:
@@ -97,6 +114,7 @@ class BearerTokenMiddleware(BaseHTTPMiddleware):
 
         # Compare bytes: compare_digest raises TypeError on non-ASCII str operands.
         if presented and hmac.compare_digest(presented.encode("utf-8"), token.encode("utf-8")):
+            request.state.auth_passed = True
             return await call_next(request)
 
         return JSONResponse(
