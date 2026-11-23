@@ -257,6 +257,38 @@ paths    = ["app/webapp/static/**"]
 enabled      = true
 handler_dirs = ["app/webapp/routers"]
 
+# Each loop below is bounded and waits on something outside this process; none
+# runs on a clock while nobody is looking.
+[[request_budget.loops]]
+path       = "app/tray/manager.py"
+function   = "WebappManager._wait_until_ready"
+interval_s = 0.4
+why        = "startup readiness wait for the uvicorn child; ends when it answers, exits, or the startup timeout passes"
+
+[[request_budget.loops]]
+path       = "app/webapp/routers/automation.py"
+function   = "automation_events.event_stream"
+interval_s = 0.75
+why        = "SSE stream to an open page during a cart run; ends with the run or when the page disconnects"
+
+[[request_budget.loops]]
+path       = "src/automation/browser.py"
+function   = "launch_context"
+interval_s = 60
+why        = "busy shared Chrome profile backoff (60, 120, 240, 480 s); never kills the live holder, gives up after the schedule"
+
+[[request_budget.loops]]
+path       = "src/automation/mercadona.py"
+function   = "_click_until"
+interval_s = 0.4
+why        = "browser wait on the store page for a picker click to register; bounded by the per-click timeout and attempt count"
+
+[[request_budget.loops]]
+path       = "src/benchmark/results.py"
+function   = "store_lock"
+interval_s = 0.2
+why        = "exclusive lock-file retry around a store file write; bounded by its timeout, raises if a writer is stuck"
+
 [[design.accepted]]
 rule   = "LAYOUT-03"
 reason = "Prices rows keep one-tap product links per store as wrapping pills under the picker, the row tap opening the item sheet (#257) — household decision (the #153 round had made them labels)"
@@ -264,7 +296,7 @@ record = "https://github.com/ferraroroberto/grocery-shopping-automation/issues/1
 
 [[design.accepted]]
 check  = "glyph-icons"
-detail = "4 arrow/shape character(s) drawn as icons in rendered text; use the matching Lucide glyph (design.md Icons): app/webapp/static/modules/audio.js:439, app/webapp/static/modules/audio.js:460, app/webapp/static/modules/audio.js:546, app/webapp/static/modules/rows.js:76"
+detail = "4 arrow/shape character(s) drawn as icons in rendered text; use the matching Lucide glyph (design.md Icons): app/webapp/static/modules/audio.js:440, app/webapp/static/modules/audio.js:461, app/webapp/static/modules/audio.js:547, app/webapp/static/modules/rows.js:76"
 reason = "the arrow is a numeric from/to separator inside row meta text (`current → proposed`, `3 → 0`, `14 units → 3 packs`), not an icon standing for an action; two in audio.js and one in rows.js are those meta strings, the fourth in audio.js is a code comment the lint's scan also reads"
 record = "https://github.com/ferraroroberto/grocery-shopping-automation/issues/299"
 

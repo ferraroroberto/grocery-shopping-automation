@@ -11,6 +11,7 @@
 //   - a new term → "Use" pre-fills the sheet's Add by hand form below (name,
 //     store, link, target 1) and the sheet's "Add item" creates the row — the
 //     same POST /api/items shape /select would build.
+import { startPoll } from "../_vendored/poll/poll.js";
 import { formatElapsed } from "../_vendored/rec-wave/rec-wave.js";
 import { fetchJson, jsonInit } from "./api.js";
 import { c, defaultZone, items, state } from "./core.js";
@@ -282,11 +283,13 @@ function startSearchPoll() {
     const status = await fetchJson("/api/product-search/status").catch(() => null);
     if (status) applySearchStatus(status);
   };
-  search.pollTimer = window.setInterval(tick, 1000);
+  // 1 s spacing is the live-progress feel of a running search; it stops by
+  // itself once the run settles, so it never polls an idle page.
+  search.pollTimer = startPoll(tick, 1000, { activeWhile: () => search.running });
 }
 
 function stopSearchPoll() {
-  if (search.pollTimer) { window.clearInterval(search.pollTimer); search.pollTimer = null; }
+  if (search.pollTimer) { search.pollTimer.stop(); search.pollTimer = null; }
 }
 
 function applySearchStatus(status) {

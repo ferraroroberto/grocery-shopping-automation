@@ -106,6 +106,7 @@ async function runWithTimer(stageFn, doFetch) {
   const start = Date.now();
   const tick = () => setAudioStatus(stageFn(Math.floor((Date.now() - start) / 1000)));
   tick();
+  // request-budget-exempt: on-screen elapsed clock; the tick only repaints the status line, the request itself is the awaited doFetch below
   const interval = window.setInterval(tick, 1000);
   setAudioInFlight(true);
   try {
@@ -659,6 +660,7 @@ function startRecordTimer() {
     timer.textContent = `${formatElapsed(Date.now() - audio.recordStartedAt)} · ${formatBytes(audio.bytesSent)} saved on the PC`;
   };
   tick();
+  // request-budget-exempt: on-screen recording clock; the tick only formats the elapsed time and the byte count already sent
   audio.recordTimer = window.setInterval(tick, 1000);
 }
 
