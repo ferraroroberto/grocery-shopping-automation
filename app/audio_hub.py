@@ -16,6 +16,7 @@ Two things live here, both shared by more than one router:
 """
 
 import asyncio
+import functools
 import logging
 from typing import Any
 
@@ -24,6 +25,7 @@ from fastapi import UploadFile
 
 from app.api_common import inventory_error
 from src.data import CONFIG
+from src.request_timing import TimedExecutor
 from src.transcribe_client import (
     TRANSCRIBE_TIMEOUT_S,
     FfmpegMissingError,
@@ -31,6 +33,10 @@ from src.transcribe_client import (
     transcode_to_wav,
     transcribe,
 )
+
+# Transcoding and transcription block a thread for up to minutes, so they get
+# their own small pool instead of starving the event loop's shared default one.
+AUDIO_POOL = TimedExecutor("audio", 2)
 
 
 def voice_url() -> str:
@@ -85,7 +91,7 @@ async def transcode_and_transcribe(file: UploadFile, *, prompt: str | None = Non
     # if ffmpeg is unavailable (still correct for a genuine WAV upload).
     filename, mime = "audio.wav", "audio/wav"
     try:
-        audio_bytes = await asyncio.to_thread(transcode_to_wav, audio_bytes)
+        audio_bytes = await asyncio.get_running_loop().run_in_executor(AUDIO_POOL, transcode_to_wav, audio_bytes)
     except FfmpegMissingError:
         logging.getLogger(__name__).warning(
             "ffmpeg missing — posting raw audio to whisper (works only for WAV uploads)"
@@ -96,7 +102,7 @@ async def transcode_and_transcribe(file: UploadFile, *, prompt: str | None = Non
         raise inventory_error(502, str(exc)) from exc
     try:
         # transcribe() blocks for up to TRANSCRIBE_TIMEOUT_S, so it runs in a worker thread.
-        return await asyncio.to_thread(
+        return await asyncio.get_running_loop().run_in_executor(AUDIO_POOL, functools.partial(
             transcribe,
             audio_bytes,
             whisper_url=cfg["whisper_url"],
@@ -111,6 +117,6 @@ async def transcode_and_transcribe(file: UploadFile, *, prompt: str | None = Non
             timeout=TRANSCRIBE_TIMEOUT_S,
             temperature=0.0,
             prompt=prompt,
-        )
+        ))
     except TranscriptionError as exc:
         raise inventory_error(502, str(exc)) from exc

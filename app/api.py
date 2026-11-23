@@ -33,6 +33,7 @@ from src.log_setup import configure_logging
 from src.login_alert import build_login_alert
 from src.login_lockout import LoginLockout
 from src.notify_config import build_alert_notifier
+from src.request_timing import RequestTimingMiddleware
 from src.webapp_config import EMAIL_POLLER_ENV, load_webapp_config
 
 configure_logging()
@@ -66,6 +67,8 @@ app.add_middleware(
     BearerTokenMiddleware,
     get_token=lambda: getattr(app.state.webapp_config, "auth_token", ""),
 )
+# Inside GZip, outside auth: every /api/ answer, refusals included, carries its Server-Timing split.
+app.add_middleware(RequestTimingMiddleware)
 # Added last so it is the outermost layer: an auth refusal or a 304 passes through unchanged.
 app.add_middleware(StreamSafeGZipMiddleware, bypass_paths=())
 app.mount("/static", CachingStaticFiles(directory=STATIC_DIR, build_info=BUILD_INFO), name="static")
