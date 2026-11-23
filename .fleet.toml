@@ -80,6 +80,10 @@ no_window = { src = "src/no_window.py", sha = "ade32f799c9102daf72535b4899ab2843
 # ratchet that differ only in the stage name and messages.
 # Procedure + limits: project-scaffolding docs/static-ratchet.md.
 self_restart = { src = "src/self_restart.py", sha = "564864cb95a8b416c16d1a1e1e9f31b9d5b2ec8e", dest = "src/self_restart.py" }
+request_budget_ratchet = { src = "scripts/request_budget_ratchet.py", sha = "2e2a4cca9d3180980db6f8cd7f03a6f12737b7db", dest = "scripts/request_budget_ratchet.py" }
+request_budget_scan = { src = "scripts/request_budget_scan.py", sha = "2e2a4cca9d3180980db6f8cd7f03a6f12737b7db", dest = "scripts/request_budget_scan.py" }
+poll = { src = "app/webapp/static/_vendored/poll", sha = "2e2a4cca9d3180980db6f8cd7f03a6f12737b7db", dest = "app/webapp/static/_vendored/poll" }
+request_timing = { src = "src/request_timing.py", sha = "2e2a4cca9d3180980db6f8cd7f03a6f12737b7db", dest = "src/request_timing.py" }
 [static_ratchet]
 enabled  = true
 baseline = ".static-ratchet-baseline.json"
@@ -240,6 +244,18 @@ enabled  = true
 baseline = ".ux-surface-ratchet-baseline.json"
 map      = "docs/ux-surfaces.yaml"
 paths    = ["app/webapp/static/**"]
+
+# [request_budget_ratchet] -- scripts/request_budget_ratchet.py (with its reader
+# scripts/request_budget_scan.py) fails when a fixed-rate browser poll that reaches the server,
+# a poll under the 2 s floor, an undeclared fast server loop, a directory scan in a request
+# handler, a submit to the shared default pool, or a web app without the request-timing
+# middleware is new beyond .request-budget-ratchet-baseline.json. Exit 3 is "not confirmed",
+# never clean. handler_dirs is where the request handlers live (scan-per-request is OFF
+# without it). Mechanism: project-scaffolding docs/request-budget-ratchet.md; the rules and
+# why: docs/polling-budget.md.
+[request_budget_ratchet]
+enabled      = true
+handler_dirs = ["app/webapp/routers"]
 
 [[design.accepted]]
 rule   = "LAYOUT-03"
