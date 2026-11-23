@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "entries": [
+    {"key": "app/api.py", "counts": {"timing-middleware": 1}},
+    {"key": "app/audio_hub.py", "counts": {"default-pool": 2}},
+    {"key": "app/tray/manager.py", "counts": {"unwatched-loop": 1}},
+    {"key": "app/webapp/routers/automation.py", "counts": {"unwatched-loop": 1}},
+    {"key": "app/webapp/static/modules/audio.js", "counts": {"fixed-rate-poll": 2, "poll-floor": 2}},
+    {"key": "app/webapp/static/modules/search.js", "counts": {"fixed-rate-poll": 1, "poll-floor": 1}},
+    {"key": "src/automation/browser.py", "counts": {"unwatched-loop": 1}},
+    {"key": "src/automation/mercadona.py", "counts": {"unwatched-loop": 1}},
+    {"key": "src/benchmark/results.py", "counts": {"unwatched-loop": 1}}
+  ]
+}
