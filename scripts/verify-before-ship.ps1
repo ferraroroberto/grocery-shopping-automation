@@ -6,7 +6,7 @@
 .DESCRIPTION
     Runs, fail-fast: the runtime write probe snapshot, pytest, the runtime write probe,
     then the static, docs, comment, structure, instruction, doc-refs, dead-code,
-    conventions, runtime write, usage track, UX surface and request budget ratchets. Every stage, its baseline and
+    conventions, runtime write, usage track, UX surface, request budget and windows-only ratchets. Every stage, its baseline and
     what makes it fail is described in docs/testing.md, the one full description;
     a detector or scan that cannot run (exit 3) fails as NOT CONFIRMED, never a pass.
 
@@ -86,6 +86,7 @@ Invoke-Stage "runtime write ratchet" { & $py "scripts/runtime_write_ratchet.py" 
 Invoke-Stage "usage track ratchet" { & $py "scripts/usage_track_ratchet.py" }
 Invoke-Stage "ux surface ratchet" { & $py "scripts/ux_surface_ratchet.py" }
 Invoke-Stage "request budget ratchet" { & $py "scripts/request_budget_ratchet.py" }
+Invoke-Stage "windows-only ratchet" { & $py "scripts/windows_only_ratchet.py" }
 
 Write-Host ""
 Write-Host "[PASS] verify-before-ship" -ForegroundColor Green
