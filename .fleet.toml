@@ -12,6 +12,7 @@ shape        = "webapp-tray"
 depends_on   = ["local-llm-hub", "voice-transcriber"]
 
 [vendored]
+windows_only_ratchet = { src = "scripts/windows_only_ratchet.py", sha = "5ba99b0a04b1b5d7b3689f8f7a59bd3fe625a9bc", dest = "scripts/windows_only_ratchet.py" }
 single_instance = { src = "app/tray/single_instance.py", sha = "fe8cc1bdbd038ed65947186248df13072eceb25a", dest = "app/tray/single_instance.py" }
 home-head = { src = "app/webapp/static/_vendored/home-head", sha = "fe8cc1bdbd038ed65947186248df13072eceb25a", dest = "app/webapp/static/_vendored/home-head" }
 icon-button = { src = "app/webapp/static/_vendored/icon-button", sha = "5d460bd1d9d44eed955c5357d1c9f622f2550ad8", dest = "app/webapp/static/_vendored/icon-button" }
@@ -244,6 +245,14 @@ enabled  = true
 baseline = ".ux-surface-ratchet-baseline.json"
 map      = "docs/ux-surfaces.yaml"
 paths    = ["app/webapp/static/**"]
+
+# [windows_only_ratchet] -- scripts/windows_only_ratchet.py fails when a test touches a
+# Windows-only API (module, attribute, environment variable, planted .exe) without the
+# windows_only marker the Mac nightly deselects, beyond .windows-only-ratchet-baseline.json.
+# Exit 3 is "not confirmed", never clean. Mechanism: project-scaffolding
+# docs/windows-only-ratchet.md.
+[windows_only_ratchet]
+enabled = true
 
 # [request_budget_ratchet] -- scripts/request_budget_ratchet.py (with its reader
 # scripts/request_budget_scan.py) fails when a fixed-rate browser poll that reaches the server,
