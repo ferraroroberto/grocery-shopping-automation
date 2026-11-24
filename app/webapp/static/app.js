@@ -408,7 +408,6 @@ loadMeta();
 // refetch behind them never touches what they staged.
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible") return;
-  fetchVersion();
   if (["dashboard", "shopping", "audit", "list"].includes(state.mode)) loadInventory();
   if (state.mode === "dashboard") loadThisWeek();
   if (state.mode === "shopping") syncFillCarts();

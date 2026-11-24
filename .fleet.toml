@@ -58,6 +58,7 @@ ux_surface_map = { src = "scripts/ux_surface_map.py", sha = "adf0375e08a18633019
 conventions_ratchet = { src = "scripts/conventions_ratchet.py", sha = "ce64203b017ba636c82737ee7f768c9ef6f422cd", dest = "scripts/conventions_ratchet.py" }
 conventions_readers = { src = "scripts/conventions_readers.py", sha = "7577aece617ad366e7df8ef522d511184b445144", dest = "scripts/conventions_readers.py" }
 conventions_state = { src = "scripts/conventions_state.py", sha = "4d0b0ff30e23eb95c73c4b0b1517ec6a43d3a836", dest = "scripts/conventions_state.py" }
+request_budget_probe = { src = "tests/e2e/budget/_request_budget.py", sha = "be7de0edb225505f0b4773736b4eaf6b34a49363", dest = "tests/e2e/budget/_request_budget.py" }
 paced_browser = { src = "tests/e2e/_paced_browser.py", sha = "ce64203b017ba636c82737ee7f768c9ef6f422cd", dest = "tests/e2e/_paced_browser.py" }
 pooled_http = { src = "src/pooled_http.py", sha = "fe8cc1bdbd038ed65947186248df13072eceb25a", dest = "src/pooled_http.py" }
 login_lockout = { src = "src/login_lockout.py", sha = "93208ab08bdc8591c678a08f55a0f46b3fc8a525", dest = "src/login_lockout.py" }
@@ -267,6 +268,11 @@ enabled = true
 [request_budget_ratchet]
 enabled      = true
 handler_dirs = ["app/webapp/routers"]
+
+# Measured on the main page: one usage-log flush in a visible minute (no poll runs on a
+# loaded page); the second request is headroom for a flush that lands in the next batch.
+[request_budget]
+visible_requests_per_minute = 2
 
 # Each loop below is bounded and waits on something outside this process; none
 # runs on a clock while nobody is looking.
