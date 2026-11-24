@@ -87,7 +87,7 @@ request_budget_scan = { src = "scripts/request_budget_scan.py", sha = "2e2a4cca9
 poll = { src = "app/webapp/static/_vendored/poll", sha = "2e2a4cca9d3180980db6f8cd7f03a6f12737b7db", dest = "app/webapp/static/_vendored/poll" }
 request_timing = { src = "src/request_timing.py", sha = "2e2a4cca9d3180980db6f8cd7f03a6f12737b7db", dest = "src/request_timing.py" }
 build_info = { src = "src/build_info.py", sha = "1c1007fcd0b65b54342779250cb66975d57482e8", dest = "src/build_info.py" }
-restart_check = { src = "src/restart_check.py", sha = "48602060fffdacbcdcdde66b9886c6471d835ff3", dest = "src/restart_check.py" }
+restart_check = { src = "src/restart_check.py", sha = "f8c2f66eae7a69f3c834386579702ed5b747d7af", dest = "src/restart_check.py" }
 [static_ratchet]
 enabled  = true
 baseline = ".static-ratchet-baseline.json"
