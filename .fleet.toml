@@ -55,8 +55,8 @@ doc_refs_ratchet = { src = "scripts/doc_refs_ratchet.py", sha = "a68f6e49393f0ef
 dead_code_ratchet = { src = "scripts/dead_code_ratchet.py", sha = "4d0b0ff30e23eb95c73c4b0b1517ec6a43d3a836", dest = "scripts/dead_code_ratchet.py" }
 ux_surface_ratchet = { src = "scripts/ux_surface_ratchet.py", sha = "adf0375e08a186330196b8d6be7b8b51078a73ae", dest = "scripts/ux_surface_ratchet.py" }
 ux_surface_map = { src = "scripts/ux_surface_map.py", sha = "adf0375e08a186330196b8d6be7b8b51078a73ae", dest = "scripts/ux_surface_map.py" }
-conventions_ratchet = { src = "scripts/conventions_ratchet.py", sha = "ce64203b017ba636c82737ee7f768c9ef6f422cd", dest = "scripts/conventions_ratchet.py" }
-conventions_readers = { src = "scripts/conventions_readers.py", sha = "7577aece617ad366e7df8ef522d511184b445144", dest = "scripts/conventions_readers.py" }
+conventions_ratchet = { src = "scripts/conventions_ratchet.py", sha = "9f5d6b727d457616ce80e18db9f5a048ab53c3be", dest = "scripts/conventions_ratchet.py" }
+conventions_readers = { src = "scripts/conventions_readers.py", sha = "9f5d6b727d457616ce80e18db9f5a048ab53c3be", dest = "scripts/conventions_readers.py" }
 conventions_state = { src = "scripts/conventions_state.py", sha = "4d0b0ff30e23eb95c73c4b0b1517ec6a43d3a836", dest = "scripts/conventions_state.py" }
 request_budget_probe = { src = "tests/e2e/budget/_request_budget.py", sha = "be7de0edb225505f0b4773736b4eaf6b34a49363", dest = "tests/e2e/budget/_request_budget.py" }
 paced_browser = { src = "tests/e2e/_paced_browser.py", sha = "ce64203b017ba636c82737ee7f768c9ef6f422cd", dest = "tests/e2e/_paced_browser.py" }
@@ -195,7 +195,7 @@ baseline = ".dead-code-ratchet-baseline.json"
 [conventions_ratchet]
 enabled  = true
 baseline = ".conventions-ratchet-baseline.json"
-rules    = ["no-window", "logging-not-print", "no-drive-path", "password-input-vendored", "nav-standalone-head", "login-lockout", "subprocess-timeout", "browser-per-iteration", "state-literal", "state-set-repeat", "state-write"]
+rules    = ["no-window", "logging-not-print", "no-drive-path", "password-input-vendored", "nav-standalone-head", "login-lockout", "subprocess-timeout", "browser-per-iteration", "state-literal", "state-set-repeat", "state-write", "path-sep"]
 
 # Outbound HTTP goes through the pooled session, not a bare requests call.
 [[conventions_ratchet.must_use]]
