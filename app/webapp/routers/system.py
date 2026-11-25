@@ -18,11 +18,14 @@ from src.automation.bootstrap_session import launch_bootstrap_chrome
 from src.certs import cert_paths
 from src.data import CONFIG
 from src.data import open_spreadsheet as open_spreadsheet_file
+from src.health_routes import health_router
 from src.login_lockout import LoginLockout, retry_after_header
 from src.net import local_ip
 from src.webapp_config import WebappConfig, append_auth_token
 
 router = APIRouter()
+# The fleet's standard liveness and build identity routes (vendored).
+router.include_router(health_router(service="grocery-shopping-automation", identity=BUILD_INFO.as_dict()))
 
 
 def _entry_etag(html: str) -> str:
@@ -64,16 +67,6 @@ def index(request: Request) -> Response:
     if _matches_etag(request.headers.get("if-none-match", ""), headers["ETag"]):
         return Response(status_code=304, headers=headers)
     return HTMLResponse(html, headers=headers)
-
-
-@router.get("/api/version")
-def version() -> JSONResponse:
-    """Build identity (git SHA, build time, fleet asset hash).
-
-    Feeds the PWA's footer build readout + stale-shell reload guard — the
-    same contract as home-automation's ``/api/version``.
-    """
-    return JSONResponse(BUILD_INFO.as_dict())
 
 
 @router.get("/manifest.json", include_in_schema=False)
@@ -141,7 +134,6 @@ async def login(request: Request) -> dict[str, str]:
     return {"token": cfg.auth_token}
 
 
-@router.get("/healthz")
 @router.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
