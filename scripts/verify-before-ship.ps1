@@ -73,6 +73,23 @@ if (-not (Test-Path $py)) {
 $runtimeSnapshot = Join-Path ([IO.Path]::GetTempPath()) "runtime-write-snapshot-$PID.json"
 Invoke-Stage "runtime write probe (snapshot)" { & $py "scripts/runtime_write_ratchet.py" --snapshot $runtimeSnapshot }
 Invoke-Stage "pytest"          { & $py -m pytest }
+# The Mac nightly runs the request-budget tests on WebKit. 0 passes; 4 (WebKit not
+# installed) and 5 (no budget test) are "not run", printed as such and never as a
+# pass; anything else, 3 (not confirmed) included, fails the gate.
+Write-Host ""
+Write-Host ">> request budget on webkit" -ForegroundColor Cyan
+& $py "scripts/tools/webkit_budget_check.py"
+$webkitBudget = $LASTEXITCODE
+if ($webkitBudget -eq 0) {
+    Write-Host "[PASS] request budget on webkit" -ForegroundColor Green
+} elseif ($webkitBudget -eq 4) {
+    Write-Host "[NOT RUN] request budget on webkit - WebKit is not installed here, so the nightly's engine was not checked" -ForegroundColor Yellow
+} elseif ($webkitBudget -eq 5) {
+    Write-Host "[NOT RUN] request budget on webkit - no request-budget test in this repo" -ForegroundColor Yellow
+} else {
+    Write-Host "[FAIL] request budget on webkit (exit $webkitBudget)" -ForegroundColor Red
+    Complete-Gate 1
+}
 Invoke-Stage "runtime write probe" { & $py "scripts/runtime_write_ratchet.py" --probe $runtimeSnapshot }
 Invoke-Stage "static ratchet"  { & $py -m scripts.static_ratchet_gate }
 Invoke-Stage "docs ratchet"    { & $py -m scripts.docs_ratchet_gate }
