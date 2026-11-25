@@ -134,6 +134,12 @@ def _check_search_only_on_filterable_modes(page):
     page.fill("#search", "burguer")
     assert groups.count() == 1 and groups.locator(".item-row").count() >= 1
     assert all("burguer" in t.lower() for t in groups.locator(".action-row-title").all_inner_texts())
+    # The search reads the product link's words too, per word and accent-blind:
+    # "pan blanco" is the row whose link is the "chapata cristal" product.
+    for query in ("cristal", "chapata cris", "pan cristal", "búrguer tern"):
+        page.fill("#search", query)
+        titles = groups.locator(".action-row-title").all_inner_texts()
+        assert titles == [("pan blanco" if "cris" in query else "burguer ternera")], (query, titles)
     page.fill("#search", "zzz nothing matches")
     assert page.locator("#pane-items .empty-state").inner_text().strip() == "No matching items."
     surface(page, "items.list-empty")

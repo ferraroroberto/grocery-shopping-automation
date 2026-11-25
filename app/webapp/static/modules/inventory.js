@@ -2,7 +2,7 @@
 // item, grouped by zone; each row opens the item sheet, and the Add
 // item sheet (add-sheet.js) adds one. Home's search (home.js) shares the row.
 import { emptyStateEl } from "../_vendored/empty-state/empty-state.js";
-import { activePaneBody, c, filteredItems, items, state } from "./core.js";
+import { activePaneBody, c, filteredItems, fold, items, state } from "./core.js";
 import { html, text } from "./dom.js";
 import { buyText, itemList, itemRow, rowValue, stepper } from "./rows.js";
 
@@ -59,15 +59,10 @@ export function renderAudit() {
   activePaneBody().innerHTML = `${state.query ? "" : zoneTabs()}${rows ? itemList(rows) : empty.outerHTML}`;
 }
 
-// Lower case, accents off: "Maíz" and "maiz" are one word.
-function fold(value) {
-  return text(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-}
-
 // Spoken numbers say how many, not which item.
 const COUNT_WORDS = new Set(["una", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez"]);
 
-// The search box's own match (the text appears in the name, zone or store);
+// The search box's own match (every word starts a word of the name, zone, store or link);
 // when nothing has it, a word match, so a phrase as it was said ("dos
 // yogures de fresa") still finds "yogur fresa danone": every word of three
 // letters or more counts by its first four letters against the name's words,

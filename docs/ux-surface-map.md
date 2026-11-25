@@ -120,7 +120,7 @@ flowchart LR
 - **Root:** `data-surface`
 - **Reach:** Home, Manual, the Items list and Prices only
 - **Holds:**
-  - one search box over item, zone and store
+  - one search box over item, zone, store and link
   - the Add item button, on the Items list only
 - **Does:**
   - filters the view as you type

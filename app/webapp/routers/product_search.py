@@ -7,6 +7,7 @@ Each store's cards and state stream into `/status` as they land, so a slow
 or failed store never hides another's results."""
 
 import logging
+import re
 import time
 import uuid
 from typing import Any
@@ -30,6 +31,7 @@ from src.automation.search_state import (
     derive_search_state,
     derive_store_state,
 )
+from src.benchmark.build_basket import normalize
 from src.data import COLUMNS, CONFIG, apply_item_edit, build_new_item_row
 from src.inventory_extract import ExtractionError
 from src.voice_command import VoiceItem, parse_voice_items
@@ -85,6 +87,22 @@ def _search_term(item: VoiceItem, text: str, only_item: bool) -> str:
         return text
     logger.warning("⚠️ parse returned no phrase for matched item %r; searching its inventory name", item.name)
     return item.name
+
+
+def _words(value: str) -> list[str]:
+    return [w for w in re.split(r"[^a-z0-9]+", normalize(value)) if len(w) >= 3]
+
+
+def _names_the_row(term: str, row_name: str) -> bool:
+    """Whether the spoken ``term`` shares a word (by its first four letters,
+    so "panes" meets "pan") with the inventory row the model matched it to.
+    A pick on a matched row overwrites that row's link, and the model alone
+    once pointed "panes cristal" at an unrelated row."""
+    row_words = _words(row_name)
+    return any(
+        t.startswith(r[:4]) or r.startswith(t[:4])
+        for t in _words(term) for r in row_words
+    )
 
 
 def _search_status() -> dict[str, Any]:
@@ -217,8 +235,13 @@ def product_search_start(payload: ProductSearchStartPayload) -> dict[str, Any]:
         seen.add(term.lower())
         existing_super = inventory_name = ""
         if idx is not None and idx in df.index:
-            existing_super = str(df.at[idx, COLUMNS["super"]] or "").strip()
             inventory_name = str(df.at[idx, COLUMNS["comida"]] or "").strip()
+            if _names_the_row(term, inventory_name):
+                existing_super = str(df.at[idx, COLUMNS["super"]] or "").strip()
+                logger.info("ℹ️ product search %r matched row %s %r", term, idx, inventory_name)
+            else:
+                logger.warning("⚠️ product search %r: the model matched row %s %r, which shares no word with it; treated as a new item", term, idx, inventory_name)
+                idx, inventory_name = None, ""
         items_meta.append({"term": term, "inventory_idx": idx, "existing_super": existing_super,
                            "inventory_name": inventory_name})
 
