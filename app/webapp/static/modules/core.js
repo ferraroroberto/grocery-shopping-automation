@@ -187,16 +187,37 @@ export function items() {
   return state.payload?.items ?? [];
 }
 
+// Lower case, accents off: "Maíz" and "maiz" are one word.
+export function fold(value) {
+  return text(value).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+
+const WORD_SPLIT = /[^a-z0-9]+/;
+
+// A product link names its product in its path ("…/4-panes-cristal-redondos-…"),
+// so the words after the host are searchable; a buscador that is a plain search
+// term ("BASTONCILLOS OIDOS") is searchable as it stands. Digit-only tokens are
+// product ids and pack counts, never what a person types.
+function linkWords(link) {
+  const path = fold(link).replace(/^https?:\/\/[^/]+/, "");
+  return path.split(WORD_SPLIT).filter((word) => word && !/^\d+$/.test(word));
+}
+
+// One matcher for every search box: each word of the query must start a word
+// of the item's name, zone, store or product link ("pan cristal" finds
+// "4 panes cristal …"), accents and case ignored.
+export function matchesQuery(item, cols, query) {
+  const words = [item[cols.comida], item[cols.lugar], item[cols.super]]
+    .flatMap((value) => fold(value).split(WORD_SPLIT))
+    .concat(linkWords(item[cols.buscador]));
+  return fold(query).split(WORD_SPLIT).filter(Boolean)
+    .every((term) => words.some((word) => word.startsWith(term)));
+}
+
 export function filteredItems(source = items()) {
   if (!state.query) return source;
   const cols = c();
-  return source.filter((item) =>
-    [item[cols.comida], item[cols.lugar], item[cols.super]]
-      .map(text)
-      .join(" ")
-      .toLowerCase()
-      .includes(state.query),
-  );
+  return source.filter((item) => matchesQuery(item, cols, state.query));
 }
 
 export function defaultZone() {

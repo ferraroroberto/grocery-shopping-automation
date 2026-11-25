@@ -68,8 +68,8 @@ def _capture_start(monkeypatch):
 
 
 def test_start_searches_typed_phrase_not_matched_inventory_name(client, monkeypatch):
-    """Issue #214: the parse maps "boniato" onto an existing row; the stores must
-    still be queried with the typed word, the row kept only as a hint."""
+    """Issue #214: the parse maps "<name> oferta" onto an existing row; the stores must
+    still be queried with the typed words, the row kept only as a hint."""
     inv = client.get("/api/inventory").json()
     row = inv["items"][0]
     name = row[inv["columns"]["comida"]]
@@ -78,10 +78,10 @@ def test_start_searches_typed_phrase_not_matched_inventory_name(client, monkeypa
         lambda *a, **k: VoiceParseResult(items=[VoiceItem(idx=row["id"], name=name, qty=None)]),
     )
     seen = _capture_start(monkeypatch)
-    body = client.post("/api/product-search/start", json={"text": "boniato"}).json()
-    assert seen["terms"] == ["boniato"]
+    body = client.post("/api/product-search/start", json={"text": f"{name} oferta"}).json()
+    assert seen["terms"] == [f"{name} oferta"]
     item = body["items"][0]
-    assert item["term"] == "boniato"
+    assert item["term"] == f"{name} oferta"
     assert item["inventory_idx"] == row["id"]
     assert item["inventory_name"] == name
 
@@ -93,13 +93,13 @@ def test_start_uses_each_spoken_phrase_for_a_multi_item_utterance(client, monkey
     monkeypatch.setattr(
         search_api, "parse_voice_items",
         lambda *a, **k: VoiceParseResult(items=[
-            VoiceItem(idx=row["id"], name=name, qty=None, phrase="boniato"),
+            VoiceItem(idx=row["id"], name=name, qty=None, phrase=f"{name} oferta"),
             VoiceItem(idx=None, name="sandia", qty=2, phrase="sandía"),
         ]),
     )
     seen = _capture_start(monkeypatch)
-    body = client.post("/api/product-search/start", json={"text": "añade boniato y dos sandías"}).json()
-    assert seen["terms"] == ["boniato", "sandía"]
+    body = client.post("/api/product-search/start", json={"text": f"añade {name} oferta y dos sandías"}).json()
+    assert seen["terms"] == [f"{name} oferta", "sandía"]
     assert [i["inventory_idx"] for i in body["items"]] == [row["id"], None]
     assert body["items"][1]["inventory_name"] == ""
 
@@ -346,3 +346,22 @@ def test_start_bounds_the_parse_and_falls_back_to_raw_text(client, monkeypatch):
     assert seen["timeout"] <= 60
     assert seen["max_retries"] == 0
     assert seen["terms"] == ["mascarpone"]
+
+
+def test_start_treats_a_model_match_sharing_no_word_as_a_new_item(client, monkeypatch):
+    """The model once pointed "panes cristal" at an unrelated row, and picking a card
+    then overwrote that row's link: a match is kept only when the spoken words
+    share a word with the row's name."""
+    inv = client.get("/api/inventory").json()
+    row = inv["items"][0]
+    name = row[inv["columns"]["comida"]]
+    monkeypatch.setattr(
+        search_api, "parse_voice_items",
+        lambda *a, **k: VoiceParseResult(items=[VoiceItem(idx=row["id"], name=name, qty=None, phrase="panes cristal")]),
+    )
+    seen = _capture_start(monkeypatch)
+    item = client.post("/api/product-search/start", json={"text": "panes cristal"}).json()["items"][0]
+    assert seen["terms"] == ["panes cristal"]
+    assert item["inventory_idx"] is None
+    assert item["inventory_name"] == ""
+    assert item["existing_super"] == ""
