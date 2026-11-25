@@ -4,7 +4,7 @@ Where new code goes. The structure ratchet (`scripts/structure_ratchet.py`, run 
 
 ## Rules the gate holds
 
-- A file stays under 1,000 lines, a Python or JS function under 100, a directory under 40 modules. Existing offenders are in `.structure-ratchet-baseline.json` at their size and may not grow; a new one fails.
+- A file stays under 1,000 lines, a Python or JS function under 100, a directory under 40 modules. Existing offenders are in `.ratchets/structure.json` at their size and may not grow; a new one fails.
 - `src/` never imports `app/`: the data layer has no UI dependency.
 - A new root folder needs a line here and an entry in `extra_roots`, or the code goes into a folder below.
 

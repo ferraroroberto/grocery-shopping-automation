@@ -6,7 +6,7 @@ scope there by design. That leaves a gap: a docstring citing an issue number
 to tell the before/after story of a decision teaches the next edit to add
 another one, with nothing in the gate to stop it. This test applies the same
 ratchet shape locally, scoped to `app/` and `src/` where the drift was found:
-existing debt is frozen in `.docstring-issue-refs-baseline.json` (never
+existing debt is frozen in `.ratchets/docstring-issue-refs.json` (never
 hidden, never blocking work as-is) and a file's count may not rise above its
 entry; a file with no entry may not carry any. Comments state the
 present-tense why; decision history belongs in the issue and `git log`.
@@ -23,7 +23,7 @@ from pathlib import Path
 from src.no_window import NO_WINDOW
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-BASELINE_PATH = REPO_ROOT / ".docstring-issue-refs-baseline.json"
+BASELINE_PATH = REPO_ROOT / ".ratchets" / "docstring-issue-refs.json"
 _SCOPE_PREFIXES = ("app/", "src/")
 _REF_PATTERN = re.compile(r"#\d+")
 _DOC_NODE_TYPES = (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
