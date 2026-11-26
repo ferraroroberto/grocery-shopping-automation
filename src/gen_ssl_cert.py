@@ -167,5 +167,5 @@ if __name__ == "__main__":
     if platform.system() == "Windows":
         trust_on_windows(ca)
         print()
-    print("Restart the app (launch_app.bat) -- it will now serve HTTPS.")
+    print("Restart the app (scripts\\launch_app.bat) -- it will now serve HTTPS.")
     print("Mobile: on first visit tap 'Advanced -> Proceed' once per device.")

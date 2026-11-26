@@ -10,14 +10,14 @@ tray.bat              REM start (no-op if already running)
 tray.bat --restart    REM stop + start, to pick up new code
 ```
 
-Tray menu: **Open grocery** · **Copy local URL** · **Restart webapp** · **Status** · **Quit**. **Open grocery** and **Copy local URL** use `https://<host>.ts.net:8502` when the served cert (`certificates/cert.pem`) names a Tailscale host — read straight off that cert's SAN, never hardcoded — falling back to the loopback URL (`http://127.0.0.1:8502`, or `https://` once any cert exists) when it doesn't. Same mechanism as the sibling `facilitation-suite` tray. `webapp.bat` remains available as the manual/no-tray alternative — same app, no tray icon, no lifecycle management:
+Tray menu: **Open grocery** · **Copy local URL** · **Restart webapp** · **Status** · **Quit**. **Open grocery** and **Copy local URL** use `https://<host>.ts.net:8502` when the served cert (`certificates/cert.pem`) names a Tailscale host — read straight off that cert's SAN, never hardcoded — falling back to the loopback URL (`http://127.0.0.1:8502`, or `https://` once any cert exists) when it doesn't. Same mechanism as the sibling `facilitation-suite` tray. `scripts\webapp.bat` remains available as the manual/no-tray alternative — same app, no tray icon, no lifecycle management:
 
 ```powershell
 & .\.venv\Scripts\pip.exe install -r requirements.txt
-webapp.bat
+.\scripts\webapp.bat
 ```
 
-**Email poller (which launch runs it).** The background confirmation-email poller (Settings → Email watch) is opt-in per process: only the tray-launched webapp starts it, because `tray.bat` sets `GROCERY_EMAIL_POLLER=1` in the environment of the webapp it spawns. Every other boot — `webapp.bat`, the named-tunnel launcher, a git worktree, a design-review or fixture instance — logs `Email poller is off` and never reads the mailbox on its own (**Check now** in Settings still works there). Pytest never starts it either, flag or not. To run the poller from a manual `webapp.bat` run, opt in deliberately for that shell first: `$env:GROCERY_EMAIL_POLLER = "1"; webapp.bat`.
+**Email poller (which launch runs it).** The background confirmation-email poller (Settings → Email watch) is opt-in per process: only the tray-launched webapp starts it, because `tray.bat` sets `GROCERY_EMAIL_POLLER=1` in the environment of the webapp it spawns. Every other boot — `scripts\webapp.bat`, the named-tunnel launcher, a git worktree, a design-review or fixture instance — logs `Email poller is off` and never reads the mailbox on its own (**Check now** in Settings still works there). Pytest never starts it either, flag or not. To run the poller from a manual `scripts\webapp.bat` run, opt in deliberately for that shell first: `$env:GROCERY_EMAIL_POLLER = "1"; .\scripts\webapp.bat`.
 
 The FastAPI app on `:8502` covers the inventory dashboard, audit, target editing, item editing, item creation, shopping mode, automation controls, and the audio-audit workflow against the Excel-backed `src/data.py` layer. Open `http://127.0.0.1:8502` when no local cert exists, or `https://127.0.0.1:8502` after running `& .\.venv\Scripts\python.exe src\gen_ssl_cert.py`. Either launcher binds to `0.0.0.0`, so the same port is reachable over LAN or Tailscale from devices that can reach this PC.
 
@@ -45,7 +45,7 @@ Nothing real is reachable from it: the copy leaves out the gitignored real data,
 
 The original Streamlit UI is **intentionally retained**, not dead code: it's a fully working fallback over the same `src/data.py` layer, handy for quick desktop access without the PWA's HTTPS-cert / bearer-token setup, and a reference for the per-mode logic. The FastAPI/PWA app on `:8502` is the recommended surface — reach for Streamlit only when you specifically want the old interface.
 
-It's still available on `:8501` and drives the same modes. Double-click `launch_app.bat`, or from the repo root:
+It's still available on `:8501` and drives the same modes. Double-click `scripts\launch_app.bat`, or from the repo root:
 
 ```powershell
 & .\.venv\Scripts\python.exe -m streamlit run app/app.py
@@ -53,7 +53,7 @@ It's still available on `:8501` and drives the same modes. Double-click `launch_
 
 ## FastAPI remote access: Tailscale + Cloudflare
 
-The FastAPI preview follows the same access mechanics as `voice-transcriber` and `app-launcher`: local/LAN/Tailscale traffic reaches the app directly on `:8502`, and `webapp_tunnel_named.bat` can start the app plus a named Cloudflare tunnel using `webapp/cloudflared.yml`. The committed `webapp/cloudflared.sample.yml` points Cloudflare at `https://localhost:8502` with `noTLSVerify: true`, matching the sibling apps where Cloudflare terminates public TLS and the local origin uses a self-signed cert.
+The FastAPI preview follows the same access mechanics as `voice-transcriber` and `app-launcher`: local/LAN/Tailscale traffic reaches the app directly on `:8502`, and `scripts\webapp_tunnel_named.bat` can start the app plus a named Cloudflare tunnel using `webapp/cloudflared.yml`. The committed `webapp/cloudflared.sample.yml` points Cloudflare at `https://localhost:8502` with `noTLSVerify: true`, matching the sibling apps where Cloudflare terminates public TLS and the local origin uses a self-signed cert.
 
 One-time Cloudflare setup:
 
@@ -69,10 +69,10 @@ notepad webapp\cloudflared.yml
 Then run:
 
 ```powershell
-webapp_tunnel_named.bat
+.\scripts\webapp_tunnel_named.bat
 ```
 
-App-level auth matches the sibling pattern. `auth_token` is off by default, which leaves this PC and the LAN open but refuses every API call that arrives through the Cloudflare tunnel, so set a token before using `webapp_tunnel_named.bat`. When set, non-loopback API calls need `Authorization: Bearer <token>` or a `?token=...` bootstrap URL. The page stores the token in `localStorage` and removes it from the visible URL. A password can also be set so a fresh phone can unlock by typing the password, then the server hands back the bearer token.
+App-level auth matches the sibling pattern. `auth_token` is off by default, which leaves this PC and the LAN open but refuses every API call that arrives through the Cloudflare tunnel, so set a token before using `scripts\webapp_tunnel_named.bat`. When set, non-loopback API calls need `Authorization: Bearer <token>` or a `?token=...` bootstrap URL. The page stores the token in `localStorage` and removes it from the visible URL. A password can also be set so a fresh phone can unlock by typing the password, then the server hands back the bearer token.
 
 ```powershell
 & .\.venv\Scripts\python.exe scripts\gen_token.py
@@ -82,10 +82,10 @@ App-level auth matches the sibling pattern. `auth_token` is off by default, whic
 The password command prompts twice and stores only a salted hash in `config/app_password.json` (git-ignored), through the vendored `src/password.py` every fleet app shares; any non-empty password works. Until it has run, an older plaintext `auth_password` in `webapp_config.json` still signs in; after, that value is ignored and can be deleted. Re-run `scripts\gen_token.py --force` to rotate the token and `scripts\gen_token.py --clear` to disable bearer auth.
 
 ## Mobile Access (same Wi-Fi network)
-For the FastAPI/PWA rebuild, launch `webapp.bat` and open `http://<local-ip>:8502` or `https://<local-ip>:8502` if local certs are present. The app binds to all network interfaces automatically, so the same URL also works over Tailscale when the device can reach this PC.
+For the FastAPI/PWA rebuild, launch `scripts\webapp.bat` and open `http://<local-ip>:8502` or `https://<local-ip>:8502` if local certs are present. The app binds to all network interfaces automatically, so the same URL also works over Tailscale when the device can reach this PC.
 
 For the legacy Streamlit app:
-1. Launch `launch_app.bat` on the PC as usual
+1. Launch `scripts\launch_app.bat` on the PC as usual
 2. Click **📋 Copy link** in the sidebar — this copies `https://<local-ip>:8501` to the clipboard
 3. Paste the URL into Telegram (or any messaging app) and open it on your phone
 
@@ -98,7 +98,7 @@ For the legacy Streamlit app:
 
 ## HTTPS setup (required for microphone access on mobile)
 
-Mobile browsers block microphone access on plain HTTP. The app serves over HTTPS using a certificate stored in `certificates/` (gitignored). `webapp.bat` picks the cert up automatically and starts uvicorn with TLS on `:8502`.
+Mobile browsers block microphone access on plain HTTP. The app serves over HTTPS using a certificate stored in `certificates/` (gitignored). `scripts\webapp.bat` picks the cert up automatically and starts uvicorn with TLS on `:8502`.
 
 There are two certificate options — pick one:
 
@@ -115,7 +115,7 @@ If you access the app over Tailscale, provision a real Let's Encrypt certificate
 & .\.venv\Scripts\python.exe scripts\gen_tailscale_cert.py
 ```
 
-The script auto-detects your Tailscale hostname and writes `certificates/cert.pem` and `certificates/key.pem`. Restart `webapp.bat`, then open:
+The script auto-detects your Tailscale hostname and writes `certificates/cert.pem` and `certificates/key.pem`. Restart `scripts\webapp.bat`, then open:
 ```
 https://<host>.ts.net:8502
 ```

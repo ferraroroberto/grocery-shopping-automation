@@ -1,7 +1,7 @@
 """Where the HTTPS cert pair for the webapp lives.
 
 One lookup shared by the API router (which URL scheme to advertise), the tray
-manager, ``scripts/run_named_tunnel.py`` and ``webapp.bat`` (through
+manager, ``scripts/run_named_tunnel.py`` and ``scripts/webapp.bat`` (through
 ``src.uvicorn_launch``), so they can't disagree about whether HTTPS is on:
 ``webapp/certificates`` first, falling back to the repo-root ``certificates/``.
 """

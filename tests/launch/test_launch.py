@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
 from app.tray.manager import WebappManager, WebappManagerConfig
+from scripts import launcher
+from src.no_window import NO_WINDOW
 from src.uvicorn_launch import build_webapp_command
 from src.webapp_config import WebappConfig, load_webapp_config, save_webapp_config
 
@@ -35,13 +40,13 @@ def test_config_server_defaults_round_trips_and_rejects_unknown_values(tmp_path:
 
 
 def test_webapp_bat_serves_through_the_shared_launcher() -> None:
-    """``webapp.bat`` must not rebuild the cert lookup or the serve command line.
+    """``scripts/webapp.bat`` must not rebuild the cert lookup or the serve command line.
 
     A second copy once ignored ``server`` in ``webapp_config.json``; the batch
     file now delegates to ``src.uvicorn_launch``, so any cert, flag or server
     knowledge showing up in it again is the same drift.
     """
-    bat = (Path(__file__).resolve().parents[2] / "webapp.bat").read_text(encoding="utf-8")
+    bat = (Path(__file__).resolve().parents[2] / "scripts" / "webapp.bat").read_text(encoding="utf-8")
     assert "-m src.uvicorn_launch" in bat
     for duplicated in ("cert.pem", "key.pem", "--ssl-", "app.webapp.serve", "src.webapp_config"):
         assert duplicated not in bat, f"webapp.bat re-implements {duplicated!r}"
@@ -60,3 +65,23 @@ def test_manual_launcher_runs_the_tray_command_for_the_configured_server(
 
     assert launch.main() == 0
     assert ran == [build_webapp_command("127.0.0.1", 18502, project_root=tmp_path, server="uvicorn")]
+
+
+def test_tray_entrypoint_runs_as_a_script_from_scripts(tmp_path: Path) -> None:
+    """``tray.bat`` runs the file by path, so it must find the repo root itself."""
+    repo_root = Path(__file__).resolve().parents[2]
+    assert launcher.REPO_ROOT == repo_root
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
+    result = subprocess.run(
+        [sys.executable, str(repo_root / "scripts" / "launcher.py"), "bogus"],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=30,
+        creationflags=NO_WINDOW,
+    )
+    assert result.returncode == 2, result.stderr
+    assert "usage: launcher.py" in result.stderr

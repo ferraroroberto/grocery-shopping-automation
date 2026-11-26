@@ -1,7 +1,7 @@
 """Shared webapp process lifecycle: the ``app.webapp.serve`` command line and the
 stop sequence every launcher that spawns it — the tray (``app/tray/manager.py``),
 the named-tunnel launcher (``scripts/run_named_tunnel.py``) and the manual
-``webapp.bat`` (through :func:`main`) — needs the same way. Each caller keeps
+``scripts/webapp.bat`` (through :func:`main`) — needs the same way. Each caller keeps
 its own spawn call (different cwd/env/stdout handling), host and adopt-or-spawn
 policy.
 """
@@ -77,7 +77,7 @@ def main() -> int:
     """Serve the webapp in the foreground on the host, port and server that
     ``config/webapp_config.json`` names, over HTTPS when a cert pair exists.
 
-    This is ``webapp.bat``'s serve step: the same command the tray builds, so
+    This is ``scripts/webapp.bat``'s serve step: the same command the tray builds, so
     the manual launcher cannot drift from it. The server inherits this console,
     which is the point of a manual launch.
     """

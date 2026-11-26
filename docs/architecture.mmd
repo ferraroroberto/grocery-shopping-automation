@@ -47,7 +47,7 @@ monthly-cost baseline: set/reset| ROUTERS
   end
 
   subgraph tray["Recommended launcher — Windows tray (owns the PWA lifecycle)"]
-    LAUNCHERPY["launcher.py\nroot entrypoint (tray.bat)"]
+    LAUNCHERPY["scripts/launcher.py\ntray entrypoint (tray.bat)"]
     TRAYICON["app/tray/tray.py\npystray icon: Open grocery · Copy local URL ·\nRestart webapp · Status · Quit"]
     TRAYMGR["app/tray/manager.py\nWebappManager: uvicorn adopt-or-spawn,\nidempotent start, orphan-proof --restart"]
     SINGLEINST["app/tray/single_instance.py\nvendored named-mutex single-instance guard"]
