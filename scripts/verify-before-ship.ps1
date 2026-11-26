@@ -72,7 +72,9 @@ if (-not (Test-Path $py)) {
 # the code folders, so the probe after the tests names only what they wrote.
 $runtimeSnapshot = Join-Path ([IO.Path]::GetTempPath()) "runtime-write-snapshot-$PID.json"
 Invoke-Stage "runtime write probe (snapshot)" { & $py "scripts/runtime_write_ratchet.py" --snapshot $runtimeSnapshot }
-Invoke-Stage "pytest"          { & $py -m pytest }
+# The JUnit XML is the browser suite's timing record (.fleet.toml [e2e] junit_xml),
+# read by fleet-config's /e2e-audit; .pytest_cache/ is never committed.
+Invoke-Stage "pytest"          { & $py -m pytest --junitxml=.pytest_cache/e2e-junit.xml }
 # The Mac nightly runs the request-budget tests on WebKit. 0 passes; 4 (WebKit not
 # installed) and 5 (no budget test) are "not run", printed as such and never as a
 # pass; anything else, 3 (not confirmed) included, fails the gate.

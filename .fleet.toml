@@ -91,6 +91,7 @@ build_info = { src = "src/build_info.py", sha = "1c1007fcd0b65b54342779250cb6697
 health_routes = { src = "src/health_routes.py", sha = "732c304a4735d4e654f5acb3b6f53b7db67d47ef", dest = "src/health_routes.py" }
 restart_check = { src = "src/restart_check.py", sha = "f8c2f66eae7a69f3c834386579702ed5b747d7af", dest = "src/restart_check.py" }
 ratchet_baseline = { src = "scripts/ratchet_baseline.py", sha = "48db2132dab2dfc38b6154948ca17fd1f4b9232f", dest = "scripts/ratchet_baseline.py" }
+classify_e2e = { src = "scripts/classify_e2e.py", sha = "3f15581f2188895a27f5a32083f7f7cdb7e93648", dest = "scripts/classify_e2e.py" }
 
 [static_ratchet]
 enabled  = true
@@ -599,3 +600,55 @@ name   = "load-state"
 module = "app/webapp/static/modules/load-state.js"
 type   = "LoadState"
 derive = "deriveLoadState"
+
+# [e2e] -- the browser suite's budget, timing record and diff routing.
+# test_budget is the suite's size in collected pytest nodes: fleet-config's /e2e hands a
+# suite above it to /e2e-audit, so lower it as the suite trims. junit_xml is the per-test
+# seconds the gate's pytest stage writes in the checkout that ran it, read by /e2e-audit.
+# The rules feed scripts/classify_e2e.py (project-scaffolding docs/e2e-routing.md), first
+# match wins, and a path no rule matches runs the full suite. fleet-config's /e2e reads
+# them; the gate does not, and always runs the whole suite.
+[e2e]
+test_budget        = 18
+junit_xml          = ".pytest_cache/e2e-junit.xml"
+full_pytest_target = "tests/e2e"
+
+[[e2e.rule]]
+tier   = "full"
+prefix = "app/"
+
+[[e2e.rule]]
+tier   = "full"
+prefix = "src/"
+
+[[e2e.rule]]
+tier   = "full"
+prefix = "tests/e2e/"
+
+[[e2e.rule]]              # the fixtures every browser story's server is built from
+tier = "full"
+path = "tests/conftest.py"
+
+[[e2e.rule]]
+tier   = "full"
+prefix = "tests/fixtures/"
+
+[[e2e.rule]]              # the other tests, none of which the browser suite imports
+tier   = "none"
+prefix = "tests/"
+
+[[e2e.rule]]
+tier   = "none"
+prefix = "docs/"
+
+[[e2e.rule]]
+tier = "none"
+path = "README.md"
+
+[[e2e.rule]]
+tier = "none"
+path = "CLAUDE.md"
+
+[[e2e.rule]]
+tier = "none"
+path = "AGENTS.md"

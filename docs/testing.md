@@ -5,6 +5,14 @@
 - **The e2e's browser engine** follows pytest-playwright's `--browser` (Chromium when it is absent), which is how the Mac nightly runs the whole suite on WebKit, the only engine installed there; `pytest-playwright` is in `requirements.txt` because the nightly leg passes its options and refuses a checkout without the plugin. The Audit voice-take tests skip on an engine with no `MediaRecorder` / `AudioContext` (Playwright's Windows WebKit build), and run where both exist.
 - **The request budget** (`tests/e2e/budget/`). The vendored probe `_request_budget.py` loads the main page on a fake clock and counts API requests by path: a minute visible, a minute hidden, then the return to the foreground. The page may send at most `[request_budget] visible_requests_per_minute` (`.fleet.toml`) in the visible minute, nothing while hidden except the usage log's single flush as the page goes hidden (named in `test_main_page_budget.py`), and at most one catch-up read per path on the return. A missing or malformed budget key reports NOT CONFIRMED, never a pass.
 
+## The e2e's budget, timing and routing
+
+`.fleet.toml` `[e2e]` declares all three.
+
+- **Budget** — `test_budget` is the suite's size in collected pytest nodes. fleet-config's `/e2e` hands a suite above it to `/e2e-audit`, so it is lowered as the suite trims and raised only on purpose.
+- **Timing** — the gate's pytest stage writes per-test seconds to the JUnit XML `junit_xml` names, which `/e2e-audit` reads to price waits and slow tests. The file is gitignored and belongs to the checkout that ran the gate: a worktree's record goes with the worktree, and a checkout where the gate never ran reads as unknown.
+- **Routing** — the vendored `scripts/classify_e2e.py` maps a diff to a tier from the `[[e2e.rule]]` entries; a path no rule matches runs the full suite. fleet-config's `/e2e` reads it. The gate does not, and always runs the whole suite. `tests/e2e_harness/test_e2e_config.py` pins the routing and the gate's timing path.
+
 ## Loopback sockets in the e2e
 
 Every connection a browser closes to a local server leaves an (ephemeral port, server port) pair in TIME_WAIT for minutes, and Windows fails a `connect()` that lands on one as `net::ERR_ADDRESS_IN_USE`. A run that makes many connections, or a second lane gating on the same host, then fails a page load that has nothing wrong with it. The harness keeps its share small in three ways:
@@ -20,7 +28,7 @@ A full e2e run ends with the line `shared contexts: N created for M requests`. M
 `& .\scripts\verify-before-ship.ps1` is the one pass/fail pipeline, fail-fast, anchored to the repo root so it runs from anywhere. This page is the only full description of its stages; the README, `CLAUDE.md` and the script header each carry a one-line pointer here. The stages run in this order:
 
 1. **Runtime write probe (snapshot)** — `scripts/runtime_write_ratchet.py --snapshot` records the untracked and ignored files already under the code folders.
-2. **pytest** — the unit + e2e suite. It never reads live state (Gmail config, processed state, the real spreadsheet), a real cart or a real browser profile.
+2. **pytest** — the unit + e2e suite, with per-test seconds written to the JUnit XML under `.pytest_cache/`. It never reads live state (Gmail config, processed state, the real spreadsheet), a real cart or a real browser profile.
 3. **Runtime write probe** — `--probe` against the snapshot: any untracked or ignored file the test run left under a code folder fails.
 4. **Static ratchet** — the stage fails on a copied block (`jscpd`, run through `npx`, so Node must be installed), on an unused import or variable, on an undefined name (`F821`), and on a likely-bug or security pattern from the curated ruff `B` and `S` families, unless `.ratchets/static.json` lists it. `ruff` comes from `requirements.txt`.
 5. **Docs ratchet** — `README.md` past 40 KiB, or a new issue reference, dated heading or changelog heading in `README.md` or `docs/**/*.md` beyond `.ratchets/docs.json`, fails; docs state what is true now and history stays in git, PRs and issues.
