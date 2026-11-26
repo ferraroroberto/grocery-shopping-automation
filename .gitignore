@@ -14,6 +14,9 @@ test-results/
 __pycache__/
 *.py[cod]
 *$py.class
+# The gate's --junitxml creates this folder before pytest does, so pytest does
+# not write its own catch-all .gitignore inside it.
+.pytest_cache/
 
 # logs
 *.log
