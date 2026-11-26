@@ -1,4 +1,4 @@
-"""scripts/run_named_tunnel.py must start the way webapp_tunnel_named.bat runs it."""
+"""scripts/run_named_tunnel.py must start the way scripts/webapp_tunnel_named.bat runs it."""
 
 import os
 import subprocess

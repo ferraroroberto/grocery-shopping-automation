@@ -14,11 +14,11 @@ tray.bat              REM start the webapp under the tray (no-op if already runn
 tray.bat --restart    REM stop + start, to pick up new code
 ```
 
-Open `http://127.0.0.1:8502` (or `https://` once a cert exists in `certificates/`). `webapp.bat` is the manual/no-tray alternative; `launch_app.bat` starts the legacy Streamlit app on `:8501`. The served host/port follows `config/webapp_config.json` (default `0.0.0.0:8502`), so the app is reachable over LAN or Tailscale; the `:8502` quoted throughout the docs is that default. Phone access, HTTPS (required for the microphone), remote access and launch details: [docs/running-and-access.md](docs/running-and-access.md).
+Open `http://127.0.0.1:8502` (or `https://` once a cert exists in `certificates/`). `scripts\webapp.bat` is the manual/no-tray alternative; `scripts\launch_app.bat` starts the legacy Streamlit app on `:8501`. The served host/port follows `config/webapp_config.json` (default `0.0.0.0:8502`), so the app is reachable over LAN or Tailscale; the `:8502` quoted throughout the docs is that default. Phone access, HTTPS (required for the microphone), remote access and launch details: [docs/running-and-access.md](docs/running-and-access.md).
 
 **Restart recipe:** the tray owns the webapp and there is no hot-reload across `app/` or `src/` edits, so after changing either, run `tray.bat --restart`, then confirm the new build with `GET /api/version`'s `git_sha` == `git rev-parse --short HEAD` (the footer line in the app shows the same build). The legacy Streamlit app on `:8501` is not tray-managed.
 
-**Email poller:** the confirmation-email poller (Settings → Email watch) runs only in the tray-launched webapp, which sets `GROCERY_EMAIL_POLLER=1`. Every other boot (`webapp.bat`, the tunnel launcher, a worktree, a fixture instance, pytest) leaves it off. To run it from `webapp.bat`: `$env:GROCERY_EMAIL_POLLER = "1"; webapp.bat`.
+**Email poller:** the confirmation-email poller (Settings → Email watch) runs only in the tray-launched webapp, which sets `GROCERY_EMAIL_POLLER=1`. Every other boot (`scripts\webapp.bat`, the tunnel launcher, a worktree, a fixture instance, pytest) leaves it off. To run it from `scripts\webapp.bat`: `$env:GROCERY_EMAIL_POLLER = "1"; .\scripts\webapp.bat`.
 
 ## Verification gate
 

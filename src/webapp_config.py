@@ -15,7 +15,7 @@ DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "webap
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8502
 # The tray sets this in the webapp's environment; only then does the process
-# poll the mailbox. Any other boot (worktree, fixture instance, webapp.bat) stays off.
+# poll the mailbox. Any other boot (worktree, fixture instance, scripts/webapp.bat) stays off.
 EMAIL_POLLER_ENV = "GROCERY_EMAIL_POLLER"
 
 
@@ -88,6 +88,6 @@ def _validate(cfg: WebappConfig) -> None:
 
 
 if __name__ == "__main__":
-    # ``webapp.bat`` / ``tray.bat`` read the bind address from here: "<host> <port>".
+    # ``scripts/webapp.bat`` / ``tray.bat`` read the bind address from here: "<host> <port>".
     _cfg = load_webapp_config()
     print(_cfg.host, _cfg.port)

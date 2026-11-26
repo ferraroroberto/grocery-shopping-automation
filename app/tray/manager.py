@@ -7,7 +7,7 @@
   externally started uvicorn is left alone.
 
 Used by the tray so launching ``tray.bat`` brings up the webapp. Standalone
-``webapp.bat`` is the "server only, no tray" alternative.
+``scripts/webapp.bat`` is the "server only, no tray" alternative.
 """
 
 from __future__ import annotations
@@ -76,7 +76,7 @@ class WebappStatus:
 
 def load_config() -> WebappManagerConfig:
     """The tray's bind address: ``host``/``port`` from ``webapp_config`` — the same
-    values ``/api/access``, the named tunnel and ``webapp.bat`` read."""
+    values ``/api/access``, the named tunnel and ``scripts/webapp.bat`` read."""
     cfg = load_webapp_config()
     return WebappManagerConfig(host=cfg.host, port=cfg.port, server=cfg.server)
 
@@ -106,7 +106,7 @@ def cert_hostname(project_root: Optional[Path] = None) -> Optional[str]:
 
 def _renew_tailscale_cert() -> None:
     """Best-effort auto-renew of the Tailscale (Let's Encrypt) cert before
-    spawn. Mirrors ``webapp.bat``'s own ``--check`` call; never raises."""
+    spawn. Mirrors ``scripts/webapp.bat``'s own ``--check`` call; never raises."""
     script = PROJECT_ROOT / "scripts" / "gen_tailscale_cert.py"
     if not script.exists():
         return

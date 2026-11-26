@@ -6,7 +6,7 @@ Edit `src/config.json` to customize:
 - **Logging** — Log level and format
 - **Benchmark runs** *(optional)* — `benchmark.runs_dir`, the one directory every benchmark CLI writes to and the store-links simulator reads from (default `benchmark_runs/` in the repo; set it and the runs, `_state/` mappings, history and per-store Chrome profiles all live there)
 - **Usage log** *(automatic)* — the PWA records which views and `data-track` controls get used, and on which device class, into `usage.sqlite3` under the fleet runtime-data directory (`C:\sqlite\grocery-shopping-automation\` on Windows; `GROCERY_SHOPPING_AUTOMATION_DATA_DIR` redirects it), never into the repo. Only constant ids, a per-visit session id, device class and timestamps are stored: no item names, quantities, prices, list contents or search text. Read it with project-scaffolding's `scripts/usage_summary.py --app grocery-shopping-automation --days 30`. Tests and the design-review demo instance set the same variable to a temp directory.
-- **Served host/port** *(optional)* — `config/webapp_config.json` (`host`/`port`, default `0.0.0.0:8502`) is what `tray.bat`, `webapp.bat`, `/api/access` and the named tunnel all follow; the `:8502` quoted throughout this README is that default
+- **Served host/port** *(optional)* — `config/webapp_config.json` (`host`/`port`, default `0.0.0.0:8502`) is what `tray.bat`, `scripts/webapp.bat`, `/api/access` and the named tunnel all follow; the `:8502` quoted throughout this README is that default
 
 ## Telegram notifications
 

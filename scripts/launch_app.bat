@@ -10,8 +10,8 @@ REM ============================================================================
 
 echo [INFO] Starting Household Inventory ^& Shopping Helper...
 
-REM Set the path to the script directory (portable — works from any checkout/worktree)
-set "SCRIPT_DIR=%~dp0"
+REM Set the path to the repo root, one level up (works from any checkout/worktree)
+for %%I in ("%~dp0..") do set "SCRIPT_DIR=%%~fI\"
 set "VENV_PY=%SCRIPT_DIR%.venv\Scripts\python.exe"
 if not exist "%VENV_PY%" (
     echo [ERROR] .venv missing. Make sure it exists at %SCRIPT_DIR%.venv

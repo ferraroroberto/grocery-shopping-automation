@@ -14,7 +14,7 @@ Usage:
     & .venv/Scripts/python.exe scripts/gen_tailscale_cert.py
     & .venv/Scripts/python.exe scripts/gen_tailscale_cert.py <host>.ts.net
 
-    # Check and auto-renew if expiring within 30 days (called by webapp.bat on startup):
+    # Check and auto-renew if expiring within 30 days (called by scripts/webapp.bat on startup):
     & .venv/Scripts/python.exe scripts/gen_tailscale_cert.py --check
 """
 from __future__ import annotations
@@ -188,7 +188,7 @@ def main() -> None:
     print(f"Provisioning Tailscale cert for: {hostname}")
     _provision(hostname)
     print()
-    print("Restart the app (webapp.bat), then open:")
+    print("Restart the app (scripts\\webapp.bat), then open:")
     print(f"  https://{hostname}:8502")
     print()
     print("Note: https://localhost:8502 will show a cert hostname-mismatch warning")

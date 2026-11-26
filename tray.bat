@@ -72,7 +72,7 @@ REM  is another project's own config key (app-launcher#963).
 set "TRAY_APP_NAME=grocery-shopping-automation"
 REM === ADAPT (2/4): the args python is started with to launch the tray,
 REM     e.g. "launcher.py tray"  or  "-m tray" ===
-set "TRAY_LAUNCH=launcher.py tray"
+set "TRAY_LAUNCH=scripts\launcher.py tray"
 
 set "WANT_RESTART="
 if /i "%~1"=="--restart" set "WANT_RESTART=1"
@@ -80,6 +80,8 @@ if /i "%~1"=="-r"        set "WANT_RESTART=1"
 
 REM === ADAPT (3/4): in the -TrayMatch below, replace __TRAY_MATCH__ with a regex
 REM     matching THIS app's tray invocation, e.g. launcher\.py\s+tray  or  -m\s+tray
+REM  Both spellings stay matched for good: a tray still running from a root
+REM  launcher.py must be found and replaced, never left beside the new one.
 set "PS=C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
 set "TRAY_VENV=%SCRIPT_DIR%.venv"
 REM  ONE shared, machine-local copy owned by fleet-config (project-scaffolding#153)
@@ -115,7 +117,7 @@ set "VERSION_URL="
 set "RESTART_ARG="
 if defined WANT_RESTART set "RESTART_ARG=-Restart"
 
-%PS% -NoProfile -NonInteractive -File "%TRAY_PS%" launch -AppName "%TRAY_APP_NAME%" -ScriptDir "%SCRIPT_DIR_ARG%" -VenvDir "%TRAY_VENV%" -TrayMatch "launcher\.py\s+tray" -Ports "%OWNED_PORTS%" -TrayLaunch "%TRAY_LAUNCH%" -VersionUrl "%VERSION_URL%" !RESTART_ARG!
+%PS% -NoProfile -NonInteractive -File "%TRAY_PS%" launch -AppName "%TRAY_APP_NAME%" -ScriptDir "%SCRIPT_DIR_ARG%" -VenvDir "%TRAY_VENV%" -TrayMatch "(scripts[\\/]+)?launcher\.py\s+tray" -Ports "%OWNED_PORTS%" -TrayLaunch "%TRAY_LAUNCH%" -VersionUrl "%VERSION_URL%" !RESTART_ARG!
 exit /b %ERRORLEVEL%
 
 REM  Standalone start (project-scaffolding#345): the shared helper is missing,

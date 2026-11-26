@@ -3,7 +3,7 @@ chcp 65001 >nul
 REM Start grocery FastAPI/PWA plus a named Cloudflare tunnel.
 
 setlocal
-set "SCRIPT_DIR=%~dp0"
+for %%I in ("%~dp0..") do set "SCRIPT_DIR=%%~fI\"
 set "VENV_PY=%SCRIPT_DIR%.venv\Scripts\python.exe"
 
 if not exist "%VENV_PY%" (
