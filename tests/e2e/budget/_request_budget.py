@@ -16,7 +16,14 @@ foreground is counted on its own. The fleet's rules (docs/polling-budget.md):
 The page clock is stopped before the visible minute, so a page timer fires only
 inside a counted minute's steps, and each minute ends on quiet traffic before the
 count moves on: a read a visible minute started is never counted as hidden,
-however slow the machine. A page that sends a one-off flush as it turns hidden
+however slow the machine.
+
+A fake clock belongs to the whole browser context, so the probe resumes it on every
+exit, a raised one included: page timers run again afterwards. It cannot be taken
+off, though: the context keeps a fake clock, ahead of the real time by what the probe
+advanced, so a caller that shares contexts should give the budget test its own.
+
+A page that sends a one-off flush as it turns hidden
 (a usage log, buffered timings) names its path, allowed once:
 
     reading = measure_request_budget(page, url, hidden_flushes=("/api/usage/events",))
@@ -46,15 +53,20 @@ for `page.clock`.
 
 from __future__ import annotations
 
+import logging
 import time
 import tomllib
 from collections import Counter
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlsplit
 
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page, Request
+
+logger = logging.getLogger(__name__)
 
 MINUTE_MS = 60_000
 DEFAULT_STEP_MS = 500
@@ -186,6 +198,24 @@ class _Counter:
             self.settle()
 
 
+@contextmanager
+def _resumed_clock(page: Page) -> Iterator[None]:
+    """Leave the context's clock running however the block ends.
+
+    A clock that cannot be resumed raises, except when the block is already raising:
+    then it is logged, so the measurement's own error is the one reported.
+    """
+    try:
+        yield
+    except BaseException:
+        try:
+            page.clock.resume()
+        except PlaywrightError as exc:
+            logger.warning("⚠️ the page clock was left stopped on this browser context: %s", exc)
+        raise
+    page.clock.resume()
+
+
 def measure_request_budget(
     page: Page,
     url: str,
@@ -207,6 +237,19 @@ def measure_request_budget(
     timer sends later, is a hidden request.
     """
     page.clock.install()
+    with _resumed_clock(page):
+        return _count_phases(page, url, api_prefix, stream_paths, hidden_flushes, step_ms, minute_ms)
+
+
+def _count_phases(
+    page: Page,
+    url: str,
+    api_prefix: str,
+    stream_paths: tuple[str, ...],
+    hidden_flushes: tuple[str, ...],
+    step_ms: int,
+    minute_ms: int,
+) -> BudgetReading:
     page.add_init_script(_HIDE_SCRIPT)
     counter = _Counter(page, api_prefix, stream_paths)
     page.goto(url)
