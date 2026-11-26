@@ -24,6 +24,7 @@
 /app/webapp/static/_vendored/toast
 /app/webapp/static/_vendored/usage-log
 /scripts/box_lock_gate.ps1
+/scripts/classify_e2e.py
 /scripts/comment_ratchet.py
 /scripts/conventions_ratchet.py
 /scripts/conventions_readers.py
